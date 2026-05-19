@@ -26,7 +26,7 @@ If BlindRSS has helped you, feel free to submit pull requests with fixes or feat
 
 ## Run From Python (Any OS)
 
-1. Install Python 3.13.
+1. Install Python 3.14.
 2. Install dependencies: `pip install -r requirements.txt`
 3. Run: `python main.py`
 

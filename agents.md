@@ -5,7 +5,7 @@ Fix any warnings, or errors.
 # BlindRSS Architecture & Dev Guide
 
 ## System Overview
-- Stack: Python 3.13, wxPython (GUI), SQLite (storage), feedparser + requests.
+- Stack: Python 3.14, wxPython (GUI), SQLite (storage), feedparser + requests.
 - Entry: `main.py` -> `core.factory` -> `gui.mainframe`.
 - Build:
   - Windows: PyInstaller directory distribution (`main.spec` -> `dist/BlindRSS/BlindRSS.exe`).

@@ -94,40 +94,7 @@ goto :done
 set "PYTHON_EXE="
 where /q py
 if not errorlevel 1 (
-    for /f "delims=" %%P in ('py -3.13 -c "import sys; print(sys.executable)" 2^>nul') do (
-        set "PYTHON_EXE=%%P"
-    )
-)
-if defined PYTHON_EXE exit /b 0
-
-where /q uv
-if not errorlevel 1 (
-    for /f "delims=" %%P in ('uv python find 3.13 2^>nul') do (
-        set "PYTHON_EXE=%%P"
-    )
-)
-if defined PYTHON_EXE if exist "%PYTHON_EXE%" exit /b 0
-if defined PYTHON_EXE set "PYTHON_EXE="
-
-where /q py
-if not errorlevel 1 (
     for /f "delims=" %%P in ('py -3.14 -c "import sys; print(sys.executable)" 2^>nul') do (
-        set "PYTHON_EXE=%%P"
-    )
-)
-if defined PYTHON_EXE exit /b 0
-
-where /q py
-if not errorlevel 1 (
-    for /f "delims=" %%P in ('py -3.12 -c "import sys; print(sys.executable)" 2^>nul') do (
-        set "PYTHON_EXE=%%P"
-    )
-)
-if defined PYTHON_EXE exit /b 0
-
-where /q py
-if not errorlevel 1 (
-    for /f "delims=" %%P in ('py -3 -c "import sys; print(sys.executable)" 2^>nul') do (
         set "PYTHON_EXE=%%P"
     )
 )
@@ -135,14 +102,14 @@ if defined PYTHON_EXE exit /b 0
 
 where /q python
 if errorlevel 1 (
-    echo [X] Python not found. Install Python 3.13+ and ensure it is available (python/py), or install uv with Python 3.13.
+    echo [X] Python not found. Install Python 3.14+ and ensure it is available (python/py).
     exit /b 1
 )
-for /f "delims=" %%P in ('python -c "import sys; print(sys.executable)" 2^>nul') do (
+for /f "delims=" %%P in ('python -c "import sys; print(sys.executable) if sys.version_info >= (3, 14) else sys.exit(1)" 2^>nul') do (
     set "PYTHON_EXE=%%P"
 )
 if not defined PYTHON_EXE (
-    echo [X] Python is present on PATH but failed to run (check Windows Store app execution aliases).
+    echo [X] Python 3.14+ is required. Install Python 3.14 and ensure it is available as "py -3.14" or "python".
     exit /b 1
 )
 exit /b 0

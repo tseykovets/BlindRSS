@@ -1236,6 +1236,12 @@ class MinifluxProvider(RSSProvider):
     def mark_read_batch(self, article_ids: List[str]) -> bool:
         return self._set_entries_status(article_ids, "read")
 
+    def supports_article_delete(self) -> bool:
+        return True
+
+    def delete_article(self, article_id: str) -> bool:
+        return self._set_entries_status([article_id], "removed")
+
     def mark_all_read(self, feed_id: str) -> bool:
         if not self.base_url:
             return False
@@ -1278,10 +1284,10 @@ class MinifluxProvider(RSSProvider):
             return False
 
         status = (status or "").strip().lower()
-        if status not in ("read", "unread"):
+        if status not in ("read", "unread", "removed"):
             return False
 
-        # Miniflux supports batching via PUT /v1/entries.
+        # Miniflux supports batching status changes via PUT /v1/entries.
         chunk_size = 200
         ok = True
         unique_ids = []

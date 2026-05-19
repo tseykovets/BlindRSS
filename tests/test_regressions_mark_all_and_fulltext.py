@@ -103,6 +103,16 @@ def test_miniflux_mark_all_read_unsupported_view():
         assert put.call_count == 0
 
 
+def test_miniflux_delete_article_sets_removed_status():
+    provider = MinifluxProvider({"providers": {"miniflux": {"url": "https://example.com", "api_key": "t"}}})
+    with patch("providers.miniflux.requests.put") as put:
+        put.return_value.status_code = 204
+        assert provider.supports_article_delete() is True
+        assert provider.delete_article("123") is True
+        assert put.call_count == 1
+        assert put.call_args.kwargs["json"] == {"entry_ids": [123], "status": "removed"}
+
+
 
 
 def test_download_html_cloudflare_fallback(monkeypatch):

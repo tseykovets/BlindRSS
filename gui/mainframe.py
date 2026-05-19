@@ -336,6 +336,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_article_select, self.list_ctrl)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_article_activate, self.list_ctrl)
         self.Bind(wx.EVT_CONTEXT_MENU, self.on_list_context_menu, self.list_ctrl)
+        self.list_ctrl.Bind(wx.EVT_KEY_DOWN, self.on_article_list_key_down)
         self.search_ctrl.Bind(wx.EVT_TEXT_ENTER, self.on_search_enter)
         self.search_ctrl.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self.on_search_enter)
         self.search_ctrl.Bind(wx.EVT_SEARCHCTRL_CANCEL_BTN, self.on_search_clear)
@@ -1395,6 +1396,30 @@ class MainFrame(wx.Frame):
             log.debug("Could not find focused window: %s", e)
             return None
 
+    def _window_is_or_child(self, focus, window) -> bool:
+        if focus is None or window is None:
+            return False
+        if focus == window:
+            return True
+        try:
+            parent = focus.GetParent()
+            while parent:
+                if parent == window:
+                    return True
+                parent = parent.GetParent()
+        except Exception:
+            pass
+        return False
+
+    def _is_delete_key(self, key) -> bool:
+        delete_keys = {
+            getattr(wx, "WXK_DELETE", None),
+            getattr(wx, "WXK_NUMPAD_DELETE", None),
+            getattr(wx, "WXK_NUMPAD_DECIMAL", None),
+        }
+        delete_keys.discard(None)
+        return key in delete_keys
+
     def _is_text_input_focused(self, focus) -> bool:
         try:
             if focus is None:
@@ -1454,12 +1479,13 @@ class MainFrame(wx.Frame):
                     except Exception:
                         log.exception("Error activating article on space press")
 
-        delete_keys = {
-            getattr(wx, "WXK_DELETE", None),
-            getattr(wx, "WXK_NUMPAD_DELETE", None),
-            getattr(wx, "WXK_NUMPAD_DECIMAL", None),
-        }
-        if key in delete_keys:
+        if MainFrame._is_delete_key(self, key):
+            if MainFrame._window_is_or_child(self, focus, self.list_ctrl):
+                try:
+                    self.on_delete_article()
+                    return
+                except Exception:
+                    log.exception("Error handling article delete shortcut")
             if focus == self.tree:
                 try:
                     item = self.tree.GetSelection()
@@ -1556,6 +1582,21 @@ class MainFrame(wx.Frame):
                         return
                     except Exception:
                         pass
+        event.Skip()
+
+    def on_article_list_key_down(self, event: wx.KeyEvent) -> None:
+        try:
+            key = event.GetKeyCode()
+        except Exception:
+            key = None
+
+        if MainFrame._is_delete_key(self, key):
+            try:
+                self.on_delete_article()
+                return
+            except Exception:
+                log.exception("Error handling article list delete shortcut")
+
         event.Skip()
 
     # -----------------------------------------------------------------
@@ -2607,11 +2648,13 @@ class MainFrame(wx.Frame):
 
     def on_list_context_menu(self, event):
         pos = event.GetPosition()
-        idx = self.list_ctrl.GetFocusedItem() # Get currently focused item
+        idx = self._get_selected_article_index()
         
         menu_pos = wx.DefaultPosition
         
         if pos == wx.DefaultPosition: # Keyboard event
+            if idx == wx.NOT_FOUND:
+                idx = self.list_ctrl.GetFocusedItem()
             if idx != wx.NOT_FOUND:
                 rect = self.list_ctrl.GetItemRect(idx)
                 menu_pos = rect.GetPosition() # Use item's top-left corner relative to list control
@@ -2620,10 +2663,21 @@ class MainFrame(wx.Frame):
                 menu_pos = wx.Point(size.width // 2, size.height // 2)
         else: # Mouse event
             menu_pos = pos
+            try:
+                hit = self.list_ctrl.HitTest(pos)
+                hit_idx = hit[0] if isinstance(hit, tuple) else hit
+                if hit_idx != wx.NOT_FOUND:
+                    idx = int(hit_idx)
+                    self.list_ctrl.Select(idx)
+                    self.list_ctrl.Focus(idx)
+            except Exception:
+                pass
 
         if idx == wx.NOT_FOUND and pos == wx.DefaultPosition:
             # If keyboard trigger and no item focused, don't show menu
             return
+
+        valid_article_idx = idx != wx.NOT_FOUND and 0 <= idx < len(self.current_articles) and not self._is_load_more_row(idx)
 
         menu = wx.Menu()
         open_item = menu.Append(wx.ID_ANY, "Open Article")
@@ -2631,10 +2685,13 @@ class MainFrame(wx.Frame):
         menu.AppendSeparator()
         mark_read_item = menu.Append(wx.ID_ANY, "Mark as Read")
         mark_unread_item = menu.Append(wx.ID_ANY, "Mark as Unread")
+        delete_item = None
+        if valid_article_idx and self._supports_article_delete():
+            delete_item = menu.Append(wx.ID_ANY, "Delete Article\tDel")
         menu.AppendSeparator()
         copy_item = menu.Append(wx.ID_ANY, "Copy Link")
         download_item = None
-        if idx != wx.NOT_FOUND and 0 <= idx < len(self.current_articles):
+        if valid_article_idx:
             article_for_menu = self.current_articles[idx]
             if article_for_menu.media_url:
                 download_item = menu.Append(wx.ID_ANY, "Download")
@@ -2657,6 +2714,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.on_open_in_browser(idx), open_browser_item)
         self.Bind(wx.EVT_MENU, lambda e: self.mark_article_read(idx), mark_read_item)
         self.Bind(wx.EVT_MENU, lambda e: self.mark_article_unread(idx), mark_unread_item)
+        if delete_item is not None:
+            self.Bind(wx.EVT_MENU, lambda e: self.on_delete_article(), delete_item)
         self.Bind(wx.EVT_MENU, lambda e: self.on_copy_link(idx), copy_item)
 
         self.list_ctrl.PopupMenu(menu, menu_pos)
@@ -2751,6 +2810,13 @@ class MainFrame(wx.Frame):
             return bool(getattr(self.provider, "supports_favorites", lambda: False)())
         except Exception:
             log.exception("Error checking provider support for favorites")
+            return False
+
+    def _supports_article_delete(self) -> bool:
+        try:
+            return bool(getattr(self.provider, "supports_article_delete", lambda: False)())
+        except Exception:
+            log.exception("Error checking provider support for article deletion")
             return False
 
     def _get_selected_article_index(self) -> int:
@@ -2905,7 +2971,7 @@ class MainFrame(wx.Frame):
         if ok != wx.YES:
             return
 
-        if not bool(getattr(self.provider, "supports_article_delete", lambda: False)()):
+        if not self._supports_article_delete():
             wx.MessageBox(
                 "This provider does not support deleting articles.",
                 "Not Supported",

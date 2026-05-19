@@ -842,6 +842,8 @@ class MinifluxProvider(RSSProvider):
             return None
 
     def refresh(self, progress_cb=None, force: bool = False) -> bool:
+        started_at = datetime.now(timezone.utc)
+        log.info("Miniflux refresh start force=%s", force)
         # Kick off a global refresh on the Miniflux server.
         self._req("PUT", "/v1/feeds/refresh")
         refresh_info = dict(getattr(self, "_last_request_info", {}) or {})
@@ -851,6 +853,13 @@ class MinifluxProvider(RSSProvider):
             and str(refresh_info.get("method", "")).upper() == "PUT"
         ):
             global_refresh_ok = bool(refresh_info.get("ok", False))
+        log.info(
+            "Miniflux global refresh request force=%s ok=%s status=%s error=%r",
+            force,
+            global_refresh_ok,
+            refresh_info.get("status_code"),
+            refresh_info.get("error"),
+        )
 
         # After triggering, fetch feed metadata so we can surface stale/error
         # feeds in the UI and optionally retry them individually.
@@ -887,6 +896,15 @@ class MinifluxProvider(RSSProvider):
                 per_feed_retry_ids.append(feed_id)
 
         allow_targeted_refresh = bool(global_refresh_ok and (not feeds_from_cache))
+        log.info(
+            "Miniflux refresh feed metadata force=%s feeds=%s feeds_from_cache=%s targeted_candidates=%s retry_budget=%s allow_targeted=%s",
+            force,
+            len(feeds or []),
+            feeds_from_cache,
+            len(per_feed_retry_ids),
+            retry_budget,
+            allow_targeted_refresh,
+        )
         if not allow_targeted_refresh and per_feed_retry_ids:
             log.warning(
                 "Skipping Miniflux per-feed refresh retries due to upstream instability "
@@ -928,6 +946,8 @@ class MinifluxProvider(RSSProvider):
                 },
             )
 
+        duration_s = (datetime.now(timezone.utc) - started_at).total_seconds()
+        log.info("Miniflux refresh finished force=%s duration_s=%.2f feeds=%s", force, duration_s, len(feeds or []))
         return True
 
     def refresh_feed(self, feed_id: str, progress_cb=None) -> bool:
@@ -935,6 +955,7 @@ class MinifluxProvider(RSSProvider):
         fid = str(feed_id or "").strip()
         if not fid:
             return False
+        log.info("Miniflux single-feed refresh start feed_id=%s force=True", fid)
 
         # Trigger a targeted refresh on the Miniflux server.
         results = self._refresh_targeted_feeds([fid], force=True)
@@ -954,6 +975,7 @@ class MinifluxProvider(RSSProvider):
                 break
 
         if target is None:
+            log.info("Miniflux single-feed refresh feed not found feed_id=%s", fid)
             return False
 
         now = datetime.now(timezone.utc)
@@ -983,6 +1005,7 @@ class MinifluxProvider(RSSProvider):
                 "error": error_msg,
             },
         )
+        log.info("Miniflux single-feed refresh finished feed_id=%s status=%s unread=%s", fid, status, unread)
         return True
 
     def refresh_feeds_by_ids(self, feed_ids, progress_cb=None, force: bool = True) -> bool:
@@ -997,6 +1020,7 @@ class MinifluxProvider(RSSProvider):
 
         if not ordered_ids:
             return True
+        log.info("Miniflux targeted refresh start feed_count=%s force=%s", len(ordered_ids), force)
 
         results = self._refresh_targeted_feeds(ordered_ids, force=force)
         ok = all(bool(info.get("ok", False)) for info in results.values()) if results else True
@@ -1048,6 +1072,7 @@ class MinifluxProvider(RSSProvider):
                     "error": error_msg,
                 },
             )
+        log.info("Miniflux targeted refresh finished feed_count=%s force=%s ok=%s", len(ordered_ids), force, ok)
         return ok
 
     def get_feeds(self) -> List[Feed]:

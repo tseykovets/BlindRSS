@@ -26,9 +26,13 @@ If BlindRSS has helped you, feel free to submit pull requests with fixes or feat
 
 ## Run From Python (Any OS)
 
-1. Install Python 3.12+.
+1. Install Python 3.13.
 2. Install dependencies: `pip install -r requirements.txt`
 3. Run: `python main.py`
+
+## Debug Logging
+
+When debug mode is enabled in Settings, BlindRSS writes a rotating debug log named `blindrss.log` beside the active config/data files. The log captures DEBUG and above. With debug mode disabled, BlindRSS does not create or attach this file log.
 
 ## How to build
 [`build.md`](build.md).

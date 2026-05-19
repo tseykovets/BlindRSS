@@ -94,15 +94,24 @@ goto :done
 set "PYTHON_EXE="
 where /q py
 if not errorlevel 1 (
-    for /f "delims=" %%P in ('py -3.14 -c "import sys; print(sys.executable)" 2^>nul') do (
+    for /f "delims=" %%P in ('py -3.13 -c "import sys; print(sys.executable)" 2^>nul') do (
         set "PYTHON_EXE=%%P"
     )
 )
 if defined PYTHON_EXE exit /b 0
 
+where /q uv
+if not errorlevel 1 (
+    for /f "delims=" %%P in ('uv python find 3.13 2^>nul') do (
+        set "PYTHON_EXE=%%P"
+    )
+)
+if defined PYTHON_EXE if exist "%PYTHON_EXE%" exit /b 0
+if defined PYTHON_EXE set "PYTHON_EXE="
+
 where /q py
 if not errorlevel 1 (
-    for /f "delims=" %%P in ('py -3.13 -c "import sys; print(sys.executable)" 2^>nul') do (
+    for /f "delims=" %%P in ('py -3.14 -c "import sys; print(sys.executable)" 2^>nul') do (
         set "PYTHON_EXE=%%P"
     )
 )
@@ -126,7 +135,7 @@ if defined PYTHON_EXE exit /b 0
 
 where /q python
 if errorlevel 1 (
-    echo [X] Python not found. Install Python 3.12+ and ensure it is available (python/py).
+    echo [X] Python not found. Install Python 3.13+ and ensure it is available (python/py), or install uv with Python 3.13.
     exit /b 1
 )
 for /f "delims=" %%P in ('python -c "import sys; print(sys.executable)" 2^>nul') do (

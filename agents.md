@@ -31,6 +31,7 @@ Fix any warnings, or errors.
 - `main.py`
   - App bootstrap, dependency checks, provider creation, and main frame startup.
   - Starts UI and refresh work without blocking startup.
+  - When debug mode is enabled, configures rotating `blindrss.log` in the active data/config directory. This file log should capture DEBUG and above from app and third-party Python loggers; when debug mode is disabled, do not create or attach the file log.
 
 - `core/`
   - `db.py`: SQLite schema setup/migrations, WAL/busy timeout pragmas, connection helpers, retention cleanup.
@@ -102,6 +103,7 @@ Fix any warnings, or errors.
 - Date normalization is strict; title/URL-derived dates can override feed metadata when inconsistent.
 - Retention cleanup runs in refresh execution flow to avoid read-state resurrection bugs.
 - Provider HTTP requests must use finite timeouts (`feed_timeout_seconds`).
+- When startup refresh is enabled, the first background refresh runs with `force=True` so hosted providers such as Miniflux use the same refresh semantics as a manual full refresh. Later periodic refresh ticks stay non-forced to avoid hammering provider APIs.
 
 ### 2. UI & Threading
 - Startup refresh is backgrounded; tree/list updates are marshaled to main thread via `wx.CallAfter`.
@@ -132,6 +134,7 @@ Fix any warnings, or errors.
 
 ## Build Quality
 - When building, always fix any warnings, bugs, or errors you can before considering the build complete.
+- Pytest is configured by `pytest.ini` to use `.tmp_test/pytest` as its base temp directory. Keep this repo-local temp base so Windows machines with broken or inaccessible global pytest temp folders can still run the full suite reliably.
 
 ## Operational Mandates
 1. User-Agent safety: always use `core.utils.safe_requests_get` / `core.utils.HEADERS` for network requests.

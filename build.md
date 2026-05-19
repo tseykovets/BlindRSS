@@ -71,7 +71,7 @@ On macOS, `./build.sh release <tag>` is the approved way to publish the macOS ZI
 
 ## Windows Release Prerequisites
 
-- Windows with Python 3.12+ (`python` or `py` on PATH).
+- Windows with Python 3.13 preferred (`python`/`py` on PATH, or `uv` with Python 3.13 installed). `build.bat` falls back to other supported Python versions when 3.13 is unavailable.
 - VLC 64-bit installed (expected at `C:\Program Files\VideoLAN\VLC`).
 - GitHub CLI (`gh`) authenticated for `release` mode.
 - Windows SDK `signtool.exe` for signed builds/releases.
@@ -79,7 +79,7 @@ On macOS, `./build.sh release <tag>` is the approved way to publish the macOS ZI
 
 ## macOS Local Build Prerequisites
 
-- Python 3.12+ (`python3` preferred).
+- Python 3.13 preferred (`python3` preferred).
 - `curl` and `unzip`.
 - Deno is bundled by `build.sh`.
 - `yt-dlp` is bundled by `build.sh`.

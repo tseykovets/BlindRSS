@@ -541,12 +541,22 @@ class LocalProvider(RSSProvider):
         error_msg = None
         final_title = feed_title or "Unknown Feed"
         failure_cooldown_seconds = None
+        started_at = time.monotonic()
+        entry_count = None
 
         if respect_failure_cooldown and not force:
             expires_at, cached_error = self._get_refresh_failure_cooldown(feed_id)
             if expires_at is not None:
                 status = "cooldown"
                 error_msg = cached_error
+                log.info(
+                    "Local feed refresh skipped id=%s title=%r status=cooldown remaining_s=%.1f error=%r url=%s",
+                    feed_id,
+                    final_title,
+                    max(0.0, float(expires_at - time.monotonic())),
+                    error_msg,
+                    feed_url,
+                )
                 state = self._collect_feed_state(
                     feed_id,
                     final_title,
@@ -604,6 +614,21 @@ class LocalProvider(RSSProvider):
                 headers['If-Modified-Since'] = last_modified
         elif not force and is_npr_feed and (etag or last_modified):
             log.debug("Skipping conditional headers for NPR feed %s", feed_url)
+
+        log.info(
+            "Local feed refresh start id=%s title=%r force=%s respect_cooldown=%s conditional=%s "
+            "has_etag=%s has_last_modified=%s timeout_s=%s retries=%s url=%s",
+            feed_id,
+            final_title,
+            force,
+            respect_failure_cooldown,
+            use_conditional,
+            bool(etag),
+            bool(last_modified),
+            feed_timeout,
+            retries,
+            feed_url,
+        )
 
         host = urlparse(feed_url).hostname or feed_url
         limiter = host_limits[host]
@@ -701,6 +726,7 @@ class LocalProvider(RSSProvider):
                     conn.commit()
 
                     total_entries = len(all_items)
+                    entry_count = total_entries
                     for i, item in enumerate(all_items):
                         try:
                             article_id = item.id
@@ -846,6 +872,7 @@ class LocalProvider(RSSProvider):
                     conn.commit()
 
                     total_entries = len(all_items)
+                    entry_count = total_entries
                     for i, item in enumerate(all_items):
                         try:
                             article_id = item.id
@@ -908,6 +935,12 @@ class LocalProvider(RSSProvider):
                     should_attempt_initial_resolution = False
 
             if should_attempt_initial_resolution:
+                log.info(
+                    "Local feed refresh attempting startup URL discovery id=%s title=%r url=%s",
+                    feed_id,
+                    final_title,
+                    feed_url,
+                )
                 resolved_feed_url = self._resolve_feed_url(
                     feed_url,
                     discovery_timeout=_FAST_REFRESH_DISCOVERY_TIMEOUT_SECONDS,
@@ -938,6 +971,12 @@ class LocalProvider(RSSProvider):
                     direct_feed_probe_only = True
                     direct_fetch_timeout = min(float(feed_timeout), _FAST_REFRESH_DIRECT_PROBE_TIMEOUT_SECONDS)
                     direct_fetch_retries = 0
+                    log.info(
+                        "Local feed refresh discovery did not find a feed id=%s; probing original URL timeout_s=%s url=%s",
+                        feed_id,
+                        direct_fetch_timeout,
+                        feed_url,
+                    )
 
             with limiter:
                 last_exc = None
@@ -959,6 +998,13 @@ class LocalProvider(RSSProvider):
                             status = "not_modified"
                             new_etag = etag
                             new_last_modified = last_modified
+                            log.info(
+                                "Local feed refresh HTTP 304 id=%s title=%r conditional=%s url=%s",
+                                feed_id,
+                                final_title,
+                                use_conditional,
+                                feed_url,
+                            )
                             break
                         resp.raise_for_status()
                         if direct_feed_probe_only and not _response_looks_feed_like(resp):
@@ -966,12 +1012,27 @@ class LocalProvider(RSSProvider):
                             error_msg = f"Feed discovery failed for {feed_url}"
                             failure_cooldown_seconds = _PERMANENT_FAILURE_COOLDOWN_SECONDS
                             xml_data = None
+                            log.info(
+                                "Local feed refresh probe rejected non-feed response id=%s title=%r status=%s url=%s",
+                                feed_id,
+                                final_title,
+                                getattr(resp, "status_code", None),
+                                feed_url,
+                            )
                             break
                         # Use content instead of text to let feedparser handle encoding detection
                         xml_data = resp.content
                         xml_text = resp.text
                         new_etag = resp.headers.get('ETag')
                         new_last_modified = resp.headers.get('Last-Modified')
+                        log.info(
+                            "Local feed refresh HTTP %s id=%s title=%r bytes=%s final_url=%s",
+                            getattr(resp, "status_code", None),
+                            feed_id,
+                            final_title,
+                            len(xml_data or b""),
+                            getattr(resp, "url", feed_url),
+                        )
                         break
                     except Exception as e:
                         last_exc = e
@@ -980,6 +1041,16 @@ class LocalProvider(RSSProvider):
                         failure_cooldown_seconds = _failure_cooldown_seconds_for_error(e)
                         if attempt <= direct_fetch_retries and _should_retry_refresh_error(e):
                             backoff = _retry_backoff_seconds(attempt, e)
+                            log.info(
+                                "Local feed refresh retrying id=%s title=%r attempt=%s/%s backoff_s=%.2f error=%r url=%s",
+                                feed_id,
+                                final_title,
+                                attempt,
+                                attempts,
+                                backoff,
+                                error_msg,
+                                feed_url,
+                            )
                             time.sleep(backoff)
                             continue
                         raise last_exc
@@ -1001,6 +1072,15 @@ class LocalProvider(RSSProvider):
                         log.info(f"Fallback to text parsing successful for {feed_url}")
                 except Exception:
                     pass
+            entry_count = len(d.entries)
+            log.info(
+                "Local feed parsed id=%s title=%r entries=%s bozo=%s url=%s",
+                feed_id,
+                d.feed.get('title', final_title),
+                entry_count,
+                bool(getattr(d, "bozo", False)),
+                feed_url,
+            )
             
             # Build chapter map only when the feed payload hints chapter tags exist.
             # Most feeds have no embedded chapter pointers; skipping a second full XML parse saves CPU.
@@ -1317,6 +1397,21 @@ class LocalProvider(RSSProvider):
                 new_items,
                 error_msg,
                 new_article_summaries,
+            )
+            log.info(
+                "Local feed refresh finished id=%s title=%r status=%s force=%s conditional=%s "
+                "entries=%s new_items=%s unread=%s duration_s=%.2f error=%r url=%s",
+                feed_id,
+                state.get("title", final_title),
+                status,
+                force,
+                use_conditional,
+                entry_count,
+                new_items,
+                state.get("unread_count"),
+                time.monotonic() - started_at,
+                error_msg,
+                feed_url,
             )
             self._emit_progress(progress_cb, state)
 

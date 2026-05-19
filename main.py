@@ -11,6 +11,7 @@ import sys
 import multiprocessing
 import logging
 import threading
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -18,6 +19,58 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logging.getLogger("trafilatura").setLevel(logging.CRITICAL)
 logging.getLogger("readability").setLevel(logging.CRITICAL)
 log = logging.getLogger(__name__)
+
+
+def _configure_file_logging(config_manager):
+    """Attach a persistent debug log after config has resolved the data directory."""
+    try:
+        root = logging.getLogger()
+        debug_mode = bool(config_manager.get("debug_mode", False))
+
+        for handler in list(root.handlers):
+            if getattr(handler, "_blindrss_file_handler", False):
+                root.removeHandler(handler)
+                try:
+                    handler.close()
+                except Exception:
+                    pass
+
+        if not debug_mode:
+            root.setLevel(logging.INFO)
+            logging.getLogger("trafilatura").setLevel(logging.CRITICAL)
+            logging.getLogger("readability").setLevel(logging.CRITICAL)
+            return None
+
+        from logging.handlers import RotatingFileHandler
+        from core.config import get_data_dir
+
+        log_dir = get_data_dir()
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, "blindrss.log")
+
+        root.setLevel(logging.DEBUG)
+        for handler in root.handlers:
+            handler.setLevel(logging.DEBUG)
+
+        handler = RotatingFileHandler(
+            log_path,
+            maxBytes=5 * 1024 * 1024,
+            backupCount=3,
+            encoding="utf-8",
+        )
+        handler._blindrss_file_handler = True
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+        root.addHandler(handler)
+
+        # In debug mode, the file should capture all app/third-party logging that reaches Python logging.
+        logging.getLogger("trafilatura").setLevel(logging.NOTSET)
+        logging.getLogger("readability").setLevel(logging.NOTSET)
+        log.debug("Debug logging to %s", log_path)
+        return log_path
+    except Exception as e:
+        log.error("Failed to configure file logging: %s", e)
+        return None
 
 def _rebind_logging_streams():
     root = logging.getLogger()
@@ -124,6 +177,7 @@ class RSSApp(wx.App):
 
         self.config_manager = ConfigManager()
         _enable_debug_console(self.config_manager)
+        self.log_path = _configure_file_logging(self.config_manager)
         if sys.platform.startswith("win"):
             try:
                 ok, msg = windows_integration.ensure_notification_prerequisites(

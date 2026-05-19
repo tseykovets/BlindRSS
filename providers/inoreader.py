@@ -597,14 +597,18 @@ class InoreaderProvider(RSSProvider):
         return ok
 
     def refresh(self, progress_cb=None, force: bool = False) -> bool:
+        log.info("Inoreader refresh start force=%s", force)
         if force:
             self._mark_cache_dirty()
             self._clear_article_cache()
+            log.info("Inoreader refresh forced cache invalidation")
             return True
         # Inoreader is already server-synced; avoid triggering subscription/category fetches on
         # every client refresh tick when metadata is still cached.
         if self._get_cached_feeds(allow_stale=False) is not None:
+            log.info("Inoreader refresh skipped because feed metadata cache is fresh")
             return False
+        log.info("Inoreader refresh allowed because feed metadata cache is stale")
         return True
 
     def refresh_feed(self, feed_id: str, progress_cb=None) -> bool:
@@ -623,11 +627,13 @@ class InoreaderProvider(RSSProvider):
         if not ordered_ids:
             return True
         if not self._has_required_auth():
+            log.info("Inoreader targeted refresh skipped because auth is incomplete feed_count=%s", len(ordered_ids))
             return False
 
         # Inoreader is server-backed, so the client-side refresh action means:
         # invalidate metadata/article caches and force the next article load to
         # hit the API for the selected feeds/views.
+        log.info("Inoreader targeted refresh cache invalidation feed_count=%s force=%s", len(ordered_ids), force)
         self._mark_cache_dirty()
         self._clear_article_cache()
 

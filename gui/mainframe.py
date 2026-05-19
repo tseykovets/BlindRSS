@@ -140,8 +140,15 @@ class MainFrame(wx.Frame):
         self.stop_event = threading.Event()
         self.refresh_thread = threading.Thread(target=self.refresh_loop, daemon=True)
         self.refresh_thread.start()
+        log.info(
+            "Refresh loop started refresh_on_startup=%s interval_s=%s provider=%s",
+            bool(self.config_manager.get("refresh_on_startup", True)),
+            self.config_manager.get("refresh_interval", 300),
+            type(self.provider).__name__,
+        )
         
         # Initial load
+        log.info("Scheduling initial feed tree load")
         self.refresh_feeds()
         wx.CallAfter(self._apply_startup_window_state)
         wx.CallAfter(self._focus_default_control)
@@ -1765,6 +1772,7 @@ class MainFrame(wx.Frame):
     def on_refresh_feeds(self, event=None):
         # Visual feedback usually good, but console for now or title?
         # self.SetTitle("RSS Reader - Refreshing...") 
+        log.info("Manual full refresh requested")
         threading.Thread(target=self._manual_refresh_thread, daemon=True).start()
 
     def on_refresh_single_feed(self, event):
@@ -2250,6 +2258,7 @@ class MainFrame(wx.Frame):
         return windows_integration.set_startup_enabled(bool(enabled))
 
     def _refresh_single_feed_thread(self, feed_id):
+        log.info("Manual single-feed refresh requested feed_id=%s", feed_id)
         try:
             unread_snapshot = self._capture_unread_snapshot()
             new_items_total = 0
@@ -2277,7 +2286,15 @@ class MainFrame(wx.Frame):
                 self._on_feed_refresh_progress(state)
 
             # Re-use the existing progress callback mechanism
-            self.provider.refresh_feed(feed_id, progress_cb=progress_cb)
+            started_at = time.monotonic()
+            result = self.provider.refresh_feed(feed_id, progress_cb=progress_cb)
+            log.info(
+                "Manual single-feed refresh finished feed_id=%s provider_result=%s duration_s=%.2f new_items=%s",
+                feed_id,
+                result,
+                time.monotonic() - started_at,
+                new_items_total,
+            )
             wx.CallAfter(self._flush_feed_refresh_progress) # Ensure it flushes immediately
             if (
                 suppressed.get("count", 0) > 0
@@ -2334,14 +2351,30 @@ class MainFrame(wx.Frame):
         that existed BEFORE the refresh can be marked as read, and they won't be
         resurrected as unread.
         """
+        started_at = time.monotonic()
+        provider_name = type(self.provider).__name__
+        log.info(
+            "Refresh run requested provider=%s block=%s force=%s thread=%s",
+            provider_name,
+            block,
+            force,
+            threading.current_thread().name,
+        )
         acquired = False
         try:
             acquired = self._refresh_guard.acquire(blocking=block)
         except Exception:
             acquired = False
         if not acquired:
+            log.info(
+                "Refresh run skipped because another refresh is active provider=%s block=%s force=%s",
+                provider_name,
+                block,
+                force,
+            )
             return False
         try:
+            log.info("Refresh run acquired guard provider=%s force=%s", provider_name, force)
             # Perform retention cleanup before refresh to avoid resurrecting old articles
             self._perform_retention_cleanup()
             
@@ -2370,7 +2403,16 @@ class MainFrame(wx.Frame):
                     )
                 self._on_feed_refresh_progress(state)
 
-            if self.provider.refresh(progress_cb, force=force):
+            provider_result = self.provider.refresh(progress_cb, force=force)
+            log.info(
+                "Provider refresh returned provider=%s result=%s force=%s duration_s=%.2f new_items=%s",
+                provider_name,
+                provider_result,
+                force,
+                time.monotonic() - started_at,
+                new_items_total,
+            )
+            if provider_result:
                 wx.CallAfter(self.refresh_feeds)
             if (
                 suppressed.get("count", 0) > 0
@@ -2384,22 +2426,40 @@ class MainFrame(wx.Frame):
                 )
             if new_items_total > 0:
                 self._play_sound("sound_refresh_complete")
+            log.info(
+                "Refresh run finished provider=%s force=%s duration_s=%.2f new_items=%s",
+                provider_name,
+                force,
+                time.monotonic() - started_at,
+                new_items_total,
+            )
             return True
         except Exception as e:
             print(f"Refresh error: {e}")
+            log.exception(
+                "Refresh run failed provider=%s force=%s duration_s=%.2f",
+                provider_name,
+                force,
+                time.monotonic() - started_at,
+            )
             self._play_sound("sound_refresh_error")
             return False
         finally:
             try:
                 self._refresh_guard.release()
+                log.info("Refresh run released guard provider=%s force=%s", provider_name, force)
             except Exception:
                 pass
 
     def _manual_refresh_thread(self):
         # Manual refresh should wait for any in-flight refresh to finish.
+        log.info("Manual full refresh thread started")
         ran = self._run_refresh(block=True, force=True)
         if not ran:
             print("Manual refresh skipped: another refresh is running.")
+            log.info("Manual full refresh did not run because another refresh was active")
+        else:
+            log.info("Manual full refresh thread finished")
 
     def on_close(self, event):
         # If user prefers closing to tray and this is a real close event, just hide
@@ -3159,8 +3219,10 @@ class MainFrame(wx.Frame):
 
     def refresh_loop(self):
         # If auto-refresh on startup is disabled, wait for one interval before the first check.
-        if not self.config_manager.get("refresh_on_startup", True):
+        startup_refresh_pending = bool(self.config_manager.get("refresh_on_startup", True))
+        if not startup_refresh_pending:
              interval = int(self.config_manager.get("refresh_interval", 300))
+             log.info("Refresh loop startup refresh disabled; waiting interval_s=%s before first refresh", interval)
              if self.stop_event.wait(interval):
                  return
 
@@ -3173,19 +3235,26 @@ class MainFrame(wx.Frame):
                 continue
                 
             try:
-                self._run_refresh(block=False)
+                force_refresh = startup_refresh_pending
+                startup_refresh_pending = False
+                log.info("Refresh loop tick interval_s=%s force=%s", interval, force_refresh)
+                ran = self._run_refresh(block=False, force=force_refresh)
+                log.info("Refresh loop tick complete ran=%s interval_s=%s force=%s", ran, interval, force_refresh)
             except Exception as e:
                 print(f"Refresh error: {e}")
+                log.exception("Refresh loop tick failed")
             # Sleep in one shot but wake early if closing
             if self.stop_event.wait(interval):
                 return
 
     def refresh_feeds(self):
         # Offload data fetching to background thread to prevent blocking UI
+        log.info("Feed tree load requested")
         threading.Thread(target=self._refresh_feeds_worker, daemon=True).start()
 
     def _refresh_feeds_worker(self):
         try:
+            started_at = time.monotonic()
             # Retention cleanup moved to _manual_refresh_thread to prevent
             # deletion of articles that were just marked as read.
             feeds = self.provider.get_feeds()
@@ -3194,8 +3263,15 @@ class MainFrame(wx.Frame):
             from core.db import sync_categories
             sync_categories(all_cats)
             hierarchy = self.provider.get_category_hierarchy()
+            log.info(
+                "Feed tree data loaded feeds=%s categories=%s duration_s=%.2f",
+                len(feeds or []),
+                len(all_cats or []),
+                time.monotonic() - started_at,
+            )
             wx.CallAfter(self._update_tree, feeds, all_cats, hierarchy)
         except Exception as e:
+            log.exception("Feed tree load failed")
             wx.MessageBox(f"Error fetching feeds: {e}", "Error", wx.ICON_ERROR)
 
     def _ensure_accessible_browser(self):

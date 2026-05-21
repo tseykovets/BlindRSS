@@ -5,6 +5,7 @@ import threading
 import wx
 
 from core import utils
+from .clipboard_utils import copy_textctrl_selection_to_clipboard
 
 log = logging.getLogger(__name__)
 
@@ -268,10 +269,16 @@ class AccessibleBrowserFrame(wx.Frame):
         self.article_list.Bind(wx.EVT_LISTBOX, self.on_article_selected)
         self.article_list.Bind(wx.EVT_LISTBOX_DCLICK, self.on_open_article)
         self.article_list.Bind(wx.EVT_KEY_DOWN, self.on_article_list_key_down)
+        self.content_ctrl.Bind(wx.EVT_TEXT_COPY, self.on_content_copy)
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self.search_ctrl.Bind(wx.EVT_TEXT, self.on_search_changed)
 
         self.refresh_views()
+
+    def on_content_copy(self, event):
+        if copy_textctrl_selection_to_clipboard(self.content_ctrl):
+            return
+        event.Skip()
 
     def on_article_list_key_down(self, event: wx.KeyEvent) -> None:
         key = event.GetKeyCode()

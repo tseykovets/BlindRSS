@@ -24,6 +24,7 @@ from .accessibility import AccessibleBrowserFrame, build_accessible_view_entries
 from .player import PlayerFrame
 from .tray import BlindRSSTrayIcon
 from .hotkeys import HoldRepeatHotkeys
+from .clipboard_utils import copy_textctrl_selection_to_clipboard, persist_owned_text_clipboard
 from providers.base import RSSProvider
 from core.config import APP_DIR
 from core.models import Article
@@ -343,6 +344,7 @@ class MainFrame(wx.Frame):
 
         # When tabbing into the content field, load full article text.
         self.content_ctrl.Bind(wx.EVT_SET_FOCUS, self.on_content_focus)
+        self.content_ctrl.Bind(wx.EVT_TEXT_COPY, self.on_content_copy)
 
         # Full-text extraction cache (url -> rendered text)
         self._fulltext_cache = {}
@@ -2509,6 +2511,11 @@ class MainFrame(wx.Frame):
             self.Hide()
             return
 
+        try:
+            persist_owned_text_clipboard()
+        except Exception:
+            log.debug("Failed to persist clipboard during shutdown", exc_info=True)
+
         # Close player window cleanly
         if self.player_window:
             try:
@@ -4411,6 +4418,10 @@ class MainFrame(wx.Frame):
         except Exception:
             pass
 
+    def on_content_copy(self, event):
+        if copy_textctrl_selection_to_clipboard(self.content_ctrl):
+            return
+        event.Skip()
 
     def on_content_focus(self, event):
         """When the content field receives focus, force an immediate full-text load for the selected article."""

@@ -3343,7 +3343,8 @@ class MainFrame(wx.Frame):
             wx.CallAfter(self._update_tree, feeds, all_cats, hierarchy)
         except Exception as e:
             log.exception("Feed tree load failed")
-            wx.MessageBox(f"Error fetching feeds: {e}", "Error", wx.ICON_ERROR)
+            # Runs in a background thread; marshal the dialog onto the UI thread.
+            wx.CallAfter(wx.MessageBox, f"Error fetching feeds: {e}", "Error", wx.ICON_ERROR)
 
     def _ensure_accessible_browser(self):
         browser = getattr(self, "_accessible_browser", None)

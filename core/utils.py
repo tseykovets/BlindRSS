@@ -228,7 +228,7 @@ def build_playback_speeds(start: float = 0.5, stop: float = 4.0, step: float = 0
     while val <= upper + 1e-9:
         speeds.append(val)
         val = round(val + step, 2)
-    if speeds[-1] != upper:
+    if not speeds or speeds[-1] != upper:
         speeds.append(upper)
     # Always include true 1.00x so "Normal" snaps exactly, not ~0.98x
     speeds.append(1.0)

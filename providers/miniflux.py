@@ -877,7 +877,7 @@ class MinifluxProvider(RSSProvider):
             force,
             global_refresh_ok,
             refresh_info.get("status_code"),
-            refresh_info.get("error"),
+            refresh_info.get("error_body"),
         )
 
         # After triggering, fetch feed metadata so we can surface stale/error
@@ -1101,19 +1101,23 @@ class MinifluxProvider(RSSProvider):
         counters_data = self._req("GET", "/v1/feeds/counters")
         counts = {}
         if counters_data:
-            counts = counters_data.get("unreads", {})
-        
+            # "unreads" may be present-but-null on some server responses.
+            counts = counters_data.get("unreads") or {}
+
         feeds = []
         for f in data:
-            cat = f.get("category", {}).get("title", "Uncategorized")
+            # category/icon may be present with a null value, so `or {}` is
+            # needed -- a plain default only applies when the key is absent.
+            cat = (f.get("category") or {}).get("title", "Uncategorized")
+            fid = str(f.get("id", ""))
             feed = Feed(
-                id=str(f["id"]),
-                title=f["title"],
-                url=f["site_url"],
+                id=fid,
+                title=f.get("title") or "",
+                url=f.get("site_url") or "",
                 category=cat,
-                icon_url=f.get("icon", {}).get("data", "")
+                icon_url=(f.get("icon") or {}).get("data", "")
             )
-            feed.unread_count = counts.get(str(f["id"]), 0) or counts.get(int(f["id"]), 0)
+            feed.unread_count = counts.get(fid, 0) or counts.get(f.get("id"), 0) or 0
             feeds.append(feed)
 
         return feeds

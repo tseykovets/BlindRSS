@@ -255,7 +255,7 @@ class ConfigManager:
         if os.path.exists(self.config_path):
             try:
                 with self._lock:
-                    with open(self.config_path, 'r') as f:
+                    with open(self.config_path, 'r', encoding='utf-8') as f:
                         loaded = json.load(f)
                         return self._apply_defaults(loaded)
             except Exception as e:
@@ -331,7 +331,7 @@ class ConfigManager:
         try:
             with self._lock:
                 _ensure_parent_dir(self.config_path)
-                with open(self.config_path, 'w') as f:
+                with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(self.config, f, indent=4)
         except Exception as e:
             log.error(f"Error saving config: {e}")
@@ -374,7 +374,7 @@ class ConfigManager:
             _ensure_parent_dir(new_path)
             with self._lock:
                 self.config["data_location"] = new_location
-                with open(new_path, 'w') as f:
+                with open(new_path, 'w', encoding='utf-8') as f:
                     json.dump(self.config, f, indent=4)
         except Exception as e:
             log.exception("Failed to write config to new location")

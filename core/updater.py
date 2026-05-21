@@ -313,14 +313,23 @@ def _verify_authenticode_signature(exe_path: str, allowed_thumbprints: Iterable[
         status = str(data.get("Status") or "").strip()
         status_msg = str(data.get("StatusMessage") or "").strip()
         thumbprint = _normalize_thumbprint(data.get("Thumbprint"))
-        if status.lower() != "valid":
-            if thumbprint and thumbprint in allowed:
-                return True, ""
-            message = f"Signature check failed: {status} {status_msg}".strip()
-            if thumbprint:
-                message = f"{message} (thumbprint {thumbprint})"
-            return False, message
-        return True, ""
+        if status.lower() == "valid":
+            # Cryptographically valid signature. If a trusted-thumbprint allowlist
+            # is configured, the signer thumbprint must be in it -- otherwise any
+            # binary signed by any certificate chaining to a trusted root would be
+            # accepted. With no allowlist configured, accept the valid signature.
+            if allowed and thumbprint not in allowed:
+                suffix = f" (thumbprint {thumbprint})." if thumbprint else "."
+                return False, f"Update is signed but not by a trusted certificate{suffix}"
+            return True, ""
+        # Status is not 'Valid' (e.g. an untrusted root for a self-signed cert):
+        # accept only if the signer thumbprint is explicitly pinned in the allowlist.
+        if thumbprint and thumbprint in allowed:
+            return True, ""
+        message = f"Signature check failed: {status} {status_msg}".strip()
+        if thumbprint:
+            message = f"{message} (thumbprint {thumbprint})"
+        return False, message
 
     if last_error:
         return False, f"Authenticode verification failed: {last_error}"
@@ -524,7 +533,27 @@ def cleanup_update_artifacts(install_dir: Optional[str] = None) -> None:
         log.debug("Failed to clean system temp updates: %s", e)
 
 
-def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False) -> Tuple[bool, str]:
+UPDATE_CANCELED_MESSAGE = "Update canceled."
+
+
+def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progress_cb=None) -> Tuple[bool, str]:
+    """Download, verify, and stage an update.
+
+    progress_cb(phase: str, fraction: Optional[float]) is called as work proceeds;
+    `fraction` is 0..1 for the download and None for indeterminate phases. If the
+    callback returns False, the update is aborted and UPDATE_CANCELED_MESSAGE is
+    returned. Any callback exception is ignored so progress reporting can never
+    break an update.
+    """
+    def report(phase: str, fraction) -> bool:
+        if progress_cb is None:
+            return True
+        try:
+            result = progress_cb(phase, fraction)
+            return result is None or bool(result)
+        except Exception:
+            return True
+
     if not is_update_supported():
         return False, "Auto-update is only available in the packaged Windows build."
 
@@ -541,17 +570,30 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False) -> Tup
     try:
         resp = safe_requests_get(info.download_url, stream=True, timeout=30)
         resp.raise_for_status()
+        try:
+            total = int(resp.headers.get("Content-Length") or 0)
+        except Exception:
+            total = 0
+        downloaded = 0
+        if not report("Downloading update…", 0.0):
+            return False, UPDATE_CANCELED_MESSAGE
         with open(zip_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1024 * 512):
                 if chunk:
                     f.write(chunk)
+                    downloaded += len(chunk)
+                    fraction = (downloaded / total) if total > 0 else None
+                    if not report("Downloading update…", fraction):
+                        return False, UPDATE_CANCELED_MESSAGE
     except Exception as e:
         return False, f"Failed to download update: {e}"
 
+    report("Verifying download…", None)
     digest = _sha256_file(zip_path)
     if digest.lower() != info.sha256.lower():
         return False, "Downloaded update failed SHA-256 verification."
 
+    report("Extracting update…", None)
     try:
         _extract_zip(zip_path, extract_dir)
     except Exception as e:
@@ -562,9 +604,12 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False) -> Tup
     if not os.path.isfile(exe_path):
         return False, f"Update package is missing {EXE_NAME}."
 
+    report("Verifying signature…", None)
     ok, msg = _verify_authenticode_signature(exe_path, info.signing_thumbprints)
     if not ok:
         return False, msg
+
+    report("Preparing restart…", None)
 
     helper_run_path = helper_path
     try:

@@ -2330,7 +2330,24 @@ class MainFrame(wx.Frame):
 
             # Re-use the existing progress callback mechanism
             started_at = time.monotonic()
-            result = self.provider.refresh_feed(feed_id, progress_cb=progress_cb)
+            # Hold the refresh guard so a manual single-feed refresh cannot run
+            # concurrently with the background refresh loop (or another targeted
+            # refresh), which would cause overlapping provider work / double-fetch.
+            acquired = False
+            try:
+                acquired = self._refresh_guard.acquire(blocking=True)
+            except Exception:
+                acquired = False
+            if not acquired:
+                log.info("Single-feed refresh skipped; refresh guard unavailable feed_id=%s", feed_id)
+                return
+            try:
+                result = self.provider.refresh_feed(feed_id, progress_cb=progress_cb)
+            finally:
+                try:
+                    self._refresh_guard.release()
+                except Exception:
+                    pass
             log.info(
                 "Manual single-feed refresh finished feed_id=%s provider_result=%s duration_s=%.2f new_items=%s",
                 feed_id,
@@ -5927,11 +5944,25 @@ class MainFrame(wx.Frame):
         if not feed_id:
             return False
 
+        # Hold the refresh guard so this targeted post-add refresh cannot overlap
+        # the background refresh loop.
+        acquired = False
+        try:
+            acquired = self._refresh_guard.acquire(blocking=True)
+        except Exception:
+            acquired = False
+        if not acquired:
+            return False
         try:
             ok = bool(refresh_one(feed_id))
         except Exception:
             log.exception("Single-feed refresh after add failed for %s", feed_id)
             return False
+        finally:
+            try:
+                self._refresh_guard.release()
+            except Exception:
+                pass
 
         if ok:
             wx.CallAfter(self.refresh_feeds)
@@ -6679,8 +6710,41 @@ class MainFrame(wx.Frame):
             )
             return
         self._update_install_inflight = True
-        wx.BeginBusyCursor()
+        self._update_cancel = threading.Event()
+        # A real progress dialog (with a Cancel button) instead of just a busy
+        # cursor, so the multi-megabyte download doesn't make the app look frozen.
+        self._update_progress_dlg = wx.ProgressDialog(
+            "Updating BlindRSS",
+            "Starting update…",
+            maximum=100,
+            parent=self,
+            style=wx.PD_APP_MODAL | wx.PD_CAN_ABORT | wx.PD_SMOOTH | wx.PD_ELAPSED_TIME,
+        )
         threading.Thread(target=self._update_install_thread, args=(info,), daemon=True).start()
+
+    def _report_update_progress(self, phase: str, fraction) -> bool:
+        # Called from the worker thread; marshal the UI update onto the main
+        # thread and report back whether the user has asked to cancel.
+        wx.CallAfter(self._apply_update_progress, phase, fraction)
+        cancel = getattr(self, "_update_cancel", None)
+        return not (cancel is not None and cancel.is_set())
+
+    def _apply_update_progress(self, phase: str, fraction):
+        dlg = getattr(self, "_update_progress_dlg", None)
+        if not dlg:
+            return
+        try:
+            if fraction is None:
+                keep_going, _ = dlg.Pulse(phase)
+            else:
+                pct = int(max(0.0, min(1.0, fraction)) * 100)
+                keep_going, _ = dlg.Update(pct, phase)
+            if not keep_going:
+                cancel = getattr(self, "_update_cancel", None)
+                if cancel is not None:
+                    cancel.set()
+        except Exception:
+            pass
 
     def _update_install_thread(self, info: updater.UpdateInfo):
         debug_mode = False
@@ -6688,16 +6752,24 @@ class MainFrame(wx.Frame):
             debug_mode = bool(self.config_manager.get("debug_mode", False))
         except Exception:
             pass
-        ok, msg = updater.download_and_apply_update(info, debug_mode=debug_mode)
+        ok, msg = updater.download_and_apply_update(
+            info, debug_mode=debug_mode, progress_cb=self._report_update_progress
+        )
         wx.CallAfter(self._finish_update_install, ok, msg)
 
     def _finish_update_install(self, ok: bool, msg: str):
         self._update_install_inflight = False
-        try:
-            wx.EndBusyCursor()
-        except Exception:
-            pass
+        dlg = getattr(self, "_update_progress_dlg", None)
+        if dlg is not None:
+            try:
+                dlg.Destroy()
+            except Exception:
+                pass
+            self._update_progress_dlg = None
         if not ok:
+            # A user-initiated cancel is not an error; just return quietly.
+            if msg == updater.UPDATE_CANCELED_MESSAGE:
+                return
             wx.MessageBox(msg, "Update Failed", wx.ICON_ERROR)
             return
         wx.MessageBox(msg, "Update Ready", wx.ICON_INFORMATION)

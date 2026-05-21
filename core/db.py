@@ -442,6 +442,14 @@ def cleanup_old_articles(days: int, keep_favorites: bool = True):
         
         c = conn.cursor()
         c.execute(f"DELETE FROM chapters WHERE article_id IN ({subquery})")
+        # Also drop resume/playback positions for the articles being purged so
+        # playback_state doesn't accumulate orphaned rows forever. The player keys
+        # these as 'article:<id>' (see player._set_resume_ids), so match that form.
+        # Favorited articles are excluded from {where_str}, so their resume
+        # positions are preserved.
+        c.execute(
+            f"DELETE FROM playback_state WHERE id IN (SELECT 'article:' || id FROM articles WHERE {where_str})"
+        )
         c.execute(f"DELETE FROM articles WHERE {where_str}")
         
         deleted = c.rowcount

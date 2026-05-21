@@ -52,9 +52,9 @@ def test_miniflux_req_uses_configured_timeout_for_normal_endpoints(monkeypatch):
         seen["timeout"] = timeout
         return _DummyResp(status_code=204)
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
     p._req("GET", "/v1/me")
-    assert seen.get("timeout") == 42
+    assert seen.get("timeout") == (MinifluxProvider.CONNECT_TIMEOUT_SECONDS, 42)
 
 
 def test_miniflux_refresh_uses_longer_timeout_floor(monkeypatch):
@@ -65,9 +65,9 @@ def test_miniflux_refresh_uses_longer_timeout_floor(monkeypatch):
         seen["timeout"] = timeout
         return _DummyResp(status_code=204)
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
     p._req("PUT", "/v1/feeds/123/refresh")
-    assert seen.get("timeout") == 10
+    assert seen.get("timeout") == (MinifluxProvider.CONNECT_TIMEOUT_SECONDS, 10)
 
 
 def test_miniflux_req_adds_revalidation_headers(monkeypatch):
@@ -78,7 +78,7 @@ def test_miniflux_req_adds_revalidation_headers(monkeypatch):
         seen["headers"] = dict(headers or {})
         return _DummyResp(status_code=204)
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
     p._req("GET", "/v1/me")
 
     headers = seen.get("headers") or {}
@@ -93,7 +93,7 @@ def test_miniflux_req_records_204_as_success(monkeypatch):
     def _fake_request(method, url, headers=None, json=None, params=None, timeout=None):
         return _DummyResp(status_code=204)
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
 
     assert p._req("PUT", "/v1/feeds/123/refresh") is None
     assert p._last_request_info["ok"] is True
@@ -141,7 +141,7 @@ def test_miniflux_successful_204_global_refresh_clears_stale_failure_state(monke
             return _DummyResp(status_code=200, payload={"unreads": {"10": 0}})
         raise AssertionError(f"Unexpected request: {method} {endpoint}")
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
 
     assert p.refresh(force=True) is True
     assert ("PUT", "/v1/feeds/10/refresh") in calls
@@ -302,7 +302,7 @@ def test_miniflux_req_retries_transient_502_then_succeeds(monkeypatch):
             return _DummyResp(status_code=502, payload={})
         return _DummyResp(status_code=200, payload={"ok": True})
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
     monkeypatch.setattr("providers.miniflux.time.sleep", lambda _s: None)
 
     data = p._req("GET", "/v1/me")
@@ -319,7 +319,7 @@ def test_miniflux_targeted_refresh_transients_are_debug_only(monkeypatch, caplog
         seen["calls"] += 1
         return _DummyResp(status_code=500, payload={})
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
     monkeypatch.setattr("providers.miniflux.time.sleep", lambda _s: None)
 
     caplog.set_level(logging.WARNING, logger="providers.miniflux")
@@ -338,7 +338,7 @@ def test_miniflux_global_refresh_transients_stay_warning(monkeypatch, caplog):
         seen["calls"] += 1
         return _DummyResp(status_code=500, payload={})
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
     monkeypatch.setattr("providers.miniflux.time.sleep", lambda _s: None)
 
     caplog.set_level(logging.WARNING, logger="providers.miniflux")
@@ -412,7 +412,7 @@ def test_miniflux_req_uses_cached_get_response_on_502(monkeypatch):
     def _fake_request(method, url, headers=None, json=None, params=None, timeout=None):
         return next(responses)
 
-    monkeypatch.setattr("providers.miniflux.requests.request", _fake_request)
+    monkeypatch.setattr(p._session, "request", _fake_request)
     monkeypatch.setattr("providers.miniflux.time.sleep", lambda _s: None)
 
     first = p._req("GET", "/v1/feeds")

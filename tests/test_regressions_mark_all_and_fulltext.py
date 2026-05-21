@@ -77,7 +77,7 @@ def test_mark_all_read_falls_back_to_batch(monkeypatch):
 
 def test_miniflux_mark_all_read_feed():
     provider = MinifluxProvider({"providers": {"miniflux": {"url": "https://example.com", "api_key": "t"}}})
-    with patch("providers.miniflux.requests.put") as put:
+    with patch.object(provider._session, "put") as put:
         put.return_value.status_code = 204
         ok = provider.mark_all_read("123")
         assert ok is True
@@ -88,7 +88,7 @@ def test_miniflux_mark_all_read_feed():
 def test_miniflux_mark_all_read_category():
     provider = MinifluxProvider({"providers": {"miniflux": {"url": "https://example.com", "api_key": "t"}}})
     provider._req = MagicMock(return_value=[{"id": 12, "title": "Tech"}])
-    with patch("providers.miniflux.requests.put") as put:
+    with patch.object(provider._session, "put") as put:
         put.return_value.status_code = 204
         ok = provider.mark_all_read("category:Tech")
         assert ok is True
@@ -97,7 +97,7 @@ def test_miniflux_mark_all_read_category():
 
 def test_miniflux_mark_all_read_unsupported_view():
     provider = MinifluxProvider({"providers": {"miniflux": {"url": "https://example.com", "api_key": "t"}}})
-    with patch("providers.miniflux.requests.put") as put:
+    with patch.object(provider._session, "put") as put:
         assert provider.mark_all_read("favorites:all") is False
         assert provider.mark_all_read("all") is False
         assert put.call_count == 0
@@ -105,7 +105,7 @@ def test_miniflux_mark_all_read_unsupported_view():
 
 def test_miniflux_delete_article_sets_removed_status():
     provider = MinifluxProvider({"providers": {"miniflux": {"url": "https://example.com", "api_key": "t"}}})
-    with patch("providers.miniflux.requests.put") as put:
+    with patch.object(provider._session, "put") as put:
         put.return_value.status_code = 204
         assert provider.supports_article_delete() is True
         assert provider.delete_article("123") is True

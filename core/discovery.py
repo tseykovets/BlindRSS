@@ -1655,7 +1655,13 @@ def _derive_subscribe_targets_for_search_result(
     return "", ""
 
 
-def _normalize_ytdlp_search_entries(entries, site: dict, limit: int = 10) -> list[dict]:
+def _normalize_ytdlp_search_entries(
+    entries,
+    site: dict,
+    limit: int = 10,
+    *,
+    quick_title_limit: int = 0,
+) -> list[dict]:
     out: list[dict] = []
     seen_urls: set[str] = set()
     site_id = str((site or {}).get("id") or "").strip()
@@ -1667,9 +1673,16 @@ def _normalize_ytdlp_search_entries(entries, site: dict, limit: int = 10) -> lis
         limit = 10
 
     try:
-        quick_title_map = _prefetch_quick_titles_for_entries(entries, limit=limit)
+        quick_title_limit = max(0, min(limit, int(quick_title_limit or 0)))
     except Exception:
-        quick_title_map = {}
+        quick_title_limit = 0
+
+    quick_title_map = {}
+    if quick_title_limit > 0:
+        try:
+            quick_title_map = _prefetch_quick_titles_for_entries(entries, limit=quick_title_limit)
+        except Exception:
+            quick_title_map = {}
 
     for entry in (entries or []):
         if not isinstance(entry, dict):
@@ -1688,13 +1701,6 @@ def _normalize_ytdlp_search_entries(entries, site: dict, limit: int = 10) -> lis
             title = raw_title
         else:
             quick_title = str((quick_title_map or {}).get(str(url or "")) or "").strip()
-            # Fallback for supported URLs not included in the prefetch map (e.g. later rows
-            # after dedupe/filtering edge-cases).
-            if not quick_title and _supports_quick_title_resolution(url):
-                try:
-                    quick_title = _resolve_quick_url_title_cached(str(url or ""))
-                except Exception:
-                    quick_title = ""
             if quick_title:
                 title = quick_title
                 title_is_fallback = False

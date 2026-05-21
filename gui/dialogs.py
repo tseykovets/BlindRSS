@@ -3864,7 +3864,6 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             item["_arrival_order"] = int(self._result_arrival_counter or 0)
             self._all_results.append(item)
             new_count += 1
-            self._queue_title_enrichment(item, self._search_generation)
 
         self._schedule_results_refresh()
 

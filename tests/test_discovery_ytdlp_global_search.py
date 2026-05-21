@@ -246,12 +246,25 @@ def test_normalize_ytdlp_search_entries_uses_quick_title_for_youtube_url_only_ro
     entries = [{"_type": "url", "url": "https://www.youtube.com/watch?v=gWB-J0EEFac"}]
 
     with patch("core.discovery._resolve_quick_url_title_cached", return_value="Real Video Title"):
-        out = discovery._normalize_ytdlp_search_entries(entries, site=site, limit=10)
+        out = discovery._normalize_ytdlp_search_entries(entries, site=site, limit=10, quick_title_limit=10)
 
     assert len(out) == 1
     assert out[0]["title"] == "Real Video Title"
     assert out[0]["site"] == "YouTube"
     assert out[0]["_title_is_fallback"] is False
+
+
+def test_normalize_ytdlp_search_entries_does_not_quick_lookup_by_default():
+    site = {"id": "yvsearch", "label": "Yahoo Video", "search_key": "yvsearch"}
+    entries = [{"_type": "url", "url": "https://www.youtube.com/watch?v=gWB-J0EEFac"}]
+
+    with patch("core.discovery._resolve_quick_url_title_cached") as mock_quick:
+        out = discovery._normalize_ytdlp_search_entries(entries, site=site, limit=10)
+
+    mock_quick.assert_not_called()
+    assert len(out) == 1
+    assert out[0]["title"] == "YouTube video gWB-J0EEFac"
+    assert out[0]["_title_is_fallback"] is True
 
 
 def test_prefetch_quick_titles_for_entries_collects_supported_url_only_rows():

@@ -62,6 +62,14 @@ if not exist "%STAGING_DIR%" (
 echo [BlindRSS Update] Waiting for process %PID% to exit...
 powershell -NoProfile -InputFormat None -Command "Wait-Process -Id %PID% -ErrorAction SilentlyContinue"
 
+rem The initiating PID may not be the only instance. A second copy launched
+rem from the install dir keeps _internal DLLs (e.g. VCRUNTIME140.dll) mapped,
+rem which makes them impossible to overwrite/delete and fails the swap. Wait
+rem (bounded, politely -- no force kill) for any such instance to exit, then
+rem give the OS a moment to release image mappings before we touch files.
+echo [BlindRSS Update] Waiting for any remaining app instances to exit...
+powershell -NoProfile -InputFormat None -Command "$name=[IO.Path]::GetFileNameWithoutExtension([string]$env:EXE_NAME); $inst=([string]$env:INSTALL_DIR).TrimEnd('\').ToLower(); $deadline=(Get-Date).AddSeconds(30); while ((Get-Date) -lt $deadline) { $procs=@(Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object { try { $p=$_.Path; $p -and $p.ToLower().StartsWith($inst) } catch { $false } }); if ($procs.Count -eq 0) { break }; Start-Sleep -Milliseconds 500 }; Start-Sleep -Milliseconds 1500"
+
 rem OneDrive Fix: Don't move the root folder. Move CONTENTS.
 rem We back up the current contents to a backup folder, then move new contents in.
 rem Robocopy is more robust for this than 'move'.
@@ -87,7 +95,7 @@ rem Robocopy exit codes: 0=No Change, 1=Copy Successful, >1=Warning/Error.
 rem We accept <= 3 usually (1=copy, 2=extra, 3=both). 
 rem However, for /MOVE, we want to ensure it worked.
 
-robocopy "%INSTALL_DIR%" "%BACKUP_DIR%" /E /MOVE /R:3 /W:1 /NFL /NDL /XD .git .venv __pycache__
+robocopy "%INSTALL_DIR%" "%BACKUP_DIR%" /E /MOVE /R:10 /W:3 /NFL /NDL /XD .git .venv __pycache__
 set RC=%ERRORLEVEL%
 if %RC% gtr 8 (
     echo [X] Backup failed with robocopy code %RC%.
@@ -95,7 +103,7 @@ if %RC% gtr 8 (
 )
 
 echo [BlindRSS Update] Applying update...
-robocopy "%STAGING_DIR%" "%INSTALL_DIR%" /E /MOVE /R:3 /W:1 /NFL /NDL
+robocopy "%STAGING_DIR%" "%INSTALL_DIR%" /E /MOVE /R:10 /W:3 /NFL /NDL
 set RC=%ERRORLEVEL%
 if %RC% gtr 8 (
     echo [X] Update application failed with robocopy code %RC%.
@@ -116,7 +124,7 @@ if not "%SHOW_LOG%"=="" if /I not "%SHOW_LOG%"=="0" (
     call :start_log_window "%LOG_FILE%" "%SENTINEL%"
 )
 if exist "%BACKUP_DIR%" (
-    robocopy "%BACKUP_DIR%" "%INSTALL_DIR%" /E /MOVE /R:3 /W:1 /NFL /NDL
+    robocopy "%BACKUP_DIR%" "%INSTALL_DIR%" /E /MOVE /R:10 /W:3 /NFL /NDL
 )
 start "" /b "%INSTALL_DIR%\%EXE_NAME%"
 powershell -NoProfile -InputFormat None -Command "param([string]$log) try { Add-Type -AssemblyName PresentationFramework | Out-Null; $msg = 'BlindRSS update failed.' + \"`n`n\" + 'Log file:' + \"`n\" + $log; [System.Windows.MessageBox]::Show($msg, 'BlindRSS Update', 'OK', 'Error') | Out-Null } catch { }" "%LOG_FILE%" >nul 2>nul

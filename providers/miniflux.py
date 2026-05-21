@@ -1,4 +1,5 @@
 import requests
+from requests.adapters import HTTPAdapter
 import re
 import logging
 import time
@@ -16,6 +17,14 @@ from core import utils
 log = logging.getLogger(__name__)
 
 class MinifluxProvider(RSSProvider):
+    # Short connect timeout so an unreachable address (e.g. a dead IPv6 AAAA whose
+    # gateway is down) fails over to the next address in seconds instead of stalling
+    # the UI for the full read timeout. This does NOT pin IPv4: the OS still orders
+    # addresses normally (IPv6-first per RFC 6724), so when IPv6 is healthy its
+    # connect succeeds immediately and is used. The generous read timeout below
+    # still covers large entry payloads.
+    CONNECT_TIMEOUT_SECONDS = 3
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self._category_cache = {}
@@ -32,6 +41,15 @@ class MinifluxProvider(RSSProvider):
         # Ensure Accept stays JSON for API calls.
         self.headers["Accept"] = "application/json"
         self.headers = utils.add_revalidation_headers(self.headers)
+        # Shared session so TCP/TLS connections are reused (keep-alive) across the
+        # many calls a single refresh makes. Without this every request opens a new
+        # HTTPS connection, paying a full handshake each time -- which on a host whose
+        # DNS advertises an unreachable AAAA also re-incurs the IPv6 connect timeout
+        # on every call. One pooled connection turns ~6 handshakes per refresh into 1.
+        self._session = requests.Session()
+        adapter = HTTPAdapter(pool_connections=4, pool_maxsize=8)
+        self._session.mount("https://", adapter)
+        self._session.mount("http://", adapter)
         self._cached_get_responses: dict[str, Any] = {}
         self._last_request_info = {
             "ok": False,
@@ -249,14 +267,15 @@ class MinifluxProvider(RSSProvider):
 
         for attempt in range(1, retries + 2):
             try:
-                # Uses self.headers which includes a browser-like User-Agent
-                resp = requests.request(
+                # Uses self.headers which includes a browser-like User-Agent.
+                # Shared session reuses the keep-alive connection across calls.
+                resp = self._session.request(
                     method_upper,
                     url,
                     headers=req_headers,
                     json=json,
                     params=params,
-                    timeout=timeout_s,
+                    timeout=(self.CONNECT_TIMEOUT_SECONDS, timeout_s),
                 )
 
                 status_code = int(getattr(resp, "status_code", 0) or 0)
@@ -487,11 +506,11 @@ class MinifluxProvider(RSSProvider):
 
         for attempt in range(1, retries + 2):
             try:
-                resp = requests.request(
+                resp = self._session.request(
                     "PUT",
                     url,
                     headers=req_headers,
-                    timeout=timeout_s,
+                    timeout=(self.CONNECT_TIMEOUT_SECONDS, timeout_s),
                 )
                 status_code = int(getattr(resp, "status_code", 0) or 0)
                 info["status_code"] = status_code
@@ -1257,20 +1276,20 @@ class MinifluxProvider(RSSProvider):
                 cid = self._get_category_id_by_title(cat_title)
                 if cid is None:
                     return False
-                resp = requests.put(
+                resp = self._session.put(
                     f"{self.base_url}/v1/categories/{cid}/mark-all-as-read",
                     headers=self.headers,
-                    timeout=15,
+                    timeout=(self.CONNECT_TIMEOUT_SECONDS, 15),
                 )
                 return resp.status_code in (200, 204)
 
             if real_feed_id == "all":
                 return False
 
-            resp = requests.put(
+            resp = self._session.put(
                 f"{self.base_url}/v1/feeds/{real_feed_id}/mark-all-as-read",
                 headers=self.headers,
-                timeout=15,
+                timeout=(self.CONNECT_TIMEOUT_SECONDS, 15),
             )
             return resp.status_code in (200, 204)
         except Exception as e:
@@ -1307,11 +1326,11 @@ class MinifluxProvider(RSSProvider):
         for i in range(0, len(unique_ids), chunk_size):
             chunk = unique_ids[i:i + chunk_size]
             try:
-                resp = requests.put(
+                resp = self._session.put(
                     f"{self.base_url}/v1/entries",
                     headers=self.headers,
                     json={"entry_ids": chunk, "status": status},
-                    timeout=15,
+                    timeout=(self.CONNECT_TIMEOUT_SECONDS, 15),
                 )
                 if resp.status_code not in (200, 204):
                     ok = False
@@ -1537,10 +1556,10 @@ class MinifluxProvider(RSSProvider):
 
         try:
             # Direct request so we can selectively silence 404s.
-            resp = requests.put(
+            resp = self._session.put(
                 f"{self.base_url}/v1/entries/{aid}/fetch-content",
                 headers=self.headers,
-                timeout=15,
+                timeout=(self.CONNECT_TIMEOUT_SECONDS, 15),
             )
 
             if resp.status_code == 404:

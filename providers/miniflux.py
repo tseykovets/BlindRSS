@@ -47,7 +47,12 @@ class MinifluxProvider(RSSProvider):
         # DNS advertises an unreachable AAAA also re-incurs the IPv6 connect timeout
         # on every call. One pooled connection turns ~6 handshakes per refresh into 1.
         self._session = requests.Session()
-        adapter = HTTPAdapter(pool_connections=4, pool_maxsize=8)
+        # pool_maxsize must exceed the targeted-refresh worker cap (12 in
+        # _targeted_refresh_worker_count) plus the handful of concurrent GETs the
+        # refresh and feed-tree-load threads issue during a force refresh.
+        # Otherwise urllib3 discards and re-handshakes the overflow connections
+        # ("Connection pool is full, discarding connection").
+        adapter = HTTPAdapter(pool_connections=4, pool_maxsize=24)
         self._session.mount("https://", adapter)
         self._session.mount("http://", adapter)
         self._cached_get_responses: dict[str, Any] = {}

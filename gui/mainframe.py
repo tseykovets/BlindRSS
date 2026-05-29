@@ -2767,6 +2767,8 @@ class MainFrame(wx.Frame):
         if valid_article_idx:
             article_for_menu = self.current_articles[idx]
             if article_for_menu.media_url:
+                copy_audio_item = menu.Append(wx.ID_ANY, "Copy Audio Link")
+                self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_media_link(i), copy_audio_item)
                 download_item = menu.Append(wx.ID_ANY, "Download")
                 self.Bind(wx.EVT_MENU, lambda e, a=article_for_menu: self.on_download_article(a), download_item)
             else:
@@ -2818,6 +2820,15 @@ class MainFrame(wx.Frame):
             article = self.current_articles[idx]
             if wx.TheClipboard.Open():
                 wx.TheClipboard.SetData(wx.TextDataObject(article.url))
+                wx.TheClipboard.Flush()
+                wx.TheClipboard.Close()
+
+    def on_copy_media_link(self, idx):
+        if 0 <= idx < len(self.current_articles):
+            article = self.current_articles[idx]
+            media_url = getattr(article, "media_url", None)
+            if media_url and wx.TheClipboard.Open():
+                wx.TheClipboard.SetData(wx.TextDataObject(media_url))
                 wx.TheClipboard.Flush()
                 wx.TheClipboard.Close()
 

@@ -88,6 +88,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ inputs.release_tag }}" dist/BlindRSS-macos-*.zip --clobber
 
+      - name: Publish macOS update manifest
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ASSET="$(ls dist/BlindRSS-macos-*.zip | head -n1)"
+          ASSET_NAME="$(basename "$ASSET")"
+          SHA="$(shasum -a 256 "$ASSET" | awk '{print $1}')"
+          python tools/release.py write-manifest \
+            --version-tag "${{ inputs.release_tag }}" \
+            --asset-name "$ASSET_NAME" \
+            --sha256 "$SHA" \
+            --output dist/BlindRSS-update-macos.json
+          gh release upload "${{ inputs.release_tag }}" dist/BlindRSS-update-macos.json --clobber
+
   linux:
     name: Build Linux Artifact
     runs-on: ubuntu-22.04
@@ -131,3 +146,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ inputs.release_tag }}" dist/BlindRSS-linux-*.tar.gz --clobber
+
+      - name: Publish Linux update manifest
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ASSET="$(ls dist/BlindRSS-linux-*.tar.gz | head -n1)"
+          ASSET_NAME="$(basename "$ASSET")"
+          SHA="$(sha256sum "$ASSET" | awk '{print $1}')"
+          python tools/release.py write-manifest \
+            --version-tag "${{ inputs.release_tag }}" \
+            --asset-name "$ASSET_NAME" \
+            --sha256 "$SHA" \
+            --output dist/BlindRSS-update-linux.json
+          gh release upload "${{ inputs.release_tag }}" dist/BlindRSS-update-linux.json --clobber

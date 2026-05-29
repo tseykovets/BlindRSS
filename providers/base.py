@@ -22,6 +22,18 @@ class RSSProvider(abc.ABC):
         """
         pass
 
+    def should_force_startup_refresh(self) -> bool:
+        """Whether the first refresh after launch should bypass conditional caching.
+
+        Conditional GET (ETag/If-Modified-Since) saves bandwidth but many feed
+        servers return a spurious 304, so freshly opening the app can leave some
+        feeds stale until a manual force-refresh. Providers where forcing is cheap
+        (e.g. the local provider, one request per feed) override this to True so the
+        startup refresh always pulls current content. Hosted providers that would
+        fan out into per-feed requests (e.g. Miniflux) should leave this False.
+        """
+        return False
+
     def refresh_feed(self, feed_id: str, progress_cb=None) -> bool:
         """
         Triggers a sync/refresh of a single feed.

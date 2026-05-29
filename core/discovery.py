@@ -8,6 +8,7 @@ import io
 import contextlib
 import threading
 import concurrent.futures
+from dataclasses import dataclass
 from functools import lru_cache
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse, parse_qs, quote_plus, quote, unquote
@@ -491,29 +492,60 @@ def _build_cookie_sources() -> list[tuple]:
         if tup not in sources:
             sources.append(tup)
 
+    # Priority order: Brave first, then the other Chromium-family browsers, Edge,
+    # then Firefox-family (Firefox, LibreWolf). Only yt-dlp-supported browser
+    # keywords are used (brave, chrome, chromium, vivaldi, edge, opera, firefox);
+    # LibreWolf is read via the firefox extractor with an explicit profile path.
     if platform.system().lower() == "windows":
         local = os.environ.get("LOCALAPPDATA", "")
-        chromium_root = os.path.join(local, "Chromium") if local else ""
-        chromium_user_data = os.path.join(chromium_root, "User Data") if chromium_root else ""
-        if chromium_user_data and os.path.isdir(chromium_user_data):
-            _add("chromium", chromium_user_data)
-        elif chromium_root and os.path.isdir(chromium_root):
-            _add("chromium", chromium_root)
-
-        browser_dirs = [
-            ("edge", os.path.join(local, "Microsoft", "Edge", "User Data")),
-            ("brave", os.path.join(local, "BraveSoftware", "Brave-Browser", "User Data")),
-            ("chrome", os.path.join(local, "Google", "Chrome", "User Data")),
+        roaming = os.environ.get("APPDATA", "")
+        # (browser_keyword, user_data_dir, is_default_install). For the default
+        # install we pass the keyword alone (yt-dlp finds it); for variants like
+        # Brave Beta we pass the explicit User Data path as the profile.
+        chromium_dirs = [
+            ("brave", os.path.join(local, "BraveSoftware", "Brave-Browser", "User Data"), True),
+            ("brave", os.path.join(local, "BraveSoftware", "Brave-Browser-Beta", "User Data"), False),
+            ("brave", os.path.join(local, "BraveSoftware", "Brave-Browser-Nightly", "User Data"), False),
+            ("chrome", os.path.join(local, "Google", "Chrome", "User Data"), True),
+            ("chromium", os.path.join(local, "Chromium", "User Data"), True),
+            ("vivaldi", os.path.join(local, "Vivaldi", "User Data"), True),
+            ("edge", os.path.join(local, "Microsoft", "Edge", "User Data"), True),
+            ("opera", os.path.join(roaming, "Opera Software", "Opera Stable"), True),
         ]
-        for name, path in browser_dirs:
+        for name, path, is_default in chromium_dirs:
             if path and os.path.isdir(path):
-                _add(name)
+                _add(name) if is_default else _add(name, path)
+
+        if roaming and os.path.isdir(os.path.join(roaming, "Mozilla", "Firefox", "Profiles")):
+            _add("firefox")
+        for lw_profiles in (
+            os.path.join(roaming, "librewolf", "Profiles") if roaming else "",
+            os.path.join(local, "librewolf", "Profiles") if local else "",
+        ):
+            if lw_profiles and os.path.isdir(lw_profiles):
+                _add("firefox", lw_profiles)
+                break
+    else:
+        # macOS/Linux: let yt-dlp locate the default profile for each browser.
+        for name in ("brave", "chrome", "chromium", "vivaldi", "edge", "opera", "firefox"):
+            _add(name)
 
     if not sources:
-        for name in ("chromium", "edge", "brave", "chrome"):
+        for name in ("brave", "chrome", "chromium", "edge", "firefox"):
             _add(name)
 
     return sources
+
+
+def cookie_arg_for_ytdlp(source) -> str | None:
+    """Format a cookie-source tuple as a yt-dlp --cookies-from-browser value."""
+    if not source:
+        return None
+    browser = source[0]
+    profile = source[1] if len(source) > 1 else None
+    if profile:
+        return f"{browser}:{profile}"
+    return browser
 
 
 def get_rumble_cookie_sources(url: str) -> list[tuple]:
@@ -2938,14 +2970,179 @@ def get_social_feed_url(url: str) -> str | None:
     return None
 
 
+@dataclass(frozen=True)
+class YoutubeSearchItem:
+    url: str
+    title: str
+    author: str | None = None
+    published: str | None = None
+
+    @property
+    def id(self) -> str:
+        return self.url
+
+
+def is_youtube_search_url(url: str) -> bool:
+    """True for a YouTube search-results URL, e.g. youtube.com/results?search_query=..."""
+    if not url:
+        return False
+    try:
+        parts = urlparse(url)
+    except Exception:
+        return False
+    if "youtube.com" not in (parts.netloc or "").lower():
+        return False
+    if (parts.path or "").rstrip("/").lower() != "/results":
+        return False
+    try:
+        q = parse_qs(parts.query or "")
+    except Exception:
+        return False
+    return bool(q.get("search_query") or q.get("q"))
+
+
+def youtube_search_query(url: str) -> str | None:
+    """Return the search terms from a YouTube search-results URL, or None."""
+    try:
+        parts = urlparse(url)
+        q = parse_qs(parts.query or "")
+    except Exception:
+        return None
+    vals = q.get("search_query") or q.get("q") or []
+    val = (vals[0] if vals else "").strip()
+    return val or None
+
+
+def fetch_youtube_search_items(query: str, max_items: int = 30, timeout_s: float = 30.0, cookiefile: str | None = None):
+    """Enumerate recent YouTube videos for a search query, newest first.
+
+    Uses yt-dlp's ``ytsearchdate`` (date-sorted search) and a flat playlist dump so
+    we get lightweight entries without resolving every video. Returns
+    (feed_title, list[YoutubeSearchItem]).
+    """
+    query = (query or "").strip()
+    if not query:
+        return (None, [])
+    n = max(1, min(100, int(max_items or 30)))
+    # Use YouTube's own date-sorted search results URL (sp=CAI%3D == "Sort by upload
+    # date"). yt-dlp's `ytsearchdate` prefix is unreliable across versions, but the
+    # results URL is handled robustly by the YouTube tab extractor.
+    search_url = f"https://www.youtube.com/results?search_query={quote_plus(query)}&sp=CAI%3D"
+
+    base_cmd = [
+        _resolve_ytdlp_cli_path(),
+        "--dump-json",
+        "--flat-playlist",
+        "--ignore-errors",
+        "--no-warnings",
+        "--playlist-end",
+        str(n),
+    ]
+
+    creationflags = 0
+    if platform.system().lower() == "windows":
+        creationflags = 0x08000000  # CREATE_NO_WINDOW
+    try:
+        from core.dependency_check import _get_startup_info
+        startupinfo = _get_startup_info()
+    except Exception:
+        startupinfo = None
+
+    def _run(cookie_value: str | None = None, cookiefile: str | None = None) -> str:
+        cmd = list(base_cmd)
+        if cookiefile:
+            cmd.extend(["--cookies", cookiefile])
+        elif cookie_value:
+            cmd.extend(["--cookies-from-browser", cookie_value])
+        cmd.append(search_url)
+        try:
+            res = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                creationflags=creationflags,
+                startupinfo=startupinfo,
+                timeout=timeout_s,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except Exception:
+            return ""
+        return res.stdout or ""
+
+    def _parse(stdout: str) -> list[YoutubeSearchItem]:
+        out: list[YoutubeSearchItem] = []
+        for line in (stdout or "").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+            except Exception:
+                continue
+            if not isinstance(entry, dict):
+                continue
+            vid = str(entry.get("id") or "").strip()
+            if not vid:
+                continue
+            watch_url = f"https://www.youtube.com/watch?v={vid}"
+            title = str(entry.get("title") or "YouTube Video").strip()
+            author = entry.get("uploader") or entry.get("channel") or entry.get("uploader_id")
+            published = None
+            upload_date = entry.get("upload_date")
+            if isinstance(upload_date, str) and len(upload_date) == 8 and upload_date.isdigit():
+                published = f"{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}"
+            out.append(
+                YoutubeSearchItem(
+                    url=watch_url,
+                    title=title,
+                    author=str(author) if author else None,
+                    published=published,
+                )
+            )
+        return out
+
+    # A configured cookies.txt takes priority (works for Chromium ABE on Windows),
+    # then each detected browser's cookies (Brave first), then an anonymous request
+    # (reliable for public search; avoids per-browser decryption failures).
+    if cookiefile and os.path.isfile(cookiefile):
+        items = _parse(_run(cookiefile=cookiefile))
+        if items:
+            return (f"YouTube: {query}", items)
+
+    attempts: list[str | None] = []
+    try:
+        for src in get_ytdlp_cookie_sources("https://www.youtube.com/"):
+            arg = cookie_arg_for_ytdlp(src)
+            if arg:
+                attempts.append(arg)
+    except Exception:
+        pass
+    attempts.append(None)  # anonymous fallback
+
+    for cookie_value in attempts:
+        items = _parse(_run(cookie_value=cookie_value))
+        if items:
+            return (f"YouTube: {query}", items)
+
+    return (f"YouTube: {query}", [])
+
+
 def get_ytdlp_feed_url(url: str) -> str:
     """Try to get a native RSS feed for a yt-dlp supported URL (e.g. YouTube)."""
     if not url:
         return None
-        
+
+    # Search-results URLs have no native RSS; they are enumerated via yt-dlp on
+    # refresh. Returning None keeps the original URL so the search-listing path runs.
+    if is_youtube_search_url(url):
+        return None
+
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
-    
+
     # 1. YouTube specific logic (fastest)
     if "youtube.com" in domain or "youtu.be" in domain:
         playlist_id = _youtube_playlist_id_from_url(url)

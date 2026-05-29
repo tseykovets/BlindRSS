@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 import zipfile
@@ -22,8 +23,11 @@ from core.update_config import (
     EXE_NAME,
     GITHUB_OWNER,
     GITHUB_REPO,
-    UPDATE_ASSET_EXTENSION,
-    UPDATE_MANIFEST_NAME,
+    POSIX_UPDATE_HELPER_NAME,
+    WINDOWS_UPDATE_HELPER_NAME,
+    current_platform,
+    platform_asset_extension,
+    platform_manifest_name,
 )
 
 log = logging.getLogger(__name__)
@@ -193,9 +197,16 @@ def check_for_updates() -> UpdateCheckResult:
     if latest <= current:
         return UpdateCheckResult("up_to_date", f"BlindRSS is up to date ({_format_version_tag(current)}).")
 
-    manifest_asset = _find_release_asset(release, UPDATE_MANIFEST_NAME)
+    platform = current_platform()
+    if not platform:
+        return UpdateCheckResult("error", f"Auto-update is not supported on this platform ({sys.platform}).")
+
+    manifest_name = platform_manifest_name(platform)
+    asset_extension = platform_asset_extension(platform)
+
+    manifest_asset = _find_release_asset(release, manifest_name)
     if not manifest_asset:
-        return UpdateCheckResult("error", f"Update manifest '{UPDATE_MANIFEST_NAME}' not found in release assets.")
+        return UpdateCheckResult("error", f"Update manifest '{manifest_name}' not found in release assets.")
 
     manifest, err = _download_json(manifest_asset.get("browser_download_url", ""))
     if err:
@@ -212,8 +223,8 @@ def check_for_updates() -> UpdateCheckResult:
     asset_name = manifest.get("asset") or manifest.get("asset_name") or ""
     if not asset_name:
         return UpdateCheckResult("error", "Update manifest is missing asset name.")
-    if not asset_name.endswith(UPDATE_ASSET_EXTENSION):
-        return UpdateCheckResult("error", f"Update asset must be a {UPDATE_ASSET_EXTENSION} file.")
+    if not asset_name.endswith(asset_extension):
+        return UpdateCheckResult("error", f"Update asset must be a {asset_extension} file.")
 
     asset = _find_release_asset(release, asset_name)
     if not asset:
@@ -245,11 +256,33 @@ def check_for_updates() -> UpdateCheckResult:
     return UpdateCheckResult("update_available", "Update available.", info)
 
 
+def _macos_app_bundle_root() -> Optional[str]:
+    """Return the path to the running ``BlindRSS.app`` bundle, or None.
+
+    For a frozen macOS build ``sys.executable`` is
+    ``<root>/BlindRSS.app/Contents/MacOS/BlindRSS``; the bundle is three levels up.
+    """
+    try:
+        exe = os.path.abspath(sys.executable)
+    except Exception:
+        return None
+    bundle = os.path.dirname(os.path.dirname(os.path.dirname(exe)))
+    if bundle.endswith(".app") and os.path.isdir(bundle):
+        return bundle
+    return None
+
+
 def is_update_supported() -> bool:
     if not getattr(sys, "frozen", False):
         return False
-    helper_path = os.path.join(APP_DIR, "update_helper.bat")
-    return os.path.isfile(helper_path)
+    platform = current_platform()
+    if platform == "windows":
+        return os.path.isfile(os.path.join(APP_DIR, WINDOWS_UPDATE_HELPER_NAME))
+    if platform in ("macos", "linux"):
+        if platform == "macos" and not _macos_app_bundle_root():
+            return False
+        return os.path.isfile(os.path.join(APP_DIR, POSIX_UPDATE_HELPER_NAME))
+    return False
 
 
 def _sha256_file(path: str) -> str:
@@ -265,6 +298,18 @@ def _extract_zip(zip_path: str, dest_dir: str) -> None:
         zf.extractall(dest_dir)
 
 
+def _extract_archive(archive_path: str, dest_dir: str) -> None:
+    """Extract a release asset (.zip on Windows/macOS, .tar.gz on Linux)."""
+    lower = archive_path.lower()
+    if lower.endswith(".zip"):
+        _extract_zip(archive_path, dest_dir)
+    elif lower.endswith(".tar.gz") or lower.endswith(".tgz"):
+        with tarfile.open(archive_path, "r:gz") as tf:
+            tf.extractall(dest_dir)
+    else:
+        raise ValueError(f"Unsupported update archive type: {os.path.basename(archive_path)}")
+
+
 def _find_staging_root(extract_dir: str) -> str:
     entries = [e for e in os.listdir(extract_dir) if e and not e.startswith(".")]
     if len(entries) == 1:
@@ -272,6 +317,27 @@ def _find_staging_root(extract_dir: str) -> str:
         if os.path.isdir(candidate):
             return candidate
     return extract_dir
+
+
+def _find_macos_app_staging(extract_dir: str) -> Optional[str]:
+    """Locate the extracted ``*.app`` bundle (ditto archives may add __MACOSX)."""
+    for entry in sorted(os.listdir(extract_dir)):
+        if entry.endswith(".app"):
+            candidate = os.path.join(extract_dir, entry)
+            if os.path.isdir(candidate):
+                return candidate
+    return None
+
+
+def _find_linux_staging(extract_dir: str) -> Optional[str]:
+    """Locate the extracted install dir (the tarball packs a top-level ``BlindRSS/``)."""
+    candidate = os.path.join(extract_dir, "BlindRSS")
+    if os.path.isdir(candidate) and os.path.isfile(os.path.join(candidate, "BlindRSS")):
+        return candidate
+    root = _find_staging_root(extract_dir)
+    if os.path.isfile(os.path.join(root, "BlindRSS")):
+        return root
+    return None
 
 
 def _verify_authenticode_signature(exe_path: str, allowed_thumbprints: Iterable[str]) -> Tuple[bool, str]:
@@ -538,18 +604,17 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
             return True
 
     if not is_update_supported():
-        return False, "Auto-update is only available in the packaged Windows build."
+        return False, "Auto-update is not available for this build."
 
+    platform = current_platform()
     install_dir = APP_DIR
-    helper_path = os.path.join(install_dir, "update_helper.bat")
-    if not os.path.isfile(helper_path):
-        return False, "update_helper.bat is missing from the install directory."
 
     temp_root = _make_update_temp_root(install_dir)
-    zip_path = os.path.join(temp_root, info.asset_name)
+    archive_path = os.path.join(temp_root, info.asset_name)
     extract_dir = os.path.join(temp_root, "extract")
     os.makedirs(extract_dir, exist_ok=True)
 
+    # --- Download (common to all platforms) -----------------------------------
     try:
         resp = safe_requests_get(info.download_url, stream=True, timeout=30)
         resp.raise_for_status()
@@ -560,7 +625,7 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
         downloaded = 0
         if not report("Downloading update…", 0.0):
             return False, UPDATE_CANCELED_MESSAGE
-        with open(zip_path, "wb") as f:
+        with open(archive_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1024 * 512):
                 if chunk:
                     f.write(chunk)
@@ -572,15 +637,30 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
         return False, f"Failed to download update: {e}"
 
     report("Verifying download…", None)
-    digest = _sha256_file(zip_path)
+    digest = _sha256_file(archive_path)
     if digest.lower() != info.sha256.lower():
         return False, "Downloaded update failed SHA-256 verification."
 
     report("Extracting update…", None)
     try:
-        _extract_zip(zip_path, extract_dir)
+        _extract_archive(archive_path, extract_dir)
     except Exception as e:
         return False, f"Failed to extract update: {e}"
+
+    # --- Platform-specific verification + apply --------------------------------
+    if platform == "windows":
+        return _apply_windows(info, install_dir, temp_root, extract_dir, debug_mode, report)
+    if platform == "macos":
+        return _apply_macos(install_dir, temp_root, extract_dir, report)
+    if platform == "linux":
+        return _apply_linux(install_dir, temp_root, extract_dir, report)
+    return False, f"Auto-update is not supported on this platform ({sys.platform})."
+
+
+def _apply_windows(info, install_dir, temp_root, extract_dir, debug_mode, report) -> Tuple[bool, str]:
+    helper_path = os.path.join(install_dir, WINDOWS_UPDATE_HELPER_NAME)
+    if not os.path.isfile(helper_path):
+        return False, f"{WINDOWS_UPDATE_HELPER_NAME} is missing from the install directory."
 
     staging_root = _find_staging_root(extract_dir)
     exe_path = os.path.join(staging_root, EXE_NAME)
@@ -596,7 +676,7 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
 
     helper_run_path = helper_path
     try:
-        helper_temp = os.path.join(temp_root, "update_helper.bat")
+        helper_temp = os.path.join(temp_root, WINDOWS_UPDATE_HELPER_NAME)
         shutil.copy2(helper_path, helper_temp)
         helper_run_path = helper_temp
     except Exception:
@@ -625,3 +705,128 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
         return False, msg
 
     return True, "Update prepared. The app will restart after it exits."
+
+
+def _verify_macos_codesign(app_path: str) -> Tuple[bool, str]:
+    """Best-effort signature check for the staged .app.
+
+    macOS builds are ad-hoc signed (not notarized), so we only confirm the
+    signature is structurally valid when ``codesign`` is available; we never block
+    the update if the tool is missing.
+    """
+    codesign = shutil.which("codesign")
+    if not codesign:
+        return True, ""
+    try:
+        proc = subprocess.run(
+            [codesign, "--verify", "--deep", "--strict", app_path],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception:
+        return True, ""
+    if proc.returncode == 0:
+        return True, ""
+    return False, f"Update signature verification failed: {(proc.stderr or proc.stdout).strip()}"
+
+
+def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str]:
+    bundle_root = _macos_app_bundle_root()
+    if not bundle_root:
+        return False, "Could not locate the running .app bundle to update."
+
+    helper_path = os.path.join(install_dir, POSIX_UPDATE_HELPER_NAME)
+    if not os.path.isfile(helper_path):
+        return False, f"{POSIX_UPDATE_HELPER_NAME} is missing from the app bundle."
+
+    staging_app = _find_macos_app_staging(extract_dir)
+    if not staging_app:
+        return False, "Update package does not contain a BlindRSS.app bundle."
+    if not os.path.isfile(os.path.join(staging_app, "Contents", "MacOS", "BlindRSS")):
+        return False, "Update package .app is missing its executable."
+
+    report("Verifying signature…", None)
+    ok, msg = _verify_macos_codesign(staging_app)
+    if not ok:
+        return False, msg
+
+    report("Preparing restart…", None)
+    return _launch_posix_helper(
+        helper_path,
+        "macos",
+        install_target=bundle_root,
+        staging_root=staging_app,
+        relaunch_path=bundle_root,
+        temp_root=temp_root,
+    )
+
+
+def _apply_linux(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str]:
+    helper_path = os.path.join(install_dir, POSIX_UPDATE_HELPER_NAME)
+    if not os.path.isfile(helper_path):
+        return False, f"{POSIX_UPDATE_HELPER_NAME} is missing from the install directory."
+
+    staging_dir = _find_linux_staging(extract_dir)
+    if not staging_dir:
+        return False, "Update package is missing the BlindRSS executable."
+
+    report("Preparing restart…", None)
+    return _launch_posix_helper(
+        helper_path,
+        "linux",
+        install_target=install_dir,
+        staging_root=staging_dir,
+        relaunch_path=os.path.join(install_dir, "BlindRSS"),
+        temp_root=temp_root,
+    )
+
+
+def _launch_posix_helper(
+    helper_path: str,
+    platform: str,
+    *,
+    install_target: str,
+    staging_root: str,
+    relaunch_path: str,
+    temp_root: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Launch the POSIX update helper detached so it outlives this process."""
+    try:
+        # Run the helper from a temp copy so swapping the install target can't
+        # delete it mid-run.
+        helper_run = helper_path
+        if temp_root:
+            try:
+                helper_temp = os.path.join(temp_root, POSIX_UPDATE_HELPER_NAME)
+                shutil.copy2(helper_path, helper_temp)
+                os.chmod(helper_temp, 0o755)
+                helper_run = helper_temp
+            except Exception:
+                helper_run = helper_path
+
+        cmd = [
+            "/bin/sh",
+            helper_run,
+            str(os.getpid()),
+            platform,
+            install_target,
+            staging_root,
+            relaunch_path,
+        ]
+        if temp_root:
+            cmd.append(temp_root)
+
+        # Detach into a new session (POSIX-only) so the helper survives app exit.
+        subprocess.Popen(
+            cmd,
+            cwd=tempfile.gettempdir(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            start_new_session=True,
+        )
+        return True, "Update prepared. The app will restart after it exits."
+    except Exception as e:
+        return False, f"Failed to start update helper: {e}"

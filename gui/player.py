@@ -2,6 +2,7 @@ import wx
 import vlc
 import threading
 import time
+import os
 import sqlite3
 import platform
 import logging
@@ -2819,7 +2820,19 @@ class PlayerFrame(wx.Frame):
                     except Exception:
                         prefer_cookies = False
 
+                    # A configured cookies.txt works even when browser cookie
+                    # extraction is blocked (Chromium App-Bound Encryption on Windows).
+                    cookiefile = ""
+                    try:
+                        cookiefile = str(self.config_manager.get("ytdlp_cookies_file", "") or "").strip()
+                        if cookiefile and not os.path.isfile(cookiefile):
+                            cookiefile = ""
+                    except Exception:
+                        cookiefile = ""
+
                     attempts = []
+                    if cookiefile:
+                        attempts.append(("cookiefile", cookiefile))
                     if prefer_cookies and cookie_sources:
                         for source in cookie_sources:
                             attempts.append(("cookies", source))
@@ -2833,7 +2846,9 @@ class PlayerFrame(wx.Frame):
                         if kind == "cookies" and skip_cookie_attempts:
                             continue
                         opts = dict(base_opts)
-                        if kind == "cookies" and source:
+                        if kind == "cookiefile" and source:
+                            opts["cookiefile"] = source
+                        elif kind == "cookies" and source:
                             if source in tried_cookie_sources:
                                 continue
                             tried_cookie_sources.append(source)
@@ -2842,6 +2857,8 @@ class PlayerFrame(wx.Frame):
                             info = _extract_with_opts(opts)
                             if kind == "cookies" and source:
                                 _log(f"yt-dlp cookies OK ({source[0]})")
+                            elif kind == "cookiefile" and source:
+                                _log("yt-dlp cookies OK (cookies.txt)")
                             break
                         except Exception as e:
                             last_err = e

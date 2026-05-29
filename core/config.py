@@ -63,6 +63,21 @@ DEFAULT_CONFIG = {
     "active_provider": "local",
     "debug_mode": False,
     "refresh_on_startup": True,
+    # Max recent videos to pull when a YouTube search URL is subscribed as a feed.
+    "youtube_search_max_items": 30,
+    # Optional Netscape-format cookies.txt for yt-dlp. Needed to use cookies from
+    # Chromium browsers (Brave/Chrome/Edge) on Windows, whose App-Bound Encryption
+    # (yt-dlp #10927) blocks --cookies-from-browser. Export from the browser, then
+    # set this path. When set, it is tried before browser-cookie extraction.
+    "ytdlp_cookies_file": "",
+    # When True, article text includes image alt text as "[Image: alt]" so screen
+    # readers announce images. Off by default; can be overridden per feed.
+    "show_image_alt": False,
+    # When True, the local provider ignores ETag/Last-Modified caching on every
+    # refresh (startup and periodic) so feeds whose servers return spurious 304s
+    # still update in the background. The startup refresh always fetches fresh
+    # regardless of this setting; this only affects periodic background refreshes.
+    "ignore_feed_cache": False,
     "prompt_missing_dependencies_on_startup": True,
     "auto_check_updates": True,
     "start_on_windows_login": False,

@@ -208,6 +208,41 @@ class FeedCacheRevalidationTests(unittest.TestCase):
         self.assertTrue(StaleCacheHandler.saw_no_cache)
         self.assertFalse(StaleCacheHandler.saw_conditional)
 
+    def test_local_provider_forces_startup_refresh(self):
+        provider = LocalProvider(self.config)
+        # The local provider opts into a forced first refresh so a fresh launch is
+        # never left stale by servers that return a spurious 304.
+        self.assertTrue(provider.should_force_startup_refresh())
+
+    def test_ignore_feed_cache_bypasses_conditional_on_auto_refresh(self):
+        provider = LocalProvider(self.config)
+
+        # Initial refresh stores the v1 ETag.
+        provider.refresh(force=False)
+
+        # Origin moves to v2; a normal conditional request would be answered 304.
+        StaleCacheHandler.origin_etag = "v2"
+        StaleCacheHandler.origin_body = FEED_V2.encode("utf-8")
+        StaleCacheHandler.saw_no_cache = False
+        StaleCacheHandler.saw_conditional = False
+
+        # A non-forced (periodic/background) refresh with the user opt-in enabled must
+        # still pull fresh content without sending conditional validators.
+        provider.config["ignore_feed_cache"] = True
+        provider.refresh(force=False)
+
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM articles WHERE feed_id = ?", (self.feed_id,))
+        count = int(c.fetchone()[0] or 0)
+        c.execute("SELECT etag FROM feeds WHERE id = ?", (self.feed_id,))
+        etag = c.fetchone()[0]
+        conn.close()
+
+        self.assertFalse(StaleCacheHandler.saw_conditional)
+        self.assertEqual(count, 2)
+        self.assertEqual(etag, "v2")
+
     def test_force_refresh_bypasses_conditional_validators(self):
         provider = LocalProvider(self.config)
 

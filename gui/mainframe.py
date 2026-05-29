@@ -1227,16 +1227,33 @@ class MainFrame(wx.Frame):
         except Exception as e:
             print(f"Error resuming history: {e}")
 
-    def _strip_html(self, html_content):
+    def _strip_html(self, html_content, include_images=None):
         if not html_content:
             return ""
+        if include_images is None:
+            include_images = self._images_enabled_global()
         try:
-            soup = BeautifulSoup(html_content, 'html.parser')
-            # Get text with basic formatting preservation
-            text = soup.get_text(separator='\n\n')
-            return text.strip()
+            return utils.html_to_text(html_content, include_images=bool(include_images))
         except Exception:
             return html_content
+
+    def _images_enabled_global(self) -> bool:
+        try:
+            return bool(self.config_manager.get("show_image_alt", False))
+        except Exception:
+            return False
+
+    def _show_images_for_feed(self, feed_id) -> bool:
+        """Resolve image-alt display for a feed: per-feed override wins, else global."""
+        if feed_id:
+            try:
+                from core.db import get_feed_show_images
+                override = get_feed_show_images(feed_id)
+                if override is not None:
+                    return bool(override)
+            except Exception:
+                pass
+        return self._images_enabled_global()
 
     def init_menus(self):
         menubar = wx.MenuBar()
@@ -1986,6 +2003,22 @@ class MainFrame(wx.Frame):
         enabled = bool(event.IsChecked())
         self._set_feed_notifications_enabled(feed_id, enabled)
 
+    def on_set_feed_images(self, feed_id: str, value):
+        """Set a feed's image-alt override: None=inherit global, True=always, False=never."""
+        try:
+            from core.db import set_feed_show_images
+            set_feed_show_images(feed_id, value)
+        except Exception:
+            log.debug("Failed to set per-feed image override", exc_info=True)
+            return
+        # Re-render the current article so the change takes effect immediately.
+        try:
+            idx = self.list_ctrl.GetFirstSelected()
+            if idx is not None and idx >= 0:
+                self._update_content_view(idx)
+        except Exception:
+            pass
+
     def _windows_notifications_enabled(self) -> bool:
         if not sys.platform.startswith("win"):
             return False
@@ -2701,6 +2734,24 @@ class MainFrame(wx.Frame):
             notifications_item.Check(self._is_feed_notifications_enabled(feed_id))
             self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_toggle_feed_notifications(e, fid), notifications_item)
 
+            # Per-feed image alt-text override (inherit global / always / never).
+            try:
+                from core.db import get_feed_show_images
+                current_override = get_feed_show_images(feed_id)
+            except Exception:
+                current_override = None
+            images_menu = wx.Menu()
+            inherit_item = images_menu.AppendRadioItem(wx.ID_ANY, "Use default setting")
+            always_item = images_menu.AppendRadioItem(wx.ID_ANY, "Always show image alt text")
+            never_item = images_menu.AppendRadioItem(wx.ID_ANY, "Never show image alt text")
+            inherit_item.Check(current_override is None)
+            always_item.Check(current_override is True)
+            never_item.Check(current_override is False)
+            self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_set_feed_images(fid, None), inherit_item)
+            self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_set_feed_images(fid, True), always_item)
+            self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_set_feed_images(fid, False), never_item)
+            menu.AppendSubMenu(images_menu, "Image Alt Text")
+
             remove_item = menu.Append(wx.ID_ANY, "Remove Feed")
             self.Bind(wx.EVT_MENU, self.on_remove_feed, remove_item)
             
@@ -2766,14 +2817,22 @@ class MainFrame(wx.Frame):
         download_item = None
         if valid_article_idx:
             article_for_menu = self.current_articles[idx]
+            copy_text_item = menu.Append(wx.ID_ANY, "Copy Text")
+            self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_text(i), copy_text_item)
             if article_for_menu.media_url:
-                copy_audio_item = menu.Append(wx.ID_ANY, "Copy Audio Link")
+                copy_audio_item = menu.Append(wx.ID_ANY, "Copy Media Link")
                 self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_media_link(i), copy_audio_item)
                 download_item = menu.Append(wx.ID_ANY, "Download")
                 self.Bind(wx.EVT_MENU, lambda e, a=article_for_menu: self.on_download_article(a), download_item)
             else:
                 detect_audio_item = menu.Append(wx.ID_ANY, "Detect Audio")
                 self.Bind(wx.EVT_MENU, lambda e, a=article_for_menu: self.on_detect_audio(a), detect_audio_item)
+            try:
+                if utils.content_has_images(getattr(article_for_menu, "content", "")):
+                    copy_image_item = menu.Append(wx.ID_ANY, "Copy Image Link")
+                    self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_image_link(i), copy_image_item)
+            except Exception:
+                pass
 
             try:
                 if getattr(self.provider, "supports_favorites", lambda: False)() and hasattr(self, "_toggle_favorite_id"):
@@ -2831,6 +2890,31 @@ class MainFrame(wx.Frame):
                 wx.TheClipboard.SetData(wx.TextDataObject(media_url))
                 wx.TheClipboard.Flush()
                 wx.TheClipboard.Close()
+
+    def _copy_to_clipboard(self, text: str) -> None:
+        text = str(text or "")
+        if not text:
+            return
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(text))
+            wx.TheClipboard.Flush()
+            wx.TheClipboard.Close()
+
+    def on_copy_text(self, idx):
+        """Copy the article's readable text (honors the feed's image-alt setting)."""
+        if 0 <= idx < len(self.current_articles):
+            article = self.current_articles[idx]
+            include_images = self._show_images_for_feed(getattr(article, "feed_id", None))
+            text = self._strip_html(getattr(article, "content", ""), include_images=include_images)
+            self._copy_to_clipboard(text)
+
+    def on_copy_image_link(self, idx):
+        """Copy the first image URL found in the article content, if any."""
+        if 0 <= idx < len(self.current_articles):
+            article = self.current_articles[idx]
+            img_url = utils.first_image_url(getattr(article, "content", ""))
+            if img_url:
+                self._copy_to_clipboard(img_url)
 
     def on_detect_audio(self, article):
         if not article or not article.url:
@@ -3386,12 +3470,24 @@ class MainFrame(wx.Frame):
                 continue
                 
             try:
-                # Startup refresh should be immediate, but not a manual/forced refresh.
-                # For hosted providers such as Miniflux, force=True can fan out into
-                # per-feed refresh requests for every subscription.
-                force_refresh = False
+                # The first refresh after launch should be immediate. By default it is
+                # non-forced (conditional GET) so hosted providers such as Miniflux do
+                # not fan out into per-feed refresh requests for every subscription.
+                # Providers where forcing is cheap (the local provider: one full GET per
+                # feed) opt in via should_force_startup_refresh() so a fresh launch is
+                # not left stale by servers that return a spurious 304.
+                is_startup_tick = startup_refresh_pending
                 startup_refresh_pending = False
-                log.info("Refresh loop tick interval_s=%s force=%s", interval, force_refresh)
+                force_refresh = False
+                if is_startup_tick:
+                    try:
+                        force_refresh = bool(self.provider.should_force_startup_refresh())
+                    except Exception:
+                        force_refresh = False
+                log.info(
+                    "Refresh loop tick interval_s=%s force=%s startup=%s",
+                    interval, force_refresh, is_startup_tick,
+                )
                 ran = self._run_refresh(block=False, force=force_refresh)
                 log.info("Refresh loop tick complete ran=%s interval_s=%s force=%s", ran, interval, force_refresh)
             except Exception as e:
@@ -4485,7 +4581,8 @@ class MainFrame(wx.Frame):
         header += "-" * 40 + "\n\n"
         
         try:
-            content = self._strip_html(article.content)
+            include_images = self._show_images_for_feed(getattr(article, "feed_id", None))
+            content = self._strip_html(article.content, include_images=include_images)
             full_text = header + content
             self.content_ctrl.SetValue(full_text)
         except Exception:
@@ -6783,7 +6880,7 @@ class MainFrame(wx.Frame):
             return
         if not updater.is_update_supported():
             wx.MessageBox(
-                "Auto-update is only available in the packaged Windows build.\n"
+                "Auto-update is only available in the packaged app build.\n"
                 "Download the latest release from GitHub.",
                 "Updates",
                 wx.ICON_INFORMATION,

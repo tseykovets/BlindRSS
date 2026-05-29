@@ -680,6 +680,33 @@ class SettingsDialog(wx.Dialog):
         self.refresh_startup_chk.SetValue(bool(config.get("refresh_on_startup", True)))
         general_sizer.Add(self.refresh_startup_chk, 0, wx.ALL, 5)
 
+        self.ignore_feed_cache_chk = wx.CheckBox(
+            general_panel,
+            label="Always fetch full feeds in the background (ignore feed caching)",
+        )
+        self.ignore_feed_cache_chk.SetValue(bool(config.get("ignore_feed_cache", False)))
+        general_sizer.Add(self.ignore_feed_cache_chk, 0, wx.ALL, 5)
+
+        self.show_image_alt_chk = wx.CheckBox(
+            general_panel,
+            label="Include image alt text in articles (announces images, can override per feed)",
+        )
+        self.show_image_alt_chk.SetValue(bool(config.get("show_image_alt", False)))
+        general_sizer.Add(self.show_image_alt_chk, 0, wx.ALL, 5)
+
+        cookies_label = wx.StaticText(
+            general_panel,
+            label="yt-dlp cookies file (cookies.txt) — for Brave/Chrome/Edge logins on Windows:",
+        )
+        general_sizer.Add(cookies_label, 0, wx.LEFT | wx.TOP, 5)
+        cookies_row = wx.BoxSizer(wx.HORIZONTAL)
+        self.ytdlp_cookies_ctrl = wx.TextCtrl(general_panel, value=str(config.get("ytdlp_cookies_file", "") or ""))
+        cookies_row.Add(self.ytdlp_cookies_ctrl, 1, wx.EXPAND | wx.RIGHT, 5)
+        cookies_browse = wx.Button(general_panel, label="Browse...")
+        cookies_browse.Bind(wx.EVT_BUTTON, self._on_browse_cookies_file)
+        cookies_row.Add(cookies_browse, 0)
+        general_sizer.Add(cookies_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+
         self.prompt_missing_deps_chk = wx.CheckBox(
             general_panel,
             label="Ask to install missing media dependencies on startup",
@@ -1979,6 +2006,18 @@ class SettingsDialog(wx.Dialog):
             self.dl_path_ctrl.SetValue(dlg.GetPath())
         dlg.Destroy()
 
+    def _on_browse_cookies_file(self, event):
+        dlg = wx.FileDialog(
+            self,
+            "Choose yt-dlp cookies.txt",
+            defaultFile=self.ytdlp_cookies_ctrl.GetValue(),
+            wildcard="Cookies (*.txt)|*.txt|All files (*.*)|*.*",
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            self.ytdlp_cookies_ctrl.SetValue(dlg.GetPath())
+        dlg.Destroy()
+
     def get_data(self):
         # Parse speed back to float
         speed_str = self.speed_ctrl.GetValue().replace("x", "")
@@ -2059,6 +2098,9 @@ class SettingsDialog(wx.Dialog):
             "start_maximized": self.start_maximized_chk.GetValue(),
             "debug_mode": self.debug_mode_chk.GetValue(),
             "refresh_on_startup": self.refresh_startup_chk.GetValue(),
+            "ignore_feed_cache": self.ignore_feed_cache_chk.GetValue(),
+            "show_image_alt": self.show_image_alt_chk.GetValue(),
+            "ytdlp_cookies_file": self.ytdlp_cookies_ctrl.GetValue().strip(),
             "prompt_missing_dependencies_on_startup": self.prompt_missing_deps_chk.GetValue(),
             "start_on_windows_login": self.start_on_login_chk.GetValue(),
             "remember_last_feed": self.remember_last_feed_chk.GetValue(),

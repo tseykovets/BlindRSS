@@ -276,6 +276,18 @@ class LocalProvider(RSSProvider):
     def get_name(self) -> str:
         return "Local RSS"
 
+    def should_force_startup_refresh(self) -> bool:
+        # Forcing the local provider is just a full GET per feed (no fan-out), so the
+        # first refresh after launch always pulls current content instead of trusting
+        # possibly-stale ETag/Last-Modified validators that make some servers return 304.
+        return True
+
+    def _cache_ignore_enabled(self) -> bool:
+        try:
+            return bool(self.config.get("ignore_feed_cache", False))
+        except Exception:
+            return False
+
     def _discover_feed_url(self, url: str, timeout_s: Optional[float] = None, use_cache: bool = False) -> Optional[str]:
         key = str(url or "").strip()
         if not key:
@@ -324,6 +336,15 @@ class LocalProvider(RSSProvider):
         resolved = str(url or "").strip()
         if not resolved:
             return resolved
+
+        # YouTube search URLs have no native RSS and are enumerated on refresh;
+        # keep them verbatim so discovery does not rewrite them to a channel feed.
+        try:
+            from core.discovery import is_youtube_search_url
+            if is_youtube_search_url(resolved):
+                return resolved
+        except Exception:
+            pass
 
         if allow_network:
             from core.discovery import get_ytdlp_feed_url
@@ -488,7 +509,10 @@ class LocalProvider(RSSProvider):
         finally:
             conn.close()
 
-        return self._refresh_feed_rows(feeds, progress_cb=progress_cb, force=force)
+        # When the user opts to ignore feed caching, treat every full refresh as
+        # forced so periodic/background refreshes also bypass spurious 304s.
+        effective_force = bool(force) or self._cache_ignore_enabled()
+        return self._refresh_feed_rows(feeds, progress_cb=progress_cb, force=effective_force)
 
     def refresh_feeds_by_ids(self, feed_ids, progress_cb=None, force: bool = True) -> bool:
         ordered_ids = []
@@ -763,6 +787,114 @@ class LocalProvider(RSSProvider):
                             continue
                         except Exception as e:
                             log.debug(f"Odysee entry parse/insert failed for {feed_url}: {e}")
+                            continue
+                finally:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+
+                return
+
+            try:
+                from core import discovery as _disc
+                is_youtube_search = _disc.is_youtube_search_url(feed_url)
+            except Exception:
+                is_youtube_search = False
+
+            if is_youtube_search:
+                # YouTube search results have no native RSS; enumerate recent videos
+                # via yt-dlp (date-sorted) and store them as video/youtube articles so
+                # the existing yt-dlp playback path handles them.
+                from core import discovery as _disc
+                query = _disc.youtube_search_query(feed_url) or ""
+                try:
+                    max_items = int(self.config.get("youtube_search_max_items", 30))
+                except Exception:
+                    max_items = 30
+                max_items = max(1, min(100, max_items))
+
+                page_title = None
+                all_items = []
+                with limiter:
+                    last_exc = None
+                    attempts = retries + 1
+                    for attempt in range(1, attempts + 1):
+                        try:
+                            page_title, all_items = _disc.fetch_youtube_search_items(
+                                query,
+                                max_items=max_items,
+                                timeout_s=float(max(10, feed_timeout)),
+                                cookiefile=(str(self.config.get("ytdlp_cookies_file", "") or "").strip() or None),
+                            )
+                            break
+                        except Exception as e:
+                            last_exc = e
+                            status = "error"
+                            error_msg = str(e)
+                            if attempt <= retries:
+                                time.sleep(min(4, attempt))
+                                continue
+                            raise last_exc
+
+                if page_title:
+                    final_title = page_title
+
+                conn = get_connection()
+                try:
+                    c = conn.cursor()
+                    c.execute("SELECT 1 FROM feeds WHERE id = ? LIMIT 1", (feed_id,))
+                    if not c.fetchone():
+                        return
+                    title_to_store = (
+                        str(feed_title or "").strip() if bool(int(title_is_custom or 0)) and str(feed_title or "").strip() else final_title
+                    )
+                    c.execute(
+                        "UPDATE feeds SET title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                        (title_to_store, None, None, feed_id),
+                    )
+                    conn.commit()
+
+                    total_entries = len(all_items)
+                    entry_count = total_entries
+                    for i, item in enumerate(all_items):
+                        try:
+                            article_id = item.id
+                            title = item.title or "No Title"
+                            url = item.url or ""
+                            author = item.author or final_title or "YouTube"
+                            raw_date = item.published or ""
+                            date = utils.normalize_date(raw_date, title, "", url)
+
+                            c.execute("SELECT date FROM articles WHERE id = ?", (article_id,))
+                            row = c.fetchone()
+                            if row:
+                                existing_date = row[0] or ""
+                                if existing_date != date:
+                                    c.execute("UPDATE articles SET date = ? WHERE id = ?", (date, article_id))
+                                    if i % 5 == 0 or i == total_entries - 1:
+                                        conn.commit()
+                                continue
+
+                            c.execute(
+                                "INSERT INTO articles (id, feed_id, title, url, content, date, author, is_read, media_url, media_type) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
+                                (article_id, feed_id, title, url, "", date, author, url, "video/youtube"),
+                            )
+                            new_items += 1
+                            _record_new_article(
+                                article_id, title, author, url=url, media_url=url, media_type="video/youtube"
+                            )
+
+                            if i % 5 == 0 or i == total_entries - 1:
+                                conn.commit()
+                        except sqlite3.IntegrityError as e:
+                            if _rollback_and_abort_on_foreign_key(conn, e):
+                                return
+                            log.debug(f"YouTube search entry insert failed for {feed_url}: {e}")
+                            continue
+                        except Exception as e:
+                            log.debug(f"YouTube search entry insert failed for {feed_url}: {e}")
                             continue
                 finally:
                     try:
@@ -1893,7 +2025,11 @@ class LocalProvider(RSSProvider):
         
         title = real_url
         try:
-            if rumble_mod.is_rumble_url(real_url) and not real_url.lower().endswith((".xml", ".rss", ".atom")):
+            from core import discovery as _disc
+            if _disc.is_youtube_search_url(real_url):
+                q = _disc.youtube_search_query(real_url) or real_url
+                title = f"YouTube: {q}"
+            elif rumble_mod.is_rumble_url(real_url) and not real_url.lower().endswith((".xml", ".rss", ".atom")):
                 page_title, _items = rumble_mod.fetch_listing_items(real_url, timeout_s=10.0)
                 title = page_title or real_url
             elif odysee_mod.is_odysee_url(real_url) and not real_url.lower().endswith((".xml", ".rss", ".atom")):

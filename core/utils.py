@@ -51,6 +51,62 @@ def add_revalidation_headers(headers: dict | None = None) -> dict:
     return merged
 
 
+def _image_alt_marker(alt: str | None) -> str:
+    alt = (alt or "").strip()
+    # Collapse internal whitespace so a multi-line alt reads as one line.
+    alt = " ".join(alt.split())
+    return f"[Image: {alt}]" if alt else "[Image]"
+
+
+def html_to_text(html: str | None, include_images: bool = False) -> str:
+    """Convert feed/article HTML to readable plain text.
+
+    When ``include_images`` is True, each ``<img>`` is replaced in document order
+    with its alt text as ``[Image: alt]`` (or ``[Image]`` when there is no alt), so
+    screen-reader users hear that an image is present without the image URL. When
+    False, images are dropped (the historical behavior).
+    """
+    if not html:
+        return ""
+    try:
+        soup = BS(html, "html.parser")
+    except Exception:
+        return str(html)
+    try:
+        if include_images:
+            for img in soup.find_all("img"):
+                alt = img.get("alt") or img.get("title") or ""
+                if isinstance(alt, (list, tuple)):
+                    alt = " ".join(str(a) for a in alt)
+                img.replace_with(soup.new_string(_image_alt_marker(str(alt))))
+        return (soup.get_text(separator="\n\n") or "").strip()
+    except Exception:
+        return str(html)
+
+
+def first_image_url(html: str | None) -> str | None:
+    """Return the first ``<img>`` source URL in the HTML, or None."""
+    if not html:
+        return None
+    try:
+        soup = BS(html, "html.parser")
+        img = soup.find("img")
+        if img:
+            src = img.get("src") or img.get("data-src") or img.get("data-original") or ""
+            if isinstance(src, (list, tuple)):
+                src = src[0] if src else ""
+            src = str(src).strip()
+            return src or None
+    except Exception:
+        pass
+    return None
+
+
+def content_has_images(html: str | None) -> bool:
+    """True if the HTML contains at least one ``<img>`` with a usable source."""
+    return first_image_url(html) is not None
+
+
 def canonical_media_type(media_type: str | None) -> str:
     """Normalize common media MIME aliases to a stable value."""
     mt = str(media_type or "").split(";", 1)[0].strip().lower()

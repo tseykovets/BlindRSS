@@ -382,6 +382,11 @@ def init_db():
             c.execute("ALTER TABLE feeds ADD COLUMN title_is_custom INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
+        # Per-feed image-alt-text override: NULL = inherit global setting, 0 = off, 1 = on.
+        try:
+            c.execute("ALTER TABLE feeds ADD COLUMN show_images INTEGER")
+        except sqlite3.OperationalError:
+            pass
 
         # Migration: add parent_id to categories for subcategory support
         try:
@@ -475,6 +480,47 @@ def get_connection():
     except Exception as e:
         log.warning(f"Failed to set PRAGMAs on connection: {e}")
     return conn
+
+
+def get_feed_show_images(feed_id):
+    """Return the per-feed image-alt override: None (inherit global), True, or False."""
+    if not feed_id:
+        return None
+    conn = get_connection()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT show_images FROM feeds WHERE id = ?", (str(feed_id),))
+        row = c.fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    if not row or row[0] is None:
+        return None
+    return bool(int(row[0]))
+
+
+def set_feed_show_images(feed_id, value):
+    """Set the per-feed image-alt override. value: None=inherit, True/False=override."""
+    if not feed_id:
+        return False
+    stored = None if value is None else (1 if value else 0)
+    conn = get_connection()
+    try:
+        c = conn.cursor()
+        c.execute("UPDATE feeds SET show_images = ? WHERE id = ?", (stored, str(feed_id)))
+        conn.commit()
+        return True
+    except sqlite3.Error:
+        return False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def sync_categories(category_titles):

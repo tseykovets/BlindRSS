@@ -83,6 +83,57 @@ _META_TITLE_TAG_ATTRS: List[dict] = [
 _JSON_LD_TEXT_FIELDS = ("articleBody", "text")
 _JSON_LD_MIN_TEXT_LEN = 120
 
+# Anti-bot / human-verification interstitials.
+#
+# These are NOT articles: they are access-control gates (Cloudflare challenges, "you're not a
+# robot" / "unusual activity" pages from Bloomberg/Akamai/PerimeterX/DataDome, etc.). We must not
+# store the gate text as article content. When we detect one, extraction is treated as a failure so
+# the UI degrades cleanly to the feed snippet plus the original link.
+#
+# We do not attempt to defeat these gates. Detection only exists to fail gracefully.
+_BOT_INTERSTITIAL_MARKERS = (
+    # Cloudflare challenge / managed challenge pages
+    "attention required! | cloudflare",
+    "checking your browser before accessing",
+    "cf-browser-verification",
+    "__cf_chl_",
+    "cf_chl_opt",
+    "enable javascript and cookies to continue",
+    "ddos protection by cloudflare",
+    "performance & security by cloudflare",
+    # Generic "are you a human/robot" gates (Bloomberg, Reuters, Akamai, PerimeterX, DataDome, ...)
+    "we've detected unusual activity from your computer network",
+    "let us know you're not a robot",
+    "please verify you are a human",
+    "verify you are human",
+    "press & hold to confirm you",
+    "please make sure your browser supports javascript and cookies",
+    "block reference id",
+    "why have i been blocked",
+    "access to this page has been denied",
+    "please complete the security check to access",
+    "pardon our interruption",
+    "as you were browsing, something about your browser made us think you were a bot",
+)
+
+# Block-page bodies are short; a long article that merely mentions one of these phrases should not be
+# discarded. Only treat a post-extraction body as a gate when it is small.
+_BOT_INTERSTITIAL_MAX_BODY_LEN = 1500
+
+_BLOCKED_INTERSTITIAL_MESSAGE = (
+    "This page is behind an anti-bot / human-verification check "
+    "(e.g. Cloudflare or a \"you're not a robot\" page), so the full text can't be fetched "
+    "automatically. Open the original link in your browser to read it."
+)
+
+
+def _looks_like_bot_interstitial(content: str) -> bool:
+    """Return True if `content` (HTML or already-extracted text) is an anti-bot/verification gate."""
+    if not content:
+        return False
+    low = content.replace("’", "'").lower()
+    return any(marker in low for marker in _BOT_INTERSTITIAL_MARKERS)
+
 
 def _lead_recovery_enabled(url: str) -> bool:
     if not url:
@@ -691,39 +742,56 @@ def _postprocess_extracted_text(text: str, url: str) -> str:
     return _normalize_whitespace(t)
 
 
-def _download_html(url: str, timeout: int = 20) -> Optional[str]:
-    """Download a URL and return HTML as text."""
-    if not url:
-        return None
+@dataclass
+class _FetchResult:
+    """Outcome of fetching a page.
 
-    def _looks_like_cloudflare_block(text: str) -> bool:
-        if not text:
-            return False
-        low = text.lower()
-        if "cloudflare" not in low:
-            return False
-        return ("attention required" in low or "just a moment" in low or "cf-browser-verification" in low)
+    `blocked` is True when the only response we could obtain was an anti-bot/verification
+    interstitial. It is distinct from a plain download failure (offline, DNS, timeout) so the caller
+    can surface a clearer "open in browser" message.
+    """
+    html: Optional[str] = None
+    blocked: bool = False
 
-    def _download_via_jina(target_url: str) -> Optional[str]:
-        try:
-            target = re.sub(r"^https?://", "", (target_url or "").strip())
-            if not target:
-                return None
-            jina_url = f"https://r.jina.ai/http://{target}"
-            headers = {
-                "Accept": "text/plain, text/markdown, */*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-            }
-            r = utils.safe_requests_get(jina_url, timeout=timeout, headers=headers, allow_redirects=True)
-            if 200 <= r.status_code < 400 and r.text:
-                text = r.text
-                marker = "Markdown Content:"
-                if marker in text:
-                    text = text.split(marker, 1)[1].strip()
-                return text
-        except Exception:
+
+def _download_via_jina(target_url: str, timeout: int) -> Optional[str]:
+    try:
+        target = re.sub(r"^https?://", "", (target_url or "").strip())
+        if not target:
             return None
+        jina_url = f"https://r.jina.ai/http://{target}"
+        headers = {
+            "Accept": "text/plain, text/markdown, */*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        r = utils.safe_requests_get(jina_url, timeout=timeout, headers=headers, allow_redirects=True)
+        if 200 <= r.status_code < 400 and r.text:
+            text = r.text
+            marker = "Markdown Content:"
+            if marker in text:
+                text = text.split(marker, 1)[1].strip()
+            return text
+    except Exception:
         return None
+    return None
+
+
+def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
+    """Fetch a page, treating anti-bot/verification interstitials as a (recoverable) block.
+
+    Note: some gates (e.g. Bloomberg's "unusual activity" page) are served with HTTP 200, so the
+    response body must be inspected even on a successful status code.
+    """
+    if not url:
+        return _FetchResult()
+
+    def _try_unblock_via_proxy() -> _FetchResult:
+        # Existing read-proxy fallback. If it also returns a gate (or nothing), report blocked so the
+        # caller degrades to the feed snippet instead of saving interstitial text as the article.
+        alt = _download_via_jina(url, timeout)
+        if alt and not _looks_like_bot_interstitial(alt):
+            return _FetchResult(html=alt)
+        return _FetchResult(blocked=True)
 
     try:
         headers = {
@@ -733,17 +801,23 @@ def _download_html(url: str, timeout: int = 20) -> Optional[str]:
         r = utils.safe_requests_get(url, timeout=timeout, headers=headers, allow_redirects=True)
         if 200 <= r.status_code < 400:
             r.encoding = r.encoding or "utf-8"
-            return r.text
+            body = r.text or ""
+            if _looks_like_bot_interstitial(body):
+                return _try_unblock_via_proxy()
+            return _FetchResult(html=body)
         try:
-            if r is not None and (r.status_code in (403, 503) or _looks_like_cloudflare_block(r.text or "")):
-                alt = _download_via_jina(url)
-                if alt:
-                    return alt
+            if r is not None and (r.status_code in (403, 503) or _looks_like_bot_interstitial(r.text or "")):
+                return _try_unblock_via_proxy()
         except Exception:
             pass
-        return None
+        return _FetchResult()
     except Exception:
-        return None
+        return _FetchResult()
+
+
+def _download_html(url: str, timeout: int = 20) -> Optional[str]:
+    """Download a URL and return HTML as text (None on failure or block)."""
+    return _fetch_page(url, timeout=timeout).html
 
 
 def _extract_title_author_from_meta(html: str, url: str) -> Tuple[str, str]:
@@ -995,13 +1069,18 @@ def extract_full_article(url: str, max_pages: int = 6, timeout: int = 20) -> Opt
     author = ""
 
     downloaded_any = False
+    blocked = False
 
     for _ in range(max_pages):
         if not current or current in visited:
             break
         visited.add(current)
 
-        html = _download_html(current, timeout=timeout)
+        res = _fetch_page(current, timeout=timeout)
+        if res.blocked:
+            blocked = True
+            break
+        html = res.html
         if not html:
             break
         downloaded_any = True
@@ -1022,10 +1101,15 @@ def extract_full_article(url: str, max_pages: int = 6, timeout: int = 20) -> Opt
         time.sleep(0.15)
 
     if not downloaded_any:
+        if blocked:
+            raise ExtractionError(_BLOCKED_INTERSTITIAL_MESSAGE)
         raise ExtractionError("Download failed (site blocked, offline, or connection problem).")
 
     merged = _merge_texts(page_texts)
     merged = _postprocess_extracted_text(merged, url)
+    # Guard against gate text that slipped through extraction (e.g. a short verification body).
+    if merged and len(merged) < _BOT_INTERSTITIAL_MAX_BODY_LEN and _looks_like_bot_interstitial(merged):
+        raise ExtractionError(_BLOCKED_INTERSTITIAL_MESSAGE)
     if not merged:
         raise ExtractionError("Downloaded page, but could not extract readable text (empty result).")
 
@@ -1094,6 +1178,7 @@ def render_full_article(
             return _render(art)
 
     # Try webpage extraction.
+    extraction_error: Optional[ExtractionError] = None
     try:
         art = extract_full_article(url, max_pages=max_pages, timeout=timeout)
         if art:
@@ -1102,9 +1187,9 @@ def render_full_article(
             if fallback_author and not art.author:
                 art.author = fallback_author
             return _render(art)
-    except ExtractionError:
-        # fall through to fallback handling below
-        pass
+    except ExtractionError as e:
+        # Remember why so we can surface it if there's no usable feed fallback either.
+        extraction_error = e
     except Exception as e:
         raise ExtractionError(str(e) or "Unknown extraction error")
 
@@ -1113,6 +1198,8 @@ def render_full_article(
     if art:
         return _render(art)
 
+    if extraction_error is not None:
+        raise extraction_error
     raise ExtractionError("Could not extract full text from the webpage or from feed content.")
 
 

@@ -141,6 +141,9 @@ except Exception:
 add_data(ROOT / "sounds", "sounds")
 add_data(ROOT / "README.md", ".")
 
+# POSIX auto-update helper (macOS + Linux), placed next to the executable.
+add_data(ROOT / "update_helper.sh", ".")
+
 if PLATFORM.startswith("darwin"):
     add_unix_support_binaries()
     add_macos_vlc_bundle()

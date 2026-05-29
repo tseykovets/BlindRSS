@@ -57,7 +57,13 @@ GitHub release publication may happen from any OS after the required artifacts a
 
 ## Updater Visibility Rule
 
-BlindRSS Windows auto-update does not look at Git tags, commits on `main`, or GitHub Actions artifacts. It checks GitHub's `repos/serrebidev/BlindRSS/releases/latest` endpoint, downloads `BlindRSS-update.json` from that release, and then downloads the Windows ZIP named by that manifest.
+BlindRSS auto-update does not look at Git tags, commits on `main`, or GitHub Actions artifacts. It checks GitHub's `repos/serrebidev/BlindRSS/releases/latest` endpoint, downloads its platform manifest from that release, and then downloads the asset named by that manifest:
+
+- Windows: `BlindRSS-update.json` -> `BlindRSS-vX.Y.Z.zip`
+- macOS: `BlindRSS-update-macos.json` -> `BlindRSS-macos-vX.Y.Z.zip`
+- Linux: `BlindRSS-update-linux.json` -> `BlindRSS-linux-vX.Y.Z.tar.gz`
+
+The Windows manifest is created by `.\build.bat release`. The macOS and Linux manifests are created and uploaded by the dispatched `cross-platform-release.yml` job (alongside their assets), so they appear on the release a few minutes after the Windows release is published. Until that job finishes, mac/Linux clients report "manifest not found" for the new tag.
 
 After `.\build.bat release`, the latest endpoint must return the new tag:
 

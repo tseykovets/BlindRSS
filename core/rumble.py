@@ -93,6 +93,15 @@ def normalize_rumble_feed_url(url: str) -> str:
         if re.match(r"^/(?:c|user)/[^/]+$", path, re.I):
             path = path + "/videos"
             return urlunsplit((parts.scheme or "https", parts.netloc, path, "", ""))
+        # Search pages: keep the query but sort by most-recent unless the user
+        # already specified a sort. Rumble's search sort param is `sort=date`.
+        if re.match(r"^/search(?:/|$)", path, re.I):
+            from urllib.parse import parse_qsl, urlencode
+            qs = dict(parse_qsl(parts.query or "", keep_blank_values=True))
+            if not qs.get("sort"):
+                qs["sort"] = "date"
+            new_query = urlencode(qs)
+            return urlunsplit((parts.scheme or "https", parts.netloc, parts.path, new_query, ""))
         return url
     except Exception:
         return url

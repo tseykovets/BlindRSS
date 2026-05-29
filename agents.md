@@ -12,6 +12,7 @@ Fix any warnings, or errors.
   - macOS: PyInstaller app build (`portable.spec` -> `dist/BlindRSS.app`).
   - Linux: PyInstaller directory distribution (`portable.spec` -> `dist/BlindRSS/`, packaged as `dist/BlindRSS-linux-vX.Y.Z.tar.gz`).
 - App version source: `core/version.py`.
+- `main.spec` embeds a Windows VERSIONINFO resource (ProductName/ProductVersion/FileVersion) built from `core/version.py` so screen readers (NVDA "Say Product Name and Version", JAWS) and Windows report the app name + version. macOS reports version via the `.app` bundle's `CFBundleShortVersionString` (`portable.spec` BUNDLE `version`, from `BLINDRSS_APP_VERSION`). Keep the version resource in sync with `core/version.py`.
 
 ## Build & Release
 - Full build/release instructions are in `build.md`.
@@ -40,6 +41,7 @@ Fix any warnings, or errors.
     - Includes tables: `feeds`, `articles`, `chapters`, `categories`, `playback_state`.
   - `utils.py`: Critical helpers.
     - `HEADERS` and request helpers (`safe_requests_get` / `safe_requests_head`).
+    - `html_to_text(html, include_images=False)`, `first_image_url(html)`, `content_has_images(html)`: HTML→text for the article pane. With `include_images`, each `<img>` becomes `[Image: alt]` (or `[Image]`) so screen readers announce images; the image URL is never inlined.
     - `normalize_date(raw, title, content, url)` with priority: title > URL > feed date > content.
     - `get_chapters_batch(ids)` for list performance.
   - `range_cache_proxy.py`: Local VLC HTTP range proxy/cache.
@@ -53,9 +55,15 @@ Fix any warnings, or errors.
   - `casting.py`: Unified casting manager for Chromecast, DLNA/UPnP, and AirPlay.
   - `discovery.py`: Feed/media discovery and yt-dlp URL support checks.
     - Supports direct handling/discovery logic for YouTube, Rumble, and Odysee.
+    - Search subscriptions: `is_youtube_search_url`/`youtube_search_query`/`fetch_youtube_search_items` enumerate a YouTube search (`/results?search_query=...`) as date-sorted videos via yt-dlp against the `sp=CAI%3D` results URL (the `ytsearchdate` prefix is unreliable across yt-dlp versions). `get_ytdlp_feed_url` returns None for search URLs so they are not rewritten to a channel feed.
+    - Cookie sources (`_build_cookie_sources`) detect all major installed browsers in priority order (Brave first, incl. Brave Beta/Nightly via explicit profile path, then Chrome/Chromium/Vivaldi/Edge/Opera, then Firefox/LibreWolf). Format a source for the CLI with `cookie_arg_for_ytdlp`. Playback (`gui/player.py`) and search enumeration both iterate these then fall back to anonymous, so a locked/undecryptable cookie DB never breaks them.
+    - Windows caveat: Chromium v127+ uses App-Bound Encryption (yt-dlp #10927), so `--cookies-from-browser` fails for Brave/Chrome/Edge even when closed; only Firefox/LibreWolf work via browser extraction. For Chromium logins, set a `cookies.txt` (`ytdlp_cookies_file` setting): it is passed via yt-dlp `cookiefile`/`--cookies` and tried first by both playback and search enumeration.
   - `audio_silence.py`: Silence scanning/detection pipeline used by skip-silence playback.
   - `playback_state.py`: Resume position persistence and lock-safe playback state writes.
-  - `updater.py`: GitHub release check, manifest/hash verification, Authenticode verification, update handoff to `update_helper.bat`.
+  - `updater.py`: Cross-platform GitHub release check, manifest/hash verification, and update handoff.
+    - Platform-aware: picks a per-platform manifest (`BlindRSS-update.json` on Windows, `BlindRSS-update-macos.json`, `BlindRSS-update-linux.json`) and validates the asset extension (`.zip` Windows/macOS, `.tar.gz` Linux).
+    - Windows: Authenticode-verifies the new exe and hands off to `update_helper.bat`.
+    - macOS/Linux: hands off to `update_helper.sh` (bundled next to the executable). macOS swaps the whole `.app` bundle and relaunches with `open`; Linux swaps the install dir (preserving in-dir user data) and relaunches the binary. macOS does a best-effort `codesign --verify` of the staged bundle.
   - `windows_integration.py`: Windows startup registration and shortcut creation helpers.
   - `dependency_check.py`: Dependency/path handling and media tool availability logic.
   - `config.py`: Config defaults + migrations; paths are exe-relative when frozen and source-root-relative when run from checkout.
@@ -89,7 +97,8 @@ Fix any warnings, or errors.
   - `build_utils.py`: helper utilities used by build flows.
 
 ## Data Model (`rss.db`)
-- `feeds`: `id`, `url`, `title`, `category`, `icon_url`, `etag`, `last_modified`.
+- `feeds`: `id`, `url`, `title`, `category`, `icon_url`, `etag`, `last_modified`, `show_images`.
+  - `show_images`: per-feed image-alt override. NULL = inherit the global `show_image_alt` setting, 0 = never, 1 = always. Resolved by `db.get_feed_show_images` / set by `db.set_feed_show_images`.
 - `articles`: `id`, `feed_id`, `title`, `url`, `content`, `date`, `author`, `is_read`, `is_favorite`, `media_url`, `media_type`.
   - Indexed for `feed_id`, `is_read`, `date`, plus composite indexes for common list/count paths.
 - `chapters`: `id`, `article_id`, `start`, `title`, `href`.
@@ -105,7 +114,8 @@ Fix any warnings, or errors.
 - Date normalization is strict; title/URL-derived dates can override feed metadata when inconsistent.
 - Retention cleanup runs in refresh execution flow to avoid read-state resurrection bugs.
 - Provider HTTP requests must use finite timeouts (`feed_timeout_seconds`).
-- When startup refresh is enabled, the first background refresh runs immediately but non-forced; hosted providers such as Miniflux should use their normal refresh path on startup, not the expensive manual per-feed refresh path. Manual full refresh remains `force=True`.
+- When startup refresh is enabled, the first background refresh runs immediately. Whether it forces is decided per provider via `RSSProvider.should_force_startup_refresh()`: the local provider returns True (forcing is just one full GET per feed, so a fresh launch is never left stale by servers that return a spurious 304), while hosted providers such as Miniflux return False to avoid an expensive per-feed fan-out on startup. Manual full refresh remains `force=True`.
+- The `ignore_feed_cache` config (default False) makes the local provider treat every refresh (including periodic/background) as forced, so feeds whose servers return spurious 304s keep updating in the background. The startup refresh fetches fresh regardless; this setting only affects periodic refreshes. Exposed in Settings as "Always fetch full feeds in the background (ignore feed caching)".
 
 ### 2. UI & Threading
 - Startup refresh is backgrounded; tree/list updates are marshaled to main thread via `wx.CallAfter`.
@@ -122,14 +132,19 @@ Fix any warnings, or errors.
 
 ### 4. Full Text & Discovery
 - Full-text extraction runs when feed content is missing/partial.
+- Image alt text: the article pane (`_strip_html` -> `utils.html_to_text`) optionally surfaces `<img>` alt text as `[Image: alt]` so image-only entries are not blank for screen-reader users. Controlled by the global `show_image_alt` setting with a per-feed override (`feeds.show_images`); resolve via `MainFrame._show_images_for_feed(feed_id)`.
+- Article context menu offers "Copy Text" (readable body, honoring the feed's image setting), "Copy Media Link" (any `media_url`), and "Copy Image Link" (first `<img>` src) when available.
 - Discovery dialog aggregates multiple providers in parallel (Apple Podcasts, gPodder, Feedly, NewsBlur, Reddit, Fediverse, Feedsearch, local discovery).
 - URL-based media/feed support includes YouTube, Rumble, and Odysee handling.
+- Listing/search feeds (no native RSS) are scraped/enumerated on refresh in `providers/local.py` `_refresh_single_feed`: Rumble channels/search (`fetch_listing_items`; search URLs are forced to `sort=date`), Odysee listings, and YouTube search (`discovery.fetch_youtube_search_items`, stored as `video/youtube` articles so the yt-dlp playback path handles them). These branches run before generic feed parsing and store `etag`/`last_modified` as NULL.
 
-### 5. Updates (Windows packaged app)
-- Checks latest GitHub release + manifest.
-- Verifies zip SHA-256 and signed executable before apply.
-- Uses helper batch script for safe staged replacement/restart.
-- Update helper must close/wait for BlindRSS processes launched from the install directory, verify key install files are unlocked, and verify the old install was fully moved before applying staged files. If locks remain, abort before destructive overlay and roll back/restart cleanly.
+### 5. Updates (packaged app, all platforms)
+- Checks latest GitHub release + a per-platform manifest (`BlindRSS-update.json` / `-macos.json` / `-linux.json`).
+- Each platform's manifest is published by the build flow that produces that platform's asset, so its SHA-256 always matches the asset on the same release. The macOS/Linux manifests are uploaded by the dispatched GitHub Actions job, so there is a short window after a Windows release where the mac/Linux manifest is not yet present (the client just reports "manifest not found" until the workflow finishes).
+- Verifies asset SHA-256 before apply. Windows also verifies the signed executable (Authenticode); macOS does a best-effort `codesign --verify`; Linux relies on SHA-256.
+- Windows uses `update_helper.bat`; macOS/Linux use `update_helper.sh`.
+- Windows helper must close/wait for BlindRSS processes launched from the install directory, verify key install files are unlocked, and verify the old install was fully moved before applying staged files. If locks remain, abort before destructive overlay and roll back/restart cleanly.
+- POSIX helper waits for the app PID to exit, backs up the install target, swaps in the staged build (macOS `.app` bundle via `ditto`; Linux install dir, restoring in-dir user data such as `config.json`/`rss.db*`/`podcasts`/`sounds`), relaunches, and rolls back on failure. It is run from a temp copy so the swap cannot delete it mid-run.
 
 ### 6. Cross-Platform Packaging
 - `build.sh` bundles `yt-dlp`, `deno`, `ffmpeg`, and VLC runtime files outside Windows (macOS and Linux).

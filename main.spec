@@ -1,9 +1,74 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+import re
 import sys
 import importlib.util
 from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.win32.versioninfo import (
+    VSVersionInfo,
+    FixedFileInfo,
+    StringFileInfo,
+    StringTable,
+    StringStruct,
+    VarFileInfo,
+    VarStruct,
+)
+
+
+def _read_app_version():
+    """Read APP_VERSION from core/version.py without importing the app package."""
+    version_file = os.path.join(os.getcwd(), 'core', 'version.py')
+    try:
+        with open(version_file, 'r', encoding='utf-8') as f:
+            m = re.search(r'APP_VERSION\s*=\s*["\']([^"\']+)["\']', f.read())
+            if m:
+                return m.group(1)
+    except Exception:
+        pass
+    return os.environ.get('BLINDRSS_APP_VERSION', '0.0.0')
+
+
+def _version_tuple(v):
+    nums = [int(x) for x in re.findall(r'\d+', v)[:4]]
+    while len(nums) < 4:
+        nums.append(0)
+    return tuple(nums[:4])
+
+
+_app_version = _read_app_version()
+_vt = _version_tuple(_app_version)
+
+# Embed a Windows VERSIONINFO resource so screen readers (NVDA "Say Product Name
+# and Version", JAWS) and Windows itself can report the app name and version.
+# Without this, NVDA reports "Application unknown, version not detected".
+version_info = VSVersionInfo(
+    ffi=FixedFileInfo(
+        filevers=_vt,
+        prodvers=_vt,
+        mask=0x3F,
+        flags=0x0,
+        OS=0x40004,
+        fileType=0x1,
+        subtype=0x0,
+        date=(0, 0),
+    ),
+    kids=[
+        StringFileInfo([
+            StringTable('040904B0', [
+                StringStruct('CompanyName', 'Serrebi'),
+                StringStruct('FileDescription', 'BlindRSS'),
+                StringStruct('FileVersion', _app_version),
+                StringStruct('InternalName', 'BlindRSS'),
+                StringStruct('OriginalFilename', 'BlindRSS.exe'),
+                StringStruct('ProductName', 'BlindRSS'),
+                StringStruct('ProductVersion', _app_version),
+                StringStruct('LegalCopyright', ''),
+            ]),
+        ]),
+        VarFileInfo([VarStruct('Translation', [0x0409, 0x04B0])]),
+    ],
+)
 
 # VLC path - adjust this if VLC is installed elsewhere
 vlc_path = r'C:\Program Files\VideoLAN\VLC'
@@ -107,6 +172,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    version=version_info,
 )
 coll = COLLECT(
     exe,

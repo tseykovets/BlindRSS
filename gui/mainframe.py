@@ -2928,12 +2928,40 @@ class MainFrame(wx.Frame):
             wx.TheClipboard.Close()
 
     def on_copy_text(self, idx):
-        """Copy the article's readable text (honors the feed's image-alt setting)."""
+        """Copy the article text shown in the reading pane.
+
+        Prefers the already-extracted full text (the same text the article view
+        shows once extraction or background prefetch has run) and includes the
+        title/author header; falls back to the feed content with the same header
+        the pane uses before extraction completes.
+        """
         if 0 <= idx < len(self.current_articles):
             article = self.current_articles[idx]
-            include_images = self._show_images_for_feed(getattr(article, "feed_id", None))
-            text = self._strip_html(getattr(article, "content", ""), include_images=include_images)
-            self._copy_to_clipboard(text)
+            self._copy_to_clipboard(self._compose_article_copy_text(article, idx))
+
+    def _compose_article_copy_text(self, article, idx) -> str:
+        """Build the readable article text for copying, mirroring the reading pane."""
+        # If the full text has already been extracted (on focus or via prefetch),
+        # copy exactly what the pane shows — render_full_article already prefixes
+        # a "Title:"/"Author:" header ahead of the complete body.
+        try:
+            cache_key, _url, _aid = self._fulltext_cache_key_for_article(article, idx)
+            cached = self._fulltext_cache.get(cache_key)
+        except Exception:
+            cached = None
+        if cached and str(cached).strip():
+            return str(cached)
+
+        # Not extracted yet: mirror the pre-extraction pane (title, date, author,
+        # link header + cleaned feed content).
+        include_images = self._show_images_for_feed(getattr(article, "feed_id", None))
+        header = f"{getattr(article, 'title', '') or ''}\n"
+        header += f"Date: {utils.humanize_article_date(getattr(article, 'date', ''))}\n"
+        header += f"Author: {getattr(article, 'author', '') or ''}\n"
+        header += f"Link: {getattr(article, 'url', '') or ''}\n"
+        header += "-" * 40 + "\n\n"
+        body = self._strip_html(getattr(article, "content", ""), include_images=include_images)
+        return header + body
 
     def on_copy_image_link(self, idx):
         """Copy the first image URL found in the article content, if any."""

@@ -789,6 +789,50 @@ class SettingsDialog(wx.Dialog):
         self.range_cache_debug_chk.SetValue(bool(config.get("range_cache_debug", False)))
         media_sizer.Add(self.range_cache_debug_chk, 0, wx.ALL, 5)
 
+        # Media tool executables: detected paths plus optional manual overrides.
+        # Leaving a field blank auto-detects (PATH, Scoop/Choco/WinGet, portable
+        # layouts, etc.). Detection runs in the background to keep the dialog snappy.
+        tools_box = wx.StaticBoxSizer(
+            wx.VERTICAL, media_panel, "Media tools (ffmpeg, ffprobe, yt-dlp)"
+        )
+        tools_box.Add(
+            wx.StaticText(
+                media_panel,
+                label="Leave a path blank to auto-detect. A set path overrides detection.",
+            ),
+            0, wx.ALL, 4,
+        )
+        self._media_tool_path_ctrls = {}
+        self._media_tool_detected_lbls = {}
+        _media_tool_specs = [
+            ("ffmpeg", "FFmpeg", "custom_ffmpeg_path"),
+            ("ffprobe", "FFprobe", "custom_ffprobe_path"),
+            ("yt-dlp", "yt-dlp", "custom_ytdlp_path"),
+        ]
+        for tool_key, tool_label, cfg_key in _media_tool_specs:
+            row = wx.BoxSizer(wx.HORIZONTAL)
+            row.Add(
+                wx.StaticText(media_panel, label=f"{tool_label} path:"),
+                0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 4,
+            )
+            ctrl = wx.TextCtrl(media_panel, value=str(config.get(cfg_key, "") or ""))
+            ctrl.SetName(f"{tool_label} executable path override")
+            row.Add(ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+            browse = wx.Button(media_panel, label="Browse...")
+            browse.Bind(
+                wx.EVT_BUTTON,
+                lambda evt, c=ctrl, lbl=tool_label: self._on_browse_media_tool(c, lbl),
+            )
+            row.Add(browse, 0)
+            tools_box.Add(row, 0, wx.EXPAND | wx.ALL, 2)
+            detected = wx.StaticText(media_panel, label=f"Detected {tool_label}: checking…")
+            detected.SetName(f"Detected {tool_label}")
+            tools_box.Add(detected, 0, wx.LEFT | wx.BOTTOM, 12)
+            self._media_tool_path_ctrls[cfg_key] = ctrl
+            self._media_tool_detected_lbls[tool_key] = detected
+        media_sizer.Add(tools_box, 0, wx.EXPAND | wx.ALL, 5)
+        threading.Thread(target=self._detect_media_tools_async, daemon=True).start()
+
         media_panel.SetSizer(media_sizer)
         notebook.AddPage(media_panel, "Media Player")
         
@@ -2018,6 +2062,54 @@ class SettingsDialog(wx.Dialog):
             self.ytdlp_cookies_ctrl.SetValue(dlg.GetPath())
         dlg.Destroy()
 
+    def _on_browse_media_tool(self, ctrl, label):
+        if sys.platform.startswith("win"):
+            wildcard = "Executables (*.exe)|*.exe|All files (*.*)|*.*"
+        else:
+            wildcard = "All files (*.*)|*.*"
+        dlg = wx.FileDialog(
+            self,
+            f"Choose {label} executable",
+            defaultFile=ctrl.GetValue(),
+            wildcard=wildcard,
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            ctrl.SetValue(dlg.GetPath())
+        dlg.Destroy()
+
+    def _detect_media_tools_async(self):
+        try:
+            from core import dependency_check
+            detected = dependency_check.detect_media_tool_paths(validate=True)
+        except Exception:
+            detected = {}
+        try:
+            wx.CallAfter(self._apply_detected_media_tools, detected)
+        except Exception:
+            pass
+
+    def _apply_detected_media_tools(self, detected):
+        labels = getattr(self, "_media_tool_detected_lbls", {}) or {}
+        names = {"ffmpeg": "FFmpeg", "ffprobe": "FFprobe", "yt-dlp": "yt-dlp"}
+        for key, lbl in labels.items():
+            if not lbl:
+                continue
+            info = (detected or {}).get(key) or {}
+            path = info.get("path")
+            nm = names.get(key, key)
+            if not path:
+                text = f"Detected {nm}: not found"
+            elif info.get("valid") is False:
+                text = f"Detected {nm}: {path} (failed version check)"
+            else:
+                text = f"Detected {nm}: {path}"
+            try:
+                lbl.SetLabel(text)
+            except Exception:
+                # Dialog may have been closed before detection finished.
+                pass
+
     def get_data(self):
         # Parse speed back to float
         speed_str = self.speed_ctrl.GetValue().replace("x", "")
@@ -2101,6 +2193,9 @@ class SettingsDialog(wx.Dialog):
             "ignore_feed_cache": self.ignore_feed_cache_chk.GetValue(),
             "show_image_alt": self.show_image_alt_chk.GetValue(),
             "ytdlp_cookies_file": self.ytdlp_cookies_ctrl.GetValue().strip(),
+            "custom_ffmpeg_path": self._media_tool_path_ctrls["custom_ffmpeg_path"].GetValue().strip(),
+            "custom_ffprobe_path": self._media_tool_path_ctrls["custom_ffprobe_path"].GetValue().strip(),
+            "custom_ytdlp_path": self._media_tool_path_ctrls["custom_ytdlp_path"].GetValue().strip(),
             "prompt_missing_dependencies_on_startup": self.prompt_missing_deps_chk.GetValue(),
             "start_on_windows_login": self.start_on_login_chk.GetValue(),
             "remember_last_feed": self.remember_last_feed_chk.GetValue(),

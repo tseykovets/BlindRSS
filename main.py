@@ -98,7 +98,7 @@ def _enable_debug_console(config_manager):
         log.error(f"Failed to open debug console: {e}")
 
 # Essential imports
-from core.dependency_check import check_and_install_dependencies
+from core.dependency_check import check_and_install_dependencies, set_user_tool_paths
 import wx
 from core.config import ConfigManager
 from core.factory import get_provider
@@ -176,6 +176,14 @@ class RSSApp(wx.App):
             return False
 
         self.config_manager = ConfigManager()
+        try:
+            set_user_tool_paths({
+                "ffmpeg": self.config_manager.get("custom_ffmpeg_path", ""),
+                "ffprobe": self.config_manager.get("custom_ffprobe_path", ""),
+                "yt-dlp": self.config_manager.get("custom_ytdlp_path", ""),
+            })
+        except Exception:
+            pass
         _enable_debug_console(self.config_manager)
         self.log_path = _configure_file_logging(self.config_manager)
         if sys.platform.startswith("win"):

@@ -196,7 +196,7 @@ class TestDependencyLogic(unittest.TestCase):
 
         self.assertEqual(found, bundled_tool)
 
-    @patch('core.dependency_check._find_executable_path', side_effect=[None, "/tmp/ffmpeg", "/tmp/yt-dlp"])
+    @patch('core.dependency_check._find_executable_path', side_effect=[None, "/tmp/ffmpeg", "/tmp/ffprobe", "/tmp/yt-dlp"])
     @patch('core.dependency_check._candidate_vlc_lib_paths', return_value=["/tmp/libvlc.dylib"])
     @patch('core.dependency_check._maybe_add_windows_path')
     @patch('core.dependency_check.platform.system', return_value='darwin')
@@ -213,6 +213,96 @@ class TestDependencyLogic(unittest.TestCase):
         self.assertFalse(missing_vlc)
         self.assertFalse(missing_ffmpeg)
         self.assertFalse(missing_ytdlp)
+
+    def test_user_override_path_takes_priority(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = os.path.join(tmp, "ffmpeg.exe")
+            with open(fake, "w", encoding="utf-8") as handle:
+                handle.write("")
+            try:
+                dep_check.set_user_tool_paths({"ffmpeg": fake})
+                # Override must win before PATH / package scans even run.
+                with patch("core.dependency_check.shutil.which", return_value="/somewhere/else/ffmpeg"):
+                    found = dep_check._find_executable_path("ffmpeg")
+                self.assertEqual(found, fake)
+            finally:
+                dep_check.set_user_tool_paths({})
+
+    def test_user_override_directory_resolves_executable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Create both names so the test is platform-agnostic.
+            for name in ("yt-dlp", "yt-dlp.exe"):
+                with open(os.path.join(tmp, name), "w", encoding="utf-8") as handle:
+                    handle.write("")
+            try:
+                dep_check.set_user_tool_paths({"yt-dlp": tmp})
+                found = dep_check._find_executable_path("yt-dlp")
+                self.assertIsNotNone(found)
+                self.assertTrue(os.path.basename(found).startswith("yt-dlp"))
+            finally:
+                dep_check.set_user_tool_paths({})
+
+    def test_set_user_tool_paths_ignores_blank_values(self):
+        dep_check.set_user_tool_paths({"ffmpeg": "", "yt-dlp": "  ", "ffprobe": r"C:\x\ffprobe.exe"})
+        try:
+            self.assertEqual(dep_check._USER_TOOL_PATHS, {"ffprobe": r"C:\x\ffprobe.exe"})
+        finally:
+            dep_check.set_user_tool_paths({})
+
+    def test_ffprobe_shares_ffmpeg_candidate_dirs(self):
+        ffmpeg_dirs, _ = dep_check._collect_tool_candidates("ffmpeg")
+        ffprobe_dirs, _ = dep_check._collect_tool_candidates("ffprobe")
+        # ffprobe ships beside ffmpeg, so it must search the same Gyan/manual dirs.
+        self.assertIn(r"C:\ffmpeg\bin", ffprobe_dirs)
+        self.assertTrue(any("Gyan" in d and "FFmpeg" in d for d in ffprobe_dirs))
+        self.assertIn(r"C:\ffmpeg\bin", ffmpeg_dirs)
+
+    def test_expand_path_globs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            versioned = os.path.join(tmp, "ffmpeg-7.1", "bin")
+            os.makedirs(versioned, exist_ok=True)
+            pattern = os.path.join(tmp, "ffmpeg-*", "bin")
+            out = dep_check._expand_path_globs([pattern])
+            self.assertIn(versioned, out)
+            # Non-glob paths pass through unchanged.
+            self.assertIn(tmp, dep_check._expand_path_globs([tmp]))
+
+    @patch("core.dependency_check.subprocess.run")
+    def test_validate_executable_version_args(self, mock_run):
+        with tempfile.TemporaryDirectory() as tmp:
+            exe = os.path.join(tmp, "tool")
+            with open(exe, "w", encoding="utf-8") as handle:
+                handle.write("")
+            mock_run.return_value = MagicMock(returncode=0)
+            self.assertTrue(dep_check._validate_executable(exe, tool="ffmpeg"))
+            self.assertEqual(mock_run.call_args[0][0][1], "-version")
+            self.assertTrue(dep_check._validate_executable(exe, tool="yt-dlp"))
+            self.assertEqual(mock_run.call_args[0][0][1], "--version")
+            mock_run.return_value = MagicMock(returncode=1)
+            self.assertFalse(dep_check._validate_executable(exe, tool="ffprobe"))
+
+    def test_validate_executable_missing_file(self):
+        self.assertFalse(dep_check._validate_executable(r"C:\nope\ffmpeg.exe", tool="ffmpeg"))
+
+    @patch("core.dependency_check._maybe_add_windows_path")
+    @patch("core.dependency_check._validate_executable", return_value=True)
+    @patch("core.dependency_check._find_executable_path")
+    def test_detect_media_tool_paths_passes_ffmpeg_dir_to_ffprobe(self, mock_find, _mock_val, _mawp):
+        resolved = {
+            "ffmpeg": r"C:\ff\ffmpeg.exe",
+            "ffprobe": r"C:\ff\ffprobe.exe",
+            "yt-dlp": r"C:\y\yt-dlp.exe",
+        }
+        mock_find.side_effect = lambda name, extra_dirs=None: resolved[dep_check._canon_tool_name(name)]
+        res = dep_check.detect_media_tool_paths()
+        self.assertEqual(res["ffmpeg"]["path"], r"C:\ff\ffmpeg.exe")
+        self.assertTrue(res["ffprobe"]["valid"])
+        extras = {
+            dep_check._canon_tool_name(c.args[0]): c.kwargs.get("extra_dirs")
+            for c in mock_find.call_args_list
+        }
+        # ffprobe detection should be told to look beside the found ffmpeg first.
+        self.assertEqual(extras["ffprobe"], [r"C:\ff"])
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,6 +4,7 @@ import importlib.metadata
 import shutil
 import platform
 import os
+import glob
 import ctypes
 import time
 import tempfile
@@ -378,6 +379,108 @@ def _maybe_add_windows_path():
                     except: pass
                 break
 
+# User-configured explicit executable paths take the highest detection priority.
+# Populated from config (custom_ffmpeg_path / custom_ffprobe_path / custom_ytdlp_path)
+# via set_user_tool_paths() at startup and whenever settings change.
+_USER_TOOL_PATHS = {}
+
+
+def _canon_tool_name(name):
+    return str(name or "").strip().lower().replace(".exe", "")
+
+
+def set_user_tool_paths(mapping):
+    """Register user-chosen executable paths so detection prefers them.
+
+    `mapping` keys are tool names ("ffmpeg", "ffprobe", "yt-dlp", "vlc") and
+    values are an explicit file path (or a directory containing the tool).
+    Empty values are ignored. Replaces any previously registered overrides.
+    """
+    global _USER_TOOL_PATHS
+    cleaned = {}
+    try:
+        items = list((mapping or {}).items())
+    except Exception:
+        items = []
+    for key, value in items:
+        tool = _canon_tool_name(key)
+        path = str(value or "").strip().strip('"')
+        if tool and path:
+            cleaned[tool] = path
+    _USER_TOOL_PATHS = cleaned
+
+
+def _user_tool_path(exe_base, exe_candidates):
+    """Resolve a user-configured override for exe_base to a concrete file, if any."""
+    raw = _USER_TOOL_PATHS.get(_canon_tool_name(exe_base))
+    if not raw:
+        return None
+    try:
+        candidate = os.path.expandvars(os.path.expanduser(raw))
+    except Exception:
+        candidate = raw
+    try:
+        if os.path.isfile(candidate):
+            return candidate
+        if os.path.isdir(candidate):
+            for exe_file in exe_candidates:
+                full = os.path.join(candidate, exe_file)
+                if os.path.isfile(full):
+                    return full
+    except Exception:
+        return None
+    return None
+
+
+def _expand_path_globs(patterns):
+    """Expand dir patterns (env vars, ~, and glob wildcards) to existing dirs."""
+    out = set()
+    for pat in patterns or ():
+        if not pat:
+            continue
+        try:
+            expanded = os.path.expandvars(os.path.expanduser(str(pat)))
+        except Exception:
+            continue
+        if any(ch in expanded for ch in "*?["):
+            try:
+                for match in glob.glob(expanded):
+                    if os.path.isdir(match):
+                        out.add(match)
+            except Exception:
+                continue
+        else:
+            out.add(expanded)
+    return out
+
+
+def _version_arg_for_tool(tool):
+    # ffmpeg/ffprobe use a single-dash -version; yt-dlp uses --version.
+    return "-version" if _canon_tool_name(tool) in ("ffmpeg", "ffprobe") else "--version"
+
+
+def _validate_executable(path, tool=None, timeout=6):
+    """Run the tool's harmless version command; return True on exit code 0."""
+    if not path or not os.path.isfile(path):
+        return False
+    version_arg = _version_arg_for_tool(tool if tool else os.path.basename(path))
+    creationflags = 0x08000000 if platform.system().lower() == "windows" else 0
+    try:
+        res = subprocess.run(
+            [path, version_arg],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=creationflags,
+            startupinfo=_get_startup_info(),
+            timeout=timeout,
+            check=False,
+        )
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
 def _collect_tool_candidates(tool_name):
     tool = str(tool_name).lower().replace(".exe", "")
     dirs = set()
@@ -426,7 +529,9 @@ def _collect_tool_candidates(tool_name):
             dirs.add("/Applications/VLC.app/Contents/MacOS")
             dirs.add(os.path.join(os.path.expanduser("~/Applications"), "VLC.app", "Contents", "MacOS"))
 
-    if tool == "ffmpeg":
+    # ffprobe ships alongside ffmpeg in every common Windows build, so it shares
+    # the same candidate directories (Gyan/Scoop/Choco/WinGet all co-locate them).
+    if tool in ("ffmpeg", "ffprobe"):
         for base in (program_w6432, program_files, program_files_x86):
             if base:
                 dirs.add(os.path.join(base, "Gyan", "FFmpeg", "bin"))
@@ -463,6 +568,98 @@ def _collect_tool_candidates(tool_name):
         if choco_root:
             dirs.add(os.path.join(choco_root, "bin"))
 
+    # --- Comprehensive portable / package-manager / cross-platform locations ---
+    # These complement the directories above. Versioned/generated folder names
+    # (Scoop "current", Chocolatey "tools\<ver>", WinGet "<id>_<hash>\<ver>",
+    # pip "Python3xx") are resolved with glob so we never blind-scan the drive.
+    appdata = os.environ.get("APPDATA", "")
+    program_data = os.environ.get("ProgramData", os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+    glob_patterns = []
+
+    if tool in ("ffmpeg", "ffprobe"):
+        for root in runtime_roots:
+            dirs.add(os.path.join(root, "tools", "ffmpeg", "bin"))
+        if user_p:
+            dirs.add(os.path.join(user_p, "bin"))
+            dirs.add(os.path.join(user_p, "ffmpeg", "bin"))
+            glob_patterns.extend([
+                os.path.join(user_p, r"scoop\shims"),
+                os.path.join(user_p, r"scoop\apps\ffmpeg\current\bin"),
+                os.path.join(user_p, r"scoop\apps\ffmpeg-essentials\current\bin"),
+                os.path.join(user_p, r"scoop\apps\ffmpeg-shared\current\bin"),
+                os.path.join(user_p, r"scoop\apps\ffmpeg-gyan-nightly\current\bin"),
+            ])
+        if program_data:
+            glob_patterns.extend([
+                os.path.join(program_data, r"scoop\shims"),
+                os.path.join(program_data, r"scoop\apps\ffmpeg\current\bin"),
+            ])
+        if choco_root:
+            glob_patterns.extend([
+                os.path.join(choco_root, "bin"),
+                os.path.join(choco_root, r"lib\ffmpeg\tools\*\bin"),
+                os.path.join(choco_root, r"lib\ffmpeg-full\tools\*\bin"),
+                os.path.join(choco_root, r"lib\ffmpeg-shared\tools\*\bin"),
+            ])
+        if local_app_data:
+            dirs.add(os.path.join(local_app_data, r"Microsoft\WinGet\Links"))
+            glob_patterns.extend([
+                os.path.join(local_app_data, r"Microsoft\WinGet\Packages\Gyan.FFmpeg_*\*\bin"),
+                os.path.join(local_app_data, r"Microsoft\WinGet\Packages\yt-dlp.FFmpeg_*\*\bin"),
+            ])
+        dirs.update([
+            r"C:\msys64\ucrt64\bin",
+            r"C:\msys64\mingw64\bin",
+            r"C:\cygwin64\bin",
+        ])
+
+    if tool == "yt-dlp":
+        for root in runtime_roots:
+            dirs.add(os.path.join(root, "tools", "yt-dlp"))
+            for venv in ("venv", ".venv", "env"):
+                dirs.add(os.path.join(root, venv, "Scripts"))
+        if user_p:
+            dirs.add(os.path.join(user_p, "bin"))
+            glob_patterns.extend([
+                os.path.join(user_p, r"scoop\shims"),
+                os.path.join(user_p, r"scoop\apps\yt-dlp\current"),
+                os.path.join(user_p, r".local\bin"),
+            ])
+        if program_data:
+            glob_patterns.extend([
+                os.path.join(program_data, r"scoop\shims"),
+                os.path.join(program_data, r"scoop\apps\yt-dlp\current"),
+            ])
+        if choco_root:
+            glob_patterns.extend([
+                os.path.join(choco_root, "bin"),
+                os.path.join(choco_root, r"lib\yt-dlp\tools"),
+            ])
+        if local_app_data:
+            glob_patterns.extend([
+                os.path.join(local_app_data, r"Microsoft\WinGet\Packages\yt-dlp.yt-dlp_*"),
+                os.path.join(local_app_data, r"Programs\Python\Python*\Scripts"),
+            ])
+        if appdata:
+            glob_patterns.append(os.path.join(appdata, r"Python\Python*\Scripts"))
+        dirs.update([
+            r"C:\msys64\usr\bin",
+            r"C:\cygwin64\bin",
+        ])
+
+    # POSIX locations matter when BlindRSS is run from source on macOS/Linux.
+    if platform.system().lower() != "windows":
+        dirs.update([
+            "/usr/bin",
+            "/usr/local/bin",
+            "/snap/bin",
+            "/opt/homebrew/bin",
+            "/opt/local/bin",
+            os.path.expanduser("~/.local/bin"),
+        ])
+
+    dirs.update(_expand_path_globs(glob_patterns))
+
     if local_app_data:
         winget_root = os.path.join(local_app_data, "Microsoft", "WinGet", "Packages")
         if os.path.isdir(winget_root):
@@ -485,11 +682,18 @@ def _find_executable_path(exe_name, extra_dirs=None):
         exe_candidates.append(exe_base[:-4])
     exe_candidates = [candidate for i, candidate in enumerate(exe_candidates) if candidate and candidate not in exe_candidates[:i]]
 
+    # 1. A path the user explicitly chose in Settings wins over everything.
+    user_override = _user_tool_path(exe_base, exe_candidates)
+    if user_override:
+        return user_override
+
     try:
         _maybe_add_windows_path()
     except Exception:
         pass
 
+    # 2. PATH (shutil.which) is consulted before any hard-coded package paths so a
+    #    properly-installed/up-to-date copy is preferred over an old portable one.
     for candidate in exe_candidates:
         exe = shutil.which(candidate)
         if exe and os.path.isfile(exe):
@@ -773,7 +977,13 @@ def check_media_tools_status():
     ffmpeg_exe = _find_executable_path("ffmpeg")
     if ffmpeg_exe:
         ff_present = True
-        _add_bin_to_process_path(os.path.dirname(ffmpeg_exe))
+        ff_dir = os.path.dirname(ffmpeg_exe)
+        _add_bin_to_process_path(ff_dir)
+        # ffprobe ships beside ffmpeg; ensure its directory is searched first so
+        # yt-dlp (which shells out to ffprobe) finds a matching build.
+        ffprobe_exe = _find_executable_path("ffprobe", extra_dirs=[ff_dir])
+        if ffprobe_exe:
+            _add_bin_to_process_path(os.path.dirname(ffprobe_exe))
     else:
         ff_present = False
         if _winget_has_package("Gyan.FFmpeg"):
@@ -789,6 +999,36 @@ def check_media_tools_status():
             ytdlp_present = True
 
     return (not vlc_present, not ff_present, not ytdlp_present)
+
+
+def detect_media_tool_paths(validate=True, tools=("ffmpeg", "ffprobe", "yt-dlp")):
+    """Resolve current detected paths for media tools, for the Settings display.
+
+    Returns {tool: {"path": str|None, "valid": bool|None}}. Honors user overrides
+    and the full ordered search. When `validate` is True each found executable is
+    run with its harmless version command (`ffmpeg -version`, `yt-dlp --version`).
+    Uses only the bounded candidate search — it never blind-scans the drive.
+    """
+    try:
+        _maybe_add_windows_path()
+    except Exception:
+        pass
+    result = {}
+    ffmpeg_dir = None
+    for tool in tools:
+        canon = _canon_tool_name(tool)
+        extra = [ffmpeg_dir] if (canon == "ffprobe" and ffmpeg_dir) else None
+        try:
+            path = _find_executable_path(tool, extra_dirs=extra)
+        except Exception:
+            path = None
+        if canon == "ffmpeg" and path:
+            ffmpeg_dir = os.path.dirname(path)
+        valid = None
+        if path and validate:
+            valid = _validate_executable(path, tool=tool)
+        result[canon] = {"path": path, "valid": valid}
+    return result
 
 def _wait_for_executable(tool_name, timeout=30):
     """Polls for the executable to appear on the system."""

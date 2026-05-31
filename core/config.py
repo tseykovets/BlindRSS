@@ -70,6 +70,12 @@ DEFAULT_CONFIG = {
     # (yt-dlp #10927) blocks --cookies-from-browser. Export from the browser, then
     # set this path. When set, it is tried before browser-cookie extraction.
     "ytdlp_cookies_file": "",
+    # Optional explicit paths to the media-tool executables. When set, they take
+    # priority over auto-detection (PATH, Scoop/Choco/WinGet, portable layouts,
+    # etc.). Empty => auto-detect. Surfaced in Settings > Media Player.
+    "custom_ffmpeg_path": "",
+    "custom_ffprobe_path": "",
+    "custom_ytdlp_path": "",
     # When True, article text includes image alt text as "[Image: alt]" so screen
     # readers announce images. Off by default; can be overridden per feed.
     "show_image_alt": False,

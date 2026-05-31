@@ -97,6 +97,26 @@ _ALTERNATE_FEED_TYPES = {
 }
 
 
+# yt-dlp YouTube player clients to extract from, in addition to whatever yt-dlp's
+# own maintained "default" set is. YouTube frequently throttles or blocks any
+# single client (and started requiring PO tokens for `android`), so widening the
+# client pool is what makes playback reliable instead of haphazard: yt-dlp pulls
+# formats from every listed client and the format selector then picks the best
+# available audio. "default" tracks yt-dlp's current best clients (tv/ios/web*)
+# and `android_vr` is the workaround that has kept packaged builds working.
+YOUTUBE_PLAYER_CLIENTS = ("default", "android_vr")
+
+
+def youtube_player_client_list() -> list[str]:
+    """yt-dlp Python API form: extractor_args youtube.player_client list."""
+    return list(YOUTUBE_PLAYER_CLIENTS)
+
+
+def youtube_player_client_arg() -> str:
+    """yt-dlp CLI form: value for --extractor-args youtube:player_client=..."""
+    return "youtube:player_client=" + ",".join(YOUTUBE_PLAYER_CLIENTS)
+
+
 def _resolve_ytdlp_cli_path() -> str:
     try:
         from core.dependency_check import _find_executable_path

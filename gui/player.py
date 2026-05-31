@@ -106,7 +106,7 @@ def _extract_ytdlp_info_via_cli(
         "--format",
         _YTDLP_VLC_AUDIO_FORMAT,
         "--extractor-args",
-        "youtube:player_client=android_vr,android",
+        discovery.youtube_player_client_arg(),
         "--quiet",
         "--no-warnings",
         "--no-progress",
@@ -2783,7 +2783,7 @@ class PlayerFrame(wx.Frame):
                         'geo_bypass': True,
                         'extractor_args': {
                             'youtube': {
-                                'player_client': ['android_vr', 'android'],
+                                'player_client': discovery.youtube_player_client_list(),
                             }
                         },
                     }

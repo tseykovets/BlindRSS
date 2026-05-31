@@ -5996,6 +5996,7 @@ class MainFrame(wx.Frame):
             "--no-progress",
             "--no-color",
             "--geo-bypass",
+            "--extractor-args", core.discovery.youtube_player_client_arg(),
             "-f", "bv*+ba/b",
             "--merge-output-format", "mp4",
             "-o", out_template,
@@ -6871,6 +6872,17 @@ class MainFrame(wx.Frame):
             try:
                 for k, v in data.items():
                     self.config_manager.set(k, v)
+            except Exception:
+                pass
+
+            # Re-register any custom media-tool path overrides so detection picks
+            # them up immediately (without restarting the app).
+            try:
+                dependency_check.set_user_tool_paths({
+                    "ffmpeg": self.config_manager.get("custom_ffmpeg_path", ""),
+                    "ffprobe": self.config_manager.get("custom_ffprobe_path", ""),
+                    "yt-dlp": self.config_manager.get("custom_ytdlp_path", ""),
+                })
             except Exception:
                 pass
 

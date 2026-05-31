@@ -49,6 +49,8 @@ def _fake_wx(fake_clipboard):
 
 class _Host:
     on_copy_media_link = mainframe.MainFrame.on_copy_media_link
+    _has_direct_media_link = mainframe.MainFrame._has_direct_media_link
+    _ytdlp_download_target = mainframe.MainFrame._ytdlp_download_target
 
     def __init__(self, articles):
         self.current_articles = articles
@@ -56,6 +58,14 @@ class _Host:
 
 def _article(media_url):
     return SimpleNamespace(url="https://example.com/episode-1", media_url=media_url)
+
+
+YT_WATCH = "https://www.youtube.com/watch?v=s-59p7kUAaE"
+
+
+def _yt_article():
+    # Mirrors how providers/local.py stores YouTube items: media_url == url.
+    return SimpleNamespace(url=YT_WATCH, media_url=YT_WATCH, media_type="video/youtube")
 
 
 def test_copy_media_link_copies_direct_audio_url(monkeypatch):
@@ -90,3 +100,40 @@ def test_copy_media_link_ignores_out_of_range_index(monkeypatch):
 
     assert fake_clipboard.set_texts == []
     assert fake_clipboard.opened == 0
+
+
+def test_direct_media_link_true_for_real_file():
+    host = _Host([])
+    article = _article("https://media.example.com/episode-1.mp3")
+    assert host._has_direct_media_link(article) is True
+
+
+def test_direct_media_link_false_for_youtube_item():
+    # YouTube items store the watch-page URL as media_url; there is no single
+    # combined audio+video direct link, so "Copy Media Link" must be unavailable.
+    host = _Host([])
+    assert host._has_direct_media_link(_yt_article()) is False
+
+
+def test_direct_media_link_false_when_media_url_is_ytdlp_page():
+    # Even if media_url differs from the article link, a yt-dlp page URL is not a
+    # direct, copyable media file.
+    host = _Host([])
+    article = SimpleNamespace(url="https://example.com/article", media_url=YT_WATCH)
+    assert host._has_direct_media_link(article) is False
+
+
+def test_direct_media_link_false_without_media_url():
+    host = _Host([])
+    assert host._has_direct_media_link(_article("")) is False
+
+
+def test_ytdlp_download_target_for_youtube_item():
+    host = _Host([])
+    assert host._ytdlp_download_target(_yt_article()) == YT_WATCH
+
+
+def test_ytdlp_download_target_none_for_direct_file():
+    host = _Host([])
+    article = _article("https://media.example.com/episode-1.mp3")
+    assert host._ytdlp_download_target(article) is None

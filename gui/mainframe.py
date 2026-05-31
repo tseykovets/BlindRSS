@@ -2820,8 +2820,14 @@ class MainFrame(wx.Frame):
             copy_text_item = menu.Append(wx.ID_ANY, "Copy Text")
             self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_text(i), copy_text_item)
             if article_for_menu.media_url:
-                copy_audio_item = menu.Append(wx.ID_ANY, "Copy Media Link")
-                self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_media_link(i), copy_audio_item)
+                # Only offer "Copy Media Link" when media_url is a genuine direct
+                # media file. yt-dlp page items (YouTube, etc.) store the
+                # watch-page URL as media_url and have no single combined
+                # audio+video direct link, so copying it would just duplicate
+                # "Copy Link" or hand out a split/expiring stream.
+                if self._has_direct_media_link(article_for_menu):
+                    copy_audio_item = menu.Append(wx.ID_ANY, "Copy Media Link")
+                    self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_media_link(i), copy_audio_item)
                 download_item = menu.Append(wx.ID_ANY, "Download")
                 self.Bind(wx.EVT_MENU, lambda e, a=article_for_menu: self.on_download_article(a), download_item)
             else:
@@ -2881,6 +2887,27 @@ class MainFrame(wx.Frame):
                 wx.TheClipboard.SetData(wx.TextDataObject(article.url))
                 wx.TheClipboard.Flush()
                 wx.TheClipboard.Close()
+
+    def _has_direct_media_link(self, article) -> bool:
+        """True only when the article's media_url is a direct, copyable media file.
+
+        yt-dlp page items (YouTube, etc.) store the watch-page URL as media_url;
+        those have no single combined audio+video direct link, so they are not
+        treated as having a copyable media link (the menu hides "Copy Media Link"
+        for them and downloads route through yt-dlp instead).
+        """
+        media_url = str(getattr(article, "media_url", "") or "").strip()
+        if not media_url:
+            return False
+        article_link = str(getattr(article, "url", "") or "").strip()
+        if media_url == article_link:
+            return False
+        try:
+            if core.discovery.is_ytdlp_supported(media_url):
+                return False
+        except Exception:
+            pass
+        return True
 
     def on_copy_media_link(self, idx):
         if 0 <= idx < len(self.current_articles):
@@ -5894,8 +5921,142 @@ class MainFrame(wx.Frame):
             return
         threading.Thread(target=self._download_article_thread, args=(article,), daemon=True).start()
 
+    def _ytdlp_download_target(self, article):
+        """Return a yt-dlp-supported URL for this article, or None for a direct file.
+
+        yt-dlp page items (YouTube, etc.) store the watch-page URL as media_url,
+        which is not a direct media file: a plain GET would just save the HTML
+        page, and even a resolved stream is split audio/video. Download those via
+        yt-dlp instead so the streams are merged into one playable file.
+        """
+        if self._has_direct_media_link(article):
+            return None
+        for candidate in (getattr(article, "media_url", None), getattr(article, "url", None)):
+            candidate = str(candidate or "").strip()
+            if not candidate:
+                continue
+            try:
+                if core.discovery.is_ytdlp_supported(candidate):
+                    return candidate
+            except Exception:
+                pass
+        return None
+
+    def _download_dir_for_article(self, article):
+        download_root = self.config_manager.get("download_path", os.path.join(APP_DIR, "podcasts"))
+        if not download_root:
+            download_root = os.path.join(APP_DIR, "podcasts")
+        feed_title = self._get_feed_title(article.feed_id) or "Feed"
+        target_dir = os.path.join(download_root, self._safe_name(feed_title))
+        os.makedirs(target_dir, exist_ok=True)
+        return target_dir
+
+    def _download_article_via_ytdlp(self, article, url):
+        """Download a yt-dlp-supported item, merging audio+video into one file."""
+        import subprocess
+        import platform as _platform
+
+        cli = core.discovery._resolve_ytdlp_cli_path()
+        target_dir = self._download_dir_for_article(article)
+        base_name = self._safe_name(article.title) or "video"
+        out_template = os.path.join(target_dir, base_name + ".%(ext)s")
+
+        base_cmd = [
+            cli,
+            "--no-playlist",
+            "--no-warnings",
+            "--no-progress",
+            "--no-color",
+            "--geo-bypass",
+            "-f", "bv*+ba/b",
+            "--merge-output-format", "mp4",
+            "-o", out_template,
+        ]
+        try:
+            ffmpeg_path = dependency_check._find_executable_path("ffmpeg")
+            if ffmpeg_path:
+                base_cmd.extend(["--ffmpeg-location", str(ffmpeg_path)])
+        except Exception:
+            pass
+
+        # Try anonymous first (works for most public videos and avoids Windows
+        # DPAPI cookie failures), then a configured cookies.txt, then installed
+        # browser cookies as a fallback for age-restricted/private videos.
+        attempts = [[]]
+        cookiefile = str(self.config_manager.get("ytdlp_cookies_file", "") or "").strip()
+        if cookiefile and os.path.isfile(cookiefile):
+            attempts.append(["--cookies", cookiefile])
+        for src in core.discovery.get_ytdlp_cookie_sources(url) or []:
+            arg = core.discovery.cookie_arg_for_ytdlp(src)
+            if arg:
+                attempts.append(["--cookies-from-browser", arg])
+
+        creationflags = 0
+        startupinfo = None
+        if _platform.system().lower() == "windows":
+            creationflags = 0x08000000  # CREATE_NO_WINDOW
+            try:
+                startupinfo = dependency_check._get_startup_info()
+            except Exception:
+                startupinfo = None
+
+        last_err = "yt-dlp download failed"
+        for extra in attempts:
+            try:
+                res = subprocess.run(
+                    base_cmd + extra + [url],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    stdin=subprocess.DEVNULL,
+                    creationflags=creationflags,
+                    startupinfo=startupinfo,
+                    timeout=1800,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+            except FileNotFoundError:
+                wx.CallAfter(lambda: wx.MessageBox(
+                    "yt-dlp is not installed. Install it via Settings to download YouTube items.",
+                    "Download error", wx.ICON_ERROR))
+                return
+            except subprocess.TimeoutExpired:
+                last_err = "yt-dlp download timed out"
+                break
+            except Exception as e:
+                last_err = str(e)
+                continue
+
+            if int(getattr(res, "returncode", -1) or 0) == 0:
+                produced = self._find_downloaded_file(target_dir, base_name)
+                self._apply_download_retention(target_dir)
+                dest = produced or target_dir
+                wx.CallAfter(lambda d=dest: wx.MessageBox(f"Downloaded to:\n{d}", "Download complete"))
+                return
+            last_err = (res.stderr or res.stdout or last_err).strip() or last_err
+
+        wx.CallAfter(lambda e=last_err: wx.MessageBox(f"Download failed: {e}", "Download error", wx.ICON_ERROR))
+
+    def _find_downloaded_file(self, target_dir, base_name):
+        try:
+            matches = [
+                os.path.join(target_dir, n)
+                for n in os.listdir(target_dir)
+                if n.startswith(base_name) and not n.endswith((".part", ".ytdl", ".tmp"))
+            ]
+            if matches:
+                return max(matches, key=os.path.getmtime)
+        except Exception:
+            pass
+        return None
+
     def _download_article_thread(self, article):
         try:
+            ytdlp_url = self._ytdlp_download_target(article)
+            if ytdlp_url:
+                self._download_article_via_ytdlp(article, ytdlp_url)
+                return
+
             url = article.media_url
             resp = utils.safe_requests_get(url, stream=True, timeout=30)
             resp.raise_for_status()

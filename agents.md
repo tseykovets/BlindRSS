@@ -35,7 +35,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 
 ### Artifacts
 - `dist\BlindRSS-vX.Y.Z.zip` (signed exe inside) + a `BlindRSS.zip` copy at repo root.
-- `dist\BlindRSS-update.json` (Windows updater manifest: version, asset name, SHA-256, signing thumbprint).
+- `dist\BlindRSS-update.json` (Windows updater manifest: version, asset name, download URL, SHA-256, published-at, plus optional notes summary and signing thumbprint).
 - `dist\release-notes-vX.Y.Z.md`.
 - The GitHub release carries the Windows ZIP + manifest immediately; the macOS ZIP + `BlindRSS-update-macos.json` and Linux tarball + `BlindRSS-update-linux.json` are added minutes later by `cross-platform-release.yml`.
 
@@ -99,7 +99,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
     - Includes special views: All, Unread, Read, Favorites.
     - Includes persistent search UI and remember-last-feed restore behavior.
   - `player.py`: VLC-backed player window with proxy integration and async chapter/media load.
-  - `hotkeys.py`: Global media key event filter.
+  - `hotkeys.py`: `HoldRepeatHotkeys` — hold-to-repeat handler for Ctrl+key shortcuts (quick tap fires once; holding repeats), used by `mainframe.py`/`player.py` to avoid multi-seek on quick taps. Not a global/OS media-key hook.
   - `tray.py`: System tray icon and tray media controls.
   - `dialogs.py`: Add feed, settings, provider auth, feed discovery search, and Windows notification controls.
 
@@ -120,12 +120,15 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - `build_utils.py`: helper utilities used by build flows.
 
 ## Data Model (`rss.db`)
-- `feeds`: `id`, `url`, `title`, `category`, `icon_url`, `etag`, `last_modified`, `show_images`.
+- `feeds`: `id`, `url`, `title`, `title_is_custom`, `category`, `icon_url`, `etag`, `last_modified`, `show_images`.
+  - `title_is_custom`: 1 when the user renamed the feed, so a refresh does not overwrite the custom title with the feed's own.
   - `show_images`: per-feed image-alt override. NULL = inherit the global `show_image_alt` setting, 0 = never, 1 = always. Resolved by `db.get_feed_show_images` / set by `db.set_feed_show_images`.
-- `articles`: `id`, `feed_id`, `title`, `url`, `content`, `date`, `author`, `is_read`, `is_favorite`, `media_url`, `media_type`.
+- `articles`: `id`, `feed_id`, `title`, `url`, `content`, `date`, `author`, `is_read`, `is_favorite`, `media_url`, `media_type`, `chapter_url`.
+  - `chapter_url`: optional external chapter source (e.g. podcast chapters JSON) fetched lazily via `utils.fetch_and_store_chapters`.
   - Indexed for `feed_id`, `is_read`, `date`, plus composite indexes for common list/count paths.
 - `chapters`: `id`, `article_id`, `start`, `title`, `href`.
-- `categories`: `id`, `title`.
+- `categories`: `id`, `title`, `parent_id`.
+  - `parent_id` references another `categories.id` to support nested subcategories (NULL = top-level).
 - `playback_state`: `id`, `position_ms`, `duration_ms`, `updated_at`, `completed`, `seek_supported`, `title`.
 
 ## Key Workflows

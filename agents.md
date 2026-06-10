@@ -106,14 +106,18 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - `runtime_env.py`: Frozen runtime PATH/VLC environment setup for packaged app bundles.
 
 - `gui/`
-  - `accessibility.py`: macOS VoiceOver-friendly accessible browser window.
+  - `accessibility.py`: macOS VoiceOver-friendly accessible browser window. On macOS+VoiceOver this is the primary reading surface (auto-opened from `mainframe`), so it must do its own full-text extraction: selecting an article shows the feed snippet immediately, then a debounced background thread calls `extract_article_body` (GUI-free wrapper over `article_extractor`) and replaces the body with the full text. `extract_article_body` ALWAYS attempts real web extraction for a non-media URL (`extract_full_article`) — do NOT gate it on `article_extractor._should_prefer_feed_content` (the ">2500 chars of feed HTML" heuristic), which silently suppresses extraction for substantial feeds like Miniflux. BUT it also extracts the feed body (`extract_from_html`) and keeps whichever is LONGER: web extraction frequently returns LESS than the feed already has (truncated/partial page — e.g. a feed with 1886 chars vs a 672-char scrape), and replacing the fuller feed with that shorter result is exactly what reads as "full text doesn't work". Never downgrade below the feed. The feed candidate is the LONGER of `extract_from_html` (boilerplate-cleaned) and `utils.html_to_text` (what the reader pane shows as the snippet): `extract_from_html`/trafilatura sometimes drops the lead and returns LESS than the snippet, so the "full text" came out SHORTER than what the user already heard — never go below the snippet. The accessible browser also calls with `max_pages=1` (no pagination following): on news sites a "next" link is the NEXT STORY, so following it merges unrelated articles into one giant blob. It also takes an optional `provider_fetch(article_id, url) -> html` (the provider's server-side fetcher, e.g. Miniflux fetch-content): when web+feed don't yield a clearly-full article (best is `None` or `< _PROVIDER_FETCH_MIN_LEN` ≈ 1500 chars — a paywall/anti-bot stub can still be longer than a tiny feed, so the gate is by LENGTH, not "web lost"), it asks the provider and uses that if longer. The accessible browser passes a lock-serialized wrapper (`_provider_fetch_locked`) since the provider session isn't thread-safe across the prefetch workers. It returns `(body_text, cacheable)`: `cacheable` is True for a web/provider result, for a no-web-target item (no URL / media), or when the feed beat a working web fetch (stable); only a TOTAL web+provider failure for a web article is uncacheable so it retries next visit. Guarded by a per-selection `_content_token` (stale loads can't overwrite), an in-flight set, and a body cache keyed by `_article_cache_id`. Focusing the reader pane forces an immediate (non-debounced) load.
+    - Read-ahead PREFETCH is essential for VoiceOver: every article switch fires `EVT_LISTBOX`/`on_article_selected` and the full-text load works, BUT web extraction takes 2-7s while the user navigates faster, and the async swap into the read-only `content_ctrl` is silent (VoiceOver won't re-announce it) — so without prefetch the user always hears the feed snippet. `_enqueue_prefetch_from(idx)` warms the next `_prefetch_ahead` (5) articles via a single bounded background worker (`_prefetch_worker_loop`), caching only `cacheable` results; on arrival `_show_article_at_index` hits the cache and VoiceOver reads the full article immediately. The queue is cleared on view change and the worker stopped in `Destroy`.
+    - Reader width: the three-column layout (Views | Articles | Content) must give the content `TextCtrl` a generous min width (`SetMinSize`, ~620px, proportion 3) and the lists capped min widths — otherwise long feed labels in the Views list expand that column and squeeze the reader to ONE WORD PER LINE, which reads as "no full text" to a VoiceOver user even when the full article is loaded.
+    - Wiring full text only into the main-window `content_ctrl` leaves macOS users with feed snippets only. The main-window full-text path triggers on real keyboard focus of `content_ctrl` (`EVT_SET_FOCUS`), which VoiceOver cursor navigation does not fire — that's why the accessible browser triggers on selection AND prefetches.
   - `mainframe.py`: Main UI, feed refresh orchestration, list rendering, notifications, and menu actions.
     - Includes special views: All, Unread, Read, Favorites.
     - Includes persistent search UI and remember-last-feed restore behavior.
   - `player.py`: VLC-backed player window with proxy integration and async chapter/media load.
   - `hotkeys.py`: `HoldRepeatHotkeys` — hold-to-repeat handler for Ctrl+key shortcuts (quick tap fires once; holding repeats), used by `mainframe.py`/`player.py` to avoid multi-seek on quick taps. Not a global/OS media-key hook.
   - `tray.py`: System tray icon and tray media controls.
-  - `dialogs.py`: Add feed, settings, provider auth, feed discovery search, and Windows notification controls.
+  - `dialogs.py`: Add feed, settings, provider auth, feed discovery search, and notification controls.
+    - New-article notifications work on Windows (toast) AND macOS (Notification Center) via `wx.adv.NotificationMessage`. Gate everything on `core.utils.platform_supports_notifications()` (win+darwin), not `sys.platform.startswith("win")`; the config keys keep their `windows_notifications_*` names for back-compat. The Windows-only AppUserModelID prerequisite (`main.py`/`mainframe._ensure_notification_prerequisites`) stays Windows-gated — macOS needs no prerequisite.
 
 - `providers/`
   - `base.py`: `RSSProvider` interface.
@@ -124,6 +128,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
     - Miniflux per-feed refresh timeout/5xx retries are expected for some server-side feed failures and should stay at debug/backoff level; keep global API failures visible as warnings/errors.
     - Miniflux manual/targeted per-feed refreshes run through a bounded worker pool (`miniflux_targeted_refresh_workers`, default 8) so slow feeds do not serialize the whole refresh.
     - Miniflux entries may carry plausible near-future `published_at` values used by the web UI for ordering; preserve those server dates instead of demoting them to the sentinel date.
+    - `fetch_full_content` (server-side full-text) MUST use `GET /v1/entries/{id}/fetch-content` — current Miniflux returns 405 for the old `PUT` form, which silently disabled the full-text provider fallback in BOTH the main window and the accessible browser. Keep `GET` primary with a `PUT` fallback only on 405.
   - Favorites are supported across providers through `supports_favorites` / `set_favorite` / `toggle_favorite`.
   - Inoreader note: `stream/contents` expects URL-encoded `streamId` in path segment, not `s=` query parameter.
 
@@ -159,7 +164,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 - Startup refresh is backgrounded; tree/list updates are marshaled to main thread via `wx.CallAfter`.
 - Main window supports tray minimize/close-to-tray behavior with tray controls.
 - Remember-last-feed can restore the last selected feed/folder/special view on startup.
-- On macOS with VoiceOver running, the accessible browser fallback is the intended accessibility path.
+- On macOS with VoiceOver running, the accessible browser fallback is the intended accessibility path. It runs the full-text extraction pipeline itself (see `gui/accessibility.py`), so any reading-pane behavior added to the main window must be mirrored there or macOS users won't get it.
 
 ### 3. Media Playback & Caching
 - Player opens immediately; media/chapter loads continue asynchronously.
@@ -182,7 +187,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 - Verifies asset SHA-256 before apply. Windows also verifies the signed executable (Authenticode); macOS does a best-effort `codesign --verify`; Linux relies on SHA-256.
 - Windows uses `update_helper.bat`; macOS/Linux use `update_helper.sh`.
 - Windows helper must close/wait for BlindRSS processes launched from the install directory, verify key install files are unlocked, and verify the old install was fully moved before applying staged files. If locks remain, abort before destructive overlay and roll back/restart cleanly.
-- POSIX helper waits for the app PID to exit, backs up the install target, swaps in the staged build (macOS `.app` bundle via `ditto`; Linux install dir, restoring in-dir user data such as `config.json`/`rss.db*`/`podcasts`/`sounds`), relaunches, and rolls back on failure. It is run from a temp copy so the swap cannot delete it mid-run.
+- POSIX helper waits for the app PID to exit, backs up the install target, swaps in the staged build (macOS `.app` bundle via `ditto`; Linux install dir, restoring in-dir user data such as `config.json`/`rss.db*`/`podcasts`/`sounds`), relaunches, and rolls back on failure. It is run from a temp copy so the swap cannot delete it mid-run. Covered by `tests/test_posix_update_helper.py` (static invariants + real-execution swap/restore/abort tests, skipped off POSIX).
 
 ### 6. Cross-Platform Packaging
 - `build.sh` bundles `yt-dlp`, `deno`, `ffmpeg`, and VLC runtime files outside Windows (macOS and Linux).

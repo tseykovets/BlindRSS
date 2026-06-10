@@ -1547,12 +1547,15 @@ class MinifluxProvider(RSSProvider):
         return False
 
     def fetch_full_content(self, article_id: str, url: str = ""):
-        """Return raw HTML fetched by Miniflux server-side fetch-content.
+        """Return raw HTML from Miniflux's server-side fetch-content scraper.
 
         Behavior:
-        - Uses PUT /v1/entries/{id}/fetch-content (Miniflux requirement).
+        - The Miniflux API exposes this as GET /v1/entries/{id}/fetch-content. (The old PUT
+          form is rejected with 405 Method Not Allowed on current Miniflux, which silently
+          broke this fallback — so we use GET and only fall back to PUT if a build returns
+          405 for GET.)
         - Swallows 404 (entry not found/expired) quietly to avoid noisy logs.
-        - Returns the updated entry's content on success, otherwise None.
+        - Returns the article's content on success, otherwise None.
         """
         if not article_id:
             return None
@@ -1563,31 +1566,46 @@ class MinifluxProvider(RSSProvider):
         except Exception:
             aid = article_id
 
-        try:
-            # Direct request so we can selectively silence 404s.
-            resp = self._session.put(
-                f"{self.base_url}/v1/entries/{aid}/fetch-content",
-                headers=self.headers,
-                timeout=(self.CONNECT_TIMEOUT_SECONDS, 15),
-            )
+        endpoint = f"{self.base_url}/v1/entries/{aid}/fetch-content"
+        for method in ("GET", "PUT"):
+            try:
+                resp = self._session.request(
+                    method,
+                    endpoint,
+                    headers=self.headers,
+                    timeout=(self.CONNECT_TIMEOUT_SECONDS, 15),
+                )
 
-            if resp.status_code == 404:
-                # Entry no longer exists on the server; just fall back.
+                if resp.status_code == 404:
+                    return None
+                if resp.status_code == 405:
+                    # Method not supported by this build; try the other verb.
+                    continue
+                if resp.status_code >= 500:
+                    # Miniflux couldn't scrape the target (paywall/anti-bot/timeout). Expected
+                    # for some sites; degrade quietly to client-side extraction.
+                    log.debug(f"Miniflux fetch-content {resp.status_code} for {article_id}")
+                    return None
+
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, dict):
+                    content = data.get("content")
+                    if content:
+                        return content
                 return None
-
-            resp.raise_for_status()
-            data = resp.json()
-            if isinstance(data, dict):
-                content = data.get("content")
-                if content:
-                    return content
-        except requests.HTTPError as e:
-            # Only surface non-404 errors.
-            code = getattr(e.response, "status_code", None)
-            if code and code != 404:
-                log.error(f"Miniflux fetch-content HTTP error for {article_id}: {e}")
-        except Exception as e:
-            log.error(f"Miniflux fetch-content error for {article_id}: {e}")
+            except requests.HTTPError as e:
+                code = getattr(e.response, "status_code", None)
+                if code == 405:
+                    continue
+                if code and (code == 404 or code >= 500):
+                    return None
+                if code:
+                    log.error(f"Miniflux fetch-content HTTP error for {article_id}: {e}")
+                return None
+            except Exception as e:
+                log.error(f"Miniflux fetch-content error for {article_id}: {e}")
+                return None
         return None
 
     def _emit_progress(self, progress_cb, state):

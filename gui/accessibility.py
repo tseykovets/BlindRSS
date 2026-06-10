@@ -1,13 +1,129 @@
 import logging
 import subprocess
 import threading
+from collections import deque
 
 import wx
 
 from core import utils
+from core import article_extractor
 from .clipboard_utils import copy_textctrl_selection_to_clipboard
 
 log = logging.getLogger(__name__)
+
+
+# A body shorter than this is probably a snippet/paywall stub, not a full article, so it's
+# worth asking the provider's server-side fetcher for more.
+_PROVIDER_FETCH_MIN_LEN = 1500
+
+
+def extract_article_body(article, *, provider_fetch=None, timeout: int = 20, max_pages: int = 6):
+    """Extract the readable full-text body for an article.
+
+    GUI-free and safe to call off the main thread (does network I/O). Tries, in order of
+    preference by COMPLETENESS (longest wins): client-side web extraction, the feed
+    content, and — when those don't beat the feed — the provider's own server-side
+    full-text fetch (`provider_fetch(article_id, url) -> html`, e.g. Miniflux
+    fetch-content, which has site-specific scraper rules for paywalled/anti-bot sites).
+
+    Returns ``(body_text, cacheable)``:
+    - ``body_text`` is the cleaned body, or ``None`` when nothing readable was produced.
+    - ``cacheable`` is True when the body is authoritative — web/provider full text, or the
+      feed for an item with no web target. A feed fallback for a *web* article after a total
+      web+provider failure is NOT cached, so the next visit retries.
+    """
+    url = (getattr(article, "url", "") or "").strip()
+    fallback_html = getattr(article, "content", "") or ""
+    fallback_title = getattr(article, "title", "") or ""
+    fallback_author = getattr(article, "author", "") or ""
+    has_web_target = bool(url) and not article_extractor._looks_like_media_url(url)
+
+    # Always ATTEMPT web extraction for a real URL (the generic ">2500 chars" prefer-feed
+    # heuristic wrongly suppressed it for substantial feeds like Miniflux). But web
+    # extraction sometimes returns LESS than the feed already provides (truncated/partial
+    # page) — replacing a fuller feed body with that shorter result is exactly what reads
+    # as "full text doesn't work". So we extract the feed too and keep whichever is more
+    # complete (longer), never downgrading the user below the feed content.
+    web_text = None
+    if has_web_target:
+        try:
+            art = article_extractor.extract_full_article(url, max_pages=max_pages, timeout=timeout)
+            if art:
+                web_text = (getattr(art, "text", "") or "").strip() or None
+        except article_extractor.ExtractionError:
+            web_text = None
+        except Exception:
+            web_text = None
+
+    # The feed candidate is the LONGER of two views of the feed body: the boilerplate-cleaned
+    # `extract_from_html`, and the plain `html_to_text` that the reader pane shows as the
+    # initial snippet. Comparing only against the cleaned one let the "full text" come out
+    # SHORTER than the snippet the user already heard (trafilatura sometimes drops the lead),
+    # which reads as "full text makes it shorter / doesn't work". Never go below the snippet.
+    feed_candidates = []
+    try:
+        fart = article_extractor.extract_from_html(
+            fallback_html, url, title=fallback_title, author=fallback_author
+        )
+        if fart:
+            t = (getattr(fart, "text", "") or "").strip()
+            if t:
+                feed_candidates.append(t)
+    except Exception:
+        pass
+    try:
+        raw = (utils.html_to_text(fallback_html) or "").strip()
+        if raw:
+            feed_candidates.append(raw)
+    except Exception:
+        pass
+    feed_text = max(feed_candidates, key=len) if feed_candidates else None
+
+    if web_text and feed_text:
+        best, source = (web_text, "web") if len(web_text) > len(feed_text) else (feed_text, "feed")
+    elif web_text:
+        best, source = web_text, "web"
+    elif feed_text:
+        best, source = feed_text, "feed"
+    else:
+        best, source = None, None
+
+    # When we don't yet have a clearly-full article (no result, or a short stub from a
+    # paywalled/anti-bot page that blocks client-side scrapers), ask the provider's
+    # server-side fetcher — for Miniflux this returns the full article its own scraper
+    # rules pulled. Use it only if it's more complete. A length gate (rather than "web
+    # lost") is needed because a 300-char paywall stub can still be longer than a tiny feed.
+    need_more = best is None or len(best) < _PROVIDER_FETCH_MIN_LEN
+    if provider_fetch is not None and has_web_target and need_more:
+        article_id = str(getattr(article, "id", "") or getattr(article, "article_id", "") or "").strip()
+        if article_id:
+            provider_html = None
+            try:
+                provider_html = provider_fetch(article_id, url)
+            except Exception:
+                provider_html = None
+            if provider_html:
+                try:
+                    part = article_extractor.extract_from_html(
+                        provider_html, url, title=fallback_title, author=fallback_author
+                    )
+                    provider_text = (getattr(part, "text", "") or "").strip() if part else ""
+                except Exception:
+                    provider_text = ""
+                if provider_text and (best is None or len(provider_text) > len(best)):
+                    best, source = provider_text, "provider"
+
+    if not best:
+        return None, False
+
+    # Cacheable (authoritative) when: web/provider full text; no web target (feed is all
+    # there is); or the feed beat a working web extraction (stable). Only a TOTAL web (and
+    # provider) failure for a web article stays uncached so it retries next time.
+    if source in ("web", "provider"):
+        cacheable = True
+    else:
+        cacheable = (not has_web_target) or (web_text is not None)
+    return best, cacheable
 
 
 def voiceover_is_running() -> bool:
@@ -143,7 +259,7 @@ def format_accessible_view_label(entry, expanded_categories=None):
 
 class AccessibleBrowserFrame(wx.Frame):
     def __init__(self, mainframe):
-        super().__init__(mainframe, title="BlindRSS Accessible Browser", size=(980, 760))
+        super().__init__(mainframe, title="BlindRSS Accessible Browser", size=(1280, 820))
         self.mainframe = mainframe
         self.current_view_id = None
         self._view_entries = []
@@ -157,6 +273,30 @@ class AccessibleBrowserFrame(wx.Frame):
         self._paged_offset = 0
         self._total_articles = None
         self._loading = False
+        # Full-text state: bump _content_token on every article switch so stale
+        # background loads can't overwrite the pane; cache bodies by article id.
+        self._content_token = 0
+        self._fulltext_cache = {}
+        self._fulltext_inflight = set()
+        self._fulltext_timer = None
+        self._fulltext_debounce_ms = 350
+        # Read-ahead prefetch: while the user reads one article, warm the full text of
+        # the next few so VoiceOver reads the FULL article (not the feed snippet) the
+        # moment they navigate to it. Web extraction is slow (2-7s); without this the
+        # async result swaps in silently after the user has already heard the snippet.
+        self._prefetch_ahead = 8
+        self._prefetch_queue = deque()
+        self._prefetch_lock = threading.Lock()
+        self._prefetch_event = threading.Event()
+        self._prefetch_stop = False
+        # The provider's session (e.g. Miniflux) isn't guaranteed thread-safe, so serialize
+        # server-side fetch-content calls across the on-demand + prefetch workers.
+        self._provider_lock = threading.Lock()
+        self._prefetch_threads = [
+            threading.Thread(target=self._prefetch_worker_loop, daemon=True) for _ in range(3)
+        ]
+        for t in self._prefetch_threads:
+            t.start()
 
         panel = wx.Panel(self)
         root = wx.BoxSizer(wx.VERTICAL)
@@ -217,6 +357,9 @@ class AccessibleBrowserFrame(wx.Frame):
         left.Add(views_lbl, 0, wx.BOTTOM, 4)
         self.view_list = wx.ListBox(panel)
         self.view_list.SetName("Accessible Views")
+        # Cap the list width so long feed labels don't starve the reader pane (which
+        # otherwise gets squeezed to one word per line). Long labels truncate/scroll.
+        self.view_list.SetMinSize((240, 240))
         try:
             views_lbl.SetLabelFor(self.view_list)
         except Exception:
@@ -237,6 +380,7 @@ class AccessibleBrowserFrame(wx.Frame):
         middle.Add(articles_lbl, 0, wx.BOTTOM, 4)
         self.article_list = wx.ListBox(panel)
         self.article_list.SetName("Accessible Articles")
+        self.article_list.SetMinSize((260, 240))
         try:
             articles_lbl.SetLabelFor(self.article_list)
         except Exception:
@@ -249,14 +393,19 @@ class AccessibleBrowserFrame(wx.Frame):
         right = wx.BoxSizer(wx.VERTICAL)
         article_lbl = wx.StaticText(panel, label="Article Content")
         right.Add(article_lbl, 0, wx.BOTTOM, 4)
-        self.content_ctrl = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY)
+        self.content_ctrl = wx.TextCtrl(
+            panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_BESTWRAP
+        )
         self.content_ctrl.SetName("Accessible Article Content")
+        # Give the reader a generous minimum width so article text wraps as full lines,
+        # not one word per line.
+        self.content_ctrl.SetMinSize((620, 240))
         try:
             article_lbl.SetLabelFor(self.content_ctrl)
         except Exception:
             pass
         right.Add(self.content_ctrl, 1, wx.EXPAND)
-        content.Add(right, 2, wx.ALL | wx.EXPAND, 8)
+        content.Add(right, 3, wx.ALL | wx.EXPAND, 8)
 
         root.Add(content, 1, wx.EXPAND)
         panel.SetSizer(root)
@@ -275,6 +424,7 @@ class AccessibleBrowserFrame(wx.Frame):
         self.article_list.Bind(wx.EVT_LISTBOX_DCLICK, self.on_open_article)
         self.article_list.Bind(wx.EVT_KEY_DOWN, self.on_article_list_key_down)
         self.content_ctrl.Bind(wx.EVT_TEXT_COPY, self.on_content_copy)
+        self.content_ctrl.Bind(wx.EVT_SET_FOCUS, self.on_content_focus)
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self.search_ctrl.Bind(wx.EVT_TEXT, self.on_search_changed)
 
@@ -500,6 +650,9 @@ class AccessibleBrowserFrame(wx.Frame):
         self._current_articles = []
         self._paged_offset = 0
         self._total_articles = None
+        # Drop any read-ahead prefetch queued for the previous view.
+        with self._prefetch_lock:
+            self._prefetch_queue.clear()
         self.article_list.Set(["Loading articles..."])
         self.content_ctrl.SetValue("")
         self.status_lbl.SetLabel("Loading articles...")
@@ -600,11 +753,7 @@ class AccessibleBrowserFrame(wx.Frame):
             return
         self._show_article_at_index(idx)
 
-    def _show_article_at_index(self, idx):
-        if idx is None or idx < 0 or idx >= len(self._current_articles):
-            self._update_download_button(None)
-            return
-        article = self._current_articles[idx]
+    def _article_header(self, article) -> str:
         header = [
             str(getattr(article, "title", "") or ""),
             f"Date: {utils.humanize_article_date(getattr(article, 'date', '') or '')}",
@@ -613,12 +762,199 @@ class AccessibleBrowserFrame(wx.Frame):
             "-" * 40,
             "",
         ]
+        return "\n".join(header)
+
+    def _show_article_at_index(self, idx):
+        if idx is None or idx < 0 or idx >= len(self._current_articles):
+            self._update_download_button(None)
+            return
+        article = self._current_articles[idx]
+        # New selection invalidates any in-flight background full-text load.
+        self._content_token += 1
+        token = self._content_token
+        art_id = self.mainframe._article_cache_id(article)
+        header = self._article_header(article)
+
+        cached = self._fulltext_cache.get(art_id)
+        if cached is not None:
+            self.content_ctrl.SetValue(header + cached)
+            self._update_download_button(article)
+            self._enqueue_prefetch_from(idx)
+            return
+
         try:
             body = self.mainframe._strip_html(getattr(article, "content", "") or "")
         except Exception:
             body = str(getattr(article, "content", "") or "")
-        self.content_ctrl.SetValue("\n".join(header) + body)
+        self.content_ctrl.SetValue(header + body)
         self._update_download_button(article)
+        self._schedule_fulltext(art_id, token)
+        self._enqueue_prefetch_from(idx)
+
+    def _enqueue_prefetch_from(self, idx):
+        """Queue full-text prefetch for the articles AHEAD of `idx` (read-ahead)."""
+        arts = self._current_articles
+        pending = []
+        for j in range(idx + 1, min(idx + 1 + self._prefetch_ahead, len(arts))):
+            article = arts[j]
+            art_id = self.mainframe._article_cache_id(article)
+            if art_id in self._fulltext_cache:
+                continue
+            pending.append((art_id, article))
+        if not pending:
+            return
+        with self._prefetch_lock:
+            queued = {a for a, _ in self._prefetch_queue}
+            for art_id, article in pending:
+                if art_id in queued:
+                    continue
+                self._prefetch_queue.append((art_id, article))
+        self._prefetch_event.set()
+
+    def _prefetch_worker_loop(self):
+        while True:
+            self._prefetch_event.wait()
+            if self._prefetch_stop:
+                return
+            item = None
+            with self._prefetch_lock:
+                if self._prefetch_queue:
+                    item = self._prefetch_queue.popleft()
+                if not self._prefetch_queue:
+                    self._prefetch_event.clear()
+            if not item:
+                continue
+            art_id, article = item
+            if art_id in self._fulltext_cache:
+                continue
+            body = None
+            cacheable = False
+            try:
+                body, cacheable = extract_article_body(
+                    article, provider_fetch=self._provider_fetch_locked, max_pages=1
+                )
+            except Exception:
+                body, cacheable = None, False
+            # Only store authoritative results; never poison the cache with a feed
+            # fallback from a transient web failure (the user can re-fetch on arrival).
+            if body and cacheable:
+                wx.CallAfter(self._store_prefetch, art_id, body)
+
+    def _store_prefetch(self, art_id, body):
+        if art_id not in self._fulltext_cache:
+            self._fulltext_cache[art_id] = body
+
+    def _schedule_fulltext(self, art_id, token):
+        """Debounce a background full-text load so rapid list navigation doesn't hammer sites."""
+        timer = getattr(self, "_fulltext_timer", None)
+        if timer is not None:
+            try:
+                timer.Stop()
+            except Exception:
+                pass
+        self._fulltext_timer = wx.CallLater(
+            int(getattr(self, "_fulltext_debounce_ms", 350)),
+            self._start_fulltext,
+            art_id,
+            token,
+        )
+
+    def _start_fulltext(self, art_id, token):
+        if token != self._content_token:
+            return
+        if art_id in self._fulltext_cache or art_id in self._fulltext_inflight:
+            return
+        article = next(
+            (a for a in self._current_articles if self.mainframe._article_cache_id(a) == art_id),
+            None,
+        )
+        if article is None:
+            return
+        self._fulltext_inflight.add(art_id)
+        threading.Thread(
+            target=self._fulltext_thread, args=(article, art_id, token), daemon=True
+        ).start()
+
+    def _provider_fetch_locked(self, article_id, url):
+        """Thread-safe wrapper over the provider's server-side full-text fetch."""
+        prov = getattr(self.mainframe, "provider", None)
+        fn = getattr(prov, "fetch_full_content", None)
+        if not callable(fn):
+            return None
+        with self._provider_lock:
+            try:
+                return fn(article_id, url)
+            except Exception:
+                return None
+
+    def _fulltext_thread(self, article, art_id, token):
+        body = None
+        cacheable = False
+        try:
+            # max_pages=1: don't follow "next" links — on news sites those point to the
+            # NEXT STORY, not pagination, so following them merges unrelated articles.
+            body, cacheable = extract_article_body(
+                article, provider_fetch=self._provider_fetch_locked, max_pages=1
+            )
+        except Exception:
+            log.exception("Full-text extraction failed for %s", art_id)
+            body, cacheable = None, False
+        wx.CallAfter(self._finish_fulltext, art_id, token, body, cacheable)
+
+    def _finish_fulltext(self, art_id, token, body, cacheable):
+        self._fulltext_inflight.discard(art_id)
+        if body is None:
+            return
+        # Only cache authoritative results so a transient web failure (feed fallback)
+        # retries on the next visit instead of being pinned to the snippet.
+        if cacheable:
+            self._fulltext_cache[art_id] = body
+        if token != self._content_token:
+            return
+        idx = self._selected_article_index()
+        if idx is None:
+            return
+        article = self._current_articles[idx]
+        if self.mainframe._article_cache_id(article) != art_id:
+            return
+        try:
+            self.content_ctrl.SetValue(self._article_header(article) + body)
+            self.content_ctrl.SetInsertionPoint(0)
+        except Exception:
+            pass
+
+    def on_content_focus(self, event):
+        """Force an immediate full-text load (skip the debounce) when the reader pane is focused."""
+        try:
+            event.Skip()
+        except Exception:
+            pass
+        idx = self._selected_article_index()
+        if idx is None:
+            return
+        article = self._current_articles[idx]
+        art_id = self.mainframe._article_cache_id(article)
+        if art_id in self._fulltext_cache or art_id in self._fulltext_inflight:
+            return
+        self._content_token += 1
+        self._start_fulltext(art_id, self._content_token)
+
+    def Destroy(self):
+        # Cancel any pending debounce so a one-shot timer can't fire after teardown.
+        timer = getattr(self, "_fulltext_timer", None)
+        if timer is not None:
+            try:
+                timer.Stop()
+            except Exception:
+                pass
+            self._fulltext_timer = None
+        # Stop the prefetch worker.
+        self._prefetch_stop = True
+        try:
+            self._prefetch_event.set()
+        except Exception:
+            pass
+        return super().Destroy()
 
     def _update_download_button(self, article):
         has_media = bool(article and getattr(article, "media_url", None))

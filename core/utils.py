@@ -12,10 +12,20 @@ from io import BytesIO
 from core.db import get_connection
 import warnings
 import urllib.parse
+import sys
 
 log = logging.getLogger(__name__)
 
 warnings.filterwarnings("ignore", category=UnknownTimezoneWarning)
+
+
+def platform_supports_notifications() -> bool:
+    """True on platforms where `wx.adv.NotificationMessage` shows native banners.
+
+    Windows (toast) and macOS (Notification Center) are supported. Linux/libnotify
+    is intentionally excluded for now since delivery there is inconsistent.
+    """
+    return sys.platform.startswith("win") or sys.platform.startswith("darwin")
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',

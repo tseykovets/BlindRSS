@@ -1081,7 +1081,7 @@ class SettingsDialog(wx.Dialog):
             label="Enable notifications for new articles",
         )
         self.windows_notifications_chk.SetValue(bool(config.get("windows_notifications_enabled", False)))
-        if not sys.platform.startswith("win"):
+        if not utils.platform_supports_notifications():
             self.windows_notifications_chk.Disable()
         notifications_sizer.Add(self.windows_notifications_chk, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
@@ -1732,8 +1732,8 @@ class SettingsDialog(wx.Dialog):
             dlg.Destroy()
 
     def on_test_notification(self, event):
-        if not sys.platform.startswith("win"):
-            wx.MessageBox("Windows notifications are only available on Windows.", "Notifications", wx.ICON_INFORMATION)
+        if not utils.platform_supports_notifications():
+            wx.MessageBox("Notifications are not supported on this platform.", "Notifications", wx.ICON_INFORMATION)
             return
 
         title = "BlindRSS notification test"
@@ -1760,15 +1760,21 @@ class SettingsDialog(wx.Dialog):
                 shown = False
 
         if not shown:
+            hint = (
+                "Check Windows notification permissions and Focus Assist."
+                if sys.platform.startswith("win")
+                else "Check the app's notification permission in System Settings > Notifications and that Do Not Disturb is off."
+            )
             wx.MessageBox(
-                "Notification APIs were unavailable. Check Windows notification permissions and Focus Assist.",
+                f"Notification APIs were unavailable. {hint}",
                 "Notifications",
                 wx.ICON_WARNING,
             )
 
     def _update_notification_controls(self):
+        supported = utils.platform_supports_notifications()
         enabled = bool(getattr(self, "windows_notifications_chk", None) and self.windows_notifications_chk.GetValue())
-        if not sys.platform.startswith("win"):
+        if not supported:
             enabled = False
         controls = [
             getattr(self, "windows_notifications_feed_chk", None),
@@ -1785,13 +1791,13 @@ class SettingsDialog(wx.Dialog):
         try:
             test_btn = getattr(self, "test_notification_btn", None)
             if test_btn:
-                test_btn.Enable(bool(sys.platform.startswith("win")))
+                test_btn.Enable(supported)
         except Exception:
             pass
         try:
             exclude_btn = getattr(self, "exclude_feeds_btn", None)
             if exclude_btn:
-                exclude_btn.Enable(bool(sys.platform.startswith("win")))
+                exclude_btn.Enable(supported)
         except Exception:
             pass
 

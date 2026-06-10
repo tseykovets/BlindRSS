@@ -2022,7 +2022,7 @@ class MainFrame(wx.Frame):
             pass
 
     def _windows_notifications_enabled(self) -> bool:
-        if not sys.platform.startswith("win"):
+        if not utils.platform_supports_notifications():
             return False
         try:
             return bool(self.config_manager.get("windows_notifications_enabled", False))

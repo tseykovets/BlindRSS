@@ -174,9 +174,13 @@ def build_accessible_view_entries(feeds, categories=None, hierarchy=None, includ
     for parent in list(children_of.keys()):
         children_of[parent].sort(key=lambda s: s.lower())
 
+    from core.db import category_display_leaf
+
     def _walk(cat, path):
+        # `path`/`cat` carry full category-path identities; show only the leaf of
+        # each segment in the human-readable breadcrumb label.
         category_path = list(path) + [cat]
-        path_label = " > ".join(category_path)
+        path_label = " > ".join(category_display_leaf(c) for c in category_path)
         cat_id = f"category:{cat}"
         entries.append(
             {

@@ -186,8 +186,18 @@ class RSSProvider(abc.ABC):
     def delete_category(self, title: str) -> bool:
         pass
 
+    def supports_subcategories(self) -> bool:
+        """True if this provider supports nested categories (folders within
+        folders). Flat providers (most hosted services) return False so the UI
+        never offers subcategory creation and nesting is never simulated."""
+        return False
+
     def get_category_hierarchy(self) -> dict:
-        """Return {category_title: parent_title} mapping. Uses local DB by default."""
+        """Return {category_path: parent_path} mapping. Providers that do not
+        support nesting are flat, so return an empty mapping (every category is
+        top-level) regardless of any stale local rows."""
+        if not self.supports_subcategories():
+            return {}
         from core.db import get_category_hierarchy
         return get_category_hierarchy()
 

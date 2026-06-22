@@ -149,8 +149,10 @@ def test_local_add_category_with_parent():
             provider = _make_provider(tmp)
             provider.add_category("Parent")
             provider.add_category("Child", parent_title="Parent")
+            # Nested categories are identified by their full path.
             hierarchy = db_mod.get_category_hierarchy()
-            assert hierarchy.get("Child") == "Parent"
+            assert hierarchy.get("Parent / Child") == "Parent"
+            assert "Child" not in hierarchy
         finally:
             _restore_db(orig)
 
@@ -174,14 +176,15 @@ def test_local_delete_category_reparents_children():
             provider = _make_provider(tmp)
             provider.add_category("Grandparent")
             provider.add_category("Parent", parent_title="Grandparent")
-            provider.add_category("Child", parent_title="Parent")
+            provider.add_category("Child", parent_title="Grandparent / Parent")
 
-            provider.delete_category("Parent")
+            provider.delete_category("Grandparent / Parent")
 
             hierarchy = db_mod.get_category_hierarchy()
-            # Child should now be under Grandparent
-            assert hierarchy.get("Child") == "Grandparent"
-            assert "Parent" not in hierarchy
+            # Child should now be directly under Grandparent (path shortened).
+            assert hierarchy.get("Grandparent / Child") == "Grandparent"
+            assert "Grandparent / Parent" not in hierarchy
+            assert "Grandparent / Parent / Child" not in hierarchy
         finally:
             _restore_db(orig)
 
@@ -197,8 +200,10 @@ def test_local_delete_toplevel_category_children_become_toplevel():
             provider.delete_category("Parent")
 
             hierarchy = db_mod.get_category_hierarchy()
-            # Child should now be top-level (no parent)
+            # Child should now be top-level: its path collapses to just "Child".
+            assert "Child" in hierarchy
             assert hierarchy.get("Child") is None
+            assert "Parent / Child" not in hierarchy
         finally:
             _restore_db(orig)
 
@@ -220,7 +225,7 @@ def test_local_articles_include_subcategory_feeds():
             c.execute("INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
                       (feed1_id, "http://example.com/news", "General News", "News"))
             c.execute("INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
-                      (feed2_id, "http://example.com/tech", "Tech News Feed", "Tech News"))
+                      (feed2_id, "http://example.com/tech", "Tech News Feed", "News / Tech News"))
             # Insert articles
             c.execute("INSERT INTO articles (id, feed_id, title, url, date) VALUES (?, ?, ?, ?, ?)",
                       ("a1", feed1_id, "News Article", "http://example.com/1", "2025-01-01 00:00:00"))
@@ -286,7 +291,7 @@ def test_local_mark_all_read_includes_subcategories():
             c.execute("INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
                       (feed1_id, "http://example.com/news", "News", "News"))
             c.execute("INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
-                      (feed2_id, "http://example.com/tech", "Tech", "Tech"))
+                      (feed2_id, "http://example.com/tech", "Tech", "News / Tech"))
             c.execute("INSERT INTO articles (id, feed_id, title, url, date, is_read) VALUES (?, ?, ?, ?, ?, 0)",
                       ("a1", feed1_id, "News Art", "http://example.com/1", "2025-01-01 00:00:00"))
             c.execute("INSERT INTO articles (id, feed_id, title, url, date, is_read) VALUES (?, ?, ?, ?, ?, 0)",
@@ -346,7 +351,7 @@ def test_collect_category_feeds_for_export_includes_subcategory_feeds():
 
 
 def test_provider_get_category_hierarchy():
-    """Base provider get_category_hierarchy() reads from local DB."""
+    """A nesting-capable provider's get_category_hierarchy() reads the local DB."""
     with tempfile.TemporaryDirectory() as tmp:
         orig = _setup_db(tmp)
         try:
@@ -354,7 +359,90 @@ def test_provider_get_category_hierarchy():
             provider.add_category("A")
             provider.add_category("B", parent_title="A")
             h = provider.get_category_hierarchy()
-            assert h.get("B") == "A"
+            assert h.get("A / B") == "A"
             assert h.get("A") is None
+        finally:
+            _restore_db(orig)
+
+
+# ── Issue #27: duplicate subcategory leaf names under different parents ────
+
+
+def test_local_duplicate_subcategory_name_under_different_parents():
+    """Issue #27: the same leaf can be a subcategory of two different parents."""
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Podcasts")
+            provider.add_category("RSS")
+            # Both additions must succeed (previously the second one failed).
+            assert provider.add_category("Others", parent_title="Podcasts") is True
+            assert provider.add_category("Others", parent_title="RSS") is True
+
+            hierarchy = db_mod.get_category_hierarchy()
+            assert hierarchy.get("Podcasts / Others") == "Podcasts"
+            assert hierarchy.get("RSS / Others") == "RSS"
+
+            # A duplicate under the SAME parent is still rejected.
+            assert provider.add_category("Others", parent_title="Podcasts") is False
+        finally:
+            _restore_db(orig)
+
+
+def test_local_duplicate_subcategory_feeds_stay_isolated():
+    """Feeds in two same-named subcategories under different parents do not mix."""
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Podcasts")
+            provider.add_category("RSS")
+            provider.add_category("Others", parent_title="Podcasts")
+            provider.add_category("Others", parent_title="RSS")
+
+            conn = db_mod.get_connection()
+            c = conn.cursor()
+            pod_id = str(uuid.uuid4())
+            rss_id = str(uuid.uuid4())
+            c.execute("INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
+                      (pod_id, "http://example.com/pod", "Pod Feed", "Podcasts / Others"))
+            c.execute("INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
+                      (rss_id, "http://example.com/rss", "RSS Feed", "RSS / Others"))
+            c.execute("INSERT INTO articles (id, feed_id, title, url, date) VALUES (?, ?, ?, ?, ?)",
+                      ("p1", pod_id, "Pod Article", "http://example.com/p1", "2025-01-01 00:00:00"))
+            c.execute("INSERT INTO articles (id, feed_id, title, url, date) VALUES (?, ?, ?, ?, ?)",
+                      ("r1", rss_id, "RSS Article", "http://example.com/r1", "2025-01-02 00:00:00"))
+            conn.commit()
+            conn.close()
+
+            pod_articles, pod_total = provider.get_articles_page("category:Podcasts / Others")
+            rss_articles, rss_total = provider.get_articles_page("category:RSS / Others")
+            assert pod_total == 1 and {a.title for a in pod_articles} == {"Pod Article"}
+            assert rss_total == 1 and {a.title for a in rss_articles} == {"RSS Article"}
+        finally:
+            _restore_db(orig)
+
+
+def test_local_supports_subcategories():
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            assert _make_provider(tmp).supports_subcategories() is True
+        finally:
+            _restore_db(orig)
+
+
+def test_flat_provider_hierarchy_is_empty(monkeypatch):
+    """A provider that does not support nesting reports a flat hierarchy even if
+    stale parent rows exist locally."""
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("A")
+            provider.add_category("B", parent_title="A")
+            monkeypatch.setattr(provider, "supports_subcategories", lambda: False)
+            assert provider.get_category_hierarchy() == {}
         finally:
             _restore_db(orig)

@@ -523,6 +523,39 @@ def set_feed_show_images(feed_id, value):
             pass
 
 
+# ── Category path helpers ────────────────────────────────────────────────
+# Local nested categories are identified by their full path (root -> leaf), e.g.
+# "Podcasts / Others", so two subcategories that share a leaf name under
+# different parents do not collide (issue #27). The path string is the stable
+# identity stored in categories.title and feeds.category; only the leaf is shown
+# in the UI. Flat providers never build paths, so their category names are
+# single-segment and behave exactly as before.
+CATEGORY_PATH_SEP = " / "
+
+
+def make_category_path(parent_path, leaf):
+    """Join a parent category path and a leaf title into a full category path."""
+    leaf = str(leaf or "").strip()
+    parent_path = str(parent_path or "").strip()
+    if not parent_path:
+        return leaf
+    return f"{parent_path}{CATEGORY_PATH_SEP}{leaf}"
+
+
+def category_display_leaf(path):
+    """Return the leaf (last path segment) of a category path for display."""
+    s = str(path or "")
+    if CATEGORY_PATH_SEP in s:
+        return s.rsplit(CATEGORY_PATH_SEP, 1)[-1]
+    return s
+
+
+def sanitize_category_leaf(leaf):
+    """Strip the path separator out of a user-entered leaf name so it cannot
+    corrupt the path encoding."""
+    return str(leaf or "").strip().replace(CATEGORY_PATH_SEP, " - ")
+
+
 def sync_categories(category_titles):
     """Ensure all category titles exist in the local categories table.
 

@@ -1510,12 +1510,8 @@ class MinifluxProvider(RSSProvider):
         return [c["title"] for c in data]
 
     def add_category(self, title: str, parent_title: str = None) -> bool:
-        result = self._req("POST", "/v1/categories", json={"title": title}) is not None
-        if result and parent_title:
-            from core.db import sync_categories, set_category_parent
-            sync_categories([title])
-            set_category_parent(title, parent_title)
-        return result
+        # Miniflux categories are flat; ignore parent_title (do not simulate nesting).
+        return self._req("POST", "/v1/categories", json={"title": title}) is not None
 
     def rename_category(self, old_title: str, new_title: str) -> bool:
         data = self._req("GET", "/v1/categories")

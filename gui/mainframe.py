@@ -2695,8 +2695,9 @@ class MainFrame(wx.Frame):
             refresh_category_item = menu.Append(wx.ID_ANY, "Refresh Category")
             self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_refresh_category(e, ct), refresh_category_item)
 
-            add_sub_item = menu.Append(wx.ID_ANY, "Add Subcategory")
-            self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_add_subcategory(ct), add_sub_item)
+            if getattr(self.provider, "supports_subcategories", lambda: False)():
+                add_sub_item = menu.Append(wx.ID_ANY, "Add Subcategory")
+                self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_add_subcategory(ct), add_sub_item)
 
             if cat_title != "Uncategorized":
                 rename_item = menu.Append(wx.ID_ANY, "Rename Category")
@@ -3332,30 +3333,38 @@ class MainFrame(wx.Frame):
             self._decrement_view_total_if_present(fid)
 
     def on_rename_category(self, old_title):
-        dlg = wx.TextEntryDialog(self, f"Rename category '{old_title}' to:", "Rename Category", value=old_title)
+        # old_title is the category's full path; the user edits only the leaf.
+        from core.db import category_display_leaf
+        leaf = category_display_leaf(old_title)
+        dlg = wx.TextEntryDialog(self, f"Rename category '{leaf}' to:", "Rename Category", value=leaf)
         if dlg.ShowModal() == wx.ID_OK:
-            new_title = dlg.GetValue()
-            if new_title and new_title != old_title:
-                if self.provider.rename_category(old_title, new_title):
+            new_leaf = dlg.GetValue().strip()
+            if new_leaf and new_leaf != leaf:
+                if self.provider.rename_category(old_title, new_leaf):
                     self.refresh_feeds()
                 else:
                     wx.MessageBox("Could not rename category.", "Error", wx.ICON_ERROR)
         dlg.Destroy()
 
     def on_add_category(self, event):
-        cats = self.provider.get_categories()
-        choices = ["(None - Top Level)"] + sorted(cats)
-        dlg = wx.Dialog(self, title="Add Category", size=(400, 220))
+        # Only offer a parent picker for providers that support nested categories
+        # (folders within folders). Flat providers get a plain top-level add.
+        supports_sub = bool(getattr(self.provider, "supports_subcategories", lambda: False)())
+        dlg = wx.Dialog(self, title="Add Category", size=(400, 220 if supports_sub else 160))
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         sizer.Add(wx.StaticText(dlg, label="Category name:"), 0, wx.ALL, 5)
         name_ctrl = wx.TextCtrl(dlg)
         sizer.Add(name_ctrl, 0, wx.EXPAND | wx.ALL, 5)
 
-        sizer.Add(wx.StaticText(dlg, label="Parent category:"), 0, wx.ALL, 5)
-        parent_ctrl = wx.ComboBox(dlg, choices=choices, style=wx.CB_READONLY)
-        parent_ctrl.SetSelection(0)
-        sizer.Add(parent_ctrl, 0, wx.EXPAND | wx.ALL, 5)
+        parent_ctrl = None
+        if supports_sub:
+            cats = self.provider.get_categories()
+            choices = ["(None - Top Level)"] + sorted(cats, key=lambda s: s.lower())
+            sizer.Add(wx.StaticText(dlg, label="Parent category:"), 0, wx.ALL, 5)
+            parent_ctrl = wx.ComboBox(dlg, choices=choices, style=wx.CB_READONLY)
+            parent_ctrl.SetSelection(0)
+            sizer.Add(parent_ctrl, 0, wx.EXPAND | wx.ALL, 5)
 
         btn_sizer = dlg.CreateButtonSizer(wx.OK | wx.CANCEL)
         sizer.Add(btn_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
@@ -3365,8 +3374,10 @@ class MainFrame(wx.Frame):
 
         if dlg.ShowModal() == wx.ID_OK:
             name = name_ctrl.GetValue().strip()
-            parent_sel = parent_ctrl.GetSelection()
-            parent_title = None if parent_sel <= 0 else parent_ctrl.GetString(parent_sel)
+            parent_title = None
+            if parent_ctrl is not None:
+                parent_sel = parent_ctrl.GetSelection()
+                parent_title = None if parent_sel <= 0 else parent_ctrl.GetString(parent_sel)
             if name:
                 if self.provider.add_category(name, parent_title=parent_title):
                     self.refresh_feeds()
@@ -3375,7 +3386,10 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
     def on_add_subcategory(self, parent_cat_title):
-        dlg = wx.TextEntryDialog(self, f"Enter subcategory name (under '{parent_cat_title}'):", "Add Subcategory")
+        # parent_cat_title is the parent's full path; show just its leaf to the user.
+        from core.db import category_display_leaf
+        parent_leaf = category_display_leaf(parent_cat_title)
+        dlg = wx.TextEntryDialog(self, f"Enter subcategory name (under '{parent_leaf}'):", "Add Subcategory")
         if dlg.ShowModal() == wx.ID_OK:
             name = dlg.GetValue().strip()
             if name:
@@ -3826,12 +3840,17 @@ class MainFrame(wx.Frame):
             item_to_select = None
             cat_node_map = {}  # cat_title -> tree node
 
+            from core.db import category_display_leaf
+
             def _add_category_node(cat, parent_node):
                 nonlocal item_to_select
                 cat_feeds = cat_feeds_map.get(cat, [])
                 cat_feeds.sort(key=lambda f: (f.title or "").lower())
 
-                cat_node = self.tree.AppendItem(parent_node, cat)
+                # The node identity is the full path; nested nodes display only
+                # the leaf so the tree reads naturally for screen-reader users.
+                label = cat if parent_node is self.root else category_display_leaf(cat)
+                cat_node = self.tree.AppendItem(parent_node, label)
                 cat_data = {"type": "category", "id": cat}
                 self.tree.SetItemData(cat_node, cat_data)
                 cat_node_map[cat] = cat_node

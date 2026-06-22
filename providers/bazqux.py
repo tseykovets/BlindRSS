@@ -630,10 +630,7 @@ class BazQuxProvider(RSSProvider):
             return []
 
     def add_category(self, title: str, parent_title: str = None) -> bool:
-        if parent_title:
-            from core.db import sync_categories, set_category_parent
-            sync_categories([title])
-            set_category_parent(title, parent_title)
+        # BazQux labels are flat; ignore parent_title (do not simulate nesting).
         return True
 
     def rename_category(self, old_title: str, new_title: str) -> bool:

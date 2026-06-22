@@ -2398,6 +2398,13 @@ class LocalProvider(RSSProvider):
         tree.write(path, encoding='utf-8', xml_declaration=True)
         return True
 
+    def supports_subcategories(self) -> bool:
+        # The local provider stores nesting natively (categories.parent_id) and
+        # identifies nested categories by their full path, so it supports
+        # folders within folders, including duplicate leaf names under different
+        # parents (issue #27).
+        return True
+
     def get_categories(self) -> List[str]:
         conn = get_connection()
         try:
@@ -2409,56 +2416,149 @@ class LocalProvider(RSSProvider):
             conn.close()
 
     def add_category(self, title: str, parent_title: str = None) -> bool:
+        # `title` is the new leaf name; `parent_title` is the parent's full path
+        # (or None for top-level). The stored identity is the full path so the
+        # same leaf can live under different parents.
+        from core.db import make_category_path, sanitize_category_leaf
+        leaf = sanitize_category_leaf(title)
+        if not leaf:
+            return False
         conn = get_connection()
         c = conn.cursor()
         try:
             parent_id = None
-            if parent_title:
-                c.execute("SELECT id FROM categories WHERE title = ?", (parent_title,))
+            parent_path = (parent_title or "").strip()
+            if parent_path:
+                c.execute("SELECT id FROM categories WHERE title = ?", (parent_path,))
                 row = c.fetchone()
-                parent_id = row[0] if row else None
-            c.execute("INSERT INTO categories (id, title, parent_id) VALUES (?, ?, ?)", (str(uuid.uuid4()), title, parent_id))
+                if not row:
+                    return False  # parent must exist
+                parent_id = row[0]
+            path = make_category_path(parent_path, leaf)
+            c.execute(
+                "INSERT INTO categories (id, title, parent_id) VALUES (?, ?, ?)",
+                (str(uuid.uuid4()), path, parent_id),
+            )
             conn.commit()
             return True
         except sqlite3.IntegrityError:
-            return False # Already exists
+            return False  # Duplicate: this leaf already exists under this parent
         finally:
             conn.close()
 
     def rename_category(self, old_title: str, new_title: str) -> bool:
+        # `old_title` is the existing full path; `new_title` is the new leaf.
+        # Renaming a node changes its path, so its descendants' paths and every
+        # feed assigned to those paths must be rewritten too.
+        from core.db import make_category_path, sanitize_category_leaf, CATEGORY_PATH_SEP
+        old_path = (old_title or "").strip()
+        new_leaf = sanitize_category_leaf(new_title)
+        if not old_path or not new_leaf:
+            return False
         conn = get_connection()
         c = conn.cursor()
         try:
-            # Update categories table (parent_id references are by id, not title, so no cascade needed)
-            c.execute("UPDATE categories SET title = ? WHERE title = ?", (new_title, old_title))
-            # Update feeds
-            c.execute("UPDATE feeds SET category = ? WHERE category = ?", (new_title, old_title))
+            c.execute("SELECT id, parent_id FROM categories WHERE title = ?", (old_path,))
+            row = c.fetchone()
+            if not row:
+                return False
+            cat_id, parent_id = row
+            parent_path = None
+            if parent_id:
+                c.execute("SELECT title FROM categories WHERE id = ?", (parent_id,))
+                prow = c.fetchone()
+                parent_path = prow[0] if prow else None
+            new_path = make_category_path(parent_path, new_leaf)
+            if new_path == old_path:
+                return True
+            # Reject a collision with an existing sibling/category path.
+            c.execute("SELECT 1 FROM categories WHERE title = ?", (new_path,))
+            if c.fetchone():
+                return False
+            # Rewrite this path and all descendant paths (categories + feeds).
+            prefix = old_path + CATEGORY_PATH_SEP
+            c.execute("SELECT title FROM categories")
+            affected = [r[0] for r in c.fetchall()
+                        if r[0] == old_path or r[0].startswith(prefix)]
+            for old_p in affected:
+                new_p = new_path + old_p[len(old_path):]
+                c.execute("UPDATE categories SET title = ? WHERE title = ?", (new_p, old_p))
+                c.execute("UPDATE feeds SET category = ? WHERE category = ?", (new_p, old_p))
             conn.commit()
             return True
         except Exception as e:
+            conn.rollback()
             log.error(f"Rename error: {e}")
             return False
         finally:
             conn.close()
 
     def delete_category(self, title: str) -> bool:
-        if title.lower() == "uncategorized": return False
+        # `title` is the full path. Direct children are reparented to the deleted
+        # node's parent, which shortens their paths; descendant paths and the
+        # feeds assigned to them are rewritten to match.
+        from core.db import CATEGORY_PATH_SEP
+        path = (title or "").strip()
+        if path.lower() == "uncategorized":
+            return False
         conn = get_connection()
         try:
             c = conn.cursor()
-            # Find the category being deleted and its parent
-            c.execute("SELECT id, parent_id FROM categories WHERE title = ?", (title,))
+            c.execute("SELECT id, parent_id FROM categories WHERE title = ?", (path,))
             row = c.fetchone()
             if not row:
                 return False
             cat_id, cat_parent_id = row
-            # Move child categories to deleted category's parent (or top-level)
+            parent_path = None
+            if cat_parent_id:
+                c.execute("SELECT title FROM categories WHERE id = ?", (cat_parent_id,))
+                prow = c.fetchone()
+                parent_path = prow[0] if prow else None
+
+            old_prefix = path + CATEGORY_PATH_SEP
+            new_prefix = (parent_path + CATEGORY_PATH_SEP) if parent_path else ""
+            c.execute("SELECT title FROM categories")
+            all_titles = [r[0] for r in c.fetchall()]
+            descendants = [t for t in all_titles if t.startswith(old_prefix)]
+
+            # Reparenting could collide with an existing aunt category of the
+            # same name; detect that up front.
+            remaining = set(all_titles) - set(descendants) - {path}
+            mapping = []
+            collision = False
+            for old_p in descendants:
+                new_p = new_prefix + old_p[len(old_prefix):]
+                if new_p in remaining:
+                    collision = True
+                    break
+                mapping.append((old_p, new_p))
+                remaining.add(new_p)
+
+            if collision:
+                # Safe fallback: drop the whole subtree, feeds go to Uncategorized.
+                for sp in [path] + descendants:
+                    c.execute("UPDATE feeds SET category = 'Uncategorized' WHERE category = ?", (sp,))
+                    c.execute("DELETE FROM categories WHERE title = ?", (sp,))
+                conn.commit()
+                return True
+
+            # Reparent direct children (parent_id is by id, so deeper links hold).
             c.execute("UPDATE categories SET parent_id = ? WHERE parent_id = ?", (cat_parent_id, cat_id))
-            # Move feeds to Uncategorized
-            c.execute("UPDATE feeds SET category = 'Uncategorized' WHERE category = ?", (title,))
+            for old_p, new_p in mapping:
+                c.execute("UPDATE categories SET title = ? WHERE title = ?", (new_p, old_p))
+                c.execute("UPDATE feeds SET category = ? WHERE category = ?", (new_p, old_p))
+            # Feeds directly in the deleted category fall back to Uncategorized.
+            c.execute("UPDATE feeds SET category = 'Uncategorized' WHERE category = ?", (path,))
             c.execute("DELETE FROM categories WHERE id = ?", (cat_id,))
             conn.commit()
             return True
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            log.error(f"Delete category error: {e}")
+            return False
         finally:
             conn.close()
 

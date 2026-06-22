@@ -970,11 +970,8 @@ class InoreaderProvider(RSSProvider):
             raise
 
     def add_category(self, title: str, parent_title: str = None) -> bool:
+        # Inoreader labels are flat; ignore parent_title (do not simulate nesting).
         self._mark_cache_dirty()
-        if parent_title:
-            from core.db import sync_categories, set_category_parent
-            sync_categories([title])
-            set_category_parent(title, parent_title)
         return True
 
     def rename_category(self, old_title: str, new_title: str) -> bool:

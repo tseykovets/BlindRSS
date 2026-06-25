@@ -1,40 +1,63 @@
-  # BlindRSS
+# BlindRSS
 
-BlindRSS is a screen-reader-friendly desktop RSS and podcast app. It is built for fast feed reading and reliable audio playback.
+A screen-reader-friendly desktop RSS and podcast client for Windows, macOS, and Linux, built for fast feed reading and dependable audio playback.
 
-## What BlindRSS Does
+[![Join the BlindRSS community on Telegram](https://img.shields.io/badge/Telegram-Join%20the%20community-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/SerrebiProjects)
 
-- Reads RSS/Atom feeds and plays podcast/video enclosures.
-- Supports local feeds plus hosted providers: Miniflux, Inoreader, The Old Reader, and BazQux.
-- Includes All/Unread/Read/Favorites views, plus mark read/unread and mark all read.
-- Extracts full article text when feeds only provide summaries.
-- Finds feeds from URLs and search providers (Apple Podcasts, gPodder, Feedly, NewsBlur, Reddit, Fediverse, Feedsearch, and local discovery).
-- Supports YouTube, Rumble, and Odysee URL discovery/media handling through yt-dlp and local resolvers.
-- Uses a local range-cache proxy for faster seeking and smoother VLC playback.
+**Have a question, hit a bug, or want early word on new releases?** Join the [BlindRSS Telegram group](https://t.me/SerrebiProjects) — it's the fastest place to get help and to help shape where the app goes next.
+
+## Features
+
+- Reads RSS/Atom feeds and plays podcast and video enclosures.
+- Works with local feeds and hosted providers: Miniflux, Inoreader, The Old Reader, and BazQux.
+- All / Unread / Read / Favorites views, with mark read/unread and mark all read.
+- Recovers full article text when a feed only ships summaries.
+- Discovers feeds from URLs and search providers: Apple Podcasts, gPodder, Feedly, NewsBlur, Reddit, the Fediverse, Feedsearch, and local discovery.
+- Resolves YouTube, Rumble, and Odysee media through yt-dlp and built-in resolvers.
+- Smooths VLC playback and seeking with a local range-cache proxy.
 - Casts to Chromecast, DLNA/UPnP, and AirPlay.
-- Supports tray controls, media keys, saved searches, and startup restore of your last selected feed/folder.
-- Supports Windows notifications for new articles with per-feed exclusions and per-refresh limits.
-- Includes a built-in updater that verifies SHA-256 and Authenticode before applying updates.
+- Tray controls, media-key support, saved searches, and startup restore of your last feed and folder.
+- Windows notifications for new articles, with per-feed exclusions and per-refresh limits.
+- Built-in updater that verifies SHA-256 and Authenticode before applying an update.
 
-## I accept pull requests!
+## Download and install
 
-If BlindRSS has helped you, feel free to submit pull requests with fixes or features you want, and I will consider them.
-## Quick Start
-1. Download the latest `.zip` asset from [GitHub Releases](https://github.com/serrebidev/BlindRSS/releases).
-2. Extract the `.zip` anywhere.
-3. Run `BlindRSS.exe`.
+Grab the latest build from the [Releases page](https://github.com/serrebidev/BlindRSS/releases).
 
-## Run From Python (Any OS)
+**Windows installer (recommended)**
+
+1. Download `BlindRSS-Setup-vX.Y.Z.exe`.
+2. Run it and approve the elevation prompt. It installs to Program Files, adds a Start Menu entry, and updates itself in place.
+
+**Windows portable**
+
+1. Download `BlindRSS-vX.Y.Z.zip`.
+2. Extract it anywhere and run `BlindRSS.exe` — no installation required.
+
+**macOS and Linux**
+
+Download the matching `…-macos.zip` or `…-linux.tar.gz` asset from the same release.
+
+Installed builds keep your settings and database in `%APPDATA%\BlindRSS` and default episode downloads to your Downloads folder. Uninstalling leaves your data untouched.
+
+## Run from source (any OS)
 
 1. Install Python 3.14.
 2. Install dependencies: `pip install -r requirements.txt`
-3. Run: `python main.py`
+3. Launch it: `python main.py`
 
-## Debug Logging
+## Building
 
-When debug mode is enabled in Settings, BlindRSS writes a rotating debug log named `blindrss.log` beside the active config/data files. The log captures DEBUG and above. With debug mode disabled, BlindRSS does not create or attach this file log.
+See [`build.md`](build.md) for the full release pipeline — PyInstaller packaging, Authenticode signing, the Program Files installer, and the macOS/Linux build dispatch.
 
-## How to build
-[`build.md`](build.md).
-##Submit bugs in issues, or join my Telegram group!
-(https://t.me/SerrebiProjects)
+## Debug logging
+
+Enable debug mode in Settings to write a rotating `blindrss.log` (DEBUG and above) next to your config and data. With debug mode off, no log file is created.
+
+## Contributing
+
+Pull requests are welcome. If BlindRSS has been useful to you, open a PR with a fix or feature and I'll review it.
+
+## Community and support
+
+Report bugs and request features in [Issues](https://github.com/serrebidev/BlindRSS/issues). For questions, feedback, and release news, join the [Telegram group](https://t.me/SerrebiProjects).

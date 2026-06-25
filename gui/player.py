@@ -21,7 +21,7 @@ from core.range_cache_proxy import get_range_cache_proxy
 from core.stream_proxy import get_proxy as get_stream_proxy
 from core.audio_silence import merge_ranges, merge_ranges_with_gap, scan_audio_for_silence
 from core.dependency_check import _log
-from .hotkeys import HoldRepeatHotkeys
+from .hotkeys import HoldRepeatHotkeys, resolve_media_action
 
 log = logging.getLogger(__name__)
 
@@ -5351,7 +5351,22 @@ class PlayerFrame(wx.Frame):
                 except Exception:
                     pass
 
-        if event.ControlDown() and not event.ShiftDown() and not event.AltDown() and not event.MetaDown():
+        # Seek/volume: Ctrl+Arrow everywhere, plus Alt(Option)+Arrow on macOS
+        # where Ctrl+Left/Right are claimed by Mission Control.
+        media_action = None
+        try:
+            media_action = resolve_media_action(
+                sys.platform,
+                ctrl=event.ControlDown(),
+                alt=event.AltDown(),
+                shift=event.ShiftDown(),
+                meta=event.MetaDown(),
+                keycode=key if key is not None else -1,
+            )
+        except Exception:
+            media_action = None
+
+        if media_action is not None:
             actions = {
                 wx.WXK_UP: lambda: self.adjust_volume(int(getattr(self, "volume_step", 5))),
                 wx.WXK_DOWN: lambda: self.adjust_volume(-int(getattr(self, "volume_step", 5))),

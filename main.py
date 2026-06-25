@@ -105,8 +105,19 @@ from core.factory import get_provider
 from core import updater as app_updater
 from core import windows_integration
 from gui.mainframe import MainFrame
+from gui import hotkeys as _hotkeys
 from core.stream_proxy import get_proxy
 from core.range_cache_proxy import get_range_cache_proxy
+
+def _build_media_actions(pw):
+    """Seek/volume callbacks keyed by arrow keycode for HoldRepeatHotkeys."""
+    return {
+        wx.WXK_UP: lambda: pw.adjust_volume(int(getattr(pw, "volume_step", 5))),
+        wx.WXK_DOWN: lambda: pw.adjust_volume(-int(getattr(pw, "volume_step", 5))),
+        wx.WXK_LEFT: lambda: pw.seek_relative_ms(-int(getattr(pw, "seek_back_ms", 10000))),
+        wx.WXK_RIGHT: lambda: pw.seek_relative_ms(int(getattr(pw, "seek_forward_ms", 10000))),
+    }
+
 
 class GlobalMediaKeyFilter(wx.EventFilter):
     """Capture media shortcuts globally so they work in dialogs too."""
@@ -132,20 +143,37 @@ class GlobalMediaKeyFilter(wx.EventFilter):
             if et not in (getattr(wx, 'wxEVT_KEY_DOWN', -1), getattr(wx, 'wxEVT_CHAR_HOOK', -1), getattr(wx, 'wxEVT_CHAR', -1)):
                 return wx.EventFilter.Event_Skip
 
-            if event.ControlDown() and not event.ShiftDown() and not event.AltDown() and not event.MetaDown():
-                key = int(event.GetKeyCode())
+            key = int(event.GetKeyCode())
 
-                # Ctrl+P: toggle player window
-                if key in (ord('P'), ord('p')):
-                    try:
-                        self.frame.toggle_player_visibility()
-                    except Exception as e:
-                        log.debug(f"Error toggling player visibility: {e}")
-                    return wx.EventFilter.Event_Processed
+            # Ctrl+P: toggle player window (Ctrl-only, all platforms).
+            if (
+                event.ControlDown()
+                and not event.ShiftDown()
+                and not event.AltDown()
+                and not event.MetaDown()
+                and key in (ord('P'), ord('p'))
+            ):
+                try:
+                    self.frame.toggle_player_visibility()
+                except Exception as e:
+                    log.debug(f"Error toggling player visibility: {e}")
+                return wx.EventFilter.Event_Processed
 
+            # Seek/volume arrows: Ctrl+Arrow everywhere, plus Alt(Option)+Arrow
+            # on macOS where Ctrl+Left/Right are taken by Mission Control.
+            action_name = _hotkeys.resolve_media_action(
+                sys.platform,
+                ctrl=event.ControlDown(),
+                alt=event.AltDown(),
+                shift=event.ShiftDown(),
+                meta=event.MetaDown(),
+                keycode=key,
+            )
+            if action_name is not None:
                 pw = getattr(self.frame, "player_window", None)
                 if pw:
-                    # Use the same hold-to-repeat gate everywhere to avoid multi-seek bursts.
+                    # Mirror the Ctrl+Arrow gating: only act while audio is playing,
+                    # so Alt+Arrow stays free for list/reader navigation otherwise.
                     hk = getattr(self.frame, "_media_hotkeys", None)
                     if hk is not None:
                         playing = False
@@ -154,12 +182,7 @@ class GlobalMediaKeyFilter(wx.EventFilter):
                         except Exception:
                             playing = False
                         if playing:
-                            actions = {
-                                wx.WXK_UP: lambda: pw.adjust_volume(int(getattr(pw, "volume_step", 5))),
-                                wx.WXK_DOWN: lambda: pw.adjust_volume(-int(getattr(pw, "volume_step", 5))),
-                                wx.WXK_LEFT: lambda: pw.seek_relative_ms(-int(getattr(pw, "seek_back_ms", 10000))),
-                                wx.WXK_RIGHT: lambda: pw.seek_relative_ms(int(getattr(pw, "seek_forward_ms", 10000))),
-                            }
+                            actions = _build_media_actions(pw)
                             if hk.handle_ctrl_key(event, actions):
                                 return wx.EventFilter.Event_Processed
         except Exception as e:

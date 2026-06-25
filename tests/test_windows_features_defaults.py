@@ -49,8 +49,12 @@ def test_windows_integration_launch_parts_script_mode(monkeypatch, tmp_path):
     assert working_dir == str(tmp_path)
 
 
-def test_set_startup_enabled_returns_error_off_windows(monkeypatch):
-    monkeypatch.setattr(windows_integration, "is_windows", lambda: False)
+def test_set_startup_enabled_returns_error_on_unsupported_platform(monkeypatch):
+    # Windows and macOS now have real start-at-login paths (registry / LaunchAgent;
+    # see test_macos_startup.py). On any other platform (e.g. Linux) registration
+    # must still fail cleanly without touching the OS. Patch the platform itself so
+    # both is_windows() and is_macos() report False and no launchctl/registry call runs.
+    monkeypatch.setattr(windows_integration.sys, "platform", "linux", raising=False)
     ok, msg = windows_integration.set_startup_enabled(True)
     assert ok is False
-    assert "windows" in (msg or "").lower()
+    assert "not supported" in (msg or "").lower()

@@ -6,57 +6,163 @@ from typing import Callable, Dict, Tuple, Optional
 import wx
 
 
+# Canonical media action names returned by resolve_media_action(). The call
+# sites map these to the concrete player callbacks; keeping the helper pure
+# (platform + modifiers + keycode -> name) makes the modifier logic unit-testable
+# without a wx.App.
+ACTION_SEEK_BACK = "seek_back"
+ACTION_SEEK_FORWARD = "seek_forward"
+ACTION_VOLUME_UP = "volume_up"
+ACTION_VOLUME_DOWN = "volume_down"
+
+_ARROW_ACTIONS = {
+    wx.WXK_LEFT: ACTION_SEEK_BACK,
+    wx.WXK_RIGHT: ACTION_SEEK_FORWARD,
+    wx.WXK_UP: ACTION_VOLUME_UP,
+    wx.WXK_DOWN: ACTION_VOLUME_DOWN,
+}
+
+
+def _is_macos(platform: Optional[str] = None) -> bool:
+    plat = sys.platform if platform is None else platform
+    return str(plat) == "darwin"
+
+
+def resolve_media_action(
+    platform: str,
+    *,
+    ctrl: bool,
+    alt: bool,
+    shift: bool,
+    meta: bool,
+    keycode: int,
+) -> Optional[str]:
+    """Return the canonical media action for an arrow key, or None.
+
+    Pure function (no wx.App / no event object) so the platform-specific
+    modifier rules can be unit-tested deterministically.
+
+    - Ctrl+Arrow maps to seek/volume on every platform (existing behavior).
+    - On macOS, Alt(Option)+Arrow ALSO maps to the same actions, because the
+      default Ctrl+Left/Right system shortcuts ("Move left/right a space")
+      shadow the app there.
+    - Shift or Meta(Cmd) being down disqualifies it (Ctrl+Shift+Arrow is the
+      chapter shortcut; Cmd combos belong to the system).
+    - No modifier -> None, so plain arrow navigation is never treated as a
+      media key.
+    """
+    if shift or meta:
+        return None
+
+    accel = bool(ctrl)
+    if not accel and alt and _is_macos(platform):
+        accel = True
+    if not accel:
+        return None
+
+    try:
+        return _ARROW_ACTIONS.get(int(keycode))
+    except Exception:
+        return None
+
+
 class HoldRepeatHotkeys:
-    """Hold-to-repeat behavior for Ctrl+key shortcuts.
+    """Hold-to-repeat behavior for Ctrl+key (and, on macOS, Alt+key) shortcuts.
 
     Goals:
     - Quick tap fires exactly once.
     - Holding repeats after hold_delay_s, then every repeat_interval_s.
     - Repeat should not randomly stop on Windows.
+    - Release detection stays reliable on macOS where wx.GetKeyState can be
+      flaky (KEY_UP / focus / activate events back up the polling).
+
+    The time source (`clock`) and the physical key-state probe (`key_state_fn`)
+    are injectable so press -> hold -> repeat -> release can be driven
+    deterministically in tests without a real wx.App / wx.Timer.
     """
 
     def __init__(
         self,
-        owner: wx.Window,
+        owner,
         hold_delay_s: float = 0.20,
         repeat_interval_s: float = 0.12,
         poll_interval_ms: int = 15,
         release_grace_polls: int = 6,
+        clock: Callable[[], float] = time.monotonic,
+        key_state_fn: Optional[Callable[[int], bool]] = None,
     ):
         self._owner = owner
         self._hold_delay_s = float(hold_delay_s)
         self._repeat_interval_s = float(repeat_interval_s)
         self._poll_interval_ms = int(poll_interval_ms)
         self._release_grace_polls = max(1, int(release_grace_polls))
+        self._clock = clock if callable(clock) else time.monotonic
+        # Probe used to detect whether a single keycode is physically down.
+        # Tests inject a fake; production falls back to the wx/Win32 probe.
+        self._key_state_fn = key_state_fn if callable(key_state_fn) else self._default_key_state
 
         # Active combos: (mods_mask, keycode) -> state dict
-        # mods_mask: bit1 == CTRL
+        # mods_mask: bit1 == CTRL, bit2 == ALT (macOS alternative).
         self._active: Dict[Tuple[int, int], Dict[str, object]] = {}
 
-        self._timer = wx.Timer(owner)
-        owner.Bind(wx.EVT_TIMER, self._on_timer, self._timer)
+        # Timer creation is lazy/guarded so a fake owner (no Bind / no wx loop)
+        # can be used in tests. _make_timer can also be overridden.
+        self._timer = None
+        try:
+            self._timer = self._make_timer(owner)
+        except Exception:
+            self._timer = None
 
-        # Best-effort KEY_UP stopping (helps when key-state polling is flaky)
-        try:
-            owner.Bind(wx.EVT_KEY_UP, self._on_key_up)
-        except Exception:
-            pass
-        try:
-            owner.Bind(wx.EVT_KILL_FOCUS, self._on_kill_focus)
-        except Exception:
-            pass
-        try:
-            owner.Bind(wx.EVT_ACTIVATE, self._on_activate)
-        except Exception:
-            pass
+        if self._timer is not None:
+            self._bind_owner_events(owner)
+
+    def _make_timer(self, owner):
+        """Create the polling timer. Returns None if not possible (e.g. tests).
+
+        Overridable; guarded so a fake owner without wx wiring is safe.
+        """
+        if owner is None or not hasattr(owner, "Bind"):
+            return None
+        timer = wx.Timer(owner)
+        owner.Bind(wx.EVT_TIMER, self._on_timer, timer)
+        return timer
+
+    def _bind_owner_events(self, owner) -> None:
+        # Best-effort KEY_UP / focus stopping (helps when key-state polling is
+        # flaky, notably on macOS).
+        for evt, handler in (
+            (getattr(wx, "EVT_KEY_UP", None), self._on_key_up),
+            (getattr(wx, "EVT_KILL_FOCUS", None), self._on_kill_focus),
+            (getattr(wx, "EVT_ACTIVATE", None), self._on_activate),
+        ):
+            if evt is None:
+                continue
+            try:
+                owner.Bind(evt, handler)
+            except Exception:
+                pass
 
     def stop(self) -> None:
         try:
-            if self._timer.IsRunning():
+            if self._timer is not None and self._timer.IsRunning():
                 self._timer.Stop()
         except Exception:
             pass
         self._active.clear()
+
+    def _ensure_timer_running(self) -> None:
+        try:
+            if self._timer is not None and not self._timer.IsRunning():
+                self._timer.Start(self._poll_interval_ms)
+        except Exception:
+            pass
+
+    def _stop_timer_if_idle(self) -> None:
+        try:
+            if not self._active and self._timer is not None and self._timer.IsRunning():
+                self._timer.Stop()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------
     # Key state helpers
@@ -83,13 +189,16 @@ class HoldRepeatHotkeys:
             return 0x28
         if keycode == wx.WXK_CONTROL:
             return 0x11
+        if keycode == wx.WXK_ALT:
+            return 0x12
         return None
 
-    def _is_key_down(self, keycode: int) -> bool:
+    def _default_key_state(self, keycode: int) -> bool:
         """Return best-effort physical key state.
 
         Prefer wx.GetKeyState (works well with wx focus routing), and OR it with
-        Win32 GetAsyncKeyState as a fallback.
+        Win32 GetAsyncKeyState as a fallback. This is the production probe;
+        tests inject `key_state_fn` instead.
         """
         down = False
         try:
@@ -113,10 +222,32 @@ class HoldRepeatHotkeys:
 
         return bool(down)
 
-    def _combo_is_down(self, keycode: int) -> bool:
-        # Only CTRL combos are supported currently.
+    def _is_key_down(self, keycode: int) -> bool:
         try:
-            return bool(self._is_key_down(wx.WXK_CONTROL) and self._is_key_down(int(keycode)))
+            return bool(self._key_state_fn(int(keycode)))
+        except Exception:
+            return False
+
+    def _accel_is_down(self, mods: int) -> bool:
+        """Is the accelerator modifier for this combo still held?
+
+        mods bit1 == CTRL, bit2 == ALT. Either being down keeps the combo
+        alive so the macOS Alt path and the Ctrl path both repeat reliably.
+        """
+        try:
+            if (int(mods) & 1) and self._is_key_down(wx.WXK_CONTROL):
+                return True
+            if (int(mods) & 2) and self._is_key_down(wx.WXK_ALT):
+                return True
+        except Exception:
+            # If the probe blows up, assume held so we don't kill an active
+            # repeat on a transient error (the KEY_UP handler still stops it).
+            return True
+        return False
+
+    def _combo_is_down(self, mods: int, keycode: int) -> bool:
+        try:
+            return bool(self._accel_is_down(mods) and self._is_key_down(int(keycode)))
         except Exception:
             return False
 
@@ -124,17 +255,38 @@ class HoldRepeatHotkeys:
     # Event handlers
     # ------------------------------------------------------------
 
+    def _event_mods_mask(self, event: wx.KeyEvent) -> int:
+        """Compute the accelerator mask for an event.
+
+        bit1 == CTRL, bit2 == ALT (only honored as an accelerator on macOS so
+        Alt+Arrow text navigation is untouched elsewhere). Returns 0 when no
+        usable accelerator is down.
+        """
+        mask = 0
+        try:
+            if event.ControlDown():
+                mask |= 1
+        except Exception:
+            pass
+        try:
+            if _is_macos() and event.AltDown():
+                mask |= 2
+        except Exception:
+            pass
+        return mask
+
     def handle_ctrl_key(
         self,
         event: wx.KeyEvent,
         actions_by_keycode: Dict[int, Callable[[], None]],
     ) -> bool:
-        """Handle Ctrl+<key> with hold-to-repeat behavior.
+        """Handle Ctrl+<key> (and Alt+<key> on macOS) with hold-to-repeat.
 
         Returns True if handled and the event should be swallowed.
         """
         try:
-            if not event.ControlDown():
+            mods = self._event_mods_mask(event)
+            if not mods:
                 return False
             key = int(event.GetKeyCode())
         except Exception:
@@ -144,8 +296,8 @@ class HoldRepeatHotkeys:
         if cb is None:
             return False
 
-        combo_id = (1, key)  # 1 == CTRL
-        now = time.monotonic()
+        combo_id = (mods, key)
+        now = self._clock()
 
         is_auto_repeat = False
         try:
@@ -181,11 +333,7 @@ class HoldRepeatHotkeys:
                 pass
 
         # Ensure polling is running.
-        try:
-            if not self._timer.IsRunning():
-                self._timer.Start(self._poll_interval_ms)
-        except Exception:
-            pass
+        self._ensure_timer_running()
 
         return True
 
@@ -198,10 +346,11 @@ class HoldRepeatHotkeys:
         try:
             to_remove = []
             for (mods, k), st in list(self._active.items()):
-                if mods != 1:
+                # Releasing an accelerator modifier stops its combos.
+                if key == wx.WXK_CONTROL and (mods & 1):
+                    to_remove.append((mods, k))
                     continue
-                # If CTRL released, stop all CTRL combos.
-                if key == wx.WXK_CONTROL:
+                if key == wx.WXK_ALT and (mods & 2):
                     to_remove.append((mods, k))
                     continue
                 # If the combo key released, stop that combo.
@@ -212,11 +361,7 @@ class HoldRepeatHotkeys:
         except Exception:
             pass
 
-        try:
-            if not self._active and self._timer.IsRunning():
-                self._timer.Stop()
-        except Exception:
-            pass
+        self._stop_timer_if_idle()
 
         try:
             event.Skip()
@@ -244,20 +389,24 @@ class HoldRepeatHotkeys:
         except Exception:
             pass
 
-    def _on_timer(self, _evt: wx.TimerEvent) -> None:
+    def _on_timer(self, _evt) -> None:
+        self.poll()
+
+    def poll(self) -> None:
+        """Run one release/repeat poll cycle.
+
+        Exposed (not just bound to the timer) so tests can drive repeats
+        deterministically via the injected clock.
+        """
         if not self._active:
-            try:
-                if self._timer.IsRunning():
-                    self._timer.Stop()
-            except Exception:
-                pass
+            self._stop_timer_if_idle()
             return
 
-        now = time.monotonic()
+        now = self._clock()
 
         for combo_id, st in list(self._active.items()):
             mods, key = combo_id
-            if mods != 1:
+            if not mods:
                 self._active.pop(combo_id, None)
                 continue
 
@@ -282,7 +431,7 @@ class HoldRepeatHotkeys:
             # Check for release. Use a small grace window to avoid random false negatives.
             down = True
             try:
-                down = self._combo_is_down(int(key))
+                down = self._combo_is_down(int(mods), int(key))
             except Exception:
                 down = True
 
@@ -307,8 +456,4 @@ class HoldRepeatHotkeys:
             st["last_fire"] = now
 
         # Stop timer if nothing active.
-        try:
-            if not self._active and self._timer.IsRunning():
-                self._timer.Stop()
-        except Exception:
-            pass
+        self._stop_timer_if_idle()

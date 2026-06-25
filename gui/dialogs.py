@@ -23,6 +23,7 @@ from core.discovery import (
 )
 from core import utils
 from core import config as config_mod
+from core import windows_integration
 from core.casting import CastingManager
 from core import inoreader_oauth
 from core import translation as translation_mod
@@ -770,9 +771,9 @@ class SettingsDialog(wx.Dialog):
         )
         general_sizer.Add(self.prompt_missing_deps_chk, 0, wx.ALL, 5)
 
-        self.start_on_login_chk = wx.CheckBox(general_panel, label="Start BlindRSS when Windows starts")
+        self.start_on_login_chk = wx.CheckBox(general_panel, label=windows_integration.startup_setting_label())
         self.start_on_login_chk.SetValue(bool(config.get("start_on_windows_login", False)))
-        if not sys.platform.startswith("win"):
+        if not windows_integration.startup_supported():
             self.start_on_login_chk.Disable()
         general_sizer.Add(self.start_on_login_chk, 0, wx.ALL, 5)
 

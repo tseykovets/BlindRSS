@@ -1276,7 +1276,17 @@ class MainFrame(wx.Frame):
         add_shortcuts_item = file_menu.Append(wx.ID_ANY, "Add &Shortcuts...", "Create desktop, taskbar, or Start Menu shortcuts")
         file_menu.AppendSeparator()
         exit_item = file_menu.Append(wx.ID_EXIT, "E&xit", "Exit application")
-        
+
+        # Standard Edit menu. The standard IDs route to the focused text control
+        # automatically (no custom handlers needed), giving the article reader pane
+        # and other text fields native Cut/Copy/Paste/Select All. wx maps Ctrl->Cmd
+        # on macOS, where VoiceOver relies on these shortcuts existing.
+        edit_menu = wx.Menu()
+        edit_menu.Append(wx.ID_CUT, "Cu&t\tCtrl+X", "Cut the selection")
+        edit_menu.Append(wx.ID_COPY, "&Copy\tCtrl+C", "Copy the selection")
+        edit_menu.Append(wx.ID_PASTE, "&Paste\tCtrl+V", "Paste from the clipboard")
+        edit_menu.Append(wx.ID_SELECTALL, "Select &All\tCtrl+A", "Select all")
+
         view_menu = wx.Menu()
         show_search_item = view_menu.AppendCheckItem(wx.ID_ANY, "Show &Search Field", "Show or hide the search field")
         show_search_item.Check(bool(getattr(self, "_search_visible", True)))
@@ -1363,6 +1373,7 @@ class MainFrame(wx.Frame):
         about_item = help_menu.Append(wx.ID_ABOUT, "&About", "About BlindRSS")
 
         menubar.Append(file_menu, "&File")
+        menubar.Append(edit_menu, "&Edit")
         menubar.Append(view_menu, "&View")
         menubar.Append(player_menu, "&Player")
         menubar.Append(tools_menu, "&Tools")
@@ -2380,7 +2391,7 @@ class MainFrame(wx.Frame):
             notify_budget["remaining"] = remaining
 
     def _sync_windows_startup_setting(self, enabled: bool) -> tuple[bool, str]:
-        if not sys.platform.startswith("win"):
+        if not windows_integration.startup_supported():
             return True, ""
         return windows_integration.set_startup_enabled(bool(enabled))
 

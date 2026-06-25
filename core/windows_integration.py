@@ -24,6 +24,24 @@ def is_windows() -> bool:
     return bool(sys.platform.startswith("win"))
 
 
+def is_macos() -> bool:
+    return sys.platform == "darwin"
+
+
+def startup_supported() -> bool:
+    """Whether start-at-login registration is supported on this platform."""
+    return is_windows() or is_macos()
+
+
+def startup_setting_label() -> str:
+    """Platform-appropriate label for the start-at-login checkbox."""
+    if is_windows():
+        return "Start BlindRSS when Windows starts"
+    if is_macos():
+        return "Start BlindRSS when you log in"
+    return "Start BlindRSS at login"
+
+
 def _quote_cmd_arg(value: str) -> str:
     return subprocess.list2cmdline([str(value or "")]).strip()
 
@@ -68,8 +86,13 @@ def build_startup_command() -> str:
 
 
 def set_startup_enabled(enabled: bool, app_name: str = APP_NAME) -> tuple[bool, str]:
+    if is_macos():
+        from core import macos_integration
+
+        return macos_integration.set_macos_startup_enabled(enabled)
+
     if not is_windows() or winreg is None:
-        return False, "Startup registration is only available on Windows."
+        return False, "Startup registration is not supported on this platform."
 
     try:
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, _RUN_KEY) as key:

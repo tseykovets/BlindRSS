@@ -17,6 +17,8 @@ try:
 except Exception:
     winreg = None
 
+from core.config import is_windows_installed_build
+
 def _dependency_log_path():
     temp_dir = os.environ.get("TEMP", os.environ.get("TMP", tempfile.gettempdir()))
     return os.path.join(temp_dir, "blindrss_dep_check.log")
@@ -1133,13 +1135,32 @@ def ensure_media_tools():
     # Automatic installation has been moved to interactive prompt in GUI.
     return
 
+def _ytdlp_runtime_bin_dir():
+    """Directory for the runtime-managed (downloaded/self-updated) yt-dlp.exe.
+
+    Installed (Program Files) builds must never write to the read-only install
+    directory, so they keep the runtime yt-dlp under per-user LocalAppData
+    (mirroring the ffmpeg fallback in _install_ffmpeg_fallback). Portable frozen
+    builds and source runs use a bin/ dir beside the app, where they already
+    have write access.
+    """
+    if is_windows_installed_build():
+        base_dir = os.path.join(
+            os.environ.get("LOCALAPPDATA") or tempfile.gettempdir(), "BlindRSS"
+        )
+    elif getattr(sys, "frozen", False):
+        base_dir = os.path.dirname(os.path.abspath(sys.executable))
+    else:
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    return os.path.join(base_dir, "bin")
+
+
 def _ensure_yt_dlp_cli():
     """Throttled update/install of yt-dlp binary. Prioritizes working version."""
     if platform.system().lower() != "windows":
         return
 
-    base_dir = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False) else os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    bin_dir = os.path.join(base_dir, "bin")
+    bin_dir = _ytdlp_runtime_bin_dir()
     os.makedirs(bin_dir, exist_ok=True)
     local_exe = os.path.join(bin_dir, "yt-dlp.exe")
 
@@ -1161,21 +1182,42 @@ def _ensure_yt_dlp_cli():
     # Check for working yt-dlp
     exe = None
 
-    # 0. Check bundled (sys._MEIPASS) if frozen
+    # 0. Bundled copy shipped with the app (sys._MEIPASS/bin/yt-dlp.exe).
+    bundled_exe = None
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         bundled_bin = os.path.join(sys._MEIPASS, "bin")
-        bundled_exe = os.path.join(bundled_bin, "yt-dlp.exe")
-        if os.path.isfile(bundled_exe) and works(bundled_exe):
-            _log(f"Using bundled yt-dlp at {bundled_exe}")
-            # Prepend to PATH immediately so subprocess calls find it
-            current_path = os.environ.get("PATH", "")
-            if bundled_bin not in current_path:
-                os.environ["PATH"] = os.pathsep.join([bundled_bin, current_path])
-            return
+        candidate = os.path.join(bundled_bin, "yt-dlp.exe")
+        if os.path.isfile(candidate) and works(candidate):
+            bundled_exe = candidate
+            if not is_windows_installed_build():
+                # Portable builds run from a writable folder and can self-update
+                # the bundled copy in place, so use it directly.
+                _log(f"Using bundled yt-dlp at {candidate}")
+                current_path = os.environ.get("PATH", "")
+                if bundled_bin not in current_path:
+                    os.environ["PATH"] = os.pathsep.join([bundled_bin, current_path])
+                return
+            # Installed (Program Files) builds can't write to the bundled copy, so
+            # seed a writable per-user copy from it and manage/update that instead.
+            if not (os.path.isfile(local_exe) and works(local_exe)):
+                try:
+                    shutil.copy2(candidate, local_exe)
+                    _log(f"Seeded writable yt-dlp copy at {local_exe}")
+                except Exception as e:
+                    _log(f"Could not seed writable yt-dlp copy: {e}")
 
     if os.path.isfile(local_exe) and works(local_exe):
         exe = local_exe
         _log(f"Using local yt-dlp at {exe}")
+    elif bundled_exe:
+        # Writable copy unavailable (seeding failed); fall back to the read-only
+        # bundled copy so playback still works -- just without runtime self-update.
+        _log(f"Using bundled yt-dlp at {bundled_exe}")
+        bundled_bin = os.path.dirname(bundled_exe)
+        current_path = os.environ.get("PATH", "")
+        if bundled_bin not in current_path:
+            os.environ["PATH"] = os.pathsep.join([bundled_bin, current_path])
+        return
     else:
         system_exe = shutil.which("yt-dlp") or shutil.which("yt-dlp.exe")
         if system_exe and works(system_exe):
@@ -1186,6 +1228,11 @@ def _ensure_yt_dlp_cli():
         if _should_check_updates("ytdlp_cli_update"):
             _log("Updating yt-dlp CLI...")
             _run_quiet([exe, "-U"])
+        # When using our own managed copy, make sure its bin dir is searched first.
+        if exe == local_exe:
+            current = os.environ.get("PATH", "")
+            if bin_dir not in current.split(os.pathsep):
+                os.environ["PATH"] = os.pathsep.join([bin_dir, current])
         _add_bin_to_user_path(bin_dir)
         return
 

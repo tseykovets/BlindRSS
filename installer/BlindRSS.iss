@@ -11,16 +11,25 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={localappdata}\Programs\{#MyAppName}
+DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-PrivilegesRequired=lowest
+; Per-machine install into Program Files. The program lives under Program Files
+; (x64 -> "Program Files", x86 -> "Program Files (x86)"); nothing is written back
+; into the install dir at runtime. Mutable data lives outside it, keyed off the
+; .windows-installed marker (see core/config.py): config.json/rss.db/logs/caches
+; in %APPDATA%\BlindRSS, episode downloads in the user's Downloads folder, and
+; the self-updating yt-dlp.exe in %LOCALAPPDATA%\BlindRSS\bin.
+PrivilegesRequired=admin
 OutputDir=..\dist
 OutputBaseFilename=BlindRSS-Setup-v{#MyAppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
+; Install in 64-bit mode on x64 Windows so {autopf} resolves to "Program Files"
+; (not "Program Files (x86)") and the 64-bit registry/uninstall view is used.
+ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
 CloseApplications=yes
 RestartApplications=no

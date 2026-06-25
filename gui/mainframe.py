@@ -28,7 +28,7 @@ from .tray import BlindRSSTrayIcon
 from .hotkeys import HoldRepeatHotkeys
 from .clipboard_utils import copy_textctrl_selection_to_clipboard, persist_owned_text_clipboard
 from providers.base import RSSProvider
-from core.config import APP_DIR
+from core.config import APP_DIR, _default_download_dir
 from core.models import Article
 from core import utils
 from core import article_extractor
@@ -6487,9 +6487,9 @@ class MainFrame(wx.Frame):
         return None
 
     def _download_dir_for_article(self, article, create: bool = True, allow_provider_lookup: bool = True):
-        download_root = self.config_manager.get("download_path", os.path.join(APP_DIR, "podcasts"))
+        download_root = self.config_manager.get("download_path", _default_download_dir())
         if not download_root:
-            download_root = os.path.join(APP_DIR, "podcasts")
+            download_root = _default_download_dir()
         feed_title = None
         if allow_provider_lookup:
             feed_title = self._get_feed_title(article.feed_id)
@@ -6659,9 +6659,9 @@ class MainFrame(wx.Frame):
             resp.raise_for_status()
 
             ext = self._guess_extension(url, resp.headers.get("Content-Type"))
-            download_root = self.config_manager.get("download_path", os.path.join(APP_DIR, "podcasts"))
+            download_root = self.config_manager.get("download_path", _default_download_dir())
             if not download_root:
-                download_root = os.path.join(APP_DIR, "podcasts")
+                download_root = _default_download_dir()
 
             feed_title = self._get_feed_title(article.feed_id) or "Feed"
             feed_folder = self._safe_name(feed_title)

@@ -4,12 +4,14 @@ import os
 import shutil
 import sys
 import logging
+from functools import lru_cache
 
 log = logging.getLogger(__name__)
 
-# Install directory (where the executable or source checkout lives).
-# On macOS frozen builds this is inside the .app bundle, which gets
-# replaced on upgrade — that is why we also support a user-data path.
+# Install directory (where the executable or source checkout lives). For the
+# Windows installer this is Program Files (read-only without elevation), and on
+# macOS frozen builds it is inside the .app bundle, which gets replaced on
+# upgrade — that is why mutable data lives in a separate user-data path.
 if getattr(sys, 'frozen', False):
     APP_DIR = os.path.dirname(sys.executable)
 else:
@@ -39,7 +41,7 @@ CONFIG_FILE = APP_CONFIG_PATH
 
 
 def is_windows_installed_build() -> bool:
-    """Return True for the per-user Windows installer distribution."""
+    """Return True for the Program Files Windows installer distribution."""
     return bool(
         sys.platform.startswith("win")
         and getattr(sys, "frozen", False)
@@ -60,9 +62,70 @@ def _path_for_location(location: str) -> str:
     return USER_CONFIG_PATH if location == "user_data" else APP_CONFIG_PATH
 
 
+@lru_cache(maxsize=1)
+def _windows_downloads_dir() -> str:
+    """Current user's Downloads folder, honoring relocation (OneDrive, other drive).
+
+    The Downloads folder is a Windows "known folder" that can be moved off the
+    user profile, so query the shell API / registry rather than assuming
+    ``~\\Downloads``.
+    """
+    # 1. Known Folders API -- authoritative; handles redirection/localization.
+    try:
+        import ctypes
+
+        class _GUID(ctypes.Structure):
+            _fields_ = [
+                ("Data1", ctypes.c_ulong),
+                ("Data2", ctypes.c_ushort),
+                ("Data3", ctypes.c_ushort),
+                ("Data4", ctypes.c_ubyte * 8),
+            ]
+
+        # FOLDERID_Downloads {374DE290-123F-4565-9164-39C4925E467B}
+        folder_id = _GUID(
+            0x374DE290,
+            0x123F,
+            0x4565,
+            (ctypes.c_ubyte * 8)(0x91, 0x64, 0x39, 0xC4, 0x92, 0x5E, 0x46, 0x7B),
+        )
+        path_ptr = ctypes.c_wchar_p()
+        hr = ctypes.windll.shell32.SHGetKnownFolderPath(
+            ctypes.byref(folder_id), 0, None, ctypes.byref(path_ptr)
+        )
+        try:
+            if hr == 0 and path_ptr.value:
+                return str(path_ptr.value)
+        finally:
+            if path_ptr.value:
+                ctypes.windll.ole32.CoTaskMemFree(path_ptr)
+    except Exception:
+        log.debug("SHGetKnownFolderPath for Downloads failed", exc_info=True)
+
+    # 2. Registry fallback (resolved path stored under "Shell Folders").
+    try:
+        import winreg
+
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+        ) as key:
+            value, _ = winreg.QueryValueEx(key, "{374DE290-123F-4565-9164-39C4925E467B}")
+            if value:
+                return os.path.expandvars(str(value))
+    except Exception:
+        log.debug("Registry lookup for Downloads folder failed", exc_info=True)
+
+    # 3. Last resort: the conventional location under the user profile.
+    return os.path.join(os.path.expanduser("~"), "Downloads")
+
+
 def _default_download_dir() -> str:
     if is_windows_installed_build():
-        return os.path.join(USER_DATA_DIR, "podcasts")
+        # Program Files installs put episode downloads under the user's Downloads
+        # folder (in a BlindRSS subfolder), not the roaming data dir. Users can
+        # still pick any other folder in Settings.
+        return os.path.join(_windows_downloads_dir(), "BlindRSS")
     return os.path.join(APP_DIR, "podcasts")
 
 

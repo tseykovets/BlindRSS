@@ -6,13 +6,23 @@ ISS = ROOT / "installer" / "BlindRSS.iss"
 BUILD = ROOT / "build.bat"
 
 
-def test_installer_is_per_user_and_marks_installed_copy():
+def test_installer_targets_program_files_and_marks_installed_copy():
     text = ISS.read_text(encoding="utf-8")
 
-    assert "DefaultDirName={localappdata}\\Programs\\{#MyAppName}" in text
-    assert "PrivilegesRequired=lowest" in text
+    # Per-machine install into Program Files (x64 -> "Program Files",
+    # x86 -> "Program Files (x86)" via {autopf} + 64-bit install mode).
+    assert "DefaultDirName={autopf}\\{#MyAppName}" in text
+    assert "PrivilegesRequired=admin" in text
+    assert "ArchitecturesInstallIn64BitMode=x64compatible" in text
+
+    # The old per-user model must be gone so we never regress to LocalAppData.
+    assert "{localappdata}\\Programs" not in text
+    assert "PrivilegesRequired=lowest" not in text
+
+    # The installed-build marker still drives roaming-data mode at runtime.
     assert 'DestName: ".windows-installed"' in text
     assert "UninstallDisplayIcon={app}\\{#MyAppExeName}" in text
+
     files_line = next(line for line in text.splitlines() if 'Source: "..\\dist\\BlindRSS\\*"' in line)
     for user_data in (
         "config.json",
@@ -27,9 +37,11 @@ def test_installer_is_per_user_and_marks_installed_copy():
         assert user_data in files_line
 
 
-def test_build_detects_per_user_and_standard_inno_setup_paths():
+def test_build_detects_inno_setup_compiler_paths():
     text = BUILD.read_text(encoding="utf-8")
 
+    # Locating the Inno Setup *compiler* still probes the per-user and standard
+    # install locations (this is about ISCC.exe, not BlindRSS's install target).
     assert "%LOCALAPPDATA%\\Programs\\Inno Setup 6\\ISCC.exe" in text
     assert "%ProgramFiles%\\Inno Setup 6\\ISCC.exe" in text
     assert "%ProgramFiles(x86)%\\Inno Setup 6\\ISCC.exe" in text

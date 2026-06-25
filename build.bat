@@ -40,7 +40,7 @@ if /I "%MODE%"=="dry-run" (
     echo [Dry Run] Latest tag: !LATEST_TAG!
     echo [Dry Run] Next version: v!NEXT_VERSION! [!BUMP! bump]
     echo [Dry Run] Inno Setup compiler: !INNO_SETUP_EXE!
-    echo [Dry Run] Would bump core/version.py, build, sign with "%SIGNTOOL_EXE%", create the portable ZIP and per-user installer, generate the manifest, tag, push to "%RELEASE_REMOTE%", create a GitHub release in "%GITHUB_REPO_SLUG%", and dispatch the macOS/Linux GitHub Actions asset build.
+    echo [Dry Run] Would bump core/version.py, build, sign with "%SIGNTOOL_EXE%", create the portable ZIP and Program Files installer, generate the manifest, tag, push to "%RELEASE_REMOTE%", create a GitHub release in "%GITHUB_REPO_SLUG%", and dispatch the macOS/Linux GitHub Actions asset build.
     goto :done
 )
 
@@ -443,7 +443,7 @@ if errorlevel 1 exit /b 1
 set "INSTALLER_NAME=BlindRSS-Setup-v%VERSION_NO_V%.exe"
 set "INSTALLER_PATH=%SCRIPT_DIR%dist\%INSTALLER_NAME%"
 if exist "%INSTALLER_PATH%" del /f /q "%INSTALLER_PATH%"
-echo [BlindRSS Build] Compiling per-user installer with "%INNO_SETUP_EXE%"...
+echo [BlindRSS Build] Compiling Program Files installer with "%INNO_SETUP_EXE%"...
 "%INNO_SETUP_EXE%" /DMyAppVersion=%VERSION_NO_V% "%SCRIPT_DIR%installer\BlindRSS.iss"
 if errorlevel 1 exit /b 1
 if not exist "%INSTALLER_PATH%" (

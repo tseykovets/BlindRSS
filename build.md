@@ -49,7 +49,7 @@ GitHub release publication may happen from any OS after the required artifacts a
 
 - Creates `BlindRSS-update.json` for auto-updates.
 - Computes the release ZIP SHA-256 hash.
-- Builds the per-user Windows installer and computes its SHA-256 hash.
+- Builds the Program Files Windows installer and computes its SHA-256 hash.
 - Signs `BlindRSS.exe` and the installer when `signtool.exe` is available.
 - Bumps `core/version.py`, tags Git, pushes, and creates the GitHub release.
 - Dispatches the GitHub Actions macOS and Linux release-asset build after the Windows release is created.
@@ -148,13 +148,19 @@ On macOS, `./build.sh release <tag>` is the approved way to publish the macOS ZI
 
 ## Windows Installer and Data Locations
 
-- The installer is non-elevated and installs to
-  `%LOCALAPPDATA%\Programs\BlindRSS` by default.
-- It creates Start Menu/uninstall registration and an optional desktop shortcut.
+- The installer is per-machine and requires elevation (`PrivilegesRequired=admin`).
+  It installs the program into Program Files (`{autopf}\BlindRSS`): `C:\Program
+  Files\BlindRSS` for the x64 build, `C:\Program Files (x86)\BlindRSS` for an x86
+  build (`{autopf}` + `ArchitecturesInstallIn64BitMode=x64compatible`).
+- It creates all-users Start Menu/uninstall registration and an optional desktop
+  shortcut.
 - Installer-managed copies carry `.windows-installed` beside `BlindRSS.exe`.
-  That marker makes packaged Windows BlindRSS use `%APPDATA%\BlindRSS` for
-  `config.json`, `rss.db`, logs, imported cookies, playback cache, and the
-  default podcast download folder.
+  That marker makes packaged Windows BlindRSS keep all mutable state outside the
+  read-only install directory: `%APPDATA%\BlindRSS` for `config.json`, `rss.db`,
+  logs, imported cookies, and playback cache; `%LOCALAPPDATA%\BlindRSS\bin` for
+  the runtime-managed/self-updating `yt-dlp.exe`; and the user's **Downloads**
+  folder (`Downloads\BlindRSS`) for episode downloads. Any of these can be
+  overridden in Settings.
 - On first installed launch, legacy app-folder config/database/download data is
   copied into `%APPDATA%\BlindRSS`. Existing roaming files win, SQLite migration
   uses the backup API (including committed WAL data), and legacy originals are
@@ -162,8 +168,10 @@ On macOS, `./build.sh release <tag>` is the approved way to publish the macOS ZI
 - The portable ZIP has no installed marker and retains app-folder storage.
 - Uninstall removes the application but intentionally leaves
   `%APPDATA%\BlindRSS` intact.
-- Installed copies use the signed installer for in-app updates. Portable and
-  older copies continue using the ZIP updater.
+- Installed copies use the signed installer for in-app updates. Because the
+  install lives in Program Files, the update runs the signed setup elevated, so
+  Windows shows a single UAC consent prompt per update. Portable and older copies
+  continue using the ZIP updater (no elevation).
 
 ### `dry-run`
 

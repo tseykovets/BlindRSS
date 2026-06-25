@@ -11,8 +11,8 @@
 - Entry: `main.py` -> `core.factory` -> `gui.mainframe`.
 - Build:
   - Windows: PyInstaller directory distribution (`main.spec` ->
-    `dist/BlindRSS/BlindRSS.exe`), portable ZIP, and per-user Inno Setup
-    installer (`installer/BlindRSS.iss` ->
+    `dist/BlindRSS/BlindRSS.exe`), portable ZIP, and per-machine Program Files
+    Inno Setup installer (`installer/BlindRSS.iss` ->
     `dist/BlindRSS-Setup-vX.Y.Z.exe`).
   - macOS: PyInstaller app build (`portable.spec` -> `dist/BlindRSS.app`).
   - Linux: PyInstaller directory distribution (`portable.spec` -> `dist/BlindRSS/`, packaged as `dist/BlindRSS-linux-vX.Y.Z.tar.gz`).
@@ -28,7 +28,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 - When it exits, the release is already published and marked Latest, and the macOS/Linux runner build is dispatched.
 
 ### `build.bat` modes (Windows)
-- `release` — full release, in order: verify `origin` is `serrebidev/BlindRSS` → compute next version → bump `core/version.py` → clean PyInstaller build (`main.spec`) → Authenticode-sign `BlindRSS.exe` (signtool) → create portable ZIP → build/sign the per-user Inno Setup installer → SHA-256 both → release notes → write `BlindRSS-update.json` → `git commit "Release vX.Y.Z"` + tag + push → `gh release create` (ZIP + installer + manifest, `--latest`) → force `--draft=false --latest` → assert no drafts → assert `/releases/latest` == new tag → dispatch `cross-platform-release.yml`. Any failed step aborts non-zero; fix it, don't bypass.
+- `release` — full release, in order: verify `origin` is `serrebidev/BlindRSS` → compute next version → bump `core/version.py` → clean PyInstaller build (`main.spec`) → Authenticode-sign `BlindRSS.exe` (signtool) → create portable ZIP → build/sign the Program Files Inno Setup installer → SHA-256 both → release notes → write `BlindRSS-update.json` → `git commit "Release vX.Y.Z"` + tag + push → `gh release create` (ZIP + installer + manifest, `--latest`) → force `--draft=false --latest` → assert no drafts → assert `/releases/latest` == new tag → dispatch `cross-platform-release.yml`. Any failed step aborts non-zero; fix it, don't bypass.
 - `build` — iterative LOCAL build only; no version bump, no git, no GitHub. Preserves `dist\BlindRSS` user data (`rss.db*`, `podcasts\`) across rebuilds.
 - `dry-run` — prints the next version and planned steps; changes nothing.
 
@@ -38,7 +38,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 
 ### Artifacts
 - `dist\BlindRSS-vX.Y.Z.zip` (portable; signed exe inside) + a `BlindRSS.zip` copy at repo root.
-- `dist\BlindRSS-Setup-vX.Y.Z.exe` (signed, non-elevated per-user installer).
+- `dist\BlindRSS-Setup-vX.Y.Z.exe` (signed, per-machine Program Files installer; requires admin/UAC, including for in-app installer updates).
 - `dist\BlindRSS-update.json` (Windows updater manifest: portable ZIP metadata plus installer metadata, published-at, optional notes summary, and signing thumbprint). Installed copies select the installer; portable/legacy copies select the ZIP.
 - `dist\release-notes-vX.Y.Z.md`.
 - The GitHub release carries the Windows ZIP + manifest immediately; the macOS ZIP + `BlindRSS-update-macos.json` and Linux tarball + `BlindRSS-update-linux.json` are added minutes later by `cross-platform-release.yml`.
@@ -106,7 +106,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
     - `_collect_tool_candidates` covers portable `{APP_DIR}`/`bin`/`tools` layouts, `%USERPROFILE%\bin`, `C:\ffmpeg\bin`, Scoop (shims + `apps\*\current\bin`, incl. ffmpeg-essentials/shared/gyan-nightly, user + ProgramData), Chocolatey (`bin` shims + versioned `lib\ffmpeg*\tools\*\bin`), WinGet (`Links` + versioned `Packages\Gyan.FFmpeg_*\*\bin`, `yt-dlp.yt-dlp_*`, `yt-dlp.FFmpeg_*\*\bin`), pip/venv (`Python*\Scripts`, `venv`/`.venv`/`env\Scripts`, `~/.local/bin`), MSYS2/Cygwin, and POSIX (`/usr/bin`, `/usr/local/bin`, `/opt/homebrew/bin`, etc.). Versioned/generated `*` folders are resolved with `_expand_path_globs` (glob), not recursive scans.
     - `_validate_executable(path, tool=)` runs the harmless version command (`ffmpeg -version`, `ffprobe -version`, `yt-dlp --version`). `detect_media_tool_paths(validate=True)` returns `{tool: {"path", "valid"}}` for the Settings display (Media Player tab shows detected paths + manual overrides, populated in a background thread).
   - `config.py`: Config defaults + migrations; paths are exe-relative when frozen and source-root-relative when run from checkout.
-    - Windows installer copies are identified by `.windows-installed` beside the executable. They force `%APPDATA%\BlindRSS` and copy-first migrate legacy app-folder config, SQLite data (via SQLite backup, including WAL contents), podcasts, imported cookies, playback cache, and app-relative user-data paths. Portable ZIP/source behavior remains app-relative; uninstall leaves roaming data intact.
+    - Windows installer copies are identified by `.windows-installed` beside the executable (installed into Program Files, read-only). They force `%APPDATA%\BlindRSS` for `config.json`/`rss.db`/logs/cookies/playback cache, default episode downloads to the user's Downloads folder (`Downloads\BlindRSS`, via `_default_download_dir` → `_windows_downloads_dir`), and keep the runtime-managed `yt-dlp.exe` under `%LOCALAPPDATA%\BlindRSS\bin` (`dependency_check._ytdlp_runtime_bin_dir`) so nothing writes to the install dir. They copy-first migrate legacy app-folder config, SQLite data (via SQLite backup, including WAL contents), podcasts, imported cookies, playback cache, and app-relative user-data paths. Portable ZIP/source behavior remains app-relative; uninstall leaves roaming data intact.
   - `factory.py`: Provider wiring; initializes DB.
   - `runtime_env.py`: Frozen runtime PATH/VLC environment setup for packaged app bundles.
 

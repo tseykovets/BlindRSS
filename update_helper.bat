@@ -165,7 +165,11 @@ if errorlevel 1 goto :installer_failure
 call :verify_install_unlocked
 if errorlevel 1 goto :installer_failure
 
-echo [BlindRSS Update] Running signed per-user installer...
+rem The installer is per-machine (Program Files) and requires admin, so Inno
+rem self-elevates here -- Windows shows a single UAC consent prompt. /VERYSILENT
+rem suppresses the wizard UI but not the OS elevation prompt. /DIR keeps the
+rem update in the existing install location.
+echo [BlindRSS Update] Running signed installer (may prompt for elevation)...
 start "" /wait "%INSTALLER_PATH%" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /DIR="%INSTALL_DIR%"
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (

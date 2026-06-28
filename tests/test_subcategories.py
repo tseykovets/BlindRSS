@@ -4,10 +4,12 @@ import os
 import sys
 import tempfile
 import uuid
+import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core.db as db_mod
+from core import utils
 from core.models import Feed
 from providers.local import LocalProvider
 
@@ -345,6 +347,161 @@ def test_collect_category_feeds_for_export_includes_subcategory_feeds():
             assert ids == {"1", "2"}
         finally:
             _restore_db(orig)
+
+
+def test_local_import_opml_preserves_nested_category_paths():
+    """Issue #28: standard nested OPML outlines should import as nested categories."""
+    opml = """<?xml version="1.0" encoding="UTF-8"?>
+<opml version="1.0">
+  <body>
+    <outline text="GitHub">
+      <outline text="BlindRSS">
+        <outline text="Commits" xmlUrl="https://github.com/serrebidev/BlindRSS/commits/main.atom" />
+        <outline text="Releases" xmlUrl="https://github.com/serrebidev/BlindRSS/releases.atom" />
+        <outline text="Tags" xmlUrl="https://github.com/serrebidev/BlindRSS/tags.atom" />
+      </outline>
+    </outline>
+  </body>
+</opml>
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            opml_path = os.path.join(tmp, "feeds.opml")
+            with open(opml_path, "w", encoding="utf-8") as f:
+                f.write(opml)
+
+            assert provider.import_opml(opml_path) is True
+
+            feeds = sorted(provider.get_feeds(), key=lambda feed: feed.title)
+            assert [feed.title for feed in feeds] == ["Commits", "Releases", "Tags"]
+            assert {feed.category for feed in feeds} == {"GitHub / BlindRSS"}
+
+            hierarchy = db_mod.get_category_hierarchy()
+            assert hierarchy.get("GitHub") is None
+            assert hierarchy.get("GitHub / BlindRSS") == "GitHub"
+            assert "BlindRSS" not in hierarchy
+        finally:
+            _restore_db(orig)
+
+
+def test_local_import_opml_keeps_duplicate_leaf_folders_isolated():
+    """Issue #28: duplicate leaf folder names under different parents must not collide."""
+    opml = """<?xml version="1.0" encoding="UTF-8"?>
+<opml version="1.0">
+  <body>
+    <outline text="Podcasts">
+      <outline text="Others">
+        <outline text="Pod Feed" xmlUrl="https://example.com/pod.xml" />
+      </outline>
+    </outline>
+    <outline text="RSS">
+      <outline text="Others">
+        <outline text="RSS Feed" xmlUrl="https://example.com/rss.xml" />
+      </outline>
+    </outline>
+  </body>
+</opml>
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            opml_path = os.path.join(tmp, "feeds.opml")
+            with open(opml_path, "w", encoding="utf-8") as f:
+                f.write(opml)
+
+            assert provider.import_opml(opml_path) is True
+
+            categories = {feed.title: feed.category for feed in provider.get_feeds()}
+            assert categories == {
+                "Pod Feed": "Podcasts / Others",
+                "RSS Feed": "RSS / Others",
+            }
+            hierarchy = db_mod.get_category_hierarchy()
+            assert hierarchy.get("Podcasts / Others") == "Podcasts"
+            assert hierarchy.get("RSS / Others") == "RSS"
+            assert "Others" not in hierarchy
+        finally:
+            _restore_db(orig)
+
+
+def test_local_export_opml_emits_nested_outlines():
+    """Issue #28: local export should emit nested outlines, not merged path text."""
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            conn = db_mod.get_connection()
+            try:
+                c = conn.cursor()
+                c.execute(
+                    "INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
+                    (
+                        str(uuid.uuid4()),
+                        "https://github.com/serrebidev/BlindRSS/commits/main.atom",
+                        "Commits",
+                        "GitHub / BlindRSS",
+                    ),
+                )
+                c.execute(
+                    "INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
+                    (
+                        str(uuid.uuid4()),
+                        "https://github.com/serrebidev/BlindRSS/releases.atom",
+                        "Releases",
+                        "GitHub / BlindRSS",
+                    ),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            opml_path = os.path.join(tmp, "export.opml")
+            assert provider.export_opml(opml_path) is True
+
+            body = ET.parse(opml_path).getroot().find("body")
+            github = body.find("./outline[@text='GitHub']")
+            assert github is not None
+            blindrss = github.find("./outline[@text='BlindRSS']")
+            assert blindrss is not None
+            assert body.find("./outline[@text='GitHub / BlindRSS']") is None
+            exported = {
+                child.attrib.get("text"): child.attrib.get("xmlUrl")
+                for child in blindrss.findall("./outline")
+            }
+            assert exported == {
+                "Commits": "https://github.com/serrebidev/BlindRSS/commits/main.atom",
+                "Releases": "https://github.com/serrebidev/BlindRSS/releases.atom",
+            }
+        finally:
+            _restore_db(orig)
+
+
+def test_write_opml_emits_nested_outlines_for_category_paths(tmp_path):
+    """The shared writer used by category export should preserve category paths."""
+    feeds = [
+        Feed(
+            id="1",
+            title="Tags",
+            url="https://github.com/serrebidev/BlindRSS/tags.atom",
+            category="GitHub / BlindRSS",
+        )
+    ]
+    opml_path = tmp_path / "shared.opml"
+
+    assert utils.write_opml(feeds, str(opml_path)) is True
+
+    body = ET.parse(opml_path).getroot().find("body")
+    github = body.find("./outline[@text='GitHub']")
+    assert github is not None
+    blindrss = github.find("./outline[@text='BlindRSS']")
+    assert blindrss is not None
+    assert body.find("./outline[@text='GitHub / BlindRSS']") is None
+    tags = blindrss.find("./outline[@text='Tags']")
+    assert tags is not None
+    assert tags.attrib.get("xmlUrl") == "https://github.com/serrebidev/BlindRSS/tags.atom"
 
 
 # ── Provider base hierarchy method ────────────────────────────────────────

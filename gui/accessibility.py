@@ -1023,11 +1023,19 @@ class AccessibleBrowserFrame(wx.Frame):
                 )
             except Exception:
                 body, cacheable = None, False
-            wx.CallAfter(
-                self._finish_prefetch,
-                art_id,
-                body if body and cacheable else None,
-            )
+            if self._prefetch_stop or wx.GetApp() is None:
+                with self._prefetch_lock:
+                    self._prefetch_inflight.discard(art_id)
+                continue
+            try:
+                wx.CallAfter(
+                    self._finish_prefetch,
+                    art_id,
+                    body if body and cacheable else None,
+                )
+            except AssertionError:
+                with self._prefetch_lock:
+                    self._prefetch_inflight.discard(art_id)
 
     def _finish_prefetch(self, art_id, body):
         with self._prefetch_lock:

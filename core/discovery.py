@@ -3427,7 +3427,18 @@ def discover_feed(url: str, request_timeout: float = 10.0, probe_timeout: float 
         req_timeout = max(1.0, float(request_timeout or 10.0))
         head_timeout = max(1.0, float(probe_timeout or 5.0))
 
-        resp = utils.safe_requests_get(url, timeout=req_timeout)
+        resp = None
+        last_get_error = None
+        for attempt in range(10):
+            try:
+                resp = utils.safe_requests_get(url, timeout=req_timeout)
+                break
+            except Exception as e:
+                last_get_error = e
+                if attempt < 9:
+                    time.sleep(0.01)
+        if resp is None:
+            raise last_get_error
         resp.raise_for_status()
 
         effective_url = str(getattr(resp, "url", "") or url)

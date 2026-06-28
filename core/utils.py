@@ -17,7 +17,7 @@ from dateutil import parser as dateparser
 from dateutil.parser import UnknownTimezoneWarning
 from io import BytesIO
 from pathlib import Path
-from core.db import get_connection
+from core.db import CATEGORY_PATH_SEP, get_connection, make_category_path, sanitize_category_leaf
 import warnings
 import urllib.parse
 import sys
@@ -1555,6 +1555,43 @@ def fetch_and_store_chapters(
 
 # --- OPML Helpers ---
 
+
+def _opml_category_parts(category):
+    category = str(category or "").strip()
+    if not category or category == "Uncategorized":
+        return []
+    return [part.strip() for part in category.split(CATEGORY_PATH_SEP) if part.strip()]
+
+
+def _opml_append_category(parent_category, folder_title):
+    path = str(parent_category or "").strip()
+    if path == "Uncategorized":
+        path = ""
+    for part in _opml_category_parts(folder_title):
+        leaf = sanitize_category_leaf(part)
+        if leaf:
+            path = make_category_path(path, leaf)
+    return path or "Uncategorized"
+
+
+def _feed_opml_fields(feed):
+    if isinstance(feed, Mapping):
+        return (
+            feed.get("title"),
+            feed.get("url") or feed.get("xmlUrl"),
+            feed.get("category", "Uncategorized"),
+        )
+    if isinstance(feed, (tuple, list)):
+        title = feed[0] if len(feed) > 0 else None
+        url = feed[1] if len(feed) > 1 else None
+        category = feed[2] if len(feed) > 2 else "Uncategorized"
+        return title, url, category
+    return (
+        getattr(feed, 'title', None),
+        getattr(feed, 'url', None),
+        getattr(feed, 'category', "Uncategorized"),
+    )
+
 def parse_opml(path: str):
     """
     Parses an OPML file and yields (title, url, category) tuples.
@@ -1610,7 +1647,7 @@ def parse_opml(path: str):
                 new_cat = current_category
                 if not xmlUrl:
                     # It's a folder
-                    new_cat = text
+                    new_cat = _opml_append_category(current_category, text)
                 for child in children:
                     yield from process_outline(child, new_cat)
 
@@ -1631,26 +1668,18 @@ def write_opml(feeds: list, path: str):
         ET.SubElement(head, "title").text = "RSS Exports"
         body = ET.SubElement(root, "body")
         
-        # Group by category
-        categories = {}
+        category_outlines = {}
         for feed in feeds:
-            # Handle both objects and dicts/tuples if needed, assuming Feed objects primarily
-            title = getattr(feed, 'title', None)
-            url = getattr(feed, 'url', None)
-            cat = getattr(feed, 'category', "Uncategorized")
-            
-            if cat not in categories:
-                categories[cat] = []
-            categories[cat].append((title, url))
-            
-        for cat, items in categories.items():
-            if cat == "Uncategorized" or not cat:
-                for title, url in items:
-                    ET.SubElement(body, "outline", text=title or "", xmlUrl=url or "")
-            else:
-                cat_outline = ET.SubElement(body, "outline", text=cat)
-                for title, url in items:
-                    ET.SubElement(cat_outline, "outline", text=title or "", xmlUrl=url or "")
+            title, url, cat = _feed_opml_fields(feed)
+            parent = body
+            path_parts = []
+            for part in _opml_category_parts(cat):
+                path_parts.append(part)
+                path_key = tuple(path_parts)
+                if path_key not in category_outlines:
+                    category_outlines[path_key] = ET.SubElement(parent, "outline", text=part)
+                parent = category_outlines[path_key]
+            ET.SubElement(parent, "outline", text=title or "", xmlUrl=url or "")
                     
         tree = ET.ElementTree(root)
         tree.write(path, encoding='utf-8', xml_declaration=True)

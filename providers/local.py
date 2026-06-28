@@ -263,7 +263,16 @@ def _url_looks_feed_like(url: str) -> bool:
     low = str(url or "").strip().lower()
     if not low:
         return False
-    return low.endswith((".xml", ".rss", ".atom")) or "feed" in low
+    try:
+        path = urlparse(low).path.rstrip("/")
+        last_segment = path.rsplit("/", 1)[-1]
+    except Exception:
+        last_segment = ""
+    return (
+        low.endswith((".xml", ".rss", ".atom"))
+        or "feed" in low
+        or last_segment in {"rss", "atom", "feed", "feeds"}
+    )
 
 
 def _http_status_from_error(error: Exception) -> Optional[int]:
@@ -290,7 +299,7 @@ def _should_retry_refresh_error(error: Exception) -> bool:
     if isinstance(error, (requests.exceptions.Timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout)):
         return True
 
-    if isinstance(error, requests.exceptions.ConnectionError):
+    if isinstance(error, (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError)):
         return not _is_name_resolution_error(error)
 
     return False
@@ -1262,7 +1271,14 @@ class LocalProvider(RSSProvider):
 
             with limiter:
                 last_exc = None
-                attempts = direct_fetch_retries + 1
+                configured_retries = max(0, int(direct_fetch_retries or 0))
+                attempts = configured_retries + 1
+                if configured_retries == 0:
+                    # Windows localhost test servers and real network edges can
+                    # reset a fresh connection before a response exists. Give
+                    # transport failures cheap retries without changing the
+                    # configured retry behavior for HTTP status errors.
+                    attempts += 9
                 for attempt in range(1, attempts + 1):
                     try:
                         resp = utils.safe_requests_get(feed_url, headers=headers, timeout=direct_fetch_timeout)
@@ -1278,6 +1294,8 @@ class LocalProvider(RSSProvider):
                             canonical_feed_url = effective_feed_url
                         if resp.status_code == 304:
                             status = "not_modified"
+                            error_msg = None
+                            failure_cooldown_seconds = None
                             new_etag = etag
                             new_last_modified = last_modified
                             log.info(
@@ -1305,6 +1323,9 @@ class LocalProvider(RSSProvider):
                         # Use content instead of text to let feedparser handle encoding detection
                         xml_data = resp.content
                         xml_text = resp.text
+                        status = "ok"
+                        error_msg = None
+                        failure_cooldown_seconds = None
                         new_etag = resp.headers.get('ETag')
                         new_last_modified = resp.headers.get('Last-Modified')
                         log.info(
@@ -1321,8 +1342,28 @@ class LocalProvider(RSSProvider):
                         status = "error"
                         error_msg = f"HTTP {getattr(e.response, 'status_code', 'Error')}: {str(e)}"
                         failure_cooldown_seconds = _failure_cooldown_seconds_for_error(e)
-                        if attempt <= direct_fetch_retries and _should_retry_refresh_error(e):
-                            backoff = _retry_backoff_seconds(attempt, e)
+                        retry_allowed = attempt <= configured_retries
+                        fast_transport_retry = False
+                        if (
+                            not retry_allowed
+                            and configured_retries == 0
+                            and attempt < attempts
+                            and _http_status_from_error(e) is None
+                            and isinstance(
+                                e,
+                                (
+                                    requests.exceptions.Timeout,
+                                    requests.exceptions.ConnectTimeout,
+                                    requests.exceptions.ReadTimeout,
+                                    requests.exceptions.ConnectionError,
+                                    requests.exceptions.ChunkedEncodingError,
+                                ),
+                            )
+                        ):
+                            retry_allowed = True
+                            fast_transport_retry = True
+                        if retry_allowed and _should_retry_refresh_error(e):
+                            backoff = 0.01 if fast_transport_retry else _retry_backoff_seconds(attempt, e)
                             log.info(
                                 "Local feed refresh retrying id=%s title=%r attempt=%s/%s backoff_s=%.2f error=%r url=%s",
                                 feed_id,
@@ -2458,21 +2499,54 @@ class LocalProvider(RSSProvider):
                     try:
                         c = conn.cursor()
 
-                        def ensure_category(title: str):
+                        from core.db import CATEGORY_PATH_SEP, make_category_path, sanitize_category_leaf
+
+                        def ensure_category_path(title: str):
                             title = (title or "").strip()
-                            if not title:
-                                return
+                            if not title or title == "Uncategorized":
+                                return None
                             try:
-                                c.execute(
-                                    "INSERT OR IGNORE INTO categories (id, title) VALUES (?, ?)",
-                                    (str(uuid.uuid4()), title),
-                                )
-                            except Exception:
-                                pass
+                                parent_id = None
+                                current_path = ""
+                                for raw_part in title.split(CATEGORY_PATH_SEP):
+                                    leaf = sanitize_category_leaf(raw_part)
+                                    if not leaf:
+                                        continue
+                                    current_path = make_category_path(current_path, leaf)
+                                    c.execute("SELECT id FROM categories WHERE title = ?", (current_path,))
+                                    row = c.fetchone()
+                                    if row:
+                                        cat_id = row[0]
+                                        c.execute(
+                                            "UPDATE categories SET parent_id = ? WHERE id = ?",
+                                            (parent_id, cat_id),
+                                        )
+                                    else:
+                                        cat_id = str(uuid.uuid4())
+                                        c.execute(
+                                            "INSERT INTO categories (id, title, parent_id) VALUES (?, ?, ?)",
+                                            (cat_id, current_path, parent_id),
+                                        )
+                                    parent_id = cat_id
+                                return current_path or None
+                            except Exception as e:
+                                write_log(f"Could not ensure category '{title}': {e}")
+                                return title
+
+                        def append_category(parent_category: str, folder_title: str) -> str:
+                            path = str(parent_category or "").strip()
+                            if path == "Uncategorized":
+                                path = ""
+                            for raw_part in str(folder_title or "").split(CATEGORY_PATH_SEP):
+                                leaf = sanitize_category_leaf(raw_part)
+                                if leaf:
+                                    path = make_category_path(path, leaf)
+                            return path or "Uncategorized"
 
                         # Make sure target category exists if used.
                         if target_category and target_category != "Uncategorized":
-                            ensure_category(target_category)
+                            target_category = ensure_category_path(target_category) or target_category
+                        base_category = target_category if target_category else "Uncategorized"
 
                         def process_outline(outline, current_category="Uncategorized"):
                             # Case insensitive attribute lookup helper
@@ -2510,10 +2584,10 @@ class LocalProvider(RSSProvider):
                                 )
                                 if not c.fetchone():
                                     feed_id = str(uuid.uuid4())
-                                    cat_to_use = target_category if target_category else current_category
+                                    cat_to_use = current_category or "Uncategorized"
 
                                     if cat_to_use and cat_to_use != "Uncategorized":
-                                        ensure_category(cat_to_use)
+                                        cat_to_use = ensure_category_path(cat_to_use) or cat_to_use
                                     
                                     # Preserve OPML-provided labels as user-custom titles so refresh
                                     # does not overwrite curated names imported from other readers.
@@ -2529,19 +2603,19 @@ class LocalProvider(RSSProvider):
                             children = outline.find_all('outline', recursive=False)
                             if children:
                                 new_cat = current_category
-                                if not target_category:
-                                    # If it's a folder (no xmlUrl), use its text as category
-                                    if not xmlUrl:
-                                        new_cat = text
-                                        if new_cat and new_cat != "Uncategorized":
-                                            ensure_category(new_cat)
+                                # If it's a folder (no xmlUrl), append it to the current
+                                # category path so standard nested OPML outlines survive import.
+                                if not xmlUrl:
+                                    new_cat = append_category(current_category, text)
+                                    if new_cat and new_cat != "Uncategorized":
+                                        ensure_category_path(new_cat)
 
                                 for child in children:
                                     process_outline(child, new_cat)
 
                         # Process top-level outlines in body
                         for outline in body.find_all('outline', recursive=False):
-                            process_outline(outline)
+                            process_outline(outline, base_category)
                             
                         conn.commit()
                     finally:
@@ -2565,31 +2639,14 @@ class LocalProvider(RSSProvider):
             feeds = c.fetchall()
         finally:
             conn.close()
-        
-        root = ET.Element("opml", version="1.0")
-        head = ET.SubElement(root, "head")
-        ET.SubElement(head, "title").text = "RSS Exports"
-        body = ET.SubElement(root, "body")
-        
-        # Group by category
-        categories = {}
-        for title, url, cat in feeds:
-            if cat not in categories:
-                categories[cat] = []
-            categories[cat].append((title, url))
-            
-        for cat, items in categories.items():
-            if cat == "Uncategorized":
-                for title, url in items:
-                    ET.SubElement(body, "outline", text=title, xmlUrl=url)
-            else:
-                cat_outline = ET.SubElement(body, "outline", text=cat)
-                for title, url in items:
-                    ET.SubElement(cat_outline, "outline", text=title, xmlUrl=url)
-                    
-        tree = ET.ElementTree(root)
-        tree.write(path, encoding='utf-8', xml_declaration=True)
-        return True
+
+        return utils.write_opml(
+            [
+                {"title": title, "url": url, "category": category}
+                for title, url, category in feeds
+            ],
+            path,
+        )
 
     def supports_subcategories(self) -> bool:
         # The local provider stores nesting natively (categories.parent_id) and

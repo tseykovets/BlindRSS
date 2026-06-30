@@ -3106,6 +3106,17 @@ class MainFrame(wx.Frame):
             description = "No feed description is available for this item."
 
         dlg = wx.Dialog(self, title="Feed Description", size=(720, 520))
+
+        def _on_char_hook(event):
+            try:
+                if event.GetKeyCode() == wx.WXK_ESCAPE:
+                    dlg.EndModal(wx.ID_CLOSE)
+                    return
+            except Exception:
+                pass
+            event.Skip()
+        dlg.Bind(wx.EVT_CHAR_HOOK, _on_char_hook)
+
         try:
             sizer = wx.BoxSizer(wx.VERTICAL)
             title = str(getattr(article, "title", "") or "Feed description")

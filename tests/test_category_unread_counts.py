@@ -148,6 +148,7 @@ class _CategoryCountHost:
     _update_category_unread_chain_ui = mainframe.MainFrame._update_category_unread_chain_ui
     _apply_feed_refresh_progress = mainframe.MainFrame._apply_feed_refresh_progress
     _schedule_article_reload = lambda self: None  # noqa: E731 - only reached via _apply_feed_refresh_progress
+    _set_feed_activity_status = lambda self, state: None  # noqa: E731 - status bar text, not under test here
 
     def __init__(self):
         self.tree = _FakeTree()

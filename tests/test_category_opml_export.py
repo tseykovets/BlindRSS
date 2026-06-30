@@ -22,6 +22,10 @@ class _DummyMain:
     _collect_category_feed_ids_for_refresh = mainframe.MainFrame._collect_category_feed_ids_for_refresh
     _export_category_opml_to_path = mainframe.MainFrame._export_category_opml_to_path
     _refresh_category_thread = mainframe.MainFrame._refresh_category_thread
+    _begin_refresh_activity = mainframe.MainFrame._begin_refresh_activity
+    _end_refresh_activity = mainframe.MainFrame._end_refresh_activity
+    _post_activity_status = mainframe.MainFrame._post_activity_status
+    _set_activity_status = mainframe.MainFrame._set_activity_status
 
     def __init__(self, feeds):
         self.provider = _ProviderStub(feeds)
@@ -29,6 +33,7 @@ class _DummyMain:
         self.progress_states = []
         self.flush_calls = 0
         self.refresh_feeds_calls = 0
+        self.activity_status_updates = []
 
     def _on_feed_refresh_progress(self, state):
         self.progress_states.append(dict(state or {}))
@@ -38,6 +43,10 @@ class _DummyMain:
 
     def refresh_feeds(self):
         self.refresh_feeds_calls += 1
+
+    def SetStatusText(self, text, number=0):
+        if number == 1:
+            self.activity_status_updates.append(text)
 
 
 def _feed(feed_id, title, url, category):
@@ -114,6 +123,7 @@ def test_refresh_category_thread_uses_batch_provider(monkeypatch):
     assert [state["id"] for state in host.progress_states] == ["1", "3"]
     assert host.flush_calls == 1
     assert host.refresh_feeds_calls == 1
+    assert host.activity_status_updates == ["Refreshing category: Podcasts...", "Refresh complete"]
 
 
 def test_export_category_opml_to_path_uses_filtered_feeds(monkeypatch):

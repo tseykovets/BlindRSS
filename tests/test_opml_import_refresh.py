@@ -81,6 +81,10 @@ class _DummyMainFrame:
     _import_opml_thread = mainframe.MainFrame._import_opml_thread
     _post_import_opml = mainframe.MainFrame._post_import_opml
     _refresh_imported_feed_ids_thread = mainframe.MainFrame._refresh_imported_feed_ids_thread
+    _begin_refresh_activity = mainframe.MainFrame._begin_refresh_activity
+    _end_refresh_activity = mainframe.MainFrame._end_refresh_activity
+    _post_activity_status = mainframe.MainFrame._post_activity_status
+    _set_activity_status = mainframe.MainFrame._set_activity_status
 
     def __init__(self, provider):
         self.provider = provider
@@ -91,6 +95,7 @@ class _DummyMainFrame:
         self.progress_states = []
         self.flush_calls = 0
         self.post_calls = []
+        self.activity_status_updates = []
 
     def SetTitle(self, title):
         self.title_updates.append(str(title))
@@ -106,6 +111,10 @@ class _DummyMainFrame:
 
     def _flush_feed_refresh_progress(self):
         self.flush_calls += 1
+
+    def SetStatusText(self, text, number=0):
+        if number == 1:
+            self.activity_status_updates.append(text)
 
 
 def test_import_opml_thread_passes_new_feed_ids_to_post_handler(monkeypatch):
@@ -141,6 +150,7 @@ def test_post_import_runs_targeted_refresh_for_new_feeds(monkeypatch):
     assert host.refresh_feeds_calls >= 2  # once immediately, once after targeted refresh completes
     assert host.manual_refresh_calls == 0
     assert len(message_calls) == 1
+    assert host.activity_status_updates == ["Refreshing imported feeds...", "Refresh complete"]
 
 
 def test_post_import_falls_back_to_full_refresh_when_targeted_refresh_unavailable(monkeypatch):

@@ -164,16 +164,18 @@ class DiscoverFeedsTests(unittest.TestCase):
             self.assertIsNone(discovery.discover_feed("https://example.com/latest"))
         self.assertFalse(discovery._body_looks_like_feed("<feed><title>Custom</title></feed>"))
 
-    def test_atom_rdf_and_structured_json_feed_bodies_are_detected(self) -> None:
+    def test_atom_rdf_json_and_cdf_feed_bodies_are_detected(self) -> None:
         atom = "<feed xmlns='http://www.w3.org/2005/Atom'><title>Example</title></feed>"
         rdf = (
             "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' "
             "xmlns='http://purl.org/rss/1.0/'><channel /></rdf:RDF>"
         )
         json_feed = '{"version":"https://jsonfeed.org/version/1.1","title":"Example","items":[]}'
+        cdf = "<CHANNEL><TITLE>Example</TITLE><ITEM HREF='https://example.com/1' /></CHANNEL>"
         self.assertTrue(discovery._body_looks_like_feed(atom, "text/plain"))
         self.assertTrue(discovery._body_looks_like_feed(rdf, "application/xml"))
         self.assertTrue(discovery._body_looks_like_feed(json_feed, "application/feed+json"))
+        self.assertTrue(discovery._body_looks_like_feed(cdf, "application/x-cdf"))
 
     def test_invalid_json_feed_header_or_structure_is_rejected(self) -> None:
         self.assertFalse(discovery._body_looks_like_feed("<html></html>", "application/feed+json"))

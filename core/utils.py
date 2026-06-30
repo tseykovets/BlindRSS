@@ -156,7 +156,7 @@ def content_has_images(html: str | None) -> bool:
 
 def canonical_media_type(media_type: str | None) -> str:
     """Normalize common media MIME aliases to a stable value."""
-    mt = str(media_type or "").split(";", 1)[0].strip().lower()
+    mt = str(media_type or "").split(";", 1)[0].strip().lower().rstrip("/")
     if mt in _FLAC_MIME_ALIASES:
         return "audio/flac"
     return mt

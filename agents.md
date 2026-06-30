@@ -148,7 +148,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - `base.py`: `RSSProvider` interface.
   - `local.py`: Local RSS provider, parallel refresh (`ThreadPoolExecutor`), conditional GET, cache revalidation headers.
     - Retries Cloudflare-challenged WordPress-style `/feed` URLs with the canonical trailing slash and persists the working URL after success.
-    - Parses broad feed shapes: RSS 0.90/0.91/0.92/0.93/0.94/1.0/2.0, Atom 1.0, JSON Feed 1.x, WordPress `content:encoded`, and older feeds with no GUID/link. When an entry has no stable ID/link, generate a deterministic `blindrss:entry:{uuid5}` seed scoped by feed and content.
+    - Parses broad feed shapes: RSS 0.90/0.91 (Netscape/Userland)/0.92/0.93/0.94/1.0/RDF/2.0, Atom 0.3/1.0, JSON Feed 1.0/1.1, best-effort CDF, WordPress `content:encoded`, common metadata/media namespaces (`dc`, `dcterms`, `media`, `itunes`, `georss`, `opensearch`, `sy`, `slash`, `wfw`), and older feeds with no GUID/link. Compatibility priority is RSS 2.0, Atom 1.0, RSS 1.0/RDF, older RSS 0.9x, JSON Feed, then extensions. Use the RSS 2.0 spec, Atom RFC 4287, JSON Feed 1.1 spec, and W3C Feed Validator docs/examples as secondary references and test sources, but expect most real-world bugs to come from messy feeds: bad dates, wrong MIME types, missing GUIDs, HTML in descriptions, relative links, namespaces, and podcast/media enclosures. When an entry has no stable ID/link, generate a deterministic `blindrss:entry:{uuid5}` seed scoped by feed and content.
     - Some servers reject normal RSS Accept headers. If a feed-like URL returns HTTP 406, retry once with `Accept: */*` and `User-Agent: BlindRSS/1.0`; keep that narrow so normal requests still use `core.utils.HEADERS`.
   - `miniflux.py`, `inoreader.py`, `theoldreader.py`, `bazqux.py`: Hosted provider implementations.
     - Miniflux refresh uses `PUT /v1/feeds/refresh` and `PUT /v1/feeds/{id}/refresh`; HTTP 204 is a successful refresh response and must update request-status tracking as success.
@@ -269,5 +269,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 ## Memories (shared from ~/.claude - project: C--Users-admin-git-BlindRSS)
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\MEMORY.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\category-identity-model.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\curl-cffi-impersonation-transport.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\provider-flat-vs-nested.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\release-build-process.md
 <!-- claude-memory:end -->

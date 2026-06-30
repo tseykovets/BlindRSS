@@ -96,6 +96,7 @@ _ALTERNATE_FEED_TYPES = {
     "application/xml",
     "text/xml",
     "application/feed+json",
+    "application/x-cdf",
 }
 
 
@@ -618,7 +619,7 @@ def _looks_like_feed_url(url: str) -> bool:
     if (parsed.scheme or "").lower() not in ("http", "https"):
         return False
     path_low = (parsed.path or "").lower()
-    if path_low.endswith((".rss", ".xml", ".atom")):
+    if path_low.endswith((".rss", ".xml", ".atom", ".cdf")):
         return True
     if path_low.endswith("/feed") or path_low.endswith("/feeds"):
         return True
@@ -632,11 +633,11 @@ def _looks_like_feed_url(url: str) -> bool:
             for value in values
         }
         if key_low in ("feed", "rss") and normalized_values.intersection(
-            {"1", "true", "yes", "feed", "rss", "rss2", "atom", "rdf", "xml", "json", "jsonfeed"}
+            {"1", "true", "yes", "feed", "rss", "rss2", "atom", "rdf", "xml", "json", "jsonfeed", "cdf"}
         ):
             return True
         if key_low == "format" and normalized_values.intersection(
-            {"rss", "rss2", "atom", "rdf", "xml", "jsonfeed"}
+            {"rss", "rss2", "atom", "rdf", "xml", "jsonfeed", "cdf"}
         ):
             return True
     return False
@@ -701,6 +702,8 @@ def _body_looks_like_feed(body: str, content_type: str = "") -> bool:
             namespace == "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
             and "channel" in child_names
         )
+    if local_name == "channel":
+        return "item" in child_names
     return False
 
 

@@ -7,10 +7,11 @@ import sqlite3
 import concurrent.futures
 import os
 import re
+import mimetypes
 import requests
 from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from .base import RSSProvider
 from core.models import Feed, Article
 from core.db import get_connection, init_db, get_feed_settings
@@ -82,6 +83,21 @@ def _xml_attribute(element, *names) -> Optional[str]:
     return None
 
 
+def _xml_direct_child_text(element, *names) -> str:
+    wanted = {str(name).lower() for name in names}
+    for child in list(element):
+        if _xml_local_name(child.tag) not in wanted:
+            continue
+        try:
+            text = "".join(child.itertext())
+        except Exception:
+            text = child.text or ""
+        text = str(text or "").strip()
+        if text:
+            return text
+    return ""
+
+
 def _feed_item_identity_keys(element) -> List[str]:
     keys = []
     for child in list(element):
@@ -128,6 +144,37 @@ def _entry_content(entry) -> str:
     )
 
 
+def _entry_author(entry) -> str:
+    author = _entry_text(entry, "dc_creator", "dcterms_creator", "creator")
+    if author:
+        return author
+
+    try:
+        detail = entry.get("author_detail") or {}
+    except Exception:
+        detail = {}
+    if isinstance(detail, dict):
+        author = str(detail.get("name") or detail.get("email") or "").strip()
+    else:
+        author = str(getattr(detail, "name", None) or getattr(detail, "email", None) or "").strip()
+    if author:
+        return author
+
+    try:
+        authors = entry.get("authors") or []
+    except Exception:
+        authors = []
+    for item in authors:
+        if isinstance(item, dict):
+            name = str(item.get("name") or item.get("email") or "").strip()
+        else:
+            name = str(getattr(item, "name", None) or getattr(item, "email", None) or "").strip()
+        if name:
+            return name
+
+    return _entry_text(entry, "author")
+
+
 def _entry_primary_link(entry) -> str:
     try:
         links = entry.get("links") or []
@@ -148,6 +195,47 @@ def _entry_primary_link(entry) -> str:
     return _entry_text(entry, "link")
 
 
+def _feed_urljoin(feed_url: str, value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        return urljoin(str(feed_url or ""), text)
+    except Exception:
+        return text
+
+
+def _url_path_lower(value: str) -> str:
+    text = str(value or "").strip()
+    try:
+        return urlsplit(text).path.lower()
+    except Exception:
+        return text.lower()
+
+
+def _media_type_from_url(value: str) -> str:
+    path = _url_path_lower(value)
+    if not path:
+        return ""
+    guessed = None
+    try:
+        guessed = mimetypes.guess_type(path)[0]
+    except Exception:
+        guessed = None
+    guessed_norm = utils.canonical_media_type(guessed)
+    if utils.media_type_is_audio_video_or_podcast(guessed_norm):
+        return guessed_norm
+    manual = {
+        ".m4a": "audio/mp4",
+        ".m4b": "audio/mp4",
+        ".opus": "audio/ogg",
+    }
+    for ext, media_type in manual.items():
+        if path.endswith(ext):
+            return media_type
+    return ""
+
+
 def _entry_raw_date(entry) -> str:
     raw_date = _entry_text(
         entry,
@@ -158,8 +246,14 @@ def _entry_raw_date(entry) -> str:
         "created",
         "issued",
         "modified",
+        "dc_date",
+        "dcterms_created",
+        "dcterms_issued",
+        "dcterms_modified",
         "date_published",
         "date_modified",
+        "lastmod",
+        "last_modified",
     )
     if raw_date:
         return raw_date
@@ -169,6 +263,8 @@ def _entry_raw_date(entry) -> str:
             entry.get("published_parsed")
             or entry.get("updated_parsed")
             or entry.get("created_parsed")
+            or entry.get("issued_parsed")
+            or entry.get("modified_parsed")
             or entry.get("expired_parsed")
         )
     except Exception:
@@ -359,6 +455,74 @@ def _parse_json_feed(text: str):
     return parsed
 
 
+def _parse_cdf_document(text: str):
+    try:
+        root = ET.fromstring(str(text or ""))
+    except (ET.ParseError, ValueError):
+        return None
+    if _xml_local_name(root.tag) != "channel":
+        return None
+
+    item_elements = [child for child in list(root) if _xml_local_name(child.tag) == "item"]
+    if not item_elements:
+        return None
+
+    base_url = _xml_attribute(root, "base") or ""
+    channel_href = _xml_attribute(root, "href", "src") or ""
+    channel_link = urljoin(base_url, channel_href) if channel_href else base_url
+
+    feed = feedparser.FeedParserDict()
+    feed["links"] = []
+    title = _xml_direct_child_text(root, "title")
+    if title:
+        feed["title"] = title
+    if channel_link:
+        feed["link"] = channel_link
+        feed["links"].append(
+            feedparser.FeedParserDict({"href": channel_link, "rel": "alternate", "type": "text/html"})
+        )
+    subtitle = _xml_direct_child_text(root, "abstract", "description")
+    if subtitle:
+        feed["subtitle"] = subtitle
+
+    entries = []
+    for item in item_elements:
+        entry = feedparser.FeedParserDict()
+        entry["links"] = []
+        href = _xml_attribute(item, "href", "src") or ""
+        link = urljoin(base_url or channel_link, href) if href else ""
+        if link:
+            entry["id"] = link
+            entry["link"] = link
+            entry["links"].append(
+                feedparser.FeedParserDict({"href": link, "rel": "alternate", "type": "text/html"})
+            )
+
+        title = _xml_direct_child_text(item, "title")
+        if title:
+            entry["title"] = title
+        summary = _xml_direct_child_text(item, "abstract", "description")
+        if summary:
+            entry["summary"] = summary
+            entry["summary_detail"] = feedparser.FeedParserDict(
+                {"type": "text/plain", "language": None, "base": base_url or channel_link, "value": summary}
+            )
+        lastmod = _xml_attribute(item, "lastmod", "lastmodified") or _xml_direct_child_text(
+            item, "lastmod", "lastmodified"
+        )
+        if lastmod:
+            entry["updated"] = lastmod
+            entry["lastmod"] = lastmod
+        entries.append(entry)
+
+    parsed = feedparser.FeedParserDict()
+    parsed["feed"] = feed
+    parsed["entries"] = entries
+    parsed["bozo"] = False
+    parsed["version"] = "cdf"
+    return parsed
+
+
 def _parse_feed_document(data, text: Optional[str] = None, content_type: str = ""):
     decoded_text = _decode_feed_text(data, text)
     stripped = decoded_text.lstrip()
@@ -367,6 +531,10 @@ def _parse_feed_document(data, text: Optional[str] = None, content_type: str = "
         json_feed = _parse_json_feed(decoded_text)
         if json_feed is not None:
             return json_feed
+
+    cdf_feed = _parse_cdf_document(decoded_text)
+    if cdf_feed is not None:
+        return cdf_feed
 
     parsed = feedparser.parse(data)
 
@@ -564,9 +732,9 @@ def _url_looks_feed_like(url: str) -> bool:
     except Exception:
         last_segment = ""
     return (
-        low.endswith((".xml", ".rss", ".atom"))
+        low.endswith((".xml", ".rss", ".atom", ".cdf"))
         or "feed" in low
-        or last_segment in {"rss", "atom", "feed", "feeds"}
+        or last_segment in {"rss", "atom", "feed", "feeds", "cdf"}
     )
 
 
@@ -655,7 +823,7 @@ def _failure_cooldown_seconds_for_error(error: Exception) -> float:
 
 def _response_looks_feed_like(resp) -> bool:
     content_type = str(getattr(resp, "headers", {}).get("Content-Type", "") or "").lower()
-    if any(marker in content_type for marker in ("rss", "atom", "xml", "feed+json")):
+    if any(marker in content_type for marker in ("rss", "atom", "xml", "feed+json", "x-cdf")):
         return True
 
     try:
@@ -667,6 +835,7 @@ def _response_looks_feed_like(resp) -> bool:
         snippet.startswith("<?xml")
         or "<rss" in snippet
         or "<feed" in snippet
+        or (snippet.startswith("<channel") and "<item" in snippet)
         or '"version":"https://jsonfeed.org/version/' in snippet
         or '"version": "https://jsonfeed.org/version/' in snippet
     )
@@ -1985,7 +2154,7 @@ class LocalProvider(RSSProvider):
                     scoped_id = f"{feed_id}:{base_id}"
                     article_id = base_id
 
-                    url = _entry_primary_link(entry)
+                    url = _feed_urljoin(feed_url, _entry_primary_link(entry))
                     title = utils.enhance_activity_entry_title(entry.get('title', ''), url, content)
                     if not title or title.strip() == "No Title":
                          # Fallback: create title from content snippet (e.g. Bluesky/Mastodon)
@@ -1999,7 +2168,7 @@ class LocalProvider(RSSProvider):
                          if len(snippet) > 80:
                              snippet = snippet[:80] + "..."
                          title = snippet or "No Title"
-                    author = entry.get('author', 'Unknown')
+                    author = _entry_author(entry) or 'Unknown'
                     
                     # BlueSky/Microblog fallback: if author is unknown, try to use feed title
                     if author == 'Unknown' and final_title:
@@ -2043,11 +2212,12 @@ class LocalProvider(RSSProvider):
                     elif 'enclosures' in entry and len(entry.enclosures) > 0:
                         valid_enclosure = None
                         for enc in entry.enclosures:
-                            enc_href = getattr(enc, "href", None)
+                            enc_href = _feed_urljoin(feed_url, getattr(enc, "href", None))
                             enc_type = getattr(enc, "type", "") or ""
                             if enc_href:
                                 # Skip if it looks like an image and isn't explicitly audio/video type
-                                if any(enc_href.lower().endswith(ext) for ext in image_exts):
+                                enc_path = _url_path_lower(enc_href)
+                                if any(enc_path.endswith(ext) for ext in image_exts):
                                     if not (enc_type.startswith("audio/") or enc_type.startswith("video/")):
                                         continue
                                 valid_enclosure = enc
@@ -2055,33 +2225,40 @@ class LocalProvider(RSSProvider):
                         
                         if valid_enclosure:
                             enc_type = getattr(valid_enclosure, "type", "") or ""
-                            enc_href = getattr(valid_enclosure, "href", None)
+                            enc_href = _feed_urljoin(feed_url, getattr(valid_enclosure, "href", None))
                             enc_type_norm = utils.canonical_media_type(enc_type) or enc_type
                             if utils.media_type_is_audio_video_or_podcast(enc_type_norm):
                                 media_url = enc_href
                                 media_type = enc_type_norm
-                            elif enc_href and enc_href.lower().endswith(audio_exts):
-                                media_url = enc_href
-                                media_type = enc_type_norm or "audio/mpeg"
+                            else:
+                                inferred_type = _media_type_from_url(enc_href)
+                                if inferred_type:
+                                    media_url = enc_href
+                                    media_type = inferred_type
 
                     # 3. Check media:content (common in RSS 2.0 / MRSS)
                     if not media_url and 'media_content' in entry:
                         for mc in entry.media_content:
-                            mc_url = mc.get('url')
+                            mc_url = _feed_urljoin(feed_url, mc.get('url'))
                             mc_type = mc.get('type')
                             mc_type_norm = utils.canonical_media_type(mc_type) or mc_type
                             if mc_url:
                                 # Skip thumbnails or images
                                 if mc_type_norm and str(mc_type_norm).startswith('image/'):
                                     continue
-                                if any(mc_url.lower().endswith(ext) for ext in image_exts):
+                                mc_path = _url_path_lower(mc_url)
+                                if any(mc_path.endswith(ext) for ext in image_exts):
                                     continue
                                 
                                 # Accept if audio/video or looks like audio
-                                if utils.media_type_is_audio_video_or_podcast(mc_type_norm) or \
-                                   mc_url.lower().endswith(audio_exts):
+                                inferred_type = _media_type_from_url(mc_url)
+                                if utils.media_type_is_audio_video_or_podcast(mc_type_norm):
                                     media_url = mc_url
-                                    media_type = mc_type_norm or "audio/mpeg"
+                                    media_type = mc_type_norm
+                                    break
+                                if inferred_type:
+                                    media_url = mc_url
+                                    media_type = inferred_type
                                     break
 
                     # 4. Check NPR-specific extraction if still no media. Do not
@@ -2096,17 +2273,27 @@ class LocalProvider(RSSProvider):
                     inline_chapters = []
                     if 'podcast_chapters' in entry:
                         chapters_tag = entry.podcast_chapters
-                        chapter_url = getattr(chapters_tag, 'href', None) or getattr(chapters_tag, 'url', None) or getattr(chapters_tag, 'value', None)
+                        chapter_url = _feed_urljoin(
+                            feed_url,
+                            getattr(chapters_tag, 'href', None)
+                            or getattr(chapters_tag, 'url', None)
+                            or getattr(chapters_tag, 'value', None),
+                        )
                     if not chapter_url and 'psc_chapters' in entry:
                         chapters_tag = entry.psc_chapters
-                        chapter_url = getattr(chapters_tag, 'href', None) or getattr(chapters_tag, 'url', None) or getattr(chapters_tag, 'value', None)
+                        chapter_url = _feed_urljoin(
+                            feed_url,
+                            getattr(chapters_tag, 'href', None)
+                            or getattr(chapters_tag, 'url', None)
+                            or getattr(chapters_tag, 'value', None),
+                        )
 
                     for key in (entry.get('guid'), entry.get('id'), _entry_primary_link(entry), base_id):
                         if not key or key not in chapter_metadata:
                             continue
                         raw_metadata = chapter_metadata[key]
                         if not chapter_url:
-                            chapter_url = raw_metadata.get("chapter_url")
+                            chapter_url = _feed_urljoin(feed_url, raw_metadata.get("chapter_url"))
                         inline_chapters = raw_metadata.get("chapters") or []
                         break
 

@@ -14,7 +14,14 @@ from collections import defaultdict
 from urllib.parse import urlparse, urljoin
 from .base import RSSProvider
 from core.models import Feed, Article
-from core.db import get_connection, init_db, get_feed_settings
+from core.db import (
+    get_connection,
+    init_db,
+    get_feed_settings,
+    record_feed_error,
+    clear_feed_error,
+    get_feed_errors,
+)
 from core.discovery import discover_feed
 from core import utils
 from core import rumble as rumble_mod
@@ -2413,12 +2420,24 @@ class LocalProvider(RSSProvider):
         finally:
             if status in ("ok", "not_modified", "deleted"):
                 self._clear_refresh_failure_cooldown(feed_id)
+                # Persist the success so the feed drops out of the "Feeds with
+                # Errors" view across restarts (issue #32).
+                try:
+                    clear_feed_error(feed_id)
+                except Exception:
+                    log.debug("Failed to clear persisted feed error for %s", feed_id, exc_info=True)
             elif status == "error":
                 self._set_refresh_failure_cooldown(
                     feed_id,
                     failure_cooldown_seconds or _TRANSIENT_FAILURE_COOLDOWN_SECONDS,
                     error_msg,
                 )
+                # Persist the failure (message, time, consecutive count) for the
+                # "Feeds with Errors" view (issue #32).
+                try:
+                    record_feed_error(feed_id, error_msg)
+                except Exception:
+                    log.debug("Failed to record persisted feed error for %s", feed_id, exc_info=True)
             state = self._collect_feed_state(
                 feed_id,
                 final_title,
@@ -2503,6 +2522,14 @@ class LocalProvider(RSSProvider):
             return feeds
         finally:
             conn.close()
+
+    def get_feed_errors(self) -> List[Dict[str, Any]]:
+        """Feeds whose most recent update attempt failed (issue #32).
+
+        Backed by the persisted per-feed error columns, so the list survives
+        restarts. See core.db.get_feed_errors for the entry shape.
+        """
+        return get_feed_errors()
 
     def _parse_article_view_filters(self, feed_id: str) -> Tuple[str, Optional[int], Optional[int]]:
         filter_read = None  # None=all, 0=unread, 1=read

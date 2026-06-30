@@ -88,6 +88,51 @@ def test_exclude_notification_feeds_list_named(parent):
         dlg.Destroy()
 
 
+def test_feed_errors_dialog_controls_named(parent):
+    errors = [
+        {
+            "id": "f1",
+            "title": "Broken Feed",
+            "url": "https://example.com/feed",
+            "category": "Tech",
+            "last_error": "HTTP 404: Not Found",
+            "last_error_at": 1000.0,
+            "last_success_at": None,
+            "consecutive_failures": 3,
+        }
+    ]
+    dlg = dialogs.FeedErrorsDialog(parent, errors)
+    try:
+        # Screen-reader names for the list and detail field.
+        assert dlg.list.GetName() == "Feeds with errors"
+        assert dlg.detail.GetName() == "Error details"
+        # One row was populated with the feed name.
+        assert dlg.list.GetItemCount() == 1
+        assert dlg.list.GetItemText(0, 0) == "Broken Feed"
+        assert dlg.list.GetItemText(0, 2) == "3"
+        assert "404" in dlg.list.GetItemText(0, 3)
+        # Detail text carries the full context needed to act on the feed.
+        detail = dlg._build_detail_text(errors[0])
+        assert "Broken Feed" in detail
+        assert "https://example.com/feed" in detail
+        assert "HTTP 404: Not Found" in detail
+        assert "consecutive" in detail
+    finally:
+        dlg.Destroy()
+
+
+def test_feed_errors_dialog_empty_state(parent):
+    dlg = dialogs.FeedErrorsDialog(parent, [])
+    try:
+        assert dlg.list.GetItemCount() == 0
+        assert "No feeds" in dlg.heading.GetLabel()
+        # Action buttons are disabled when there is nothing to act on.
+        assert not dlg.refresh_btn.IsEnabled()
+        assert not dlg.remove_btn.IsEnabled()
+    finally:
+        dlg.Destroy()
+
+
 def test_feed_search_dialog_controls_named(parent):
     dlg = dialogs.FeedSearchDialog(parent)
     try:

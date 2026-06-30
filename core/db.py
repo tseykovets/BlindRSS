@@ -446,6 +446,28 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+        # Per-feed update error tracking (issue #32): persist the most recent
+        # failed update so the "Feeds with Errors" view can list broken feeds
+        # across restarts. last_error is NULL when the most recent attempt
+        # succeeded; consecutive_failures distinguishes one-off glitches from
+        # persistently broken feeds. See record_feed_error()/get_feed_errors().
+        try:
+            c.execute("ALTER TABLE feeds ADD COLUMN last_error TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("ALTER TABLE feeds ADD COLUMN last_error_at REAL")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("ALTER TABLE feeds ADD COLUMN last_success_at REAL")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("ALTER TABLE feeds ADD COLUMN consecutive_failures INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+
         # Migration: add parent_id to categories for subcategory support
         try:
             c.execute("ALTER TABLE categories ADD COLUMN parent_id TEXT")
@@ -740,6 +762,112 @@ def set_feed_settings(feed_id, settings: dict) -> bool:
             conn.close()
         except Exception:
             pass
+
+
+# ── Per-feed update error tracking (issue #32) ───────────────────────────────
+# Feeds break over time (moved/deleted content, dead URLs, server errors, feed
+# format changes). These helpers persist the outcome of each update attempt so
+# the "Feeds with Errors" view can show which feeds failed, when, why, and how
+# many times in a row — letting the user fix or remove broken feeds instead of
+# silently assuming they have no new articles.
+
+def record_feed_error(feed_id, error_msg, when=None) -> bool:
+    """Record that a feed's most recent update attempt failed (issue #32).
+
+    Stores the error message and attempt timestamp and increments the
+    consecutive-failure counter. Called by the local provider whenever a refresh
+    ends in an error state.
+    """
+    if not feed_id:
+        return False
+    ts = float(when) if when is not None else time.time()
+    msg = str(error_msg or "").strip() or "Unknown error"
+    conn = get_connection()
+    try:
+        c = conn.cursor()
+        c.execute(
+            "UPDATE feeds SET last_error = ?, last_error_at = ?, "
+            "consecutive_failures = COALESCE(consecutive_failures, 0) + 1 "
+            "WHERE id = ?",
+            (msg, ts, str(feed_id)),
+        )
+        conn.commit()
+        return True
+    except sqlite3.Error:
+        return False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def clear_feed_error(feed_id, when=None) -> bool:
+    """Clear a feed's recorded update error after a successful refresh (issue #32).
+
+    Resets the error message and consecutive-failure counter and stamps the
+    last successful update time so the feed drops out of the errors view.
+    """
+    if not feed_id:
+        return False
+    ts = float(when) if when is not None else time.time()
+    conn = get_connection()
+    try:
+        c = conn.cursor()
+        c.execute(
+            "UPDATE feeds SET last_error = NULL, last_error_at = NULL, "
+            "last_success_at = ?, consecutive_failures = 0 WHERE id = ?",
+            (ts, str(feed_id)),
+        )
+        conn.commit()
+        return True
+    except sqlite3.Error:
+        return False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def get_feed_errors() -> list:
+    """Return feeds whose most recent update attempt failed (issue #32).
+
+    Each entry is a dict with id, title, url, category, last_error,
+    last_error_at, last_success_at, and consecutive_failures, ordered with the
+    most-recently-failed feeds first. Returns [] when no feed has a recorded
+    error (or on any DB error).
+    """
+    conn = get_connection()
+    try:
+        c = conn.cursor()
+        c.execute(
+            "SELECT id, title, url, category, last_error, last_error_at, "
+            "last_success_at, COALESCE(consecutive_failures, 0) "
+            "FROM feeds WHERE last_error IS NOT NULL AND TRIM(last_error) != '' "
+            "ORDER BY COALESCE(last_error_at, 0) DESC"
+        )
+        rows = c.fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    errors = []
+    for row in rows:
+        errors.append({
+            "id": row[0],
+            "title": row[1] or "Untitled feed",
+            "url": row[2] or "",
+            "category": row[3] or "Uncategorized",
+            "last_error": row[4] or "",
+            "last_error_at": row[5],
+            "last_success_at": row[6],
+            "consecutive_failures": int(row[7] or 0),
+        })
+    return errors
 
 
 # ── Category path helpers ────────────────────────────────────────────────

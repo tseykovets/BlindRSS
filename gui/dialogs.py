@@ -2668,6 +2668,295 @@ class FeedPropertiesDialog(wx.Dialog):
         return title, url, category
 
 
+class FeedErrorsDialog(wx.Dialog):
+    """Accessible viewer for feeds whose latest update attempt failed (issue #32).
+
+    RSS feeds break over time (dead URLs, HTTP 404/500, timeouts, anti-bot
+    blocks, invalid feed formats) and the app would otherwise give no signal —
+    the user just sees no new articles and assumes the feed is quiet. This
+    dialog lists every feed with a recorded error and, for each one, shows the
+    feed name, the time of the last attempt, a consecutive-failure count (so a
+    one-off network blip is distinguishable from a permanently broken feed), and
+    the full error message. From here the user can refresh a feed to retry,
+    copy the details, open Feed Properties to fix the URL or adjust settings, or
+    remove the feed entirely.
+    """
+
+    def __init__(self, parent, errors, provider=None):
+        super().__init__(
+            parent,
+            title="Feeds with Errors",
+            size=(840, 580),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self._parent_frame = parent
+        self._provider = provider
+        self._errors = list(errors or [])
+        self._busy = False
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.heading = wx.StaticText(self, label=self._heading_text())
+        sizer.Add(self.heading, 0, wx.ALL, 8)
+
+        # Report-view list: each row is one broken feed. NVDA reads every column
+        # as the user arrows through, so the row itself conveys the essentials.
+        self.list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        self.list.SetName("Feeds with errors")
+        self.list.InsertColumn(0, "Feed", width=250)
+        self.list.InsertColumn(1, "Last attempt", width=160)
+        self.list.InsertColumn(2, "Failures", width=80)
+        self.list.InsertColumn(3, "Error", width=320)
+        sizer.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+
+        detail_label = wx.StaticText(self, label="Error &details:")
+        sizer.Add(detail_label, 0, wx.LEFT | wx.TOP, 8)
+        self.detail = wx.TextCtrl(
+            self,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
+            size=(-1, 140),
+        )
+        self.detail.SetName("Error details")
+        sizer.Add(self.detail, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+        btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.refresh_btn = wx.Button(self, label="&Refresh Selected")
+        self.copy_btn = wx.Button(self, label="&Copy Details")
+        self.props_btn = wx.Button(self, label="Feed &Properties...")
+        self.remove_btn = wx.Button(self, label="Re&move Feed")
+        self.close_btn = wx.Button(self, wx.ID_CLOSE, "&Close")
+        for b in (self.refresh_btn, self.copy_btn, self.props_btn, self.remove_btn):
+            btn_sizer.Add(b, 0, wx.RIGHT, 6)
+        btn_sizer.AddStretchSpacer()
+        btn_sizer.Add(self.close_btn, 0)
+        sizer.Add(btn_sizer, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+        self.SetSizer(sizer)
+        self.Centre()
+        self.SetEscapeId(wx.ID_CLOSE)
+
+        self.list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select)
+        self.list.Bind(wx.EVT_LIST_ITEM_FOCUSED, self.on_select)
+        self.list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_refresh)  # Enter retries
+        self.refresh_btn.Bind(wx.EVT_BUTTON, self.on_refresh)
+        self.copy_btn.Bind(wx.EVT_BUTTON, self.on_copy)
+        self.props_btn.Bind(wx.EVT_BUTTON, self.on_properties)
+        self.remove_btn.Bind(wx.EVT_BUTTON, self.on_remove)
+        self.close_btn.Bind(wx.EVT_BUTTON, lambda e: self.EndModal(wx.ID_CLOSE))
+
+        self._populate()
+        wx.CallAfter(self._focus_initial)
+
+    # ── helpers ──────────────────────────────────────────────────────────
+    def _heading_text(self) -> str:
+        n = len(self._errors)
+        if n == 0:
+            return "No feeds reported errors during their most recent update."
+        if n == 1:
+            return "1 feed failed to update during its most recent attempt:"
+        return f"{n} feeds failed to update during their most recent attempt:"
+
+    @staticmethod
+    def _format_timestamp(ts) -> str:
+        if ts is None:
+            return "Unknown"
+        try:
+            return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(float(ts)))
+        except (ValueError, TypeError, OverflowError, OSError):
+            return "Unknown"
+
+    @staticmethod
+    def _one_line(text: str, limit: int = 220) -> str:
+        collapsed = " ".join(str(text or "").split())
+        if len(collapsed) > limit:
+            collapsed = collapsed[: limit - 1].rstrip() + "…"
+        return collapsed
+
+    def _populate(self):
+        self.list.DeleteAllItems()
+        for err in self._errors:
+            row = self.list.InsertItem(self.list.GetItemCount(), str(err.get("title") or "Untitled feed"))
+            self.list.SetItem(row, 1, self._format_timestamp(err.get("last_error_at")))
+            self.list.SetItem(row, 2, str(int(err.get("consecutive_failures") or 0)))
+            self.list.SetItem(row, 3, self._one_line(err.get("last_error")))
+        self.heading.SetLabel(self._heading_text())
+        has_rows = bool(self._errors)
+        for b in (self.refresh_btn, self.copy_btn, self.props_btn, self.remove_btn):
+            b.Enable(has_rows)
+        if not has_rows:
+            self.detail.SetValue(
+                "No feeds reported errors during their most recent update attempt.\n\n"
+                "Feeds appear here automatically when an update fails (for example a "
+                "dead URL, an HTTP error, a timeout, or an invalid feed format)."
+            )
+
+    def _selected_index(self) -> int:
+        return self.list.GetFirstSelected()
+
+    def _selected_error(self):
+        idx = self._selected_index()
+        if 0 <= idx < len(self._errors):
+            return self._errors[idx]
+        return None
+
+    def _build_detail_text(self, err) -> str:
+        failures = int(err.get("consecutive_failures") or 0)
+        if failures <= 1:
+            failures_line = "1 failed attempt so far (this may be a one-off glitch)."
+        else:
+            failures_line = f"{failures} consecutive failed attempts (likely a persistent problem)."
+        last_success = err.get("last_success_at")
+        success_line = self._format_timestamp(last_success) if last_success else "No successful update recorded."
+        return (
+            f"Feed: {err.get('title') or 'Untitled feed'}\n"
+            f"URL: {err.get('url') or '(unknown)'}\n"
+            f"Category: {err.get('category') or 'Uncategorized'}\n"
+            f"Last update attempt: {self._format_timestamp(err.get('last_error_at'))}\n"
+            f"Last successful update: {success_line}\n"
+            f"{failures_line}\n\n"
+            f"Error:\n{err.get('last_error') or 'Unknown error'}"
+        )
+
+    def on_select(self, event=None):
+        err = self._selected_error()
+        if err is not None:
+            self.detail.SetValue(self._build_detail_text(err))
+        if event is not None:
+            event.Skip()
+
+    def _focus_initial(self):
+        if self._errors:
+            self.list.SetFocus()
+            self.list.Select(0)
+            self.list.Focus(0)
+        else:
+            self.close_btn.SetFocus()
+
+    def _select_row(self, idx: int):
+        if not self._errors:
+            self.detail.SetValue("")
+            self.close_btn.SetFocus()
+            return
+        idx = max(0, min(idx, len(self._errors) - 1))
+        self.list.SetFocus()
+        self.list.Select(idx)
+        self.list.Focus(idx)
+        self.on_select()
+
+    def _reload_errors(self):
+        prov = self._provider or getattr(self._parent_frame, "provider", None)
+        try:
+            self._errors = list(prov.get_feed_errors()) if prov is not None else []
+        except Exception:
+            log.debug("Failed to reload feed errors", exc_info=True)
+            self._errors = []
+        self._populate()
+
+    # ── actions ──────────────────────────────────────────────────────────
+    def on_copy(self, event=None):
+        err = self._selected_error()
+        if err is None:
+            return
+        try:
+            from gui.clipboard_utils import copy_text_to_clipboard
+            copy_text_to_clipboard(self._build_detail_text(err))
+        except Exception:
+            log.debug("Failed to copy feed error details", exc_info=True)
+
+    def on_refresh(self, event=None):
+        if self._busy:
+            return
+        err = self._selected_error()
+        if err is None:
+            return
+        feed_id = err.get("id")
+        if not feed_id:
+            return
+        prior_index = self._selected_index()
+        self._busy = True
+        self.heading.SetLabel(f"Refreshing “{err.get('title') or 'feed'}”…")
+
+        def worker():
+            try:
+                frame = self._parent_frame
+                fn = getattr(frame, "_refresh_single_feed_thread", None)
+                if callable(fn):
+                    fn(feed_id)
+                else:
+                    prov = self._provider or getattr(frame, "provider", None)
+                    if prov is not None:
+                        prov.refresh_feed(feed_id)
+            except Exception:
+                log.debug("Refresh from errors dialog failed", exc_info=True)
+            wx.CallAfter(self._after_refresh, feed_id, prior_index)
+
+        threading.Thread(target=worker, daemon=True, name="errors-dialog-refresh").start()
+
+    def _after_refresh(self, feed_id, prior_index):
+        self._busy = False
+        self._reload_errors()
+        if not self._errors:
+            # The feed was fixed and no others are broken.
+            self.close_btn.SetFocus()
+            return
+        # Re-select the same feed if it still errors; otherwise land on the row
+        # that now occupies its slot so NVDA announces the updated state.
+        new_index = next((i for i, e in enumerate(self._errors) if e.get("id") == feed_id), None)
+        self._select_row(new_index if new_index is not None else prior_index)
+
+    def on_properties(self, event=None):
+        err = self._selected_error()
+        if err is None:
+            return
+        feed_id = err.get("id")
+        if not feed_id:
+            return
+        frame = self._parent_frame
+        fn = getattr(frame, "edit_feed_by_id", None)
+        if not callable(fn):
+            wx.MessageBox(
+                "Editing feed properties is not available here.",
+                "Not available",
+                wx.ICON_INFORMATION,
+                self,
+            )
+            return
+        try:
+            fn(feed_id)
+        except Exception:
+            log.debug("Edit feed from errors dialog failed", exc_info=True)
+        # The recorded error only clears on the next successful refresh, so the
+        # list is unchanged; the user can now use Refresh Selected to retry.
+
+    def on_remove(self, event=None):
+        if self._busy:
+            return
+        err = self._selected_error()
+        if err is None:
+            return
+        feed_id = err.get("id")
+        if not feed_id:
+            return
+        title = err.get("title") or "this feed"
+        if wx.MessageBox(
+            f"Remove the feed “{title}”?\n\nThis deletes the feed and all of its articles.",
+            "Confirm Remove",
+            wx.YES_NO | wx.ICON_QUESTION,
+            self,
+        ) != wx.YES:
+            return
+        frame = self._parent_frame
+        fn = getattr(frame, "remove_feed_by_id", None)
+        if callable(fn):
+            try:
+                fn(feed_id, title)
+            except Exception:
+                log.debug("Remove feed from errors dialog failed", exc_info=True)
+        # The main window owns the asynchronous removal and tree refresh; close
+        # so its state stays authoritative.
+        self.EndModal(wx.ID_OK)
+
+
 class FeedSearchDialog(wx.Dialog):
     _SEARCH_POLL_INTERVAL_S = 0.1
     _SEARCH_TOTAL_TIMEOUT_ALL_SOURCES_S = 60.0

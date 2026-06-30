@@ -1290,6 +1290,7 @@ class MainFrame(wx.Frame):
         remove_feed_item = file_menu.Append(wx.ID_ANY, "&Remove Feed", "Remove selected feed")
         refresh_item = file_menu.Append(wx.ID_REFRESH, "&Refresh Feeds\tF5", "Refresh all feeds")
         mark_all_read_item = file_menu.Append(wx.ID_ANY, "Mark All Items as &Read", "Mark all items as read")
+        view_errors_item = file_menu.Append(wx.ID_ANY, "View Feed &Errors...", "View feeds that failed to update")
         file_menu.AppendSeparator()
         add_cat_item = file_menu.Append(wx.ID_ANY, "Add &Category", "Add a new category")
         remove_cat_item = file_menu.Append(wx.ID_ANY, "Remove C&ategory", "Remove selected category")
@@ -1412,6 +1413,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_remove_feed, remove_feed_item)
         self.Bind(wx.EVT_MENU, self.on_refresh_feeds, refresh_item)
         self.Bind(wx.EVT_MENU, self.on_mark_all_read, mark_all_read_item)
+        self.Bind(wx.EVT_MENU, self.on_view_feed_errors, view_errors_item)
         self.Bind(wx.EVT_MENU, self.on_add_category, add_cat_item)
         self.Bind(wx.EVT_MENU, self.on_remove_category, remove_cat_item)
         self.Bind(wx.EVT_MENU, self.on_import_opml, import_opml_item)
@@ -1962,6 +1964,20 @@ class MainFrame(wx.Frame):
         if not cat_title:
             return
         threading.Thread(target=self._refresh_category_thread, args=(cat_title,), daemon=True).start()
+
+    def on_view_feed_errors(self, event=None):
+        """Open the Feeds with Errors view (issue #32)."""
+        from gui.dialogs import FeedErrorsDialog
+        try:
+            errors = self.provider.get_feed_errors() if self.provider else []
+        except Exception:
+            log.debug("Failed to fetch feed errors", exc_info=True)
+            errors = []
+        dlg = FeedErrorsDialog(self, errors, provider=self.provider)
+        try:
+            dlg.ShowModal()
+        finally:
+            dlg.Destroy()
 
     def _play_sound(self, key):
         if not self.config_manager.get("sounds_enabled", True):
@@ -6941,15 +6957,30 @@ class MainFrame(wx.Frame):
                         if parent.IsOk():
                             self._selection_hint = self.tree.GetItemData(parent)
 
-                    if feed_title:
-                        self.SetTitle(f"BlindRSS - Removing feed {feed_title}...")
-                    else:
-                        self.SetTitle("BlindRSS - Removing feed...")
-                    self._start_critical_worker(
-                        self._remove_feed_thread,
-                        args=(feed_id, feed_title),
-                        name="remove_feed",
-                    )
+                    self._begin_feed_removal(feed_id, feed_title)
+
+    def _begin_feed_removal(self, feed_id: str, feed_title: str | None) -> None:
+        if feed_title:
+            self.SetTitle(f"BlindRSS - Removing feed {feed_title}...")
+        else:
+            self.SetTitle("BlindRSS - Removing feed...")
+        self._start_critical_worker(
+            self._remove_feed_thread,
+            args=(feed_id, feed_title),
+            name="remove_feed",
+        )
+
+    def remove_feed_by_id(self, feed_id: str, feed_title: str | None = None) -> None:
+        """Remove a feed without a tree selection (e.g. from the Feed Errors view).
+
+        The caller is responsible for any confirmation prompt; this kicks off the
+        same asynchronous removal + tree refresh used by the menu action.
+        """
+        if not feed_id:
+            return
+        if feed_title is None:
+            feed_title = self._get_feed_title(feed_id)
+        self._begin_feed_removal(feed_id, feed_title)
 
     def _remove_feed_thread(self, feed_id: str, feed_title: str | None = None) -> None:
         success = False
@@ -7000,7 +7031,12 @@ class MainFrame(wx.Frame):
         data = self.tree.GetItemData(item)
         if not data or data.get("type") != "feed":
             return
-        feed_id = data.get("id")
+        self.edit_feed_by_id(data.get("id"))
+
+    def edit_feed_by_id(self, feed_id):
+        """Open Feed Properties for a feed by id (e.g. from the Feed Errors view)."""
+        if not feed_id:
+            return
         feed = self.feed_map.get(feed_id)
         if not feed:
             return

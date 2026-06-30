@@ -110,6 +110,16 @@ class RSSProvider(abc.ABC):
     def get_article_by_id(self, article_id: str) -> Optional[Article]:
         return None
 
+    def get_feed_errors(self) -> List[Dict[str, Any]]:
+        """Return feeds whose most recent update attempt failed (issue #32).
+
+        Each entry is a dict with at least: id, title, url, category,
+        last_error, last_error_at (epoch seconds or None), last_success_at, and
+        consecutive_failures. Providers without per-feed client-side error
+        tracking (e.g. hosted services that sync server-side) return [].
+        """
+        return []
+
     @abc.abstractmethod
     def mark_read(self, article_id: str) -> bool:
         pass

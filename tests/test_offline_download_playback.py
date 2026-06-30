@@ -111,8 +111,12 @@ def test_direct_download_failure_callback_keeps_exception_message(tmp_path, monk
 
     host._download_article_thread(article)
 
-    assert len(callbacks) == 1
-    callbacks[0]()
+    # The failure path also posts begin/end activity-status updates via
+    # CallAfter alongside the MessageBox; run every deferred callback instead
+    # of assuming the MessageBox is the only thing scheduled.
+    assert callbacks
+    for callback in callbacks:
+        callback()
     assert messages == [
         ("Download failed: network unavailable", "Download error", 1)
     ]

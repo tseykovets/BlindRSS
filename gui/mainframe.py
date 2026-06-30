@@ -315,7 +315,13 @@ class MainFrame(wx.Frame):
         wx.MessageBox("\n".join(lines), "Shortcuts", wx.ICON_WARNING if failed else wx.ICON_INFORMATION)
 
     def init_ui(self):
-        self.CreateStatusBar()
+        # Field 0 keeps the existing user-facing transient messages (filter-match
+        # counts, one-off install/translation notices). Field 1 is dedicated to
+        # ambient background-activity status (feed refresh / downloads) so it
+        # never clobbers field 0 while a screen-reader user is mid-search or
+        # mid-read (issue: status bar shows nothing while work is happening).
+        self.CreateStatusBar(2)
+        self.SetStatusWidths([-2, -1])
         # Main Splitter: Tree vs Content Area
         splitter = wx.SplitterWindow(self)
         
@@ -2550,9 +2556,13 @@ class MainFrame(wx.Frame):
             if not acquired:
                 log.info("Single-feed refresh skipped; refresh guard unavailable feed_id=%s", feed_id)
                 return
+            feed_obj = self.feed_map.get(feed_id)
+            feed_title = getattr(feed_obj, "title", None)
+            self._begin_refresh_activity(f"feed: {feed_title}" if feed_title else "feed")
             try:
                 result = self.provider.refresh_feed(feed_id, progress_cb=progress_cb)
             finally:
+                self._end_refresh_activity()
                 try:
                     self._refresh_guard.release()
                 except Exception:
@@ -2650,6 +2660,7 @@ class MainFrame(wx.Frame):
                 force,
             )
             return False
+        self._begin_refresh_activity()
         try:
             log.info("Refresh run acquired guard provider=%s force=%s", provider_name, force)
             # Perform retention cleanup before refresh to avoid resurrecting old articles
@@ -2722,6 +2733,7 @@ class MainFrame(wx.Frame):
             self._play_sound("sound_refresh_error")
             return False
         finally:
+            self._end_refresh_activity()
             try:
                 self._refresh_guard.release()
                 log.info("Refresh run released guard provider=%s force=%s", provider_name, force)
@@ -3930,6 +3942,58 @@ class MainFrame(wx.Frame):
         except Exception:
             log.exception("Failed to auto-open accessible browser for VoiceOver")
 
+    # --- Status bar activity field (field 1): ambient "what's happening now" ---
+    # text for background work (feed refresh, downloads). Field 0 is left alone
+    # (filter-match counts and other existing transient messages). Last-write-wins
+    # if two background operations overlap; no queue/tracker is maintained.
+
+    def _set_activity_status(self, text: str) -> None:
+        """Set the activity-status field. UI-thread only.
+
+        Background-thread callers must use _post_activity_status instead.
+        """
+        try:
+            self.SetStatusText(text or "", 1)
+        except Exception:
+            log.debug("Failed to set activity status text", exc_info=True)
+
+    def _post_activity_status(self, text: str) -> None:
+        """Marshal an activity-status update from any (likely background) thread."""
+        try:
+            wx.CallAfter(self._set_activity_status, text)
+        except Exception:
+            # Likely during shutdown.
+            log.debug("Failed to schedule activity status update, likely during shutdown.", exc_info=True)
+
+    def _begin_refresh_activity(self, detail: str | None = None) -> None:
+        """Announce that a feed-refresh batch has started.
+
+        detail describes what's being refreshed (e.g. "feed: Title",
+        "category: Tech", "imported feeds"); omit it for the main/periodic
+        full-feed refresh. Shared by all four refresh entry points so the
+        begin/end wording stays consistent instead of being copy-pasted.
+        """
+        message = f"Refreshing {detail}..." if detail else "Refreshing feeds..."
+        self._post_activity_status(message)
+
+    def _end_refresh_activity(self) -> None:
+        """Announce that a feed-refresh batch has finished (success or error)."""
+        self._post_activity_status("Refresh complete")
+
+    def _set_feed_activity_status(self, state: dict) -> None:
+        """Reflect a just-completed per-feed refresh (called on the UI thread
+        from _apply_feed_refresh_progress, which already runs inside
+        wx.CallAfter, so this touches the status bar directly).
+        """
+        if not state:
+            return
+        title = str(state.get("title") or "").strip() or "feed"
+        if state.get("error") or state.get("status") == "error":
+            message = f"Error checking: {title}"
+        else:
+            message = f"Checked: {title}"
+        self._set_activity_status(message)
+
     def _on_feed_refresh_progress(self, state):
         # Called from worker threads inside provider.refresh; batch and marshal to UI thread.
         if not isinstance(state, dict):
@@ -3971,6 +4035,8 @@ class MainFrame(wx.Frame):
         feed_id = state.get("id")
         if not feed_id:
             return
+
+        self._set_feed_activity_status(state)
 
         title = state.get("title", "")
         unread = state.get("unread_count", 0)
@@ -6734,10 +6800,17 @@ class MainFrame(wx.Frame):
             return None
 
     def _download_article_via_ytdlp(self, article, url):
-        """Download a yt-dlp-supported item, merging audio+video into one file."""
+        """Download a yt-dlp-supported item, merging audio+video into one file.
+
+        Activity-status begin text was already posted by the caller
+        (_download_article_thread, the only caller); this method pairs its own
+        terminal outcomes (not-installed / success / failure) with status
+        updates since it is where those outcomes are actually determined.
+        """
         import subprocess
         import platform as _platform
 
+        title = self._download_activity_title(article)
         cli = core.discovery._resolve_ytdlp_cli_path()
         target_dir = self._download_dir_for_article(article)
         base_name = self._safe_name(article.title) or "video"
@@ -6810,6 +6883,7 @@ class MainFrame(wx.Frame):
                     wx.CallAfter(lambda: wx.MessageBox(
                         "yt-dlp is not installed. Install it via Settings to download YouTube items.",
                         "Download error", wx.ICON_ERROR))
+                    self._post_activity_status(f"Download failed: {title}")
                     return
                 except subprocess.TimeoutExpired:
                     last_err = "yt-dlp download timed out"
@@ -6826,6 +6900,7 @@ class MainFrame(wx.Frame):
                     self._apply_download_retention(target_dir)
                     dest = produced or target_dir
                     wx.CallAfter(lambda d=dest: wx.MessageBox(f"Downloaded to:\n{d}", "Download complete"))
+                    self._post_activity_status(f"Download complete: {title}")
                     return
 
                 last_err = (res.stderr or res.stdout or last_err).strip() or last_err
@@ -6837,6 +6912,7 @@ class MainFrame(wx.Frame):
                 break
 
         wx.CallAfter(lambda e=last_err: wx.MessageBox(f"Download failed: {e}", "Download error", wx.ICON_ERROR))
+        self._post_activity_status(f"Download failed: {title}")
 
     def _find_downloaded_file(self, target_dir, base_name):
         try:
@@ -6855,10 +6931,18 @@ class MainFrame(wx.Frame):
             pass
         return None
 
+    def _download_activity_title(self, article) -> str:
+        """Human-readable title for download activity-status text."""
+        return str(getattr(article, "title", "") or "").strip() or "episode"
+
     def _download_article_thread(self, article):
+        title = self._download_activity_title(article)
+        self._post_activity_status(f"Downloading: {title}")
         try:
             ytdlp_url = self._ytdlp_download_target(article)
             if ytdlp_url:
+                # _download_article_via_ytdlp pairs its own terminal outcomes
+                # (success/failure) with activity-status updates.
                 self._download_article_via_ytdlp(article, ytdlp_url)
                 return
 
@@ -6887,6 +6971,7 @@ class MainFrame(wx.Frame):
             self._record_article_download(article, target_path)
             self._apply_download_retention(target_dir)
             wx.CallAfter(lambda: wx.MessageBox(f"Downloaded to:\n{target_path}", "Download complete"))
+            self._post_activity_status(f"Download complete: {title}")
         except Exception as e:
             error_message = str(e) or type(e).__name__
             wx.CallAfter(
@@ -6896,6 +6981,7 @@ class MainFrame(wx.Frame):
                     wx.ICON_ERROR,
                 )
             )
+            self._post_activity_status(f"Download failed: {title}")
 
     def _guess_extension(self, url, content_type=None):
         path = urlsplit(url).path if url else ""
@@ -7415,6 +7501,7 @@ class MainFrame(wx.Frame):
         if not acquired:
             return
 
+        self._begin_refresh_activity(f"category: {category_title}")
         try:
             def progress_cb(state):
                 self._on_feed_refresh_progress(state)
@@ -7437,6 +7524,7 @@ class MainFrame(wx.Frame):
                     except Exception:
                         log.exception("Failed category refresh for feed %s", feed_id)
         finally:
+            self._end_refresh_activity()
             try:
                 self._refresh_guard.release()
             except Exception:
@@ -7489,6 +7577,7 @@ class MainFrame(wx.Frame):
         if not acquired:
             return
 
+        self._begin_refresh_activity("imported feeds")
         try:
             def progress_cb(state):
                 self._on_feed_refresh_progress(state)
@@ -7511,6 +7600,7 @@ class MainFrame(wx.Frame):
                     except Exception:
                         log.exception("Failed OPML post-import refresh for feed %s", feed_id)
         finally:
+            self._end_refresh_activity()
             try:
                 self._refresh_guard.release()
             except Exception:

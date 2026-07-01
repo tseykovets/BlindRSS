@@ -128,6 +128,10 @@ class MainFrame(wx.Frame):
         
         self._updating_list = False # Flag to ignore selection events during background updates
         self._updating_tree = False # Flag to ignore tree selection events during rebuilds
+        self._tree_selection_debounce_timer = None
+        self._tree_selection_debounce_ms = 120
+        self._tree_keyboard_nav_defer_until = 0.0
+        self._tree_pending_feed_id = None
         self.selected_article_id = None
         self._update_check_inflight = False
         self._update_install_inflight = False
@@ -386,6 +390,7 @@ class MainFrame(wx.Frame):
         
         self.Bind(wx.EVT_TREE_SEL_CHANGED, self.on_tree_select, self.tree)
         self.Bind(wx.EVT_CONTEXT_MENU, self.on_tree_context_menu, self.tree)
+        self.tree.Bind(wx.EVT_KEY_DOWN, self.on_tree_key_down)
         # Remember manual category expand/collapse so it survives tree rebuilds (issue #33).
         self.Bind(wx.EVT_TREE_ITEM_EXPANDED, self.on_tree_item_expanded, self.tree)
         self.Bind(wx.EVT_TREE_ITEM_COLLAPSED, self.on_tree_item_collapsed, self.tree)
@@ -4479,6 +4484,111 @@ class MainFrame(wx.Frame):
             return f"category:{data.get('id')}"
         return None
 
+    def _tree_selection_feed_id(self, item):
+        feed_id = self._get_feed_id_from_tree_item(item)
+        if not feed_id:
+            return None
+        if self._unread_filter_enabled:
+            feed_id = f"unread:{feed_id}"
+        return feed_id
+
+    def _is_tree_home_end_key(self, key) -> bool:
+        keys = {
+            getattr(wx, "WXK_HOME", None),
+            getattr(wx, "WXK_END", None),
+            getattr(wx, "WXK_NUMPAD_HOME", None),
+            getattr(wx, "WXK_NUMPAD_END", None),
+        }
+        keys.discard(None)
+        return key in keys
+
+    def on_tree_key_down(self, event: wx.KeyEvent) -> None:
+        try:
+            key = event.GetKeyCode()
+        except Exception:
+            key = None
+
+        try:
+            plain = not (
+                event.ControlDown()
+                or event.ShiftDown()
+                or event.AltDown()
+                or event.MetaDown()
+            )
+        except Exception:
+            plain = True
+
+        if plain and self._is_tree_home_end_key(key):
+            try:
+                ms = int(getattr(self, "_tree_selection_debounce_ms", 120))
+            except Exception:
+                ms = 120
+            self._tree_keyboard_nav_defer_until = time.monotonic() + max(0, ms) / 1000.0
+
+        event.Skip()
+
+    def _should_defer_tree_selection(self) -> bool:
+        try:
+            return time.monotonic() <= float(getattr(self, "_tree_keyboard_nav_defer_until", 0.0) or 0.0)
+        except Exception:
+            return False
+
+    def _schedule_tree_selection_commit(self, feed_id: str) -> None:
+        self._tree_pending_feed_id = feed_id
+        timer = getattr(self, "_tree_selection_debounce_timer", None)
+        if timer is not None:
+            try:
+                timer.Stop()
+            except Exception:
+                pass
+        try:
+            ms = int(getattr(self, "_tree_selection_debounce_ms", 120))
+        except Exception:
+            ms = 120
+        self._tree_selection_debounce_timer = wx.CallLater(
+            max(0, ms),
+            self._commit_pending_tree_selection,
+        )
+
+    def _cancel_tree_selection_commit(self) -> None:
+        self._tree_pending_feed_id = None
+        timer = getattr(self, "_tree_selection_debounce_timer", None)
+        self._tree_selection_debounce_timer = None
+        if timer is not None:
+            try:
+                timer.Stop()
+            except Exception:
+                pass
+
+    def _commit_pending_tree_selection(self) -> None:
+        feed_id = getattr(self, "_tree_pending_feed_id", None)
+        self._tree_pending_feed_id = None
+        self._tree_selection_debounce_timer = None
+        if not feed_id:
+            return
+        try:
+            current_feed_id = self._tree_selection_feed_id(self.tree.GetSelection())
+        except Exception:
+            current_feed_id = None
+        if current_feed_id and current_feed_id != feed_id:
+            return
+        self._commit_tree_selection(feed_id)
+
+    def _commit_tree_selection(self, feed_id: str) -> None:
+        if not feed_id:
+            return
+        if feed_id == getattr(self, "current_feed_id", None):
+            return
+
+        # Save the last selected feed if the setting is enabled
+        try:
+            if self.config_manager.get("remember_last_feed", False):
+                self.config_manager.set("last_selected_feed", feed_id)
+        except Exception:
+            pass
+
+        self._select_view(feed_id)
+
     def _begin_articles_load(self, feed_id: str, full_load: bool = True, clear_list: bool = True):
         # Track current view so auto-refresh can do a cheap "top-up" without reloading history.
         self.current_feed_id = feed_id
@@ -4536,26 +4646,22 @@ class MainFrame(wx.Frame):
                 pass
             return
         item = event.GetItem()
-        feed_id = self._get_feed_id_from_tree_item(item)
+        feed_id = self._tree_selection_feed_id(item)
         if not feed_id:
             return
-        
-        if self._unread_filter_enabled:
-            feed_id = f"unread:{feed_id}"
-        
+
         # If the feed hasn't changed (e.g. during a tree refresh where items are recreated),
         # don't reset the view. The update logic (_reload_selected_articles) handles merging new items.
         if feed_id == getattr(self, "current_feed_id", None):
+            self._cancel_tree_selection_commit()
             return
 
-        # Save the last selected feed if the setting is enabled
-        try:
-            if self.config_manager.get("remember_last_feed", False):
-                self.config_manager.set("last_selected_feed", feed_id)
-        except Exception:
-            pass
+        if self._should_defer_tree_selection():
+            self._schedule_tree_selection_commit(feed_id)
+            return
 
-        self._select_view(feed_id)
+        self._cancel_tree_selection_commit()
+        self._commit_tree_selection(feed_id)
 
     def _load_articles_thread(self, feed_id, request_id, full_load: bool = True):
         page_size = self.article_page_size

@@ -34,6 +34,18 @@ class _DummyKeyEvent:
         self.skipped = True
 
 
+class _DummyTreeEvent:
+    def __init__(self, item=object()):
+        self._item = item
+        self.skipped = False
+
+    def GetItem(self):
+        return self._item
+
+    def Skip(self):
+        self.skipped = True
+
+
 class _DummyHost:
     on_char_hook = mainframe.MainFrame.on_char_hook
     on_article_list_key_down = mainframe.MainFrame.on_article_list_key_down
@@ -250,6 +262,64 @@ class _FakeConfig:
     def get(self, key, default=None):
         return self.values.get(key, default)
 
+    def set(self, key, value):
+        self.values[key] = value
+
+
+class _TreeNavHost:
+    on_tree_key_down = mainframe.MainFrame.on_tree_key_down
+    on_tree_select = mainframe.MainFrame.on_tree_select
+    _tree_selection_feed_id = mainframe.MainFrame._tree_selection_feed_id
+    _is_tree_home_end_key = mainframe.MainFrame._is_tree_home_end_key
+    _should_defer_tree_selection = mainframe.MainFrame._should_defer_tree_selection
+    _schedule_tree_selection_commit = mainframe.MainFrame._schedule_tree_selection_commit
+    _cancel_tree_selection_commit = mainframe.MainFrame._cancel_tree_selection_commit
+    _commit_pending_tree_selection = mainframe.MainFrame._commit_pending_tree_selection
+    _commit_tree_selection = mainframe.MainFrame._commit_tree_selection
+
+    def __init__(self):
+        class _Tree:
+            def __init__(self):
+                self.selection = object()
+
+            def GetSelection(self):
+                return self.selection
+
+        self.tree = _Tree()
+        self._updating_tree = False
+        self._unread_filter_enabled = False
+        self._tree_selection_debounce_timer = None
+        self._tree_selection_debounce_ms = 120
+        self._tree_keyboard_nav_defer_until = 0.0
+        self._tree_pending_feed_id = None
+        self.current_feed_id = "all"
+        self.config_manager = _FakeConfig({"remember_last_feed": True})
+        self.selected_views = []
+        self.feed_id_for_event = "feed-2"
+
+    def _get_feed_id_from_tree_item(self, item):
+        return self.feed_id_for_event
+
+    def _select_view(self, feed_id):
+        self.selected_views.append(feed_id)
+
+
+def _install_fake_call_later(monkeypatch):
+    scheduled = []
+
+    class _FakeCallLater:
+        def __init__(self, delay_ms, callback):
+            self.delay_ms = delay_ms
+            self.callback = callback
+            self.stopped = False
+            scheduled.append(self)
+
+        def Stop(self):
+            self.stopped = True
+
+    monkeypatch.setattr(mainframe.wx, "CallLater", _FakeCallLater)
+    return scheduled
+
 
 class _DeleteHost:
     on_delete_article = mainframe.MainFrame.on_delete_article
@@ -308,6 +378,120 @@ def test_ctrl_shift_f_shortcut_opens_feed_search():
 
     assert ("find_feed", None) in host.calls
     assert evt.skipped is False
+
+
+def test_tree_home_end_selection_is_deferred(monkeypatch):
+    scheduled = _install_fake_call_later(monkeypatch)
+    host = _TreeNavHost()
+
+    key_evt = _DummyKeyEvent(mainframe.wx.WXK_END)
+    host.on_tree_key_down(key_evt)
+    host.on_tree_select(_DummyTreeEvent(host.tree.GetSelection()))
+
+    assert key_evt.skipped is True
+    assert host.selected_views == []
+    assert host._tree_pending_feed_id == "feed-2"
+    assert len(scheduled) == 1
+    assert scheduled[0].delay_ms == 120
+
+    scheduled[0].callback()
+
+    assert host.selected_views == ["feed-2"]
+    assert host.config_manager.get("last_selected_feed") == "feed-2"
+
+
+def test_tree_home_end_variants_mark_selection_for_defer():
+    keys = [
+        getattr(mainframe.wx, "WXK_HOME", None),
+        getattr(mainframe.wx, "WXK_END", None),
+        getattr(mainframe.wx, "WXK_NUMPAD_HOME", None),
+        getattr(mainframe.wx, "WXK_NUMPAD_END", None),
+    ]
+    keys = [key for key in keys if key is not None]
+    assert keys
+
+    host = _TreeNavHost()
+    for key in keys:
+        host._tree_keyboard_nav_defer_until = 0.0
+        evt = _DummyKeyEvent(key)
+
+        host.on_tree_key_down(evt)
+
+        assert evt.skipped is True
+        assert host._is_tree_home_end_key(key) is True
+        assert host._tree_keyboard_nav_defer_until > 0.0
+
+
+def test_modified_tree_home_end_is_not_deferred():
+    host = _TreeNavHost()
+
+    for evt in (
+        _DummyKeyEvent(mainframe.wx.WXK_END, ctrl=True),
+        _DummyKeyEvent(mainframe.wx.WXK_END, shift=True),
+        _DummyKeyEvent(mainframe.wx.WXK_HOME, alt=True),
+    ):
+        host._tree_keyboard_nav_defer_until = 0.0
+
+        host.on_tree_key_down(evt)
+
+        assert evt.skipped is True
+        assert host._tree_keyboard_nav_defer_until == 0.0
+
+
+def test_tree_home_end_second_selection_cancels_first_timer(monkeypatch):
+    scheduled = _install_fake_call_later(monkeypatch)
+    host = _TreeNavHost()
+    host.current_feed_id = "feed-start"
+    host.on_tree_key_down(_DummyKeyEvent(mainframe.wx.WXK_END))
+
+    host.feed_id_for_event = "feed-end"
+    host.on_tree_select(_DummyTreeEvent(host.tree.GetSelection()))
+    host.feed_id_for_event = "feed-home"
+    host.on_tree_select(_DummyTreeEvent(host.tree.GetSelection()))
+
+    assert len(scheduled) == 2
+    assert scheduled[0].stopped is True
+    assert host.selected_views == []
+
+    scheduled[1].callback()
+
+    assert host.selected_views == ["feed-home"]
+    assert host.config_manager.get("last_selected_feed") == "feed-home"
+
+
+def test_tree_selection_without_home_end_commits_immediately(monkeypatch):
+    def _unexpected_call_later(*args, **kwargs):
+        raise AssertionError("normal tree selection should not schedule CallLater")
+
+    monkeypatch.setattr(mainframe.wx, "CallLater", _unexpected_call_later)
+    host = _TreeNavHost()
+
+    host.on_tree_select(_DummyTreeEvent(host.tree.GetSelection()))
+
+    assert host.selected_views == ["feed-2"]
+    assert host.config_manager.get("last_selected_feed") == "feed-2"
+    assert host._tree_pending_feed_id is None
+
+
+def test_tree_pending_selection_is_not_committed_if_tree_selection_changed(monkeypatch):
+    scheduled = _install_fake_call_later(monkeypatch)
+    host = _TreeNavHost()
+    host.feed_id_for_event = "feed-end"
+    host.on_tree_key_down(_DummyKeyEvent(mainframe.wx.WXK_END))
+    host.on_tree_select(_DummyTreeEvent(host.tree.GetSelection()))
+
+    host.feed_id_for_event = "feed-home"
+    scheduled[0].callback()
+
+    assert host.selected_views == []
+    assert host.config_manager.get("last_selected_feed") is None
+
+
+def test_tree_selection_feed_id_applies_unread_filter():
+    host = _TreeNavHost()
+    host._unread_filter_enabled = True
+
+    assert host._tree_selection_feed_id(host.tree.GetSelection()) == "unread:feed-2"
 
 
 def test_delete_shortcut_deletes_article_when_list_focused():

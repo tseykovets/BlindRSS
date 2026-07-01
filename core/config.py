@@ -134,12 +134,13 @@ DEFAULT_CONFIG = {
     "auto_download_podcasts": False,
     "auto_download_period": "unlimited",
     "refresh_interval": 300,  # seconds
-    # Refresh is primarily network-bound, but over-aggressive parallelism causes
-    # CPU spikes and can actually slow large OPML refreshes when a handful of
-    # feeds stall or throttle. Keep the default balanced.
-    "max_concurrent_refreshes": 6,
+    # Refresh is network-bound (worker threads mostly block on sockets), so the
+    # ceiling can go well above what CPU-bound parallelism would tolerate. Actual
+    # effective values are further adapted to CPU tier and clamped per host --
+    # see _compute_refresh_limits in providers/local.py.
+    "max_concurrent_refreshes": 16,
     "miniflux_targeted_refresh_workers": 8,
-    "per_host_max_connections": 2,
+    "per_host_max_connections": 4,
     "feed_timeout_seconds": 15,
     "feed_retry_attempts": 1,
     "playback_resolve_timeout_s": 4.0,
@@ -552,6 +553,7 @@ class ConfigManager:
                     (6, 2, 5),
                     (3, 1, 5),
                     (8, 2, 1),
+                    (6, 2, 1),  # shipped default through v1.73.1, superseded by higher network-bound ceilings
                 ):
                     cfg["max_concurrent_refreshes"] = int(DEFAULT_CONFIG["max_concurrent_refreshes"])
                     cfg["per_host_max_connections"] = int(DEFAULT_CONFIG["per_host_max_connections"])

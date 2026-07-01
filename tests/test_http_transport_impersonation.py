@@ -24,6 +24,12 @@ class _Recorder:
         self.tag = tag
         self.calls = []
 
+    def Session(self):
+        # safe_requests_get/head fetch a (thread-local, cached-by-identity) Session
+        # object and call .get/.head on it; returning self keeps every call
+        # recorded in the same self.calls list the tests assert against.
+        return self
+
     def get(self, url, **kwargs):
         self.calls.append(("get", url, kwargs))
         return _FakeResp(self.tag)

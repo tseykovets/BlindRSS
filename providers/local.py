@@ -39,13 +39,19 @@ warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
 log = logging.getLogger(__name__)
 
-_REFRESH_WORKERS_CPU_1_2 = 2
-_REFRESH_WORKERS_CPU_3_4 = 4
-_REFRESH_WORKERS_CPU_5_8 = 6
-_REFRESH_WORKERS_CPU_9_PLUS = 8
-_REFRESH_PER_HOST_LOW_CPU = 1
-_REFRESH_PER_HOST_NORMAL = 2
-_REFRESH_PER_HOST_HIGH_CPU = 2
+# Refresh is network-bound (threads mostly block on sockets), not CPU-bound, so
+# these ceilings scale well above core count -- they exist to protect very low-end
+# hardware from opening too many simultaneous connections, not to throttle CPU
+# load. Per-host limits stay comparatively low to keep single-server politeness
+# (the actual anti-bot/rate-limit concern, see issue #29) independent of the
+# overall worker ceiling.
+_REFRESH_WORKERS_CPU_1_2 = 8
+_REFRESH_WORKERS_CPU_3_4 = 16
+_REFRESH_WORKERS_CPU_5_8 = 24
+_REFRESH_WORKERS_CPU_9_PLUS = 32
+_REFRESH_PER_HOST_LOW_CPU = 2
+_REFRESH_PER_HOST_NORMAL = 4
+_REFRESH_PER_HOST_HIGH_CPU = 4
 
 _REMOVE_FEED_BUSY_TIMEOUT_MS = 5000
 _FAST_REFRESH_DISCOVERY_TIMEOUT_SECONDS = 4.0
@@ -965,6 +971,20 @@ def _retry_backoff_seconds(attempt: int, error: Optional[Exception] = None) -> f
     return max(0.25, min(_MAX_RETRY_BACKOFF_SECONDS, delay))
 
 
+def _per_feed_attempt_deadline(timeout_s: float) -> float:
+    """Monotonic deadline bounding one feed's total retry time this refresh cycle.
+
+    A single unresponsive server (full ReadTimeout on every attempt, no fast
+    failure to short-circuit on) could otherwise occupy a refresh worker slot for
+    every configured retry plus the impersonation escalation back-to-back -- with
+    feed_retry_attempts=0 that is 11 attempts, each paying the full timeout again.
+    Scaling with the feed's own timeout (rather than a flat constant) means a feed
+    with a deliberately raised per-feed timeout override still gets a proportional
+    retry budget instead of being cut off after one attempt.
+    """
+    return time.monotonic() + max(20.0, 2.5 * float(timeout_s or 15.0))
+
+
 def _failure_cooldown_seconds_for_error(error: Exception) -> float:
     status = _http_status_from_error(error)
     if status is not None:
@@ -1603,6 +1623,7 @@ class LocalProvider(RSSProvider):
                 with limiter:
                     last_exc = None
                     attempts = retries + 1
+                    deadline = _per_feed_attempt_deadline(feed_timeout)
                     for attempt in range(1, attempts + 1):
                         try:
                             page_title, all_items = odysee_mod.fetch_listing_items(
@@ -1615,7 +1636,7 @@ class LocalProvider(RSSProvider):
                             last_exc = e
                             status = "error"
                             error_msg = str(e)
-                            if attempt <= retries:
+                            if attempt <= retries and time.monotonic() < deadline:
                                 backoff = min(4, attempt)
                                 time.sleep(backoff)
                                 continue
@@ -1709,6 +1730,7 @@ class LocalProvider(RSSProvider):
                 with limiter:
                     last_exc = None
                     attempts = retries + 1
+                    deadline = _per_feed_attempt_deadline(max(10, feed_timeout))
                     for attempt in range(1, attempts + 1):
                         try:
                             page_title, all_items = _disc.fetch_youtube_search_items(
@@ -1722,7 +1744,7 @@ class LocalProvider(RSSProvider):
                             last_exc = e
                             status = "error"
                             error_msg = str(e)
-                            if attempt <= retries:
+                            if attempt <= retries and time.monotonic() < deadline:
                                 time.sleep(min(4, attempt))
                                 continue
                             raise last_exc
@@ -1864,11 +1886,14 @@ class LocalProvider(RSSProvider):
                 with limiter:
                     last_exc = None
                     attempts = retries + 1
+                    deadline = _per_feed_attempt_deadline(feed_timeout)
                     for attempt in range(1, attempts + 1):
                         try:
                             all_items.clear()
                             page_title = None
                             for page in range(1, max_pages + 1):
+                                if page > 1 and time.monotonic() >= deadline:
+                                    break
                                 page_url = feed_url if page == 1 else _with_page(feed_url, page)
                                 t, items = rumble_mod.fetch_listing_items(page_url, timeout_s=float(feed_timeout))
                                 if t and not page_title:
@@ -1881,7 +1906,7 @@ class LocalProvider(RSSProvider):
                             last_exc = e
                             status = "error"
                             error_msg = str(e)
-                            if attempt <= retries:
+                            if attempt <= retries and time.monotonic() < deadline:
                                 backoff = min(4, attempt)
                                 time.sleep(backoff)
                                 continue
@@ -2032,6 +2057,11 @@ class LocalProvider(RSSProvider):
                 impersonation_fallback = feed_impersonate_mode == "auto" and utils.CURL_CFFI_AVAILABLE
                 attempts_total = attempts + (1 if impersonation_fallback else 0)
                 do_impersonation_next = False
+                # Bound one feed's total retry time (issue: 2-minute refreshes) --
+                # without this, a server that times out on every attempt could occupy
+                # a refresh worker for attempts_total * feed_timeout seconds back to
+                # back, since each retry still pays the full timeout again.
+                attempt_deadline = _per_feed_attempt_deadline(direct_fetch_timeout)
                 for attempt in range(1, attempts_total + 1):
                     if feed_impersonate_mode == "never":
                         impersonate_now = False
@@ -2071,6 +2101,7 @@ class LocalProvider(RSSProvider):
                             and not impersonate_now
                             and attempt < attempts_total
                             and _response_looks_blocked(resp)
+                            and time.monotonic() < attempt_deadline
                         ):
                             do_impersonation_next = True
                             log.info(
@@ -2146,12 +2177,16 @@ class LocalProvider(RSSProvider):
                             and configured_retries == 0
                             and attempt < attempts
                             and _http_status_from_error(e) is None
+                            and time.monotonic() < attempt_deadline
+                            # Only true fast-failing resets qualify as "cheap" retries.
+                            # A Timeout/ReadTimeout already burned the full timeout
+                            # budget, so retrying it "cheaply" (0.01s backoff) just
+                            # repeats that full wait again, up to 9 extra times --
+                            # the actual cause of multi-minute refreshes when a feed
+                            # is simply unresponsive and feed_retry_attempts=0.
                             and isinstance(
                                 e,
                                 (
-                                    requests.exceptions.Timeout,
-                                    requests.exceptions.ConnectTimeout,
-                                    requests.exceptions.ReadTimeout,
                                     requests.exceptions.ConnectionError,
                                     requests.exceptions.ChunkedEncodingError,
                                 ),
@@ -2159,7 +2194,7 @@ class LocalProvider(RSSProvider):
                         ):
                             retry_allowed = True
                             fast_transport_retry = True
-                        if retry_allowed and _should_retry_refresh_error(e):
+                        if retry_allowed and _should_retry_refresh_error(e) and time.monotonic() < attempt_deadline:
                             backoff = 0.01 if fast_transport_retry else _retry_backoff_seconds(attempt, e)
                             log.info(
                                 "Local feed refresh retrying id=%s title=%r attempt=%s/%s backoff_s=%.2f error=%r url=%s",
@@ -2182,6 +2217,7 @@ class LocalProvider(RSSProvider):
                             and not impersonate_now
                             and attempt < attempts_total
                             and _should_escalate_to_impersonation(e)
+                            and time.monotonic() < attempt_deadline
                         ):
                             do_impersonation_next = True
                             log.info(

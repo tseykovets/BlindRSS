@@ -34,13 +34,13 @@ def test_migrate_old_refresh_defaults_to_current_defaults(tmp_path, monkeypatch)
     monkeypatch.setattr(config_mod, "CONFIG_FILE", str(cfg_path))
     mgr = config_mod.ConfigManager()
 
-    assert int(mgr.get("max_concurrent_refreshes")) == 6
-    assert int(mgr.get("per_host_max_connections")) == 2
+    assert int(mgr.get("max_concurrent_refreshes")) == 16
+    assert int(mgr.get("per_host_max_connections")) == 4
     assert int(mgr.get("feed_retry_attempts")) == 1
 
     saved = _read_json(cfg_path)
-    assert int(saved.get("max_concurrent_refreshes")) == 6
-    assert int(saved.get("per_host_max_connections")) == 2
+    assert int(saved.get("max_concurrent_refreshes")) == 16
+    assert int(saved.get("per_host_max_connections")) == 4
     assert int(saved.get("feed_retry_attempts")) == 1
 
 
@@ -58,13 +58,13 @@ def test_migrate_previous_low_refresh_defaults_to_current_defaults(tmp_path, mon
     monkeypatch.setattr(config_mod, "CONFIG_FILE", str(cfg_path))
     mgr = config_mod.ConfigManager()
 
-    assert int(mgr.get("max_concurrent_refreshes")) == 6
-    assert int(mgr.get("per_host_max_connections")) == 2
+    assert int(mgr.get("max_concurrent_refreshes")) == 16
+    assert int(mgr.get("per_host_max_connections")) == 4
     assert int(mgr.get("feed_retry_attempts")) == 1
 
     saved = _read_json(cfg_path)
-    assert int(saved.get("max_concurrent_refreshes")) == 6
-    assert int(saved.get("per_host_max_connections")) == 2
+    assert int(saved.get("max_concurrent_refreshes")) == 16
+    assert int(saved.get("per_host_max_connections")) == 4
     assert int(saved.get("feed_retry_attempts")) == 1
 
 
@@ -82,13 +82,13 @@ def test_migrate_older_low_refresh_defaults_to_current_defaults(tmp_path, monkey
     monkeypatch.setattr(config_mod, "CONFIG_FILE", str(cfg_path))
     mgr = config_mod.ConfigManager()
 
-    assert int(mgr.get("max_concurrent_refreshes")) == 6
-    assert int(mgr.get("per_host_max_connections")) == 2
+    assert int(mgr.get("max_concurrent_refreshes")) == 16
+    assert int(mgr.get("per_host_max_connections")) == 4
     assert int(mgr.get("feed_retry_attempts")) == 1
 
     saved = _read_json(cfg_path)
-    assert int(saved.get("max_concurrent_refreshes")) == 6
-    assert int(saved.get("per_host_max_connections")) == 2
+    assert int(saved.get("max_concurrent_refreshes")) == 16
+    assert int(saved.get("per_host_max_connections")) == 4
     assert int(saved.get("feed_retry_attempts")) == 1
 
 
@@ -106,13 +106,13 @@ def test_migrate_previous_high_refresh_defaults_to_current_defaults(tmp_path, mo
     monkeypatch.setattr(config_mod, "CONFIG_FILE", str(cfg_path))
     mgr = config_mod.ConfigManager()
 
-    assert int(mgr.get("max_concurrent_refreshes")) == 6
-    assert int(mgr.get("per_host_max_connections")) == 2
+    assert int(mgr.get("max_concurrent_refreshes")) == 16
+    assert int(mgr.get("per_host_max_connections")) == 4
     assert int(mgr.get("feed_retry_attempts")) == 1
 
     saved = _read_json(cfg_path)
-    assert int(saved.get("max_concurrent_refreshes")) == 6
-    assert int(saved.get("per_host_max_connections")) == 2
+    assert int(saved.get("max_concurrent_refreshes")) == 16
+    assert int(saved.get("per_host_max_connections")) == 4
     assert int(saved.get("feed_retry_attempts")) == 1
 
 
@@ -130,13 +130,37 @@ def test_migrate_previous_balanced_refresh_defaults_to_current_defaults(tmp_path
     monkeypatch.setattr(config_mod, "CONFIG_FILE", str(cfg_path))
     mgr = config_mod.ConfigManager()
 
-    assert int(mgr.get("max_concurrent_refreshes")) == 6
-    assert int(mgr.get("per_host_max_connections")) == 2
+    assert int(mgr.get("max_concurrent_refreshes")) == 16
+    assert int(mgr.get("per_host_max_connections")) == 4
     assert int(mgr.get("feed_retry_attempts")) == 1
 
     saved = _read_json(cfg_path)
-    assert int(saved.get("max_concurrent_refreshes")) == 6
-    assert int(saved.get("per_host_max_connections")) == 2
+    assert int(saved.get("max_concurrent_refreshes")) == 16
+    assert int(saved.get("per_host_max_connections")) == 4
+    assert int(saved.get("feed_retry_attempts")) == 1
+
+
+def test_migrate_shipped_v1_73_1_refresh_defaults_to_current_defaults(tmp_path, monkeypatch):
+    cfg_path = tmp_path / "config.json"
+    _write_json(
+        cfg_path,
+        {
+            "max_concurrent_refreshes": 6,
+            "per_host_max_connections": 2,
+            "feed_retry_attempts": 1,
+        },
+    )
+
+    monkeypatch.setattr(config_mod, "CONFIG_FILE", str(cfg_path))
+    mgr = config_mod.ConfigManager()
+
+    assert int(mgr.get("max_concurrent_refreshes")) == 16
+    assert int(mgr.get("per_host_max_connections")) == 4
+    assert int(mgr.get("feed_retry_attempts")) == 1
+
+    saved = _read_json(cfg_path)
+    assert int(saved.get("max_concurrent_refreshes")) == 16
+    assert int(saved.get("per_host_max_connections")) == 4
     assert int(saved.get("feed_retry_attempts")) == 1
 
 

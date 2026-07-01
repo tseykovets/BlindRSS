@@ -8,6 +8,7 @@ import ipaddress
 import math
 import os
 import socket
+import threading
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Mapping
@@ -41,6 +42,31 @@ except Exception:
     _curl_requests = None
     _CURL_REQUESTS = None
     CURL_CFFI_AVAILABLE = False
+
+# Per-thread transport sessions so a refresh worker's sequential feed fetches (esp.
+# repeat hosts -- multi-feed YouTube/news subscriptions) reuse a warm TCP/TLS
+# connection instead of paying a fresh handshake on every single call, which is
+# what bare requests.get()/curl_cffi.requests.get() do internally (each opens a
+# throwaway Session/pool and tears it down before returning). Keyed by object
+# identity of the current `requests`/`_CURL_REQUESTS` binding (not just "is it set")
+# so tests that monkeypatch those names still get an isolated fake per test.
+_transport_local = threading.local()
+
+
+def _get_plain_session():
+    owner = requests
+    if getattr(_transport_local, "plain_owner", None) is not owner:
+        _transport_local.plain_session = owner.Session()
+        _transport_local.plain_owner = owner
+    return _transport_local.plain_session
+
+
+def _get_curl_session():
+    owner = _CURL_REQUESTS
+    if getattr(_transport_local, "curl_owner", None) is not owner:
+        _transport_local.curl_session = owner.Session()
+        _transport_local.curl_owner = owner
+    return _transport_local.curl_session
 
 
 def platform_supports_notifications() -> bool:
@@ -441,12 +467,12 @@ def safe_requests_get(url, *, impersonate: bool = False, **kwargs):
     if impersonate and CURL_CFFI_AVAILABLE:
         final_headers = _impersonated_headers(headers)
         _log_http_request("GET", url, final_headers, f"curl_cffi:{IMPERSONATE_TARGET}")
-        return _CURL_REQUESTS.get(url, headers=final_headers, impersonate=IMPERSONATE_TARGET, **kwargs)
+        return _get_curl_session().get(url, headers=final_headers, impersonate=IMPERSONATE_TARGET, **kwargs)
     # Merge with defaults, preserving caller's headers if they exist
     final_headers = HEADERS.copy()
     final_headers.update(headers)
     _log_http_request("GET", url, final_headers, "requests")
-    return requests.get(url, headers=final_headers, **kwargs)
+    return _get_plain_session().get(url, headers=final_headers, **kwargs)
 
 
 def safe_requests_head(url, *, impersonate: bool = False, **kwargs):
@@ -455,11 +481,11 @@ def safe_requests_head(url, *, impersonate: bool = False, **kwargs):
     if impersonate and CURL_CFFI_AVAILABLE:
         final_headers = _impersonated_headers(headers)
         _log_http_request("HEAD", url, final_headers, f"curl_cffi:{IMPERSONATE_TARGET}")
-        return _CURL_REQUESTS.head(url, headers=final_headers, impersonate=IMPERSONATE_TARGET, **kwargs)
+        return _get_curl_session().head(url, headers=final_headers, impersonate=IMPERSONATE_TARGET, **kwargs)
     final_headers = HEADERS.copy()
     final_headers.update(headers)
     _log_http_request("HEAD", url, final_headers, "requests")
-    return requests.head(url, headers=final_headers, **kwargs)
+    return _get_plain_session().head(url, headers=final_headers, **kwargs)
 
 
 def build_cache_id(article_id: str | None, feed_id: str | None = None, provider: str | None = None) -> str | None:

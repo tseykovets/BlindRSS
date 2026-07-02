@@ -21,6 +21,8 @@ from core.db import (
     record_feed_error,
     clear_feed_error,
     get_feed_errors,
+    deleted_article_tombstones_for_feed,
+    remember_deleted_article,
 )
 from core.discovery import discover_feed
 from core import utils
@@ -54,6 +56,7 @@ _REFRESH_PER_HOST_NORMAL = 4
 _REFRESH_PER_HOST_HIGH_CPU = 4
 
 _REMOVE_FEED_BUSY_TIMEOUT_MS = 5000
+_DELETE_ARTICLE_BUSY_TIMEOUT_MS = 5000
 _FAST_REFRESH_DISCOVERY_TIMEOUT_SECONDS = 4.0
 _FAST_REFRESH_DIRECT_PROBE_TIMEOUT_SECONDS = 4.0
 _DISCOVERY_FAILURE_CACHE_TTL_SECONDS = 900.0
@@ -110,6 +113,20 @@ def _xml_direct_child_text(element, *names) -> str:
         if text:
             return text
     return ""
+
+
+def _article_matches_deleted_tombstone(
+    deleted_ids: set[str],
+    deleted_urls: set[str],
+    *article_ids,
+    url: str | None = None,
+) -> bool:
+    for article_id in article_ids:
+        aid = str(article_id or "").strip()
+        if aid and aid in deleted_ids:
+            return True
+    clean_url = str(url or "").strip()
+    return bool(clean_url and clean_url in deleted_urls)
 
 
 def _feed_item_identity_keys(element) -> List[str]:
@@ -1659,6 +1676,10 @@ class LocalProvider(RSSProvider):
                         (title_to_store, None, None, feed_id),
                     )
                     conn.commit()
+                    deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
+                        feed_id,
+                        cursor=c,
+                    )
 
                     total_entries = len(all_items)
                     entry_count = total_entries
@@ -1670,6 +1691,13 @@ class LocalProvider(RSSProvider):
                             author = item.author or final_title or "Odysee"
                             raw_date = item.published or ""
                             date = utils.normalize_date(raw_date, title, "", url)
+                            if _article_matches_deleted_tombstone(
+                                deleted_article_ids,
+                                deleted_article_urls,
+                                article_id,
+                                url=url,
+                            ):
+                                continue
 
                             c.execute("SELECT date FROM articles WHERE id = ?", (article_id,))
                             row = c.fetchone()
@@ -1766,6 +1794,10 @@ class LocalProvider(RSSProvider):
                         (title_to_store, None, None, feed_id),
                     )
                     conn.commit()
+                    deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
+                        feed_id,
+                        cursor=c,
+                    )
 
                     total_entries = len(all_items)
                     entry_count = total_entries
@@ -1783,6 +1815,14 @@ class LocalProvider(RSSProvider):
                             author = item.author or final_title or "YouTube"
                             raw_date = item.published or ""
                             date = utils.normalize_date(raw_date, title, "", url)
+                            if _article_matches_deleted_tombstone(
+                                deleted_article_ids,
+                                deleted_article_urls,
+                                article_id,
+                                legacy_article_id,
+                                url=url,
+                            ):
+                                continue
 
                             c.execute(
                                 "SELECT id, date FROM articles "
@@ -1930,6 +1970,10 @@ class LocalProvider(RSSProvider):
                         (title_to_store, None, None, feed_id),
                     )
                     conn.commit()
+                    deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
+                        feed_id,
+                        cursor=c,
+                    )
 
                     total_entries = len(all_items)
                     entry_count = total_entries
@@ -1941,6 +1985,13 @@ class LocalProvider(RSSProvider):
                             author = item.author or final_title or "Rumble"
                             raw_date = item.published or ""
                             date = utils.normalize_date(raw_date, title, "", url)
+                            if _article_matches_deleted_tombstone(
+                                deleted_article_ids,
+                                deleted_article_urls,
+                                article_id,
+                                url=url,
+                            ):
+                                continue
 
                             c.execute("SELECT date FROM articles WHERE id = ?", (article_id,))
                             row = c.fetchone()
@@ -2306,6 +2357,10 @@ class LocalProvider(RSSProvider):
                     }
                     for row in c.fetchall()
                 }
+                deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
+                    feed_id,
+                    cursor=c,
+                )
 
                 entry_ids = []
                 for entry in d.entries:
@@ -2380,6 +2435,16 @@ class LocalProvider(RSSProvider):
 
                     if base_id in conflicting_ids:
                         article_id = scoped_id
+
+                    if _article_matches_deleted_tombstone(
+                        deleted_article_ids,
+                        deleted_article_urls,
+                        base_id,
+                        scoped_id,
+                        article_id,
+                        url=url,
+                    ):
+                        continue
 
                     existing_article_id = None
                     existing_metadata = existing_articles.get(base_id)
@@ -3113,7 +3178,19 @@ class LocalProvider(RSSProvider):
             return False
         conn = get_connection()
         try:
+            try:
+                conn.execute(f"PRAGMA busy_timeout={_DELETE_ARTICLE_BUSY_TIMEOUT_MS}")
+            except sqlite3.Error:
+                pass
             c = conn.cursor()
+            c.execute("BEGIN IMMEDIATE")
+            c.execute("SELECT feed_id, url FROM articles WHERE id = ? LIMIT 1", (article_id,))
+            row = c.fetchone()
+            if not row:
+                conn.rollback()
+                return False
+            feed_id, article_url = row[0], row[1]
+            remember_deleted_article(feed_id, article_id, article_url, cursor=c)
             c.execute("DELETE FROM chapters WHERE article_id = ?", (article_id,))
             local_cache_key = f"local:{article_id}"
             c.execute("DELETE FROM chapter_cache WHERE cache_key = ?", (local_cache_key,))
@@ -3122,6 +3199,16 @@ class LocalProvider(RSSProvider):
             deleted = int(c.rowcount or 0)
             conn.commit()
             return deleted > 0
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            if _is_locked_error(e):
+                log.warning("Database locked while deleting article %s", article_id, exc_info=True)
+                return False
+            log.error("Local delete article error for %s: %s", article_id, e)
+            return False
         finally:
             conn.close()
 

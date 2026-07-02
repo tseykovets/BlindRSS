@@ -779,3 +779,72 @@ def test_delete_article_keeps_confirmation_by_default(monkeypatch):
 
     assert prompts
     assert not started
+
+
+def test_delete_article_is_blocked_while_refresh_is_active(monkeypatch):
+    started = []
+    prompts = []
+
+    class FakeThread:
+        def __init__(self, target, args=(), daemon=None):
+            self.target = target
+            self.args = args
+            self.daemon = daemon
+
+        def start(self):
+            started.append((self.target, self.args, self.daemon))
+
+    def message_box(*args, **_kwargs):
+        prompts.append(args)
+        return mainframe.wx.YES
+
+    monkeypatch.setattr(mainframe.wx, "MessageBox", message_box)
+    monkeypatch.setattr(mainframe.threading, "Thread", FakeThread)
+
+    host = _DeleteHost(confirm_setting=True)
+    host._refresh_guard = mainframe.threading.Lock()
+    host._refresh_guard.acquire()
+    try:
+        host.on_delete_article()
+    finally:
+        host._refresh_guard.release()
+
+    assert not started
+    assert len(prompts) == 1
+    assert prompts[0][1] == "Refresh in Progress"
+
+
+def test_delete_worker_does_not_wait_if_refresh_starts_after_confirmation(monkeypatch):
+    prompts = []
+    provider_calls = []
+
+    def call_after(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    def message_box(*args, **_kwargs):
+        prompts.append(args)
+        return mainframe.wx.YES
+
+    class Provider:
+        def delete_article(self, article_id):
+            provider_calls.append(article_id)
+            return True
+
+    class Host:
+        provider = Provider()
+
+    host = Host()
+    host._refresh_guard = mainframe.threading.Lock()
+    host._refresh_guard.acquire()
+
+    monkeypatch.setattr(mainframe.wx, "CallAfter", call_after)
+    monkeypatch.setattr(mainframe.wx, "MessageBox", message_box)
+
+    try:
+        mainframe.MainFrame._delete_articles_thread(host, [("article-1", "article-1", "article:0")], 0)
+    finally:
+        host._refresh_guard.release()
+
+    assert provider_calls == []
+    assert len(prompts) == 1
+    assert prompts[0][1] == "Refresh in Progress"

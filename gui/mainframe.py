@@ -3153,7 +3153,11 @@ class MainFrame(wx.Frame):
             mark_read_item = menu.Append(wx.ID_ANY, "Mark as &Read")
             mark_unread_item = menu.Append(wx.ID_ANY, "Mark as &Unread")
         delete_item = None
-        if valid_article_idx and self._supports_article_delete():
+        if (
+            valid_article_idx
+            and self._supports_article_delete()
+            and not MainFrame._is_feed_refresh_active(self)
+        ):
             delete_label = f"Delete {count} Articles\tDel" if multi else "Delete Article\tDel"
             delete_item = menu.Append(wx.ID_ANY, delete_label)
         menu.AppendSeparator()
@@ -3569,6 +3573,20 @@ class MainFrame(wx.Frame):
             log.exception("Error checking provider support for article deletion")
             return False
 
+    def _is_feed_refresh_active(self) -> bool:
+        try:
+            locked = getattr(getattr(self, "_refresh_guard", None), "locked", None)
+            return bool(locked()) if callable(locked) else False
+        except Exception:
+            return False
+
+    def _show_delete_blocked_by_refresh_message(self) -> None:
+        wx.MessageBox(
+            "Articles cannot be deleted while feeds are refreshing. Try again after the refresh is complete.",
+            "Refresh in Progress",
+            wx.ICON_INFORMATION,
+        )
+
     def _get_selected_article_index(self) -> int:
         idx = wx.NOT_FOUND
         try:
@@ -3768,6 +3786,10 @@ class MainFrame(wx.Frame):
             )
             return
 
+        if MainFrame._is_feed_refresh_active(self):
+            MainFrame._show_delete_blocked_by_refresh_message(self)
+            return
+
         count = len(indices)
         if confirm is None:
             try:
@@ -3803,16 +3825,37 @@ class MainFrame(wx.Frame):
         ).start()
 
     def _delete_articles_thread(self, items, anchor_idx: int) -> None:
-        results = []
-        for article_id, article_cache_id, cache_key in items:
-            ok = False
-            err = ""
+        refresh_guard = getattr(self, "_refresh_guard", None)
+        guard_acquired = False
+        acquire = getattr(refresh_guard, "acquire", None)
+        if callable(acquire):
             try:
-                ok = bool(self.provider.delete_article(article_id))
-            except Exception as e:
-                err = str(e) or "Unknown error"
-            results.append((article_id, article_cache_id, cache_key, ok, err))
-        wx.CallAfter(self._post_delete_articles, results, anchor_idx)
+                guard_acquired = bool(acquire(blocking=False))
+            except TypeError:
+                guard_acquired = bool(acquire(False))
+            except Exception:
+                guard_acquired = False
+            if not guard_acquired:
+                wx.CallAfter(MainFrame._show_delete_blocked_by_refresh_message, self)
+                return
+
+        results = []
+        try:
+            for article_id, article_cache_id, cache_key in items:
+                ok = False
+                err = ""
+                try:
+                    ok = bool(self.provider.delete_article(article_id))
+                except Exception as e:
+                    err = str(e) or "Unknown error"
+                results.append((article_id, article_cache_id, cache_key, ok, err))
+            wx.CallAfter(self._post_delete_articles, results, anchor_idx)
+        finally:
+            if guard_acquired:
+                try:
+                    refresh_guard.release()
+                except Exception:
+                    pass
 
     def _post_delete_articles(self, results, anchor_idx: int = 0) -> None:
         deleted_any = False

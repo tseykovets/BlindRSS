@@ -330,6 +330,17 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_articles_date_id ON articles (date, id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_articles_feed_id_date_id ON articles (feed_id, date, id)")
 
+        c.execute('''CREATE TABLE IF NOT EXISTS deleted_articles (
+            feed_id TEXT NOT NULL,
+            article_id TEXT NOT NULL,
+            url TEXT,
+            deleted_at REAL NOT NULL,
+            PRIMARY KEY (feed_id, article_id),
+            FOREIGN KEY(feed_id) REFERENCES feeds(id) ON DELETE CASCADE
+        )''')
+        c.execute("CREATE INDEX IF NOT EXISTS idx_deleted_articles_feed_id ON deleted_articles (feed_id)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_deleted_articles_feed_url ON deleted_articles (feed_id, url)")
+
         c.execute('''CREATE TABLE IF NOT EXISTS chapters (
             id TEXT PRIMARY KEY,
             article_id TEXT,
@@ -566,6 +577,74 @@ def get_connection():
     except Exception as e:
         log.warning(f"Failed to set PRAGMAs on connection: {e}")
     return conn
+
+
+def remember_deleted_article(
+    feed_id: str,
+    article_id: str,
+    url: str | None = None,
+    *,
+    deleted_at: float | None = None,
+    cursor=None,
+) -> bool:
+    """Persist a local article deletion so refresh does not recreate it."""
+    fid = str(feed_id or "").strip()
+    aid = str(article_id or "").strip()
+    if not fid or not aid:
+        return False
+    clean_url = str(url or "").strip() or None
+    timestamp = float(time.time() if deleted_at is None else deleted_at)
+
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(
+            """
+            INSERT INTO deleted_articles (feed_id, article_id, url, deleted_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(feed_id, article_id) DO UPDATE SET
+                url = excluded.url,
+                deleted_at = excluded.deleted_at
+            """,
+            (fid, aid, clean_url, timestamp),
+        )
+        if conn is not None:
+            conn.commit()
+        return True
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def deleted_article_tombstones_for_feed(feed_id: str, cursor=None) -> tuple[set[str], set[str]]:
+    """Return article IDs and URLs intentionally deleted for a local feed."""
+    fid = str(feed_id or "").strip()
+    if not fid:
+        return set(), set()
+
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("SELECT article_id, url FROM deleted_articles WHERE feed_id = ?", (fid,))
+        ids: set[str] = set()
+        urls: set[str] = set()
+        for article_id, url in c.fetchall():
+            aid = str(article_id or "").strip()
+            if aid:
+                ids.add(aid)
+            clean_url = str(url or "").strip()
+            if clean_url:
+                urls.add(clean_url)
+        return ids, urls
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 def delete_hosted_chapter_cache(cache_keys, cursor=None) -> int:

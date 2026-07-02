@@ -70,6 +70,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
     - Includes tables: `feeds`, `articles`, `chapters`, `chapter_cache`, `chapter_sources`, `categories`, `playback_state`.
     - Category identity is the full path string (`Parent / Child`) in `categories.title` and `feeds.category`; the UI can display only the leaf, but storage must keep the full path so duplicate leaf names under different parents do not collide.
     - Hosted-provider chapter rows do not belong in the local FK-backed `chapters` table; use provider-scoped cache keys in `chapter_cache` / `chapter_sources`.
+    - Local article deletion is a persistent user action: record a `deleted_articles` tombstone before removing the row, and make refresh skip tombstoned item IDs/URLs so deleted RSS items are not recreated as unread on the next refresh.
   - `utils.py`: Critical helpers.
     - `HEADERS` and request helpers (`safe_requests_get` / `safe_requests_head`).
     - `html_to_text(html, include_images=False)`, `first_image_url(html)`, `content_has_images(html)`: HTML→text for the article pane. With `include_images`, each `<img>` becomes `[Image: alt]` (or `[Image]`) so screen readers announce images; the image URL is never inlined.
@@ -175,6 +176,8 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - `chapter_url`: optional external chapter source (e.g. podcast chapters JSON) fetched lazily via `utils.fetch_and_store_chapters`.
   - `description`: the feed-provided item description/summary when distinct from richer content (for example RSS `<description>` alongside `content:encoded`). UI may fall back to `content` for legacy rows/providers that do not expose a separate summary.
   - Indexed for `feed_id`, `is_read`, `date`, plus composite indexes for common list/count paths.
+- `deleted_articles`: `feed_id`, `article_id`, `url`, `deleted_at`.
+  - Local-provider tombstones for user-deleted articles. Refresh must skip matching item IDs and stable URLs so delete does not behave like temporary hide; feed removal cascades these rows.
 - `chapters`: `id`, `article_id`, `start`, `title`, `href`.
 - `chapter_cache`: `id`, `cache_key`, `start`, `title`, `href`.
   - Used for hosted-provider chapter rows where the article is not in the local `articles` table.
@@ -197,6 +200,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 - When startup refresh is enabled, the first background refresh runs immediately. Whether it forces is decided per provider via `RSSProvider.should_force_startup_refresh()`: the local provider returns True (forcing is just one full GET per feed, so a fresh launch is never left stale by servers that return a spurious 304), while hosted providers such as Miniflux return False to avoid an expensive per-feed fan-out on startup. Manual full refresh remains `force=True`.
 - The `ignore_feed_cache` config (default False) makes the local provider treat every refresh (including periodic/background) as forced, so feeds whose servers return spurious 304s keep updating in the background. The startup refresh fetches fresh regardless; this setting only affects periodic refreshes. Exposed in Settings as "Always fetch full feeds in the background (ignore feed caching)".
 - Feed-format compatibility is part of refresh, not discovery only. Keep tests for legacy RSS/RDF, Atom, JSON Feed, WordPress `content:encoded`, 406 retry, and generated entry IDs when touching parser code.
+- Local provider refresh must honor `deleted_articles` tombstones for RSS items and listing feeds (YouTube search, Rumble, Odysee). Deleting while a refresh is active is blocked in the UI to avoid long SQLite/provider waits and inconsistent list updates.
 
 ### 2. UI & Threading
 - Startup refresh is backgrounded; tree/list updates are marshaled to main thread via `wx.CallAfter`.

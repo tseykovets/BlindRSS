@@ -305,7 +305,7 @@ def test_removed_enclosure_is_not_retained_for_npr_without_confirmed_extraction(
     assert media == (None, None)
 
 
-def test_delete_and_recreate_article_clears_local_chapter_cache_metadata(
+def test_deleted_article_is_not_recreated_and_clears_local_chapter_cache_metadata(
     provider,
     monkeypatch,
 ):
@@ -353,7 +353,7 @@ def test_delete_and_recreate_article_clears_local_chapter_cache_metadata(
     finally:
         conn.close()
 
-    assert recreated == (chapter_url,)
+    assert recreated is None
     assert chapter_count == 0
     assert utils.get_chapter_source_url(ITEM_ID) is None
 

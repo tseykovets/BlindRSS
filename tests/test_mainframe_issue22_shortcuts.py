@@ -164,6 +164,23 @@ class _FakeProvider:
     def supports_favorites(self):
         return False
 
+    def supports_restore_deleted(self):
+        return True
+
+    def restore_article(self, article_id, feed_id=None):
+        _ = feed_id
+        return True
+
+    def supports_smart_folders(self):
+        return True
+
+
+class _OpenedHost:
+    _mark_article_opened = mainframe.MainFrame._mark_article_opened
+
+    def __init__(self, provider=None):
+        self.provider = provider or _FakeProvider()
+
 
 class _FakeRect:
     def GetPosition(self):
@@ -201,6 +218,8 @@ class _DummyContextMenuHost:
     _get_selected_article_indices = mainframe.MainFrame._get_selected_article_indices
     _supports_article_delete = mainframe.MainFrame._supports_article_delete
     _supports_favorites = mainframe.MainFrame._supports_favorites
+    _is_deleted_view = mainframe.MainFrame._is_deleted_view
+    _supports_restore_deleted = mainframe.MainFrame._supports_restore_deleted
     _article_chapter_links = mainframe.MainFrame._article_chapter_links
     _validated_chapter_web_url = mainframe.MainFrame._validated_chapter_web_url
     _format_chapter_timestamp = mainframe.MainFrame._format_chapter_timestamp
@@ -208,6 +227,7 @@ class _DummyContextMenuHost:
 
     def __init__(self):
         self.provider = _FakeProvider()
+        self.current_feed_id = "all"
         self.list_ctrl = _FakeListCtrl()
         self.current_articles = [
             mainframe.Article(
@@ -701,9 +721,25 @@ def test_article_context_menu_includes_delete_for_supported_provider(monkeypatch
 
     labels = [item.label for item in host.list_ctrl.popup_menu.GetMenuItems()]
     assert "Delete Article\tDel" in labels
+    assert "Restore Article" not in labels
     assert "Mark as &Read" in labels
     assert "Mark as &Unread" in labels
     assert "View Feed Description..." in labels
+
+
+def test_article_context_menu_shows_restore_and_hides_delete_in_deleted_view(monkeypatch):
+    # In the Deleted Articles view, the row's action is Restore (not Delete):
+    # deleting an already-deleted item is meaningless, and Restore returns it to
+    # its feed.
+    monkeypatch.setattr(mainframe.wx, "Menu", _FakeMenu)
+    host = _DummyContextMenuHost()
+    host.current_feed_id = "deleted:all"
+
+    host.on_list_context_menu(_KeyboardContextEvent())
+
+    labels = [item.label for item in host.list_ctrl.popup_menu.GetMenuItems()]
+    assert "Restore Article" in labels
+    assert not any(l.startswith("Delete") for l in labels)
 
 
 def test_article_context_menu_exposes_accessible_chapter_link_commands(monkeypatch):
@@ -719,6 +755,39 @@ def test_article_context_menu_exposes_accessible_chapter_link_commands(monkeypat
     assert "Chapter Links" in [item.label for item in parent_menu.GetMenuItems()]
     chapter_menu = parent_menu.submenus[0][1]
     assert [item.label for item in chapter_menu.GetMenuItems()] == ["Open 01:05, Details"]
+
+
+def test_mark_article_opened_queues_feed_scoped_worker(monkeypatch):
+    started = []
+
+    class FakeThread:
+        def __init__(self, target, args=(), daemon=None):
+            self.target = target
+            self.args = args
+            self.daemon = daemon
+
+        def start(self):
+            started.append((self.target, self.args, self.daemon))
+
+    monkeypatch.setattr(mainframe.threading, "Thread", FakeThread)
+    host = _OpenedHost()
+    article = mainframe.Article(
+        title="Title",
+        url="https://example.com/article",
+        content="",
+        date="",
+        author="",
+        feed_id="feed-1",
+        id="article-1",
+    )
+
+    host._mark_article_opened(article)
+
+    assert len(started) == 1
+    target, args, daemon = started[0]
+    assert target is mainframe.MainFrame._mark_article_opened_worker
+    assert args == ("article-1", "feed-1")
+    assert daemon is True
 
 
 def test_delete_article_skips_confirmation_when_setting_disabled(monkeypatch):

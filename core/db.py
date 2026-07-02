@@ -4,6 +4,7 @@ import logging
 import time
 import uuid
 import json
+import hashlib
 from core.config import APP_DIR, USER_DATA_DIR, get_data_dir
 
 log = logging.getLogger(__name__)
@@ -319,6 +320,7 @@ def init_db():
             media_url TEXT,
             media_type TEXT,
             chapter_url TEXT,
+            opened_at REAL,
             FOREIGN KEY(feed_id) REFERENCES feeds(id)
         )''')
         
@@ -330,16 +332,33 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_articles_date_id ON articles (date, id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_articles_feed_id_date_id ON articles (feed_id, date, id)")
 
+        # deleted_articles doubles as the tombstone list (so refresh never
+        # recreates a user-deleted item) AND the backing store for the "Deleted
+        # Articles" view: the snapshot columns preserve the full article so it can
+        # be shown and restored. Older rows created before the snapshot migration
+        # only have identity columns populated (NULL snapshot) and degrade
+        # gracefully (shown with a URL/placeholder title, restorable as a stub).
         c.execute('''CREATE TABLE IF NOT EXISTS deleted_articles (
             feed_id TEXT NOT NULL,
             article_id TEXT NOT NULL,
             url TEXT,
             deleted_at REAL NOT NULL,
+            title TEXT,
+            content TEXT,
+            description TEXT,
+            date TEXT,
+            author TEXT,
+            media_url TEXT,
+            media_type TEXT,
+            chapter_url TEXT,
+            is_read INTEGER,
+            is_favorite INTEGER,
             PRIMARY KEY (feed_id, article_id),
             FOREIGN KEY(feed_id) REFERENCES feeds(id) ON DELETE CASCADE
         )''')
         c.execute("CREATE INDEX IF NOT EXISTS idx_deleted_articles_feed_id ON deleted_articles (feed_id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_deleted_articles_feed_url ON deleted_articles (feed_id, url)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_deleted_articles_deleted_at ON deleted_articles (deleted_at)")
 
         c.execute('''CREATE TABLE IF NOT EXISTS chapters (
             id TEXT PRIMARY KEY,
@@ -397,7 +416,34 @@ def init_db():
         )'''
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_playback_state_updated_at ON playback_state (updated_at)")
-        
+
+        # Full change history: each distinct (title, content) a local article has
+        # shown over time becomes a row here. Version 1 is the original captured at
+        # first fetch; a new row is appended only when the content hash changes, so
+        # repeated refreshes of unchanged content do not accumulate duplicates. An
+        # article with more than one version is "updated" (Smart Folders criterion).
+        c.execute('''CREATE TABLE IF NOT EXISTS article_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id TEXT NOT NULL,
+            captured_at REAL NOT NULL,
+            content_hash TEXT NOT NULL,
+            title TEXT,
+            content TEXT
+        )''')
+        c.execute("CREATE INDEX IF NOT EXISTS idx_article_versions_article ON article_versions (article_id, captured_at)")
+
+        # Smart Folders: user-defined rule-based virtual folders. `rule_json` is a
+        # boolean rule tree (see core.smart_folders); `position` orders them in the
+        # tree. Non-destructive -- articles are matched live, never moved.
+        c.execute('''CREATE TABLE IF NOT EXISTS smart_folders (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            rule_json TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0
+        )''')
+        c.execute("CREATE INDEX IF NOT EXISTS idx_smart_folders_position ON smart_folders (position)")
+
+
         # Migration: Add columns if they don't exist
         try:
             c.execute("ALTER TABLE articles ADD COLUMN media_url TEXT")
@@ -416,6 +462,18 @@ def init_db():
 
         try:
             c.execute("ALTER TABLE articles ADD COLUMN description TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # opened_at: epoch seconds when the user last opened/viewed the article
+        # (distinct from is_read, which bulk actions also set). Powers the Smart
+        # Folders "opened" activity criterion.
+        try:
+            c.execute("ALTER TABLE articles ADD COLUMN opened_at REAL")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("CREATE INDEX IF NOT EXISTS idx_articles_opened_at ON articles (opened_at)")
         except sqlite3.OperationalError:
             pass
 
@@ -488,6 +546,30 @@ def init_db():
         # Migration: add parent_id to categories for subcategory support
         try:
             c.execute("ALTER TABLE categories ADD COLUMN parent_id TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # Migration: snapshot columns on deleted_articles so the Deleted Articles
+        # view can display and restore items. Older tombstones only stored
+        # identity (feed_id/article_id/url); these columns stay NULL for them.
+        for _col, _decl in (
+            ("title", "TEXT"),
+            ("content", "TEXT"),
+            ("description", "TEXT"),
+            ("date", "TEXT"),
+            ("author", "TEXT"),
+            ("media_url", "TEXT"),
+            ("media_type", "TEXT"),
+            ("chapter_url", "TEXT"),
+            ("is_read", "INTEGER"),
+            ("is_favorite", "INTEGER"),
+        ):
+            try:
+                c.execute(f"ALTER TABLE deleted_articles ADD COLUMN {_col} {_decl}")
+            except sqlite3.OperationalError:
+                pass
+        try:
+            c.execute("CREATE INDEX IF NOT EXISTS idx_deleted_articles_deleted_at ON deleted_articles (deleted_at)")
         except sqlite3.OperationalError:
             pass
 
@@ -579,21 +661,34 @@ def get_connection():
     return conn
 
 
+def _bool_or_none(value):
+    if value is None:
+        return None
+    return 1 if value else 0
+
+
 def remember_deleted_article(
     feed_id: str,
     article_id: str,
     url: str | None = None,
     *,
     deleted_at: float | None = None,
+    snapshot: dict | None = None,
     cursor=None,
 ) -> bool:
-    """Persist a local article deletion so refresh does not recreate it."""
+    """Persist a local article deletion so refresh does not recreate it.
+
+    When `snapshot` (a dict of the article's displayable fields) is supplied, the
+    full article is preserved so the Deleted Articles view can show and restore
+    it. Without a snapshot only the tombstone identity is stored.
+    """
     fid = str(feed_id or "").strip()
     aid = str(article_id or "").strip()
     if not fid or not aid:
         return False
     clean_url = str(url or "").strip() or None
     timestamp = float(time.time() if deleted_at is None else deleted_at)
+    snap = snapshot or {}
 
     conn = None
     c = cursor
@@ -603,17 +698,409 @@ def remember_deleted_article(
     try:
         c.execute(
             """
-            INSERT INTO deleted_articles (feed_id, article_id, url, deleted_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO deleted_articles
+                (feed_id, article_id, url, deleted_at, title, content, description,
+                 date, author, media_url, media_type, chapter_url, is_read, is_favorite)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(feed_id, article_id) DO UPDATE SET
                 url = excluded.url,
-                deleted_at = excluded.deleted_at
+                deleted_at = excluded.deleted_at,
+                title = excluded.title,
+                content = excluded.content,
+                description = excluded.description,
+                date = excluded.date,
+                author = excluded.author,
+                media_url = excluded.media_url,
+                media_type = excluded.media_type,
+                chapter_url = excluded.chapter_url,
+                is_read = excluded.is_read,
+                is_favorite = excluded.is_favorite
             """,
-            (fid, aid, clean_url, timestamp),
+            (
+                fid,
+                aid,
+                clean_url,
+                timestamp,
+                snap.get("title"),
+                snap.get("content"),
+                snap.get("description"),
+                snap.get("date"),
+                snap.get("author"),
+                snap.get("media_url"),
+                snap.get("media_type"),
+                snap.get("chapter_url"),
+                _bool_or_none(snap.get("is_read")),
+                _bool_or_none(snap.get("is_favorite")),
+            ),
         )
         if conn is not None:
             conn.commit()
         return True
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def list_deleted_articles(offset: int = 0, limit: int | None = None, cursor=None):
+    """Return (rows, total) of deleted-article snapshots, newest deletion first.
+
+    Each row is a dict keyed by column name. `limit=None` returns all rows.
+    """
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("SELECT COUNT(*) FROM deleted_articles")
+        total = int(c.fetchone()[0] or 0)
+
+        sql = (
+            "SELECT feed_id, article_id, url, deleted_at, title, content, description, "
+            "date, author, media_url, media_type, chapter_url, is_read, is_favorite "
+            "FROM deleted_articles ORDER BY deleted_at DESC, article_id DESC"
+        )
+        params: list = []
+        if limit is not None:
+            sql += " LIMIT ? OFFSET ?"
+            params = [int(limit), int(max(0, offset))]
+        c.execute(sql, tuple(params))
+        cols = [d[0] for d in c.description]
+        rows = [dict(zip(cols, r)) for r in c.fetchall()]
+        return rows, total
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def restore_deleted_article(article_id: str, feed_id: str | None = None, cursor=None):
+    """Restore a deleted article: re-insert its snapshot into `articles` and drop
+    the tombstone. Returns the article's feed_id on success, or None if the
+    tombstone was not found. After restore, refresh treats the item normally
+    again (the feed may update it if it is still present upstream).
+    """
+    aid = str(article_id or "").strip()
+    if not aid:
+        return None
+    fid = str(feed_id or "").strip()
+
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        if fid:
+            c.execute(
+                "SELECT feed_id, url, title, content, description, date, author, "
+                "media_url, media_type, chapter_url, is_read, is_favorite "
+                "FROM deleted_articles WHERE feed_id = ? AND article_id = ? LIMIT 1",
+                (fid, aid),
+            )
+        else:
+            c.execute("SELECT COUNT(*) FROM deleted_articles WHERE article_id = ?", (aid,))
+            if int(c.fetchone()[0] or 0) != 1:
+                return None
+            c.execute(
+                "SELECT feed_id, url, title, content, description, date, author, "
+                "media_url, media_type, chapter_url, is_read, is_favorite "
+                "FROM deleted_articles WHERE article_id = ? LIMIT 1",
+                (aid,),
+            )
+        row = c.fetchone()
+        if not row:
+            return None
+        (
+            feed_id,
+            url,
+            title,
+            content,
+            description,
+            date,
+            author,
+            media_url,
+            media_type,
+            chapter_url,
+            is_read,
+            is_favorite,
+        ) = row
+        c.execute(
+            """
+            INSERT OR REPLACE INTO articles
+                (id, feed_id, title, url, content, description, date, author,
+                 is_read, is_favorite, media_url, media_type, chapter_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                aid,
+                feed_id,
+                title,
+                url,
+                content,
+                description,
+                date,
+                author,
+                int(is_read or 0),
+                int(is_favorite or 0),
+                media_url,
+                media_type,
+                chapter_url,
+            ),
+        )
+        c.execute("DELETE FROM deleted_articles WHERE feed_id = ? AND article_id = ?", (feed_id, aid))
+        if conn is not None:
+            conn.commit()
+        return str(feed_id or "")
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def mark_article_opened(
+    article_id: str,
+    opened_at: float | None = None,
+    *,
+    feed_id: str | None = None,
+    cursor=None,
+) -> bool:
+    """Record that the user opened/viewed an article (Smart Folders 'opened').
+
+    Stores the most recent open time. When `feed_id` is supplied, the update is
+    scoped to that local feed so hosted-provider or cross-feed article-id
+    collisions cannot mark the wrong local row.
+    """
+    aid = str(article_id or "").strip()
+    if not aid:
+        return False
+    fid = str(feed_id or "").strip()
+    ts = float(time.time() if opened_at is None else opened_at)
+
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        if fid:
+            c.execute("UPDATE articles SET opened_at = ? WHERE id = ? AND feed_id = ?", (ts, aid, fid))
+        else:
+            c.execute("UPDATE articles SET opened_at = ? WHERE id = ?", (ts, aid))
+        if conn is not None:
+            conn.commit()
+        return True
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def _article_content_hash(title, content) -> str:
+    h = hashlib.sha256()
+    h.update((str(title or "")).encode("utf-8", "replace"))
+    h.update(b"\x00")
+    h.update((str(content or "")).encode("utf-8", "replace"))
+    return h.hexdigest()
+
+
+def record_article_version(article_id, title, content, captured_at: float | None = None, cursor=None) -> bool:
+    """Append a change-history version for an article, deduped by content hash.
+
+    Records a new row only when (title, content) differs from the article's most
+    recent recorded version, so repeated refreshes of unchanged content are
+    no-ops. Returns True when a new version row was written.
+    """
+    aid = str(article_id or "").strip()
+    if not aid:
+        return False
+    new_hash = _article_content_hash(title, content)
+    ts = float(time.time() if captured_at is None else captured_at)
+
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(
+            "SELECT content_hash FROM article_versions WHERE article_id = ? "
+            "ORDER BY captured_at DESC, id DESC LIMIT 1",
+            (aid,),
+        )
+        row = c.fetchone()
+        if row is not None and str(row[0] or "") == new_hash:
+            return False
+        c.execute(
+            "INSERT INTO article_versions (article_id, captured_at, content_hash, title, content) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (aid, ts, new_hash, title, content),
+        )
+        if conn is not None:
+            conn.commit()
+        return True
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def get_article_versions(article_id: str, cursor=None):
+    """Return an article's change history, newest first (list of dicts)."""
+    aid = str(article_id or "").strip()
+    if not aid:
+        return []
+
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(
+            "SELECT id, article_id, captured_at, content_hash, title, content "
+            "FROM article_versions WHERE article_id = ? ORDER BY captured_at DESC, id DESC",
+            (aid,),
+        )
+        cols = [d[0] for d in c.description]
+        return [dict(zip(cols, r)) for r in c.fetchall()]
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def count_article_versions(article_id: str, cursor=None) -> int:
+    aid = str(article_id or "").strip()
+    if not aid:
+        return 0
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("SELECT COUNT(*) FROM article_versions WHERE article_id = ?", (aid,))
+        return int(c.fetchone()[0] or 0)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def _parse_rule_json(raw):
+    try:
+        parsed = json.loads(raw) if raw else {}
+    except Exception:
+        parsed = {}
+    if not isinstance(parsed, dict):
+        parsed = {}
+    return parsed
+
+
+def create_smart_folder(name: str, rule: dict, cursor=None) -> str:
+    """Create a Smart Folder and return its new id."""
+    folder_id = uuid.uuid4().hex
+    rule_json = json.dumps(rule or {"match": "all", "conditions": []})
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("SELECT COALESCE(MAX(position), -1) + 1 FROM smart_folders")
+        position = int(c.fetchone()[0] or 0)
+        c.execute(
+            "INSERT INTO smart_folders (id, name, rule_json, position) VALUES (?, ?, ?, ?)",
+            (folder_id, str(name or "").strip() or "Smart Folder", rule_json, position),
+        )
+        if conn is not None:
+            conn.commit()
+        return folder_id
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def update_smart_folder(folder_id: str, name: str | None = None, rule: dict | None = None, cursor=None) -> bool:
+    fid = str(folder_id or "").strip()
+    if not fid:
+        return False
+    sets = []
+    params: list = []
+    if name is not None:
+        sets.append("name = ?")
+        params.append(str(name or "").strip() or "Smart Folder")
+    if rule is not None:
+        sets.append("rule_json = ?")
+        params.append(json.dumps(rule))
+    if not sets:
+        return False
+    params.append(fid)
+
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(f"UPDATE smart_folders SET {', '.join(sets)} WHERE id = ?", tuple(params))
+        changed = int(c.rowcount or 0)
+        if conn is not None:
+            conn.commit()
+        return changed > 0
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def delete_smart_folder(folder_id: str, cursor=None) -> bool:
+    fid = str(folder_id or "").strip()
+    if not fid:
+        return False
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("DELETE FROM smart_folders WHERE id = ?", (fid,))
+        changed = int(c.rowcount or 0)
+        if conn is not None:
+            conn.commit()
+        return changed > 0
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def get_smart_folder(folder_id: str, cursor=None):
+    fid = str(folder_id or "").strip()
+    if not fid:
+        return None
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("SELECT id, name, rule_json, position FROM smart_folders WHERE id = ?", (fid,))
+        row = c.fetchone()
+        if not row:
+            return None
+        return {"id": row[0], "name": row[1], "rule": _parse_rule_json(row[2]), "position": int(row[3] or 0)}
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def list_smart_folders(cursor=None):
+    """Return all Smart Folders ordered by position then name."""
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("SELECT id, name, rule_json, position FROM smart_folders ORDER BY position ASC, name ASC")
+        return [
+            {"id": r[0], "name": r[1], "rule": _parse_rule_json(r[2]), "position": int(r[3] or 0)}
+            for r in c.fetchall()
+        ]
     finally:
         if conn is not None:
             conn.close()

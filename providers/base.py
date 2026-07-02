@@ -225,3 +225,31 @@ class RSSProvider(abc.ABC):
 
     def delete_article(self, article_id: str) -> bool:
         return False
+
+    # Optional: providers that preserve deleted items (a restorable "Deleted
+    # Articles" view) can override these. The local provider snapshots deletions
+    # into its tombstone table; hosted providers delete server-side and cannot
+    # restore, so they leave this off.
+    def supports_restore_deleted(self) -> bool:
+        return False
+
+    def restore_article(self, article_id: str, feed_id: str | None = None) -> bool:
+        _ = feed_id
+        return False
+
+    # Optional: Smart Folders (rule-based virtual folders). Local-only feature;
+    # hosted providers keep it off since their articles are not in the local table.
+    def supports_smart_folders(self) -> bool:
+        return False
+
+    def get_smart_folders(self):
+        return []
+
+    def create_smart_folder(self, name, rule):
+        return None
+
+    def update_smart_folder(self, folder_id, name=None, rule=None):
+        return False
+
+    def delete_smart_folder(self, folder_id):
+        return False

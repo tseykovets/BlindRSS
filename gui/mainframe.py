@@ -32,6 +32,7 @@ from core.config import APP_DIR, _default_download_dir
 from core.models import Article
 from core import utils
 from core import article_extractor
+from core import smart_folders as smart_folders_mod
 from core import translation as translation_mod
 from core import updater
 from core import windows_integration
@@ -3119,12 +3120,27 @@ class MainFrame(wx.Frame):
 
             remove_item = menu.Append(wx.ID_ANY, "Remove Feed")
             self.Bind(wx.EVT_MENU, self.on_remove_feed, remove_item)
-            
-        # View options common to all viewable items
-        menu.AppendSeparator()
-        unread_only_item = menu.AppendCheckItem(wx.ID_ANY, "Show Only Unread")
-        unread_only_item.Check(self._unread_filter_enabled)
-        self.Bind(wx.EVT_MENU, self.on_toggle_unread_filter, unread_only_item)
+
+        elif data["type"] == "smart_root":
+            new_item = menu.Append(wx.ID_ANY, "New Smart Folder...")
+            self.Bind(wx.EVT_MENU, lambda e: self.on_new_smart_folder(), new_item)
+
+        elif data["type"] == "smart":
+            smart_id = data.get("smart_id")
+            edit_item = menu.Append(wx.ID_ANY, "Edit Smart Folder...")
+            self.Bind(wx.EVT_MENU, lambda e, sid=smart_id: self.on_edit_smart_folder(sid), edit_item)
+            delete_item = menu.Append(wx.ID_ANY, "Delete Smart Folder")
+            self.Bind(wx.EVT_MENU, lambda e, sid=smart_id: self.on_delete_smart_folder(sid), delete_item)
+            new_item = menu.Append(wx.ID_ANY, "New Smart Folder...")
+            self.Bind(wx.EVT_MENU, lambda e: self.on_new_smart_folder(), new_item)
+
+        # View options only apply to real article views (feeds/categories/special
+        # views), not Smart Folder containers whose rules define their own filter.
+        if data.get("type") in ("all", "feed", "category"):
+            menu.AppendSeparator()
+            unread_only_item = menu.AppendCheckItem(wx.ID_ANY, "Show Only Unread")
+            unread_only_item.Check(self._unread_filter_enabled)
+            self.Bind(wx.EVT_MENU, self.on_toggle_unread_filter, unread_only_item)
 
         if menu.GetMenuItemCount() > 0:
             self.tree.PopupMenu(menu, menu_pos)
@@ -3134,6 +3150,73 @@ class MainFrame(wx.Frame):
         self._unread_filter_enabled = event.IsChecked()
         # Force reload of the current view with the new filter setting
         self._reload_selected_articles()
+
+    def on_new_smart_folder(self):
+        if not getattr(self.provider, "supports_smart_folders", lambda: False)():
+            return
+        dlg = SmartFolderDialog(self)
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                name, rule = dlg.get_result()
+                try:
+                    self.provider.create_smart_folder(name, rule)
+                except Exception:
+                    log.exception("Error creating smart folder")
+                    wx.MessageBox("Could not create the Smart Folder.", "Error", wx.ICON_ERROR)
+                    return
+                self.refresh_feeds()
+        finally:
+            dlg.Destroy()
+
+    def on_edit_smart_folder(self, smart_id):
+        if not smart_id:
+            return
+        try:
+            from core.db import get_smart_folder
+            folder = get_smart_folder(smart_id)
+        except Exception:
+            folder = None
+        if not folder:
+            return
+        dlg = SmartFolderDialog(self, name=folder.get("name"), rule=folder.get("rule"))
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                name, rule = dlg.get_result()
+                try:
+                    self.provider.update_smart_folder(smart_id, name=name, rule=rule)
+                except Exception:
+                    log.exception("Error updating smart folder")
+                    wx.MessageBox("Could not update the Smart Folder.", "Error", wx.ICON_ERROR)
+                    return
+                self.refresh_feeds()
+        finally:
+            dlg.Destroy()
+
+    def on_delete_smart_folder(self, smart_id):
+        if not smart_id:
+            return
+        try:
+            from core.db import get_smart_folder
+            folder = get_smart_folder(smart_id)
+        except Exception:
+            folder = None
+        name = (folder or {}).get("name") or "this Smart Folder"
+        if wx.MessageBox(
+            f'Delete Smart Folder "{name}"? Your articles are not affected.',
+            "Delete Smart Folder",
+            wx.YES_NO | wx.ICON_QUESTION,
+        ) != wx.YES:
+            return
+        try:
+            self.provider.delete_smart_folder(smart_id)
+        except Exception:
+            log.exception("Error deleting smart folder")
+        if getattr(self, "current_feed_id", "") == f"smart:{smart_id}":
+            try:
+                self._select_view("all")
+            except Exception:
+                pass
+        self.refresh_feeds()
 
     def on_list_context_menu(self, event):
         pos = event.GetPosition()
@@ -3184,6 +3267,7 @@ class MainFrame(wx.Frame):
             menu_indices = []
         count = len(menu_indices)
         multi = count > 1
+        in_deleted_view = self._is_deleted_view(getattr(self, "current_feed_id", "") or "")
 
         menu = wx.Menu()
         open_item = menu.Append(wx.ID_ANY, "Open Article")
@@ -3198,11 +3282,16 @@ class MainFrame(wx.Frame):
         delete_item = None
         if (
             valid_article_idx
+            and not in_deleted_view
             and self._supports_article_delete()
             and not MainFrame._is_feed_refresh_active(self)
         ):
             delete_label = f"Delete {count} Articles\tDel" if multi else "Delete Article\tDel"
             delete_item = menu.Append(wx.ID_ANY, delete_label)
+        restore_item = None
+        if valid_article_idx and in_deleted_view and self._supports_restore_deleted():
+            restore_label = f"Restore {count} Articles" if multi else "Restore Article"
+            restore_item = menu.Append(wx.ID_ANY, restore_label)
         menu.AppendSeparator()
         copy_item = menu.Append(wx.ID_ANY, "Copy Links" if multi else "Copy Link")
         download_item = None
@@ -3257,6 +3346,17 @@ class MainFrame(wx.Frame):
                     menu.Append(int(self._toggle_favorite_id), f"{label}\tCtrl+D")
             except Exception:
                 pass
+
+            try:
+                if not in_deleted_view and self._article_has_history(article_for_menu):
+                    history_item = menu.Append(wx.ID_ANY, "View History...")
+                    self.Bind(
+                        wx.EVT_MENU,
+                        lambda e, a=article_for_menu: self.on_view_article_history(a),
+                        history_item,
+                    )
+            except Exception:
+                pass
         
         # Bindings for list menu items need to use the current idx or selected article
         # on_article_activate (event) needs an event object, but I can re-create one or just call its core logic
@@ -3268,6 +3368,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e, ii=list(mark_targets): self._mark_indices(ii, False), mark_unread_item)
         if delete_item is not None:
             self.Bind(wx.EVT_MENU, lambda e: self.on_delete_article(), delete_item)
+        if restore_item is not None:
+            self.Bind(wx.EVT_MENU, lambda e, ii=list(menu_indices): self.on_restore_articles(ii), restore_item)
         self.Bind(wx.EVT_MENU, lambda e, ii=list(mark_targets): self.on_copy_links(ii), copy_item)
 
         self.list_ctrl.PopupMenu(menu, menu_pos)
@@ -3690,6 +3792,128 @@ class MainFrame(wx.Frame):
         view_id = view_id or ""
         return view_id.startswith("favorites:") or view_id.startswith("fav:")
 
+    def _is_deleted_view(self, view_id: str) -> bool:
+        view_id = view_id or ""
+        return view_id == "deleted:all" or view_id.startswith("deleted:")
+
+    def _supports_restore_deleted(self) -> bool:
+        try:
+            return bool(getattr(self.provider, "supports_restore_deleted", lambda: False)())
+        except Exception:
+            return False
+
+    def _mark_article_opened(self, article) -> None:
+        """Record that the user opened/looked at a local article.
+
+        This backs the Smart Folders "opened" criterion. The DB write is queued
+        off the UI thread so refresh contention cannot freeze article navigation.
+        """
+        aid = getattr(article, "id", None) if article is not None else None
+        feed_id = getattr(article, "feed_id", None) if article is not None else None
+        if not aid or not feed_id:
+            return
+        try:
+            if not bool(getattr(self.provider, "supports_smart_folders", lambda: False)()):
+                return
+        except Exception:
+            return
+        threading.Thread(
+            target=MainFrame._mark_article_opened_worker,
+            args=(str(aid), str(feed_id)),
+            daemon=True,
+        ).start()
+
+    @staticmethod
+    def _mark_article_opened_worker(article_id: str, feed_id: str) -> None:
+        try:
+            from core.db import mark_article_opened
+            mark_article_opened(article_id, feed_id=feed_id)
+        except Exception:
+            log.exception("Error recording article opened time")
+
+    def _article_has_history(self, article) -> bool:
+        """True when an article has more than one recorded version (i.e. the feed
+        changed it after first fetch), so 'View History...' is worth offering."""
+        aid = getattr(article, "id", None) if article is not None else None
+        if not aid:
+            return False
+        try:
+            from core.db import count_article_versions
+            return count_article_versions(aid) > 1
+        except Exception:
+            return False
+
+    def on_view_article_history(self, article) -> None:
+        """Show the full change history (all captured versions) of an article."""
+        aid = getattr(article, "id", None) if article is not None else None
+        if not aid:
+            return
+        try:
+            from core.db import get_article_versions
+            versions = get_article_versions(aid)
+        except Exception:
+            versions = []
+        if not versions:
+            wx.MessageBox("No change history for this article.", "Article History",
+                          wx.OK | wx.ICON_INFORMATION, self)
+            return
+
+        total = len(versions)  # newest-first
+        dlg = wx.Dialog(self, title="Article History",
+                        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        dlg.SetSize((720, 520))
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        heading = wx.StaticText(
+            dlg, label=f"{total} versions of: {getattr(article, 'title', '') or ''}"
+        )
+        sizer.Add(heading, 0, wx.ALL, 8)
+
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        listbox = wx.ListBox(dlg, style=wx.LB_SINGLE)
+        listbox.SetName("Versions")
+        for i, v in enumerate(versions):
+            num = total - i  # highest number is the current version
+            ts = v.get("captured_at") or 0
+            when = time.strftime("%Y-%m-%d %H:%M", time.localtime(float(ts))) if ts else "unknown time"
+            suffix = " (current)" if i == 0 else (" (original)" if num == 1 else "")
+            listbox.Append(f"Version {num} - {when}{suffix}")
+        row.Add(listbox, 1, wx.EXPAND | wx.ALL, 8)
+
+        text = wx.TextCtrl(dlg, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2)
+        text.SetName("Version content")
+        row.Add(text, 2, wx.EXPAND | wx.ALL, 8)
+        sizer.Add(row, 1, wx.EXPAND)
+
+        close_btn = wx.Button(dlg, wx.ID_CLOSE, "Close")
+        close_btn.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CLOSE))
+        sizer.Add(close_btn, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
+
+        dlg.SetSizer(sizer)
+        try:
+            dlg.SetEscapeId(wx.ID_CLOSE)
+        except Exception:
+            pass
+
+        def _show_version(i):
+            if 0 <= i < len(versions):
+                v = versions[i]
+                title = v.get("title") or ""
+                try:
+                    body = utils.html_to_text(v.get("content") or "")
+                except Exception:
+                    body = v.get("content") or ""
+                text.SetValue(f"{title}\n\n{body}")
+                text.SetInsertionPoint(0)
+
+        listbox.Bind(wx.EVT_LISTBOX, lambda e: _show_version(listbox.GetSelection()))
+        listbox.SetSelection(0)
+        _show_version(0)
+        listbox.SetFocus()
+
+        dlg.ShowModal()
+        dlg.Destroy()
+
     def _get_display_title(self, article) -> str:
         """Return an accessible article-list title, including chapter availability."""
         title = article.title or ""
@@ -3953,6 +4177,99 @@ class MainFrame(wx.Frame):
             self.list_ctrl.EnsureVisible(next_idx)
         except Exception:
             pass
+
+    def on_restore_articles(self, indices) -> None:
+        """Restore the given Deleted-view rows back into their feeds."""
+        if not self._supports_restore_deleted():
+            return
+        items = []
+        seen = set()
+        for idx in list(indices or []):
+            if idx is None or idx < 0 or idx >= len(self.current_articles):
+                continue
+            if self._is_load_more_row(idx):
+                continue
+            article = self.current_articles[idx]
+            aid = getattr(article, "id", None)
+            feed_id = getattr(article, "feed_id", None)
+            item_key = (str(feed_id or ""), str(aid))
+            if not aid or item_key in seen:
+                continue
+            seen.add(item_key)
+            items.append((aid, feed_id, self._article_cache_id(article)))
+        if not items:
+            return
+        threading.Thread(target=self._restore_articles_thread, args=(items,), daemon=True).start()
+
+    def _show_restore_blocked_by_refresh_message(self) -> None:
+        wx.MessageBox(
+            "Articles cannot be restored while feeds are refreshing. Try again after the refresh is complete.",
+            "Refresh in Progress",
+            wx.ICON_INFORMATION,
+        )
+
+    def _restore_articles_thread(self, items) -> None:
+        # Mirror delete: restoring writes to the DB, so don't fight an active
+        # refresh for the SQLite lock -- bail with a friendly message instead.
+        refresh_guard = getattr(self, "_refresh_guard", None)
+        guard_acquired = False
+        acquire = getattr(refresh_guard, "acquire", None)
+        if callable(acquire):
+            try:
+                guard_acquired = bool(acquire(blocking=False))
+            except TypeError:
+                guard_acquired = bool(acquire(False))
+            except Exception:
+                guard_acquired = False
+            if not guard_acquired:
+                wx.CallAfter(MainFrame._show_restore_blocked_by_refresh_message, self)
+                return
+
+        results = []
+        try:
+            for article_id, feed_id, cache_id in items:
+                ok = False
+                try:
+                    ok = bool(self.provider.restore_article(article_id, feed_id=feed_id))
+                except Exception:
+                    log.exception("Error restoring article %s", article_id)
+                results.append((article_id, cache_id, ok))
+            wx.CallAfter(self._post_restore_articles, results)
+        finally:
+            if guard_acquired:
+                try:
+                    refresh_guard.release()
+                except Exception:
+                    pass
+
+    def _post_restore_articles(self, results) -> None:
+        restored_any = any(ok for _aid, _cid, ok in results)
+        failures = sum(1 for _aid, _cid, ok in results if not ok)
+
+        if restored_any:
+            # Restored items live in their feeds again. Drop every cached view
+            # snapshot so the Deleted view (and All/Unread/Read/feed views) reload
+            # fresh from the DB, then re-render the current view.
+            try:
+                with getattr(self, "_view_cache_lock", threading.Lock()):
+                    self.view_cache.clear()
+            except Exception:
+                log.exception("Error clearing view cache after restore")
+            try:
+                self._select_view(getattr(self, "current_feed_id", "") or "deleted:all")
+            except Exception:
+                log.exception("Error reloading view after restore")
+
+        if failures:
+            try:
+                wx.MessageBox(
+                    "Could not restore article." if failures == 1
+                    else f"Could not restore {failures} articles.",
+                    "Error",
+                    wx.ICON_ERROR,
+                )
+            except Exception:
+                pass
 
     def _show_empty_articles_state(self) -> None:
         try:
@@ -4649,6 +4966,10 @@ class MainFrame(wx.Frame):
                     selected_data = {"type": "all", "id": "read:all"}
                 elif last_feed == "favorites:all":
                     selected_data = {"type": "all", "id": "favorites:all"}
+                elif last_feed == "deleted:all":
+                    selected_data = {"type": "all", "id": "deleted:all"}
+                elif last_feed.startswith("smart:"):
+                    selected_data = {"type": "smart", "id": last_feed, "smart_id": last_feed[len("smart:"):]}
                 elif last_feed.startswith("unread:category:"):
                     cat_name = last_feed[16:]  # Remove "unread:category:" prefix
                     selected_data = {"type": "category", "id": cat_name}
@@ -4695,6 +5016,34 @@ class MainFrame(wx.Frame):
                     self.tree.SetItemData(self.favorites_node, {"type": "all", "id": "favorites:all"})
             except Exception:
                 self.favorites_node = None
+
+            self.deleted_node = None
+            try:
+                if getattr(self.provider, "supports_restore_deleted", lambda: False)():
+                    self.deleted_node = self.tree.AppendItem(self.root, "Deleted Articles")
+                    self.tree.SetItemData(self.deleted_node, {"type": "all", "id": "deleted:all"})
+            except Exception:
+                self.deleted_node = None
+
+            # Smart Folders: a container node plus one child per user-defined
+            # rule-based folder. Always shown (even empty) so it is discoverable
+            # for "New Smart Folder..." via its context menu.
+            self.smart_root_node = None
+            self.smart_folder_nodes = {}
+            try:
+                if getattr(self.provider, "supports_smart_folders", lambda: False)():
+                    self.smart_root_node = self.tree.AppendItem(self.root, "Smart Folders")
+                    self.tree.SetItemData(self.smart_root_node, {"type": "smart_root"})
+                    for folder in (self.provider.get_smart_folders() or []):
+                        sid = folder.get("id")
+                        node = self.tree.AppendItem(self.smart_root_node, folder.get("name") or "Smart Folder")
+                        self.tree.SetItemData(node, {"type": "smart", "id": f"smart:{sid}", "smart_id": sid})
+                        self.smart_folder_nodes[sid] = node
+                    if self.smart_folder_nodes:
+                        self.tree.Expand(self.smart_root_node)
+            except Exception:
+                self.smart_root_node = None
+                self.smart_folder_nodes = {}
             
             # Group feeds by category
             cat_feeds_map = {c: [] for c in all_cats}
@@ -4788,14 +5137,23 @@ class MainFrame(wx.Frame):
             # Restore selection (default to All Feeds on first load so the list populates)
             # If "remember last feed" is enabled and this is the first load, use the saved feed
             selection_target = None
-            
-            if selected_data and selected_data["type"] == "all":
+
+            if selected_data and selected_data.get("type") == "smart":
+                smart_node = self.smart_folder_nodes.get(selected_data.get("smart_id"))
+                if smart_node and smart_node.IsOk():
+                    selection_target = smart_node
+
+            if selection_target is not None:
+                pass
+            elif selected_data and selected_data["type"] == "all":
                 if selected_data.get("id") == "unread:all":
                     selection_target = self.unread_node
                 elif selected_data.get("id") == "read:all":
                     selection_target = self.read_node
                 elif selected_data.get("id") == "favorites:all" and self.favorites_node and self.favorites_node.IsOk():
                     selection_target = self.favorites_node
+                elif selected_data.get("id") == "deleted:all" and self.deleted_node and self.deleted_node.IsOk():
+                    selection_target = self.deleted_node
                 else:
                     selection_target = self.all_feeds_node
             elif item_to_select and item_to_select.IsOk():
@@ -4843,6 +5201,8 @@ class MainFrame(wx.Frame):
             return data.get("id")
         if typ == "feed":
             return data.get("id")
+        if typ == "smart":
+            return data.get("id")
         if typ == "category":
             return f"category:{data.get('id')}"
         return None
@@ -4851,7 +5211,9 @@ class MainFrame(wx.Frame):
         feed_id = self._get_feed_id_from_tree_item(item)
         if not feed_id:
             return None
-        if self._unread_filter_enabled:
+        # Smart Folders and the Deleted view carry their own semantics; the global
+        # unread filter must not wrap them (it would break their view id).
+        if self._unread_filter_enabled and not feed_id.startswith(("smart:", "deleted:")):
             feed_id = f"unread:{feed_id}"
         return feed_id
 
@@ -5740,6 +6102,10 @@ class MainFrame(wx.Frame):
             return
 
         self.mark_article_read(idx)
+        try:
+            self._mark_article_opened(self.current_articles[idx])
+        except Exception:
+            pass
         try:
             self._schedule_fulltext_load_for_index(idx, force=True)
         except Exception:
@@ -7061,6 +7427,11 @@ class MainFrame(wx.Frame):
     def _open_article(self, article) -> None:
         if article is None:
             return
+
+        try:
+            self._mark_article_opened(article)
+        except Exception:
+            pass
 
         if self._should_play_in_player(article):
             media_url, use_ytdlp = self._playback_target_for_article(article)
@@ -8864,3 +9235,154 @@ class MainFrame(wx.Frame):
     def real_close(self):
         # Standardize shutdown path
         self.on_close(event=None)
+
+
+class SmartFolderDialog(wx.Dialog):
+    """Accessible builder for a Smart Folder rule.
+
+    A flat list of condition rows plus a top-level ALL/ANY selector. Boolean
+    criteria (read/favorite/opened/updated) are self-contained field choices so no
+    per-row value widget juggling is needed; text criteria use an operator + value.
+    The underlying rule engine (core.smart_folders) supports full nesting, but this
+    v1 UI keeps to one accessible level.
+    """
+
+    MAX_ROWS = 6
+
+    # (rule-key, label). "" = unused row; "__..." = a self-contained boolean.
+    _FIELDS = [
+        ("", "(no condition)"),
+        ("title", "Title"),
+        ("content", "Content"),
+        ("description", "Description"),
+        ("author", "Author"),
+        ("feed", "Feed / Publication"),
+        ("url", "Link (URL)"),
+        ("read_no", "Is unread"),
+        ("read_yes", "Is read"),
+        ("fav_yes", "Is favorite"),
+        ("fav_no", "Is not favorite"),
+        ("opened_yes", "Has been opened"),
+        ("opened_no", "Has not been opened"),
+        ("updated_yes", "Was updated since first fetch"),
+        ("updated_no", "Was not updated"),
+    ]
+    _OPS = [
+        ("contains", "contains"),
+        ("not_contains", "does not contain"),
+        ("equals", "equals"),
+        ("starts_with", "starts with"),
+    ]
+    _TEXT_FIELDS = smart_folders_mod.TEXT_FIELDS
+    _BOOL_MAP = smart_folders_mod.BOOL_ROW_KEYS
+
+    def __init__(self, parent, name="", rule=None):
+        super().__init__(parent, title="Smart Folder",
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        outer = wx.BoxSizer(wx.VERTICAL)
+
+        name_row = wx.BoxSizer(wx.HORIZONTAL)
+        name_row.Add(wx.StaticText(self, label="Folder &name:"), 0,
+                     wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
+        self.name_ctrl = wx.TextCtrl(self, value=name or "")
+        self.name_ctrl.SetName("Folder name")
+        name_row.Add(self.name_ctrl, 1)
+        outer.Add(name_row, 0, wx.EXPAND | wx.ALL, 8)
+
+        self.match_box = wx.RadioBox(
+            self, label="Show articles that match",
+            choices=["All conditions (AND)", "Any condition (OR)"],
+            majorDimension=1, style=wx.RA_SPECIFY_ROWS,
+        )
+        outer.Add(self.match_box, 0, wx.EXPAND | wx.ALL, 8)
+
+        self.rows = []
+        grid = wx.FlexGridSizer(cols=3, vgap=6, hgap=6)
+        grid.AddGrowableCol(2, 1)
+        grid.Add(wx.StaticText(self, label="Field"), 0)
+        grid.Add(wx.StaticText(self, label="Condition"), 0)
+        grid.Add(wx.StaticText(self, label="Value"), 0, wx.EXPAND)
+        field_labels = [lbl for _k, lbl in self._FIELDS]
+        op_labels = [lbl for _k, lbl in self._OPS]
+        for i in range(self.MAX_ROWS):
+            field_ctrl = wx.Choice(self, choices=field_labels)
+            field_ctrl.SetName(f"Condition {i + 1} field")
+            field_ctrl.SetSelection(0)
+            op_ctrl = wx.Choice(self, choices=op_labels)
+            op_ctrl.SetName(f"Condition {i + 1} operator")
+            op_ctrl.SetSelection(0)
+            val_ctrl = wx.TextCtrl(self)
+            val_ctrl.SetName(f"Condition {i + 1} value")
+            grid.Add(field_ctrl, 0)
+            grid.Add(op_ctrl, 0)
+            grid.Add(val_ctrl, 0, wx.EXPAND)
+            row = {"field": field_ctrl, "op": op_ctrl, "val": val_ctrl}
+            self.rows.append(row)
+            field_ctrl.Bind(wx.EVT_CHOICE, lambda e, r=row: self._update_row_enabled(r))
+        outer.Add(grid, 1, wx.EXPAND | wx.ALL, 8)
+
+        btns = self.CreateStdDialogButtonSizer(wx.OK | wx.CANCEL)
+        if btns:
+            outer.Add(btns, 0, wx.EXPAND | wx.ALL, 8)
+
+        self.SetSizer(outer)
+        self.SetSize((640, 480))
+
+        if rule:
+            self._load_rule(rule)
+        for r in self.rows:
+            self._update_row_enabled(r)
+
+    def _field_key(self, row):
+        idx = row["field"].GetSelection()
+        return self._FIELDS[idx][0] if idx >= 0 else ""
+
+    def _select_field(self, row, key):
+        idx = next((i for i, (k, _l) in enumerate(self._FIELDS) if k == key), 0)
+        row["field"].SetSelection(idx)
+
+    def _update_row_enabled(self, row):
+        is_text = self._field_key(row) in self._TEXT_FIELDS
+        row["op"].Enable(is_text)
+        row["val"].Enable(is_text)
+
+    def _load_rule(self, rule):
+        match = str((rule or {}).get("match") or "all").lower()
+        self.match_box.SetSelection(1 if match == "any" else 0)
+        conds = [c for c in (rule.get("conditions") or [])
+                 if isinstance(c, dict) and "field" in c]
+        for row, cond in zip(self.rows, conds[:self.MAX_ROWS]):
+            field = str(cond.get("field") or "").lower()
+            value = cond.get("value")
+            if field in self._TEXT_FIELDS:
+                self._select_field(row, field)
+                op = str(cond.get("op") or "contains").lower()
+                op_idx = next((i for i, (k, _l) in enumerate(self._OPS) if k == op), 0)
+                row["op"].SetSelection(op_idx)
+                row["val"].SetValue(str(value if value is not None else ""))
+            else:
+                want = value if isinstance(value, bool) else str(value).lower() in ("1", "true", "yes", "on")
+                for pk, (bf, bv) in self._BOOL_MAP.items():
+                    if bf == field and bool(bv) == bool(want):
+                        self._select_field(row, pk)
+                        break
+
+    def get_result(self):
+        name = self.name_ctrl.GetValue().strip() or "Smart Folder"
+        match = "any" if self.match_box.GetSelection() == 1 else "all"
+        conditions = []
+        for row in self.rows:
+            key = self._field_key(row)
+            if not key:
+                continue
+            if key in self._TEXT_FIELDS:
+                op_idx = row["op"].GetSelection()
+                op = self._OPS[op_idx][0] if op_idx >= 0 else "contains"
+                value = row["val"].GetValue().strip()
+                if not value and op != "equals":
+                    continue  # skip empty text conditions
+                conditions.append({"field": key, "op": op, "value": value})
+            elif key in self._BOOL_MAP:
+                bf, bv = self._BOOL_MAP[key]
+                conditions.append({"field": bf, "op": "is", "value": bool(bv)})
+        return name, {"match": match, "conditions": conditions}

@@ -23,7 +23,12 @@ from core.db import (
     get_feed_errors,
     deleted_article_tombstones_for_feed,
     remember_deleted_article,
+    list_deleted_articles,
+    restore_deleted_article,
+    record_article_version,
+    get_smart_folder,
 )
+from core import smart_folders as smart_folders_mod
 from core.discovery import discover_feed
 from core import utils
 from core import rumble as rumble_mod
@@ -2557,6 +2562,12 @@ class LocalProvider(RSSProvider):
                             "WHERE id = ?",
                             (date, description, media_url, media_type, chapter_url, existing_article_id),
                         )
+                        # Change history: append a version when the feed's content
+                        # for this item differs from the latest recorded version.
+                        try:
+                            record_article_version(existing_article_id, title, content, cursor=c)
+                        except Exception:
+                            pass
                         if inline_chapters:
                             utils._replace_stored_chapters(
                                 existing_article_id,
@@ -2577,6 +2588,11 @@ class LocalProvider(RSSProvider):
                             (article_id, feed_id, title, url, content, description, date, author, media_url, media_type, chapter_url),
                         )
                         new_items += 1
+                        # Change history: seed the original version at first fetch.
+                        try:
+                            record_article_version(article_id, title, content, cursor=c)
+                        except Exception:
+                            pass
                         _record_new_article(
                             article_id,
                             title,
@@ -2802,11 +2818,109 @@ class LocalProvider(RSSProvider):
 
         return real_feed_id, filter_read, filter_favorite
 
-    def get_articles(self, feed_id: str) -> List[Article]:
+    @staticmethod
+    def _is_deleted_view_id(feed_id) -> bool:
+        """True for the special 'Deleted Articles' view id(s)."""
+        fid = str(feed_id or "")
+        return fid == "deleted:all" or fid.startswith("deleted:")
+
+    def _get_deleted_articles_page(self, offset, limit):
+        """Build (articles, total) for the Deleted Articles view from tombstone
+        snapshots. Newest deletion first."""
+        rows, total = list_deleted_articles(offset=offset, limit=limit)
+        articles: List[Article] = []
+        for r in rows:
+            title = r.get("title") or r.get("url") or "(deleted article)"
+            articles.append(Article(
+                id=r.get("article_id"),
+                feed_id=r.get("feed_id"),
+                title=title,
+                url=r.get("url"),
+                content=r.get("content"),
+                description=r.get("description"),
+                date=r.get("date"),
+                author=r.get("author"),
+                is_read=bool(r.get("is_read")),
+                is_favorite=bool(r.get("is_favorite")),
+                media_url=r.get("media_url"),
+                media_type=r.get("media_type"),
+            ))
+        return articles, total
+
+    @staticmethod
+    def _smart_folder_id_from_view(feed_id):
+        """Return the folder id for a 'smart:<id>' view, else None."""
+        fid = str(feed_id or "")
+        if fid.startswith("smart:"):
+            return fid[len("smart:"):]
+        return None
+
+    def _get_smart_articles_page(self, folder_id, offset, limit):
+        """Build (articles, total) for a Smart Folder by compiling its rule to a
+        WHERE clause over the local articles table."""
+        folder = get_smart_folder(folder_id)
+        if not folder:
+            return [], 0
+        where_sql, where_params = smart_folders_mod.build_where(folder.get("rule") or {})
+        base_from = "FROM articles a LEFT JOIN feeds f ON a.feed_id = f.id WHERE " + where_sql
+
         conn = get_connection()
         try:
             c = conn.cursor()
-            
+            c.execute("SELECT COUNT(*) " + base_from, tuple(where_params))
+            total = int(c.fetchone()[0] or 0)
+
+            sql = (
+                "SELECT a.id, a.feed_id, a.title, a.url, a.content, a.date, a.author, "
+                "a.is_read, a.is_favorite, a.media_url, a.media_type, a.description "
+                + base_from
+                + " ORDER BY a.date DESC, a.id DESC"
+            )
+            params = list(where_params)
+            if limit is not None:
+                sql += " LIMIT ? OFFSET ?"
+                params.extend([int(limit), int(max(0, offset))])
+            c.execute(sql, tuple(params))
+            rows = c.fetchall()
+
+            article_ids = [r[0] for r in rows]
+            chapters_map = {}
+            if article_ids:
+                chunk_size = 900
+                for i in range(0, len(article_ids), chunk_size):
+                    chunk = article_ids[i:i + chunk_size]
+                    ph = ",".join("?" for _ in chunk)
+                    c.execute(
+                        f"SELECT article_id, start, title, href FROM chapters WHERE article_id IN ({ph}) ORDER BY article_id, start",
+                        chunk,
+                    )
+                    for ch in c.fetchall():
+                        chapters_map.setdefault(ch[0], []).append({"start": ch[1], "title": ch[2], "href": ch[3]})
+
+            articles: List[Article] = []
+            for r in rows:
+                articles.append(Article(
+                    id=r[0], feed_id=r[1], title=r[2], url=r[3], content=r[4], date=r[5], author=r[6],
+                    is_read=bool(r[7]), is_favorite=bool(r[8]), media_url=r[9], media_type=r[10],
+                    chapters=chapters_map.get(r[0], []), description=r[11],
+                ))
+            return articles, total
+        finally:
+            conn.close()
+
+    def get_articles(self, feed_id: str) -> List[Article]:
+        if self._is_deleted_view_id(feed_id):
+            page, _total = self._get_deleted_articles_page(0, None)
+            return page
+        smart_id = self._smart_folder_id_from_view(feed_id)
+        if smart_id is not None:
+            page, _total = self._get_smart_articles_page(smart_id, 0, None)
+            return page
+
+        conn = get_connection()
+        try:
+            c = conn.cursor()
+
             # Determine filters
             real_feed_id, filter_read, filter_favorite = self._parse_article_view_filters(feed_id)
 
@@ -2893,6 +3007,12 @@ class LocalProvider(RSSProvider):
 
     def get_articles_page(self, feed_id: str, offset: int = 0, limit: int = 200):
         """Fetch a single page of articles from the local SQLite DB (fast-first loading)."""
+        if self._is_deleted_view_id(feed_id):
+            return self._get_deleted_articles_page(int(max(0, offset)), int(limit))
+        smart_id = self._smart_folder_id_from_view(feed_id)
+        if smart_id is not None:
+            return self._get_smart_articles_page(smart_id, int(max(0, offset)), int(limit))
+
         offset = int(max(0, offset))
         limit = int(limit)
 
@@ -3145,6 +3265,36 @@ class LocalProvider(RSSProvider):
     def supports_article_delete(self) -> bool:
         return True
 
+    def supports_restore_deleted(self) -> bool:
+        return True
+
+    def restore_article(self, article_id: str, feed_id: str | None = None) -> bool:
+        """Restore a previously deleted article from its tombstone snapshot."""
+        try:
+            return restore_deleted_article(article_id, feed_id=feed_id) is not None
+        except Exception:
+            log.exception("Local restore article error for %s", article_id)
+            return False
+
+    def supports_smart_folders(self) -> bool:
+        return True
+
+    def get_smart_folders(self):
+        from core.db import list_smart_folders
+        return list_smart_folders()
+
+    def create_smart_folder(self, name, rule):
+        from core.db import create_smart_folder
+        return create_smart_folder(name, rule)
+
+    def update_smart_folder(self, folder_id, name=None, rule=None):
+        from core.db import update_smart_folder
+        return update_smart_folder(folder_id, name=name, rule=rule)
+
+    def delete_smart_folder(self, folder_id):
+        from core.db import delete_smart_folder
+        return delete_smart_folder(folder_id)
+
     def toggle_favorite(self, article_id: str):
         conn = get_connection()
         try:
@@ -3184,13 +3334,32 @@ class LocalProvider(RSSProvider):
                 pass
             c = conn.cursor()
             c.execute("BEGIN IMMEDIATE")
-            c.execute("SELECT feed_id, url FROM articles WHERE id = ? LIMIT 1", (article_id,))
+            c.execute(
+                "SELECT feed_id, url, title, content, description, date, author, "
+                "media_url, media_type, chapter_url, is_read, is_favorite "
+                "FROM articles WHERE id = ? LIMIT 1",
+                (article_id,),
+            )
             row = c.fetchone()
             if not row:
                 conn.rollback()
                 return False
             feed_id, article_url = row[0], row[1]
-            remember_deleted_article(feed_id, article_id, article_url, cursor=c)
+            # Preserve the full article so the Deleted Articles view can show and
+            # restore it (the row itself is removed below).
+            snapshot = {
+                "title": row[2],
+                "content": row[3],
+                "description": row[4],
+                "date": row[5],
+                "author": row[6],
+                "media_url": row[7],
+                "media_type": row[8],
+                "chapter_url": row[9],
+                "is_read": row[10],
+                "is_favorite": row[11],
+            }
+            remember_deleted_article(feed_id, article_id, article_url, snapshot=snapshot, cursor=c)
             c.execute("DELETE FROM chapters WHERE article_id = ?", (article_id,))
             local_cache_key = f"local:{article_id}"
             c.execute("DELETE FROM chapter_cache WHERE cache_key = ?", (local_cache_key,))

@@ -105,6 +105,21 @@ def test_backward_find_wraps_to_last():
     ) == (12, 17)
 
 
+def test_forward_find_does_not_wrap_when_disabled():
+    # F3 uses wrap=False: past the last match there is no result (no jump back
+    # to the top of the article).
+    assert mainframe.MainFrame._find_in_text(
+        TEXT, "hello", len(TEXT), forward=True, wrap=False
+    ) is None
+
+
+def test_backward_find_does_not_wrap_when_disabled():
+    # Shift+F3 uses wrap=False: before the first match there is no result.
+    assert mainframe.MainFrame._find_in_text(
+        TEXT, "hello", 0, forward=False, wrap=False
+    ) is None
+
+
 def test_absent_term_returns_none():
     assert mainframe.MainFrame._find_in_text(TEXT, "xyz", 0) is None
 

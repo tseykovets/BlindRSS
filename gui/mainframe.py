@@ -3288,6 +3288,13 @@ class MainFrame(wx.Frame):
         ):
             delete_label = f"Delete {count} Articles\tDel" if multi else "Delete Article\tDel"
             delete_item = menu.Append(wx.ID_ANY, delete_label)
+        elif valid_article_idx and in_deleted_view and self._supports_purge_deleted():
+            delete_label = (
+                f"Delete {count} Articles Permanently\tDel"
+                if multi
+                else "Delete Article Permanently\tDel"
+            )
+            delete_item = menu.Append(wx.ID_ANY, delete_label)
         restore_item = None
         if valid_article_idx and in_deleted_view and self._supports_restore_deleted():
             restore_label = f"Restore {count} Articles" if multi else "Restore Article"
@@ -3802,6 +3809,12 @@ class MainFrame(wx.Frame):
         except Exception:
             return False
 
+    def _supports_purge_deleted(self) -> bool:
+        try:
+            return bool(getattr(self.provider, "supports_purge_deleted", lambda: False)())
+        except Exception:
+            return False
+
     def _mark_article_opened(self, article) -> None:
         """Record that the user opened/looked at a local article.
 
@@ -4045,6 +4058,13 @@ class MainFrame(wx.Frame):
                 return
             indices = [idx]
 
+        # In the Deleted Articles view the rows are tombstone snapshots, not
+        # live articles, so Delete means "remove permanently" and goes through
+        # the purge path instead of provider.delete_article.
+        if self._is_deleted_view(getattr(self, "current_feed_id", "") or ""):
+            self._purge_deleted_articles(indices, confirm=confirm)
+            return
+
         if not self._supports_article_delete():
             wx.MessageBox(
                 "This provider does not support deleting articles.",
@@ -4090,6 +4110,64 @@ class MainFrame(wx.Frame):
             args=(items, anchor_idx),
             daemon=True,
         ).start()
+
+    def _purge_deleted_articles(self, indices, *, confirm: bool | None = None) -> None:
+        """Permanently delete the given Deleted-view rows."""
+        if not self._supports_purge_deleted():
+            wx.MessageBox(
+                "This provider does not support permanently deleting articles.",
+                "Not Supported",
+                wx.ICON_INFORMATION,
+            )
+            return
+
+        count = len(indices)
+        if confirm is None:
+            try:
+                confirm = bool(self.config_manager.get("confirm_article_delete", True))
+            except Exception:
+                confirm = True
+        if confirm:
+            prompt = (
+                "Permanently delete this article? It cannot be restored."
+                if count == 1
+                else f"Permanently delete {count} articles? They cannot be restored."
+            )
+            try:
+                ok = wx.MessageBox(prompt, "Confirm Permanent Delete", wx.YES_NO | wx.ICON_WARNING)
+            except Exception:
+                ok = wx.NO
+            if ok != wx.YES:
+                return
+
+        items = []
+        for idx in indices:
+            article = self.current_articles[idx]
+            cache_key, _url, _aid = self._fulltext_cache_key_for_article(article, idx)
+            items.append(
+                (article.id, getattr(article, "feed_id", None), self._article_cache_id(article), cache_key)
+            )
+        anchor_idx = min(indices)
+
+        threading.Thread(
+            target=self._purge_deleted_articles_thread,
+            args=(items, anchor_idx),
+            daemon=True,
+        ).start()
+
+    def _purge_deleted_articles_thread(self, items, anchor_idx: int) -> None:
+        # No refresh guard needed: purging keeps the tombstone identity, so a
+        # concurrent refresh can neither recreate the article nor race with it.
+        results = []
+        for article_id, feed_id, article_cache_id, cache_key in items:
+            ok = False
+            err = ""
+            try:
+                ok = bool(self.provider.purge_deleted_article(article_id, feed_id))
+            except Exception as e:
+                err = str(e) or "Unknown error"
+            results.append((article_id, article_cache_id, cache_key, ok, err))
+        wx.CallAfter(self._post_delete_articles, results, anchor_idx)
 
     def _delete_articles_thread(self, items, anchor_idx: int) -> None:
         refresh_guard = getattr(self, "_refresh_guard", None)
@@ -4440,6 +4518,7 @@ class MainFrame(wx.Frame):
             return
 
         feed_ids = []
+        sub_cats = []
         try:
             from core.db import get_subcategory_titles
             sub_cats = get_subcategory_titles(cat_title)
@@ -4449,6 +4528,7 @@ class MainFrame(wx.Frame):
                     feed_ids.append(fid)
         except Exception:
             feed_ids = []
+            sub_cats = []
 
         count = len(feed_ids)
         sub_note = f" (including subcategories)" if len(sub_cats) > 0 else ""
@@ -4824,8 +4904,18 @@ class MainFrame(wx.Frame):
                     self._schedule_article_reload()
                 elif typ == "feed" and data.get("id") == feed_id:
                     self._schedule_article_reload()
-                elif typ == "category" and data.get("id") == category:
-                    self._schedule_article_reload()
+                elif typ == "category":
+                    # Category views aggregate nested subcategories (path-based
+                    # identity, CATEGORY_PATH_SEP-joined), so a parent view must
+                    # also reload when a feed in a subcategory gets new items.
+                    from core.db import CATEGORY_PATH_SEP
+                    sel_cat = str(data.get("id") or "")
+                    feed_cat = str(category or "")
+                    if sel_cat and (
+                        feed_cat == sel_cat
+                        or feed_cat.startswith(sel_cat + CATEGORY_PATH_SEP)
+                    ):
+                        self._schedule_article_reload()
 
     def _schedule_article_reload(self):
         if self._article_refresh_pending:
@@ -6125,6 +6215,13 @@ class MainFrame(wx.Frame):
         except Exception:
             pass
 
+    def _content_find_no_more(self, term, forward: bool):
+        where = "No more occurrences" if forward else "No previous occurrences"
+        try:
+            wx.MessageBox(f'{where} of "{term}".', "Find", wx.OK | wx.ICON_INFORMATION, self)
+        except Exception:
+            pass
+
     def on_find_in_article(self, event=None):
         text = ""
         try:
@@ -6168,11 +6265,13 @@ class MainFrame(wx.Frame):
             start = max(sel)
         except Exception:
             start = 0
-        match = self._find_in_text(text, self._content_find_term, start, forward=True, wrap=True)
+        # F3 deliberately does not wrap: hitting the last match and pressing F3
+        # again should say so, not silently jump back to the top (issue report).
+        match = self._find_in_text(text, self._content_find_term, start, forward=True, wrap=False)
         if match:
             self._select_content_match(match)
         else:
-            self._content_find_not_found(self._content_find_term)
+            self._content_find_no_more(self._content_find_term, forward=True)
 
     def on_find_prev_in_article(self, event=None):
         if not self._content_find_term:
@@ -6189,11 +6288,11 @@ class MainFrame(wx.Frame):
             start = min(sel)
         except Exception:
             start = 0
-        match = self._find_in_text(text, self._content_find_term, start, forward=False, wrap=True)
+        match = self._find_in_text(text, self._content_find_term, start, forward=False, wrap=False)
         if match:
             self._select_content_match(match)
         else:
-            self._content_find_not_found(self._content_find_term)
+            self._content_find_no_more(self._content_find_term, forward=False)
 
     def _fulltext_cache_key_for_article(self, article, idx: int):
         url = (getattr(article, "url", None) or "").strip()

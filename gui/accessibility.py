@@ -764,6 +764,12 @@ class AccessibleBrowserFrame(wx.Frame):
 
     def _apply_filter(self):
         query = str(self.search_ctrl.GetValue() or "").strip()
+        # Keep the reader's place: rebuilding the list (e.g. after Load More
+        # appends a page) must not throw the selection back to the top.
+        selected_id = None
+        sel_idx = self._selected_article_index()
+        if sel_idx is not None:
+            selected_id = self.mainframe._article_cache_id(self._current_articles[sel_idx])
         filtered = self.mainframe._filter_articles(self._base_articles, query)
         self._current_articles = self.mainframe._sort_articles_for_display(filtered)
         if not self._current_articles:
@@ -772,8 +778,17 @@ class AccessibleBrowserFrame(wx.Frame):
             self._update_download_button(None)
             return
         self.article_list.Set([self._article_label(article) for article in self._current_articles])
-        self.article_list.SetSelection(0)
-        self._show_article_at_index(0)
+        new_idx = 0
+        restored = False
+        if selected_id is not None:
+            for i, a in enumerate(self._current_articles):
+                if self.mainframe._article_cache_id(a) == selected_id:
+                    new_idx = i
+                    restored = True
+                    break
+        self.article_list.SetSelection(new_idx)
+        if not restored:
+            self._show_article_at_index(new_idx)
 
     def _article_label(self, article) -> str:
         title = self.mainframe._get_display_title(article)
@@ -1138,8 +1153,10 @@ class AccessibleBrowserFrame(wx.Frame):
         if self.mainframe._article_cache_id(article) != art_id:
             return
         try:
-            self._set_article_content(article, art_id, body)
-            self.content_ctrl.SetInsertionPoint(0)
+            # A late full-text completion must not move the reader cursor back
+            # to the beginning after the user has started reading the snippet
+            # (same rule as _finish_prefetch).
+            self._set_article_content(article, art_id, body, preserve_position=True)
         except Exception:
             pass
 

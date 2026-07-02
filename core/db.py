@@ -181,6 +181,19 @@ def _migrate_chapters_foreign_key(conn: sqlite3.Connection) -> None:
     if not _chapters_fk_needs_migration(cursor):
         return
 
+    # PRAGMA foreign_keys is a no-op while a transaction is open, so it must be
+    # flipped BEFORE the SAVEPOINT (and with no pending implicit transaction),
+    # or FK enforcement stays on during the table rebuild below.
+    prev_fk_setting = None
+    try:
+        conn.commit()
+        cursor.execute("PRAGMA foreign_keys")
+        row = cursor.fetchone()
+        prev_fk_setting = int(row[0]) if row and row[0] is not None else None
+        cursor.execute("PRAGMA foreign_keys=OFF")
+    except sqlite3.Error:
+        prev_fk_setting = None
+
     try:
         cursor.execute("SAVEPOINT migrate_chapters_fk")
 
@@ -194,33 +207,22 @@ def _migrate_chapters_foreign_key(conn: sqlite3.Connection) -> None:
                 log.debug("Could not create unique index on articles(id) during migration: %s", e)
             can_add_fk = _articles_id_is_unique(cursor)
 
-        prev_fk_setting = None
-        try:
-            cursor.execute("PRAGMA foreign_keys")
-            row = cursor.fetchone()
-            prev_fk_setting = int(row[0]) if row and row[0] is not None else None
-        except sqlite3.Error:
-            prev_fk_setting = None
+        backup_name = "chapters_old"
+        suffix = 0
+        while _table_exists(cursor, backup_name):
+            suffix += 1
+            backup_name = f"chapters_old_{suffix}"
 
-        try:
-            cursor.execute("PRAGMA foreign_keys=OFF")
+        log.warning(
+            "Migrating chapters FK to %s with delete cascade (backup table: %s)",
+            "articles(id)" if can_add_fk else "none",
+            backup_name,
+        )
 
-            backup_name = "chapters_old"
-            suffix = 0
-            while _table_exists(cursor, backup_name):
-                suffix += 1
-                backup_name = f"chapters_old_{suffix}"
+        cursor.execute(f"ALTER TABLE chapters RENAME TO {backup_name}")
 
-            log.warning(
-                "Migrating chapters FK to %s with delete cascade (backup table: %s)",
-                "articles(id)" if can_add_fk else "none",
-                backup_name,
-            )
-
-            cursor.execute(f"ALTER TABLE chapters RENAME TO {backup_name}")
-
-            if can_add_fk:
-                cursor.execute(
+        if can_add_fk:
+            cursor.execute(
                 """
                 CREATE TABLE chapters (
                     id TEXT PRIMARY KEY,
@@ -231,45 +233,39 @@ def _migrate_chapters_foreign_key(conn: sqlite3.Connection) -> None:
                     FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE
                 )
                 """
-                )
-                cursor.execute(
-                    f"""
-                    INSERT INTO chapters (id, article_id, start, title, href)
-                    SELECT id, article_id, start, title, href
-                    FROM {backup_name}
-                    WHERE article_id IS NULL OR article_id IN (SELECT id FROM articles)
-                    """
-                )
-            else:
-                cursor.execute(
-                    """
-                    CREATE TABLE chapters (
-                        id TEXT PRIMARY KEY,
-                        article_id TEXT,
-                        start REAL,
-                        title TEXT,
-                        href TEXT
-                    )
-                    """
-                )
-                cursor.execute(
-                    f"""
-                    INSERT INTO chapters (id, article_id, start, title, href)
-                    SELECT id, article_id, start, title, href
-                    FROM {backup_name}
-                    """
-                )
-
-            cursor.execute(f"DROP TABLE {backup_name}")
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_chapters_article_id_start ON chapters (article_id, start)"
             )
-        finally:
-            if prev_fk_setting is not None:
-                try:
-                    cursor.execute(f"PRAGMA foreign_keys={prev_fk_setting}")
-                except sqlite3.Error:
-                    pass
+            cursor.execute(
+                f"""
+                INSERT INTO chapters (id, article_id, start, title, href)
+                SELECT id, article_id, start, title, href
+                FROM {backup_name}
+                WHERE article_id IS NULL OR article_id IN (SELECT id FROM articles)
+                """
+            )
+        else:
+            cursor.execute(
+                """
+                CREATE TABLE chapters (
+                    id TEXT PRIMARY KEY,
+                    article_id TEXT,
+                    start REAL,
+                    title TEXT,
+                    href TEXT
+                )
+                """
+            )
+            cursor.execute(
+                f"""
+                INSERT INTO chapters (id, article_id, start, title, href)
+                SELECT id, article_id, start, title, href
+                FROM {backup_name}
+                """
+            )
+
+        cursor.execute(f"DROP TABLE {backup_name}")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chapters_article_id_start ON chapters (article_id, start)"
+        )
 
         cursor.execute("RELEASE SAVEPOINT migrate_chapters_fk")
     except sqlite3.Error:
@@ -279,6 +275,15 @@ def _migrate_chapters_foreign_key(conn: sqlite3.Connection) -> None:
         except sqlite3.Error:
             pass
         log.exception("Failed to migrate chapters foreign key; leaving schema unchanged")
+    finally:
+        # Restore FK enforcement outside the transaction (commit first so the
+        # pragma actually applies).
+        if prev_fk_setting is not None:
+            try:
+                conn.commit()
+                cursor.execute(f"PRAGMA foreign_keys={prev_fk_setting}")
+            except sqlite3.Error:
+                pass
 
 
 def init_db():
@@ -353,6 +358,7 @@ def init_db():
             chapter_url TEXT,
             is_read INTEGER,
             is_favorite INTEGER,
+            purged INTEGER DEFAULT 0,
             PRIMARY KEY (feed_id, article_id),
             FOREIGN KEY(feed_id) REFERENCES feeds(id) ON DELETE CASCADE
         )''')
@@ -563,6 +569,9 @@ def init_db():
             ("chapter_url", "TEXT"),
             ("is_read", "INTEGER"),
             ("is_favorite", "INTEGER"),
+            # purged=1: permanently deleted from the Deleted Articles view. The
+            # tombstone row is kept so refresh still never recreates the article.
+            ("purged", "INTEGER DEFAULT 0"),
         ):
             try:
                 c.execute(f"ALTER TABLE deleted_articles ADD COLUMN {_col} {_decl}")
@@ -613,7 +622,12 @@ def cleanup_old_articles(days: int, keep_favorites: bool = True):
         
         params = []
         where_clauses = [f"date < date('now', '-{int(days)} days')"]
-        
+        # Articles whose date could not be parsed carry the sentinel
+        # "0001-01-01 00:00:00" (or an empty string). Those compare below any
+        # real cutoff, so without this guard every undated article would be
+        # deleted on each sweep no matter how recently it was fetched.
+        where_clauses.append("date >= '0002'")
+
         if keep_favorites:
             where_clauses.append("is_favorite = 0")
             
@@ -649,6 +663,13 @@ def cleanup_old_articles(days: int, keep_favorites: bool = True):
         conn.close()
 
 
+def _sql_py_lower(value):
+    """Unicode-aware LOWER for SQL. SQLite's built-in LOWER() only folds
+    ASCII A-Z, so queries that compare against Python-lowercased needles
+    (Smart Folder text filters) miss accented/non-Latin matches without it."""
+    return value.lower() if isinstance(value, str) else value
+
+
 def get_connection():
     conn = sqlite3.connect(_active_db_path(), timeout=30, check_same_thread=False)
     try:
@@ -658,6 +679,12 @@ def get_connection():
         conn.execute("PRAGMA foreign_keys=ON")
     except Exception as e:
         log.warning(f"Failed to set PRAGMAs on connection: {e}")
+    try:
+        conn.create_function("py_lower", 1, _sql_py_lower, deterministic=True)
+    except TypeError:
+        conn.create_function("py_lower", 1, _sql_py_lower)
+    except Exception as e:
+        log.warning(f"Failed to register py_lower on connection: {e}")
     return conn
 
 
@@ -752,13 +779,14 @@ def list_deleted_articles(offset: int = 0, limit: int | None = None, cursor=None
         conn = get_connection()
         c = conn.cursor()
     try:
-        c.execute("SELECT COUNT(*) FROM deleted_articles")
+        c.execute("SELECT COUNT(*) FROM deleted_articles WHERE COALESCE(purged, 0) = 0")
         total = int(c.fetchone()[0] or 0)
 
         sql = (
             "SELECT feed_id, article_id, url, deleted_at, title, content, description, "
             "date, author, media_url, media_type, chapter_url, is_read, is_favorite "
-            "FROM deleted_articles ORDER BY deleted_at DESC, article_id DESC"
+            "FROM deleted_articles WHERE COALESCE(purged, 0) = 0 "
+            "ORDER BY deleted_at DESC, article_id DESC"
         )
         params: list = []
         if limit is not None:
@@ -794,17 +822,21 @@ def restore_deleted_article(article_id: str, feed_id: str | None = None, cursor=
             c.execute(
                 "SELECT feed_id, url, title, content, description, date, author, "
                 "media_url, media_type, chapter_url, is_read, is_favorite "
-                "FROM deleted_articles WHERE feed_id = ? AND article_id = ? LIMIT 1",
+                "FROM deleted_articles WHERE feed_id = ? AND article_id = ? "
+                "AND COALESCE(purged, 0) = 0 LIMIT 1",
                 (fid, aid),
             )
         else:
-            c.execute("SELECT COUNT(*) FROM deleted_articles WHERE article_id = ?", (aid,))
+            c.execute(
+                "SELECT COUNT(*) FROM deleted_articles WHERE article_id = ? AND COALESCE(purged, 0) = 0",
+                (aid,),
+            )
             if int(c.fetchone()[0] or 0) != 1:
                 return None
             c.execute(
                 "SELECT feed_id, url, title, content, description, date, author, "
                 "media_url, media_type, chapter_url, is_read, is_favorite "
-                "FROM deleted_articles WHERE article_id = ? LIMIT 1",
+                "FROM deleted_articles WHERE article_id = ? AND COALESCE(purged, 0) = 0 LIMIT 1",
                 (aid,),
             )
         row = c.fetchone()
@@ -851,6 +883,52 @@ def restore_deleted_article(article_id: str, feed_id: str | None = None, cursor=
         if conn is not None:
             conn.commit()
         return str(feed_id or "")
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def purge_deleted_article(article_id: str, feed_id: str | None = None, cursor=None) -> bool:
+    """Permanently delete an article from the Deleted Articles view.
+
+    The snapshot content is dropped and the row is marked purged, but the
+    tombstone identity is kept so refresh still never recreates the article.
+    Without `feed_id`, only purges when the article_id is unambiguous across
+    feeds. Returns True when a row was purged.
+    """
+    aid = str(article_id or "").strip()
+    if not aid:
+        return False
+    fid = str(feed_id or "").strip()
+
+    set_sql = (
+        "UPDATE deleted_articles SET purged = 1, title = NULL, content = NULL, "
+        "description = NULL, author = NULL, media_url = NULL, media_type = NULL, "
+        "chapter_url = NULL"
+    )
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        if fid:
+            c.execute(
+                set_sql + " WHERE feed_id = ? AND article_id = ? AND COALESCE(purged, 0) = 0",
+                (fid, aid),
+            )
+        else:
+            c.execute(
+                "SELECT COUNT(*) FROM deleted_articles WHERE article_id = ? AND COALESCE(purged, 0) = 0",
+                (aid,),
+            )
+            if int(c.fetchone()[0] or 0) != 1:
+                return False
+            c.execute(set_sql + " WHERE article_id = ? AND COALESCE(purged, 0) = 0", (aid,))
+        purged = int(c.rowcount or 0) > 0
+        if conn is not None:
+            conn.commit()
+        return purged
     finally:
         if conn is not None:
             conn.close()

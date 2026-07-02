@@ -1514,10 +1514,19 @@ class MinifluxProvider(RSSProvider):
             
         category_id = cats[0]["id"]
         if category:
+            found = False
             for c in cats:
                 if c["title"].lower() == category.lower():
                     category_id = c["id"]
+                    found = True
                     break
+            if not found:
+                # Create the requested category rather than silently filing the
+                # feed under whatever category happens to be first (update_feed
+                # already does this).
+                created = self._req("POST", "/v1/categories", json={"title": category})
+                if isinstance(created, dict) and created.get("id") is not None:
+                    category_id = created.get("id")
         
         data = {"feed_url": real_url, "category_id": category_id}
         res = self._req("POST", "/v1/feeds", json=data)

@@ -82,15 +82,18 @@ def _compile_leaf(cond):
     if field in _TEXT_COLS:
         col = _TEXT_COLS[field]
         low = str(value or "").lower()
+        # py_lower (registered in db.get_connection) is Unicode-aware; SQLite's
+        # built-in LOWER() only folds ASCII, which would diverge from the
+        # Python-lowercased needle on accented/non-Latin terms.
         if op == "equals":
-            return f"LOWER({col}) = ?", [low]
+            return f"py_lower({col}) = ?", [low]
         esc = _like_escape(low)
         if op == "starts_with":
-            return f"LOWER({col}) LIKE ? ESCAPE '\\'", [esc + "%"]
+            return f"py_lower({col}) LIKE ? ESCAPE '\\'", [esc + "%"]
         if op == "not_contains":
-            return f"({col} IS NULL OR LOWER({col}) NOT LIKE ? ESCAPE '\\')", ["%" + esc + "%"]
+            return f"({col} IS NULL OR py_lower({col}) NOT LIKE ? ESCAPE '\\')", ["%" + esc + "%"]
         # default / "contains"
-        return f"LOWER({col}) LIKE ? ESCAPE '\\'", ["%" + esc + "%"]
+        return f"py_lower({col}) LIKE ? ESCAPE '\\'", ["%" + esc + "%"]
 
     return "", []  # unknown field -> skip
 

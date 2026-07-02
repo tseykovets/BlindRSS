@@ -167,6 +167,9 @@ class _FakeProvider:
     def supports_restore_deleted(self):
         return True
 
+    def supports_purge_deleted(self):
+        return True
+
     def restore_article(self, article_id, feed_id=None):
         _ = feed_id
         return True
@@ -220,6 +223,7 @@ class _DummyContextMenuHost:
     _supports_favorites = mainframe.MainFrame._supports_favorites
     _is_deleted_view = mainframe.MainFrame._is_deleted_view
     _supports_restore_deleted = mainframe.MainFrame._supports_restore_deleted
+    _supports_purge_deleted = mainframe.MainFrame._supports_purge_deleted
     _article_chapter_links = mainframe.MainFrame._article_chapter_links
     _validated_chapter_web_url = mainframe.MainFrame._validated_chapter_web_url
     _format_chapter_timestamp = mainframe.MainFrame._format_chapter_timestamp
@@ -351,8 +355,10 @@ def _install_fake_call_later(monkeypatch):
 
 class _DeleteHost:
     on_delete_article = mainframe.MainFrame.on_delete_article
+    _is_deleted_view = mainframe.MainFrame._is_deleted_view
 
     def __init__(self, *, confirm_setting=True):
+        self.current_feed_id = "all"
         self.config_manager = _FakeConfig({"confirm_article_delete": confirm_setting})
         self.current_articles = [
             mainframe.Article(
@@ -727,10 +733,10 @@ def test_article_context_menu_includes_delete_for_supported_provider(monkeypatch
     assert "View Feed Description..." in labels
 
 
-def test_article_context_menu_shows_restore_and_hides_delete_in_deleted_view(monkeypatch):
-    # In the Deleted Articles view, the row's action is Restore (not Delete):
-    # deleting an already-deleted item is meaningless, and Restore returns it to
-    # its feed.
+def test_article_context_menu_offers_restore_and_permanent_delete_in_deleted_view(monkeypatch):
+    # In the Deleted Articles view the row's actions are Restore (return it to
+    # its feed) and Delete Permanently (purge it from the Deleted view for
+    # good); the ordinary Delete item is replaced by the permanent variant.
     monkeypatch.setattr(mainframe.wx, "Menu", _FakeMenu)
     host = _DummyContextMenuHost()
     host.current_feed_id = "deleted:all"
@@ -739,7 +745,8 @@ def test_article_context_menu_shows_restore_and_hides_delete_in_deleted_view(mon
 
     labels = [item.label for item in host.list_ctrl.popup_menu.GetMenuItems()]
     assert "Restore Article" in labels
-    assert not any(l.startswith("Delete") for l in labels)
+    assert "Delete Article Permanently\tDel" in labels
+    assert "Delete Article\tDel" not in labels
 
 
 def test_article_context_menu_exposes_accessible_chapter_link_commands(monkeypatch):
@@ -864,6 +871,23 @@ def test_delete_article_keeps_confirmation_by_default(monkeypatch):
 
     assert prompts
     assert not started
+
+
+def test_delete_in_deleted_view_routes_to_purge():
+    # In the Deleted Articles view the Delete shortcut permanently purges the
+    # tombstone snapshot instead of calling provider.delete_article (which
+    # cannot work there: the live row is already gone).
+    host = _DeleteHost(confirm_setting=True)
+    host.current_feed_id = "deleted:all"
+    purge_calls = []
+    host._purge_deleted_articles = lambda indices, confirm=None: purge_calls.append(
+        (list(indices), confirm)
+    )
+
+    host.on_delete_article()
+
+    assert purge_calls == [([0], None)]
+    assert not hasattr(host, "delete_thread_args")
 
 
 def test_delete_article_is_blocked_while_refresh_is_active(monkeypatch):

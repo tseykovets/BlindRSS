@@ -402,10 +402,13 @@ class TheOldReaderProvider(RSSProvider):
                 is_fav = False
                 is_read_flag = False
                 for cat in item.get("categories", []):
-                    if "starred" in cat:
-                        is_fav = True
-                    if "read" in cat and "com.google" in cat:
-                        is_read_flag = True
+                    # Match exact state suffixes: a bare substring test would
+                    # flag every item read via ".../com.google/reading-list".
+                    if "com.google" in cat:
+                        if cat.endswith("/starred"):
+                            is_fav = True
+                        if cat.endswith("/read"):
+                            is_read_flag = True
 
                 articles.append(Article(
                     id=article_id,

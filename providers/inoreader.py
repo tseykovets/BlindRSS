@@ -469,10 +469,13 @@ class InoreaderProvider(RSSProvider):
             is_fav = False
             is_read_flag = False
             for cat in item.get("categories", []) or []:
-                if "starred" in str(cat):
-                    is_fav = True
-                if "read" in str(cat) and "com.google" in str(cat):
-                    is_read_flag = True
+                # Match exact state suffixes: a bare substring test would flag
+                # every item read via ".../com.google/reading-list".
+                if "com.google" in str(cat):
+                    if str(cat).endswith("/starred"):
+                        is_fav = True
+                    if str(cat).endswith("/read"):
+                        is_read_flag = True
 
             articles.append(Article(
                 id=article_id,

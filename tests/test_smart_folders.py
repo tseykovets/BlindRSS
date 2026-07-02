@@ -197,6 +197,32 @@ def test_smart_query_not_contains_includes_null_and_empty(provider):
     assert _ids(provider, {"match": "all", "conditions": [{"field": "title", "op": "not_contains", "value": "zzz"}]}) == ["a1", "a2", "a3"]
 
 
+def test_smart_query_text_match_is_unicode_case_insensitive(provider):
+    # SQLite's built-in LOWER() only folds ASCII; the SQL path must use the
+    # Unicode-aware py_lower so "ärger" matches "ÄRGER" like rule_matches does.
+    conn = db.get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO articles (id, feed_id, title, url, content, date, author, is_read, is_favorite) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            ("a4", "tech", "ÄRGER über alles", "https://x/a4", "body", "2026-06-24 12:00:00", "Über Author", 0, 0),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    rule = {"match": "all", "conditions": [{"field": "title", "op": "contains", "value": "ärger"}]}
+    assert _ids(provider, rule) == ["a4"]
+    # The pure-Python mirror must agree.
+    assert rule_matches(rule, _art(title="ÄRGER über alles")) is True
+
+    rule_eq = {"match": "all", "conditions": [{"field": "author", "op": "equals", "value": "über author"}]}
+    assert _ids(provider, rule_eq) == ["a4"]
+
+    rule_sw = {"match": "all", "conditions": [{"field": "title", "op": "starts_with", "value": "ärger"}]}
+    assert _ids(provider, rule_sw) == ["a4"]
+
+
 # --------------------------------------------------------------------------
 # CRUD
 # --------------------------------------------------------------------------

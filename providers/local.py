@@ -25,6 +25,7 @@ from core.db import (
     remember_deleted_article,
     list_deleted_articles,
     restore_deleted_article,
+    purge_deleted_article,
     record_article_version,
     get_smart_folder,
 )
@@ -3274,6 +3275,17 @@ class LocalProvider(RSSProvider):
             return restore_deleted_article(article_id, feed_id=feed_id) is not None
         except Exception:
             log.exception("Local restore article error for %s", article_id)
+            return False
+
+    def supports_purge_deleted(self) -> bool:
+        return True
+
+    def purge_deleted_article(self, article_id: str, feed_id: str | None = None) -> bool:
+        """Permanently remove a deleted article's tombstone and snapshot."""
+        try:
+            return bool(purge_deleted_article(article_id, feed_id=feed_id))
+        except Exception:
+            log.exception("Local purge deleted article error for %s", article_id)
             return False
 
     def supports_smart_folders(self) -> bool:

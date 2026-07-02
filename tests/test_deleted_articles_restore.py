@@ -162,6 +162,77 @@ def test_restore_missing_returns_false(provider):
     assert provider.restore_article("no-such-article") is False
 
 
+def test_supports_purge_deleted(provider):
+    assert provider.supports_purge_deleted() is True
+
+
+def test_purge_removes_from_deleted_view_but_keeps_tombstone(provider):
+    provider.delete_article(ART_ID)
+    assert provider.purge_deleted_article(ART_ID, FEED_ID) is True
+
+    # Gone from the Deleted Articles view...
+    _page, total = provider.get_articles_page("deleted:all", offset=0, limit=50)
+    assert total == 0
+    rows, total = db.list_deleted_articles()
+    assert total == 0
+    assert rows == []
+
+    # ...but the tombstone identity still suppresses re-creation on refresh.
+    ids, urls = db.deleted_article_tombstones_for_feed(FEED_ID)
+    assert ART_ID in ids
+    assert ART_URL in urls
+
+    # The snapshot content is actually dropped from the row.
+    conn = db.get_connection()
+    try:
+        row = conn.execute(
+            "SELECT title, content, purged FROM deleted_articles WHERE feed_id=? AND article_id=?",
+            (FEED_ID, ART_ID),
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row is not None
+    assert row[0] is None
+    assert row[1] is None
+    assert row[2] == 1
+
+
+def test_purged_article_cannot_be_restored(provider):
+    provider.delete_article(ART_ID)
+    assert provider.purge_deleted_article(ART_ID, FEED_ID) is True
+    assert provider.restore_article(ART_ID, feed_id=FEED_ID) is False
+
+
+def test_purge_twice_returns_false(provider):
+    provider.delete_article(ART_ID)
+    assert provider.purge_deleted_article(ART_ID, FEED_ID) is True
+    assert provider.purge_deleted_article(ART_ID, FEED_ID) is False
+
+
+def test_purge_missing_returns_false(provider):
+    assert provider.purge_deleted_article("no-such-article", FEED_ID) is False
+
+
+def test_purge_without_feed_id_refuses_ambiguous_tombstone(provider):
+    other_feed = "feed-other"
+    conn = db.get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
+            (other_feed, "https://example.com/other.xml", "Other", "Uncategorized"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    provider.delete_article(ART_ID)
+    db.remember_deleted_article(other_feed, ART_ID, "https://example.com/other-post")
+
+    assert provider.purge_deleted_article(ART_ID) is False
+    _rows, total = db.list_deleted_articles()
+    assert total == 2
+
+
 def test_old_tombstone_without_snapshot_degrades_gracefully(provider, tmp_path):
     # A pre-migration tombstone (identity only, NULL snapshot) should still appear
     # in the deleted view with a placeholder/URL title and be restorable.

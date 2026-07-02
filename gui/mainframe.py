@@ -420,6 +420,8 @@ class MainFrame(wx.Frame):
         # Full-text extraction cache (url -> rendered text)
         self._fulltext_cache = {}
         self._fulltext_cache_source = {}
+        # Last search term used by find-in-article (reading pane).
+        self._content_find_term = ""
         self._fulltext_token = 0
         self._fulltext_loading_url = None
         # Debounce full-text extraction when moving through the list quickly.
@@ -1776,6 +1778,29 @@ class MainFrame(wx.Frame):
             pass
         return evt
 
+    @staticmethod
+    def _find_in_text(text, term, start, forward=True, wrap=True):
+        """Find `term` in `text` case-insensitively. Returns (start, end) or None.
+        forward=True: first match at index >= start, else wrap to top.
+        forward=False: last match at index < start, else wrap to bottom."""
+        if not text or not term:
+            return None
+        hay = text.lower()
+        needle = term.lower()
+        n = len(text)
+        start = max(0, min(int(start), n))
+        if forward:
+            idx = hay.find(needle, start)
+            if idx == -1 and wrap:
+                idx = hay.find(needle, 0)
+        else:
+            idx = hay.rfind(needle, 0, start)
+            if idx == -1 and wrap:
+                idx = hay.rfind(needle)
+        if idx == -1:
+            return None
+        return (idx, idx + len(needle))
+
     def on_char_hook(self, event: wx.KeyEvent) -> None:
         """Global media shortcuts while the main window is focused."""
         try:
@@ -1795,15 +1820,33 @@ class MainFrame(wx.Frame):
                 except Exception:
                     log.exception("Error toggling article read status on Backspace")
 
-        if key == wx.WXK_SPACE and not event.AltDown():
-            if focus == self.list_ctrl:
-                idx = self.list_ctrl.GetFirstSelected()
-                if idx != wx.NOT_FOUND:
-                    try:
-                        self.on_article_activate(self._make_list_activate_event(idx))
-                        return
-                    except Exception:
-                        log.exception("Error activating article on space press")
+        if focus == self.content_ctrl:
+            if (
+                event.ControlDown()
+                and not event.ShiftDown()
+                and not event.AltDown()
+                and not event.MetaDown()
+                and key in (ord("F"), ord("f"))
+            ):
+                try:
+                    self.on_find_in_article()
+                    return
+                except Exception:
+                    log.exception("Error opening find-in-article")
+            if (
+                key == wx.WXK_F3
+                and not event.ControlDown()
+                and not event.AltDown()
+                and not event.MetaDown()
+            ):
+                try:
+                    if event.ShiftDown():
+                        self.on_find_prev_in_article()
+                    else:
+                        self.on_find_next_in_article()
+                    return
+                except Exception:
+                    log.exception("Error navigating find-in-article")
 
         if MainFrame._is_delete_key(self, key):
             if MainFrame._window_is_or_child(self, focus, self.list_ctrl):
@@ -5701,6 +5744,90 @@ class MainFrame(wx.Frame):
             self._schedule_fulltext_load_for_index(idx, force=True)
         except Exception:
             pass
+
+    def _select_content_match(self, match):
+        start, end = match
+        try:
+            self.content_ctrl.SetSelection(start, end)
+            self.content_ctrl.ShowPosition(start)
+        except Exception:
+            log.exception("Error selecting find match in article text")
+
+    def _content_find_not_found(self, term):
+        try:
+            wx.MessageBox(f'"{term}" was not found.', "Find", wx.OK | wx.ICON_INFORMATION, self)
+        except Exception:
+            pass
+
+    def on_find_in_article(self, event=None):
+        text = ""
+        try:
+            text = self.content_ctrl.GetValue()
+        except Exception:
+            text = ""
+        if not text.strip():
+            return
+        dlg = wx.TextEntryDialog(self, "Find in article:", "Find", self._content_find_term or "")
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            term = dlg.GetValue().strip()
+        finally:
+            dlg.Destroy()
+        if not term:
+            return
+        self._content_find_term = term
+        try:
+            start = self.content_ctrl.GetInsertionPoint()
+        except Exception:
+            start = 0
+        match = self._find_in_text(text, term, start, forward=True, wrap=True)
+        if match:
+            self._select_content_match(match)
+        else:
+            self._content_find_not_found(term)
+
+    def on_find_next_in_article(self, event=None):
+        if not self._content_find_term:
+            return self.on_find_in_article()
+        text = ""
+        try:
+            text = self.content_ctrl.GetValue()
+        except Exception:
+            text = ""
+        if not text:
+            return
+        try:
+            sel = self.content_ctrl.GetSelection()
+            start = max(sel)
+        except Exception:
+            start = 0
+        match = self._find_in_text(text, self._content_find_term, start, forward=True, wrap=True)
+        if match:
+            self._select_content_match(match)
+        else:
+            self._content_find_not_found(self._content_find_term)
+
+    def on_find_prev_in_article(self, event=None):
+        if not self._content_find_term:
+            return self.on_find_in_article()
+        text = ""
+        try:
+            text = self.content_ctrl.GetValue()
+        except Exception:
+            text = ""
+        if not text:
+            return
+        try:
+            sel = self.content_ctrl.GetSelection()
+            start = min(sel)
+        except Exception:
+            start = 0
+        match = self._find_in_text(text, self._content_find_term, start, forward=False, wrap=True)
+        if match:
+            self._select_content_match(match)
+        else:
+            self._content_find_not_found(self._content_find_term)
 
     def _fulltext_cache_key_for_article(self, article, idx: int):
         url = (getattr(article, "url", None) or "").strip()

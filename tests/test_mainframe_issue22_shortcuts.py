@@ -59,6 +59,7 @@ class _DummyHost:
     def __init__(self):
         self.tree = object()
         self.list_ctrl = object()
+        self.content_ctrl = object()
         self.player_window = None
         self._media_hotkeys = None
         self.calls = []
@@ -675,6 +676,21 @@ def test_global_backspace_toggles_article_when_list_focused():
 
     assert ("mark_read", 0) in host.calls
     assert evt.skipped is False
+
+
+def test_space_does_not_open_article_and_skips_for_native_selection():
+    # Space with the article list focused must NOT open/activate the article.
+    # It has to fall through to event.Skip() so the native wx.ListCtrl handles
+    # Space as toggle-selection, enabling non-contiguous multi-select
+    # (Ctrl+Up/Down then Space / Ctrl+Space).
+    host = _DummyHost()
+    host._focus = host.list_ctrl
+    evt = _DummyKeyEvent(mainframe.wx.WXK_SPACE)
+
+    host.on_char_hook(evt)
+
+    assert not any(c[0] == "article_activate" for c in host.calls)
+    assert evt.skipped is True
 
 
 def test_article_context_menu_includes_delete_for_supported_provider(monkeypatch):

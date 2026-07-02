@@ -29,6 +29,7 @@ class _ListCtrl:
 
 class _Host:
     _render_articles_list = mainframe.MainFrame._render_articles_list
+    _insert_article_row = mainframe.MainFrame._insert_article_row
     _raw_article_description = mainframe.MainFrame._raw_article_description
     _article_description_text = mainframe.MainFrame._article_description_text
     _article_description_preview = mainframe.MainFrame._article_description_preview

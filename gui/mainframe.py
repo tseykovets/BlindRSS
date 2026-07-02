@@ -119,6 +119,14 @@ class MainFrame(wx.Frame):
         self._load_more_inflight = False
         self._load_more_label = "Load more items (Enter)"
         self._loading_label = "Loading more..."
+        # Chunked article-list rendering keeps the UI thread (and NVDA) responsive
+        # on large feeds. The first chunk renders synchronously for immediate
+        # content; the rest is appended in bounded wx.CallAfter batches. Bumping
+        # _render_generation invalidates any batch still queued from an older render.
+        self._render_generation = 0
+        self._render_first_chunk = 60
+        self._render_batch_size = 60
+        self._article_render_inflight = False
         
         # Create player window lazily to keep startup fast.
         self.player_window = None
@@ -631,6 +639,21 @@ class MainFrame(wx.Frame):
         return re.sub(r"\s+([,.;:!?])", r"\1", text)
 
     def _article_description_preview(self, article, max_len: int = 240) -> str:
+        # Memoize only the default list-rendering path (max_len == 240), which is
+        # the hot loop: rendering a large feed calls this once per row and each
+        # call runs a full HTML->text parse plus two regex passes. The result is
+        # stored on the Article object itself: a feed refresh builds NEW Article
+        # objects (article.description/content are never mutated in place), so the
+        # cache can never go stale, and it is freed with the article when its
+        # cached view is evicted (no unbounded id-keyed dict to manage). Other
+        # callers pass a different max_len (e.g. _article_description_for_sort uses
+        # 4000) and must NOT receive a 240-char truncation, so they bypass the
+        # cache and compute their own length.
+        cache_on_article = (article is not None and max_len == 240)
+        if cache_on_article:
+            cached = getattr(article, "_desc_preview_240", None)
+            if cached is not None:
+                return cached
         try:
             text = self._article_description_text(article, include_images=False)
         except Exception:
@@ -638,8 +661,15 @@ class MainFrame(wx.Frame):
         text = re.sub(r"\s+", " ", str(text or "")).strip()
         text = re.sub(r"\s+([,.;:!?])", r"\1", text)
         if max_len > 3 and len(text) > max_len:
-            return text[: max_len - 3].rstrip() + "..."
-        return text
+            result = text[: max_len - 3].rstrip() + "..."
+        else:
+            result = text
+        if cache_on_article:
+            try:
+                article._desc_preview_240 = result
+            except Exception:
+                pass
+        return result
 
     def _article_description_for_sort(self, article) -> str:
         try:
@@ -778,26 +808,151 @@ class MainFrame(wx.Frame):
         return focused_article_id, top_article_id, selected_article_id, (focused_on_load_more or selected_on_load_more)
 
     def _render_articles_list(self, articles, empty_label: str = "No articles found.") -> None:
+        # Bump the render generation FIRST so any batch still queued from a
+        # previous render detects that it is stale and stops (see
+        # _render_articles_batch). This also supersedes prior batches when the
+        # new render is empty or short (no batches of its own).
+        generation = int(getattr(self, "_render_generation", 0)) + 1
+        self._render_generation = generation
+        feed_id = getattr(self, "current_feed_id", None)
+
         self.list_ctrl.DeleteAllItems()
+        articles = list(articles or [])
         if not articles:
             self.list_ctrl.InsertItem(0, empty_label)
+            self._article_render_inflight = False
             return
 
-        self.list_ctrl.Freeze()
-        for i, article in enumerate(articles):
-            idx = self.list_ctrl.InsertItem(i, self._get_display_title(article))
-            feed_title = ""
-            if article.feed_id:
-                feed = self.feed_map.get(article.feed_id)
-                if feed:
-                    feed_title = feed.title or ""
+        # Render enough rows synchronously to fill the visible area and give NVDA
+        # immediate content, then append the rest in bounded wx.CallAfter batches
+        # so a large feed cannot block the UI thread parsing/inserting thousands
+        # of rows in one go.
+        first_chunk = max(1, int(getattr(self, "_render_first_chunk", 60)))
+        first_count = min(len(articles), first_chunk)
 
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_AUTHOR, article.author or "")
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_DATE, utils.humanize_article_date(article.date))
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_FEED, feed_title)
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_DESCRIPTION, self._article_description_preview(article))
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, "Read" if article.is_read else "Unread")
-        self.list_ctrl.Thaw()
+        self.list_ctrl.Freeze()
+        try:
+            for i in range(first_count):
+                self._insert_article_row(i, articles[i])
+        finally:
+            self.list_ctrl.Thaw()
+
+        if first_count < len(articles):
+            self._article_render_inflight = True
+            wx.CallAfter(self._render_articles_batch, articles, first_count, generation, feed_id)
+        else:
+            self._article_render_inflight = False
+
+    def _insert_article_row(self, index: int, article) -> None:
+        """Insert one fully-populated article row at `index`.
+
+        Only InsertItem/SetItem are used, so this never changes or steals
+        selection/focus (critical for NVDA when appending rows asynchronously).
+        """
+        idx = self.list_ctrl.InsertItem(index, self._get_display_title(article))
+        feed_title = ""
+        if article.feed_id:
+            feed = self.feed_map.get(article.feed_id)
+            if feed:
+                feed_title = feed.title or ""
+
+        self.list_ctrl.SetItem(idx, ARTICLE_COL_AUTHOR, article.author or "")
+        self.list_ctrl.SetItem(idx, ARTICLE_COL_DATE, utils.humanize_article_date(article.date))
+        self.list_ctrl.SetItem(idx, ARTICLE_COL_FEED, feed_title)
+        self.list_ctrl.SetItem(idx, ARTICLE_COL_DESCRIPTION, self._article_description_preview(article))
+        self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, "Read" if article.is_read else "Unread")
+
+    def _render_articles_batch(self, articles, start, generation, feed_id) -> None:
+        """Append one bounded batch of article rows, then queue the next batch."""
+        # A newer _render_articles_list run has superseded us: stop and leave the
+        # inflight flag to whichever render is now current.
+        if int(generation) != int(getattr(self, "_render_generation", 0)):
+            return
+        # The view was switched out from under us via a path that clears the list
+        # WITHOUT going through _render_articles_list (e.g. the empty cached-view
+        # branch of _select_view, which does not bump the generation). Abandon and
+        # clear our inflight flag so any deferred restore can proceed.
+        if feed_id != getattr(self, "current_feed_id", None):
+            self._article_render_inflight = False
+            return
+
+        total = len(articles)
+        batch_size = max(1, int(getattr(self, "_render_batch_size", 60)))
+        end = min(total, start + batch_size)
+
+        self.list_ctrl.Freeze()
+        try:
+            for i in range(start, end):
+                # Inserting at the growing article index preserves input order and
+                # naturally keeps any load-more placeholder (added by the caller
+                # right after the first chunk) as the trailing row: the placeholder
+                # sits at the "next article" slot and each insert pushes it down.
+                try:
+                    self._insert_article_row(i, articles[i])
+                except Exception:
+                    log.exception("Error rendering article row %d", i)
+        finally:
+            self.list_ctrl.Thaw()
+
+        if end < total:
+            wx.CallAfter(self._render_articles_batch, articles, end, generation, feed_id)
+        else:
+            self._article_render_inflight = False
+            self._reassert_load_more_placeholder_last()
+
+    def _reassert_load_more_placeholder_last(self) -> None:
+        """Ensure a load-more placeholder (if present) is the last row post-render."""
+        if not getattr(self, "_loading_more_placeholder", False):
+            return
+        try:
+            count = self.list_ctrl.GetItemCount()
+        except Exception:
+            return
+        if count <= 0:
+            return
+        labels = (getattr(self, "_load_more_label", ""), getattr(self, "_loading_label", ""))
+        try:
+            if self.list_ctrl.GetItemText(count - 1) in labels:
+                return  # already trailing (the expected case with in-order inserts)
+        except Exception:
+            return
+        # Defensive: the placeholder somehow ended up buried; move it to the end,
+        # preserving whether it was the "Loading..." variant.
+        placeholder_idx = None
+        loading_variant = False
+        for idx in range(count):
+            try:
+                text = self.list_ctrl.GetItemText(idx)
+            except Exception:
+                continue
+            if text in labels:
+                placeholder_idx = idx
+                loading_variant = (text == getattr(self, "_loading_label", ""))
+                break
+        if placeholder_idx is None:
+            return
+        try:
+            self.list_ctrl.DeleteItem(placeholder_idx)
+        except Exception:
+            return
+        self._loading_more_placeholder = False
+        self._add_loading_more_placeholder(loading=loading_variant)
+
+    def _defer_restore_during_render(self, fn) -> bool:
+        """Re-queue `fn` behind pending render batches; return True if deferred.
+
+        Focus/selection/scroll restoration addresses rows by absolute index, so it
+        must run only after every row exists. While _render_articles_batch is still
+        appending rows (inflight), re-queue the restore so it runs once the list is
+        complete instead of acting on a partially rendered list.
+        """
+        if not getattr(self, "_article_render_inflight", False):
+            return False
+        try:
+            wx.CallAfter(fn)
+        except Exception:
+            return False
+        return True
 
     def _bind_search_tab_escape(self):
         def _handle_tab(event):
@@ -4905,6 +5060,10 @@ class MainFrame(wx.Frame):
 
     def _restore_list_view(self, focused_id, top_id, selected_id=None):
         """Restore focus, selection, and scroll position after list rebuild."""
+        if self._defer_restore_during_render(
+            lambda: self._restore_list_view(focused_id, top_id, selected_id)
+        ):
+            return
         if not self.current_articles:
             return
 
@@ -4957,6 +5116,8 @@ class MainFrame(wx.Frame):
 
     def _restore_load_more_focus(self):
         """Keep focus on the Load More row after paging for screen readers."""
+        if self._defer_restore_during_render(self._restore_load_more_focus):
+            return
         try:
             count = self.list_ctrl.GetItemCount()
         except Exception:
@@ -4974,6 +5135,10 @@ class MainFrame(wx.Frame):
 
     def _restore_loaded_page_focus(self, article_id: str | None):
         """Focus the first newly loaded article after paging."""
+        if self._defer_restore_during_render(
+            lambda: self._restore_loaded_page_focus(article_id)
+        ):
+            return
         if not article_id:
             return
         target_idx = -1

@@ -100,7 +100,7 @@ def test_activity_status_writes_only_field_1(monkeypatch):
     assert host.fields[1] == "Refreshing feeds..."
     assert host.fields[0] == ""
     assert host.field_history[0] == []
-    assert host.tray_icon.label == "BlindRSS (Refreshing feeds...)"
+    assert host.tray_icon.label == "Refreshing feeds..."
 
 
 def test_activity_status_does_not_clobber_existing_filter_count(monkeypatch):
@@ -189,8 +189,10 @@ def test_feed_activity_status_treats_error_field_as_error_even_without_status():
 
 def test_tray_label_formatter_includes_unread_and_activity():
     assert format_tray_label(0, "") == "BlindRSS"
-    assert format_tray_label(103, "") == "BlindRSS (Unread: 103)"
-    assert format_tray_label(103, "Checked: Supernews") == "BlindRSS (Unread: 103, Checked: Supernews)"
+    # No "BlindRSS" prefix on status labels: the OS/screen reader already
+    # announces the app name for the tray icon (issue #38).
+    assert format_tray_label(103, "") == "Unread: 103"
+    assert format_tray_label(103, "Checked: Supernews") == "Unread: 103, Checked: Supernews"
     assert len(format_tray_label(3, "Checked: " + ("Very Long Feed " * 20))) <= MAX_TRAY_LABEL_LENGTH
 
 
@@ -203,18 +205,18 @@ def test_refresh_activity_updates_and_clears_tray_label(monkeypatch):
     }
 
     host._update_tray_status_label()
-    assert host.tray_icon.label == "BlindRSS (Unread: 5)"
+    assert host.tray_icon.label == "Unread: 5"
 
     host._begin_refresh_activity()
-    assert host.tray_icon.label == "BlindRSS (Unread: 5, Refreshing feeds...)"
+    assert host.tray_icon.label == "Unread: 5, Refreshing feeds..."
 
     host._apply_feed_refresh_progress(
         {"id": "feed-1", "title": "Example Feed", "unread_count": 4, "category": "News", "status": "ok"}
     )
-    assert host.tray_icon.label == "BlindRSS (Unread: 6, Checked: Example Feed)"
+    assert host.tray_icon.label == "Unread: 6, Checked: Example Feed"
 
     host._end_refresh_activity()
-    assert host.tray_icon.label == "BlindRSS (Unread: 6)"
+    assert host.tray_icon.label == "Unread: 6"
 
 
 # --- (c) downloads: begin -> success / begin -> failure ---------------------

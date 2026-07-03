@@ -35,7 +35,10 @@ def format_tray_label(unread_count=0, activity: str = "") -> str:
 
     if not parts:
         return TRAY_LABEL_BASE
-    return _truncate_label(f"{TRAY_LABEL_BASE} ({', '.join(parts)})")
+    # No app-name prefix here: Windows/screen readers already announce the
+    # application name for the tray icon, so including it read as
+    # "BlindRSS BlindRSS (Unread: N)" (issue #38).
+    return _truncate_label(", ".join(parts))
 
 
 class BlindRSSTrayIcon(wx.adv.TaskBarIcon):

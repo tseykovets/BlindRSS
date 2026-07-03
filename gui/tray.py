@@ -1,6 +1,8 @@
 import wx
 import wx.adv
 
+from core.i18n import _
+
 
 TRAY_LABEL_BASE = "BlindRSS"
 MAX_TRAY_LABEL_LENGTH = 120
@@ -29,7 +31,7 @@ def format_tray_label(unread_count=0, activity: str = "") -> str:
 
     parts = []
     if unread > 0:
-        parts.append(f"Unread: {unread}")
+        parts.append(_("Unread: {count}").format(count=unread))
     if activity:
         parts.append(activity)
 
@@ -91,31 +93,31 @@ class BlindRSSTrayIcon(wx.adv.TaskBarIcon):
     def CreatePopupMenu(self):
         menu = wx.Menu()
         
-        restore_item = menu.Append(wx.ID_ANY, "Restore")
-        toggle_player_item = menu.Append(wx.ID_ANY, "Show/Hide Player")
+        restore_item = menu.Append(wx.ID_ANY, _("Restore"))
+        toggle_player_item = menu.Append(wx.ID_ANY, _("Show/Hide Player"))
         menu.AppendSeparator()
-        
-        refresh_item = menu.Append(wx.ID_ANY, "Refresh Feeds")
-        menu.AppendSeparator()
-        
-        # Media Controls
-        play_pause_item = menu.Append(wx.ID_ANY, "Play/Pause")
-        stop_item = menu.Append(wx.ID_ANY, "Stop")
-        rewind_item = menu.Append(wx.ID_ANY, "Rewind")
-        forward_item = menu.Append(wx.ID_ANY, "Fast Forward")
 
-        vol_up_item = menu.Append(wx.ID_ANY, "Volume Up")
-        vol_down_item = menu.Append(wx.ID_ANY, "Volume Down")
-        
+        refresh_item = menu.Append(wx.ID_ANY, _("Refresh Feeds"))
+        menu.AppendSeparator()
+
+        # Media Controls
+        play_pause_item = menu.Append(wx.ID_ANY, _("Play/Pause"))
+        stop_item = menu.Append(wx.ID_ANY, _("Stop"))
+        rewind_item = menu.Append(wx.ID_ANY, _("Rewind"))
+        forward_item = menu.Append(wx.ID_ANY, _("Fast Forward"))
+
+        vol_up_item = menu.Append(wx.ID_ANY, _("Volume Up"))
+        vol_down_item = menu.Append(wx.ID_ANY, _("Volume Down"))
+
         # Volume Submenu
         vol_menu = wx.Menu()
         for vol in [100, 80, 60, 40, 20, 5]:
             item = vol_menu.Append(wx.ID_ANY, f"{vol}%")
             self.Bind(wx.EVT_MENU, lambda e, v=vol: self.on_volume(v), item)
-        menu.AppendSubMenu(vol_menu, "Volume")
-        
+        menu.AppendSubMenu(vol_menu, _("Volume"))
+
         menu.AppendSeparator()
-        exit_item = menu.Append(wx.ID_EXIT, "Exit")
+        exit_item = menu.Append(wx.ID_EXIT, _("Exit"))
         
         self.Bind(wx.EVT_MENU, self.on_restore, restore_item)
         self.Bind(wx.EVT_MENU, self.on_toggle_player, toggle_player_item)

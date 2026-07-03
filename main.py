@@ -199,6 +199,13 @@ class RSSApp(wx.App):
             return False
 
         self.config_manager = ConfigManager()
+        # Install UI translations before any window/menu builds its labels
+        # (issue #44). "auto" follows the OS locale; English is the fallback.
+        try:
+            from core import i18n
+            i18n.setup(self.config_manager.get("language", "auto"))
+        except Exception:
+            log.debug("Failed to initialize translations", exc_info=True)
         try:
             set_user_tool_paths({
                 "ffmpeg": self.config_manager.get("custom_ffmpeg_path", ""),

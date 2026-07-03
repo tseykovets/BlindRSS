@@ -142,6 +142,12 @@ except Exception:
 add_data(ROOT / "sounds", "sounds")
 add_data(ROOT / "README.md", ".")
 
+# UI translation catalogs (issue #44): locale/<lang>/LC_MESSAGES/blindrss.mo.
+_locale_root = ROOT / "locale"
+if _locale_root.is_dir():
+    for _mo in _locale_root.glob("*/LC_MESSAGES/blindrss.mo"):
+        add_data(_mo, str(Path("locale") / _mo.parent.parent.name / "LC_MESSAGES"))
+
 # POSIX auto-update helper (macOS + Linux), placed next to the executable.
 add_data(ROOT / "update_helper.sh", ".")
 

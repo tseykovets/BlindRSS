@@ -146,6 +146,14 @@ datas.append((os.path.join(vlc_path, 'plugins'), 'plugins'))
 # Add sounds
 datas.append(('sounds', 'sounds'))
 
+# Add UI translation catalogs (issue #44): locale/<lang>/LC_MESSAGES/blindrss.mo.
+# Coexists with VLC's locale tree below (different .mo domain names).
+if os.path.isdir('locale'):
+    for lang_dir in os.listdir('locale'):
+        mo_path = os.path.join('locale', lang_dir, 'LC_MESSAGES', 'blindrss.mo')
+        if os.path.isfile(mo_path):
+            datas.append((mo_path, os.path.join('locale', lang_dir, 'LC_MESSAGES')))
+
 # Add VLC assets (locales, Lua scripts, HRTF data)
 for asset_dir in ('lua', 'locale', 'hrtfs'):
     asset_path = os.path.join(vlc_path, asset_dir)

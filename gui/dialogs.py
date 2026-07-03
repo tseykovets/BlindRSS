@@ -824,6 +824,32 @@ class SettingsDialog(wx.Dialog):
         self.remember_last_feed_chk.SetValue(bool(config.get("remember_last_feed", False)))
         general_sizer.Add(self.remember_last_feed_chk, 0, wx.ALL, 5)
 
+        # Interface language (issue #44). "Auto" follows the OS locale; the
+        # list only offers languages that ship a compiled translation catalog.
+        # gettext falls back to the built-in English strings otherwise.
+        language_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        language_sizer.Add(
+            wx.StaticText(general_panel, label="Interface language (requires restart):"),
+            0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
+        )
+        try:
+            from core.i18n import available_languages
+            _lang_codes = list(available_languages())
+        except Exception:
+            _lang_codes = []
+        self.language_choices = ["auto", "en"] + [c for c in _lang_codes if c != "en"]
+        self.language_choice = wx.Choice(
+            general_panel,
+            choices=["Automatic (system language)", "English"] + [c for c in _lang_codes if c != "en"],
+        )
+        current_language = str(config.get("language", "auto") or "auto")
+        try:
+            self.language_choice.SetSelection(self.language_choices.index(current_language))
+        except ValueError:
+            self.language_choice.SetSelection(0)
+        language_sizer.Add(self.language_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        general_sizer.Add(language_sizer, 0, wx.ALL, 0)
+
         # Default expansion state of the feed category tree on launch (issue #33).
         tree_state_sizer = wx.BoxSizer(wx.HORIZONTAL)
         tree_state_sizer.Add(
@@ -2603,6 +2629,7 @@ class SettingsDialog(wx.Dialog):
             "prompt_missing_dependencies_on_startup": self.prompt_missing_deps_chk.GetValue(),
             "start_on_windows_login": self.start_on_login_chk.GetValue(),
             "remember_last_feed": self.remember_last_feed_chk.GetValue(),
+            "language": self.language_choices[max(0, self.language_choice.GetSelection())],
             "auto_check_updates": self.auto_update_chk.GetValue(),
             "sounds_enabled": self.sounds_enabled_chk.GetValue(),
             "sound_refresh_complete": self.sound_complete_ctrl.GetValue(),

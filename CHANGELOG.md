@@ -292,5 +292,30 @@ the historical notes kept in the repository.
 - Fixed updater install-dir lock handling, config/database preservation on update, and OneDrive update retries.
 
 ## v1.42.0-v1.42.10 - 2025-12-28
-- Added updater and release automation, debug mode, read/unread sections, date parsing fixes, and Miniflux/build improvements.
+- Added updater and release automation, debug mode, and update manifest support.
 - Improved signing, thumbprint, and hash handling for update manifests and release builds.
+
+## v1.34-v1.41 - 2025-12-20/2025-12-22
+- Refactored HTTP handling and added yt-dlp cookie support.
+- Added Read and Unread sections and date parsing fixes.
+- Improved the build process and Miniflux behavior.
+
+## v1.31-v1.33 - 2025-12-19
+- Improved dependency checks, media-tool detection, PyInstaller package collection, and Python version documentation.
+- Improved silence-skip and seek handling for remote streams.
+
+## v1.3 - 2025-12-18
+- Improved thread safety, UI responsiveness, and error handling.
+
+## v1.21 - 2025-12-16
+- Added silence skipping and detection with WebRTC VAD.
+
+## v1.1-v1.2 - 2025-12-04/2025-12-16
+- Added the download manager, VLC backend, playback speed, retention options, tray options, unified casting, range-cache proxy, article extraction, and casting improvements.
+- Improved config and database portability, date handling, database handling, Miniflux sync, Windows dependency setup, and project documentation.
+
+## v1.01 - 2025-11-30
+- Fixed importing.
+
+## v1.0 - 2025-11-30
+- Created the initial BlindRSS source, documentation, license, and repository history.

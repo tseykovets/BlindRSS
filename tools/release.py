@@ -17,6 +17,8 @@ APP_NAME = "BlindRSS"
 
 SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)(?:\.(\d+))?$")
 MINIMUM_VERSION = (1, 42, 0)
+CONVENTIONAL_PREFIX_RE = re.compile(r"^([a-zA-Z]+)(?:\([^)]*\))?:\s*(.+)$")
+CHANGELOG_OMIT_COMMIT_TYPES = {"chore", "ci", "docs", "test"}
 
 
 def run_git(args):
@@ -233,25 +235,53 @@ def build_summary(breaking, features, fixes):
     return summary
 
 
+def _readable_changelog_item(raw):
+    text = str(raw or "").strip()
+    if text.startswith("- "):
+        text = text[2:].strip()
+    text = text.lstrip("@").strip()
+    match = CONVENTIONAL_PREFIX_RE.match(text)
+    if match:
+        text = match.group(2).strip()
+    if not text:
+        return ""
+    text = text[0].upper() + text[1:]
+    if text[-1] not in ".!?":
+        text += "."
+    return text
+
+
+def changelog_items_from_notes(notes_text):
+    items = []
+    seen = set()
+    for line in str(notes_text or "").splitlines():
+        text = line.strip()
+        if not text or text.startswith("#") or text == "- None":
+            continue
+        if not text.startswith("- "):
+            continue
+
+        raw_item = text[2:].strip()
+        match = CONVENTIONAL_PREFIX_RE.match(raw_item)
+        if match and match.group(1).lower() in CHANGELOG_OMIT_COMMIT_TYPES:
+            continue
+
+        item = _readable_changelog_item(raw_item)
+        if not item:
+            continue
+        key = item.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append(item)
+    return items
+
+
 def changelog_entry_from_notes(version_tag, notes_text, release_date=None):
     release_date = release_date or datetime.now(timezone.utc).date().isoformat()
     lines = [f"## {version_tag} - {release_date}", ""]
-
-    body = []
-    for line in str(notes_text or "").splitlines():
-        if line.startswith("# "):
-            continue
-        if line.startswith("## "):
-            body.append("### " + line[3:])
-        else:
-            body.append(line)
-
-    while body and not body[0].strip():
-        body.pop(0)
-    while body and not body[-1].strip():
-        body.pop()
-
-    lines.extend(body or ["- Maintenance update."])
+    items = changelog_items_from_notes(notes_text) or ["Maintenance update."]
+    lines.extend(f"- {item}" for item in items)
     return "\n".join(lines).rstrip() + "\n"
 
 

@@ -153,4 +153,144 @@ same fix stream, they are combined with a version range such as
 - Fixed Miniflux refresh status reporting.
 
 ## v1.63.33 - 2026-05-08
-- Historical release baseline for this changelog.
+- Bugfixes.
+
+## Historical Changelog
+
+Older entries below were reconstructed from the Forgejo mirror's tag history and
+the historical notes kept in the repository.
+
+## v1.63.31-v1.63.32 - 2026-04-29
+- Fixed updater GitHub owner detection and signature verification fallback.
+
+## v1.63.28-v1.63.30 - 2026-04-15
+- Added accessible browser category expansion and Enter-to-open behavior.
+- Moved user data into a safer config location and restored the accessible browser after settings.
+- Improved macOS release flow, bundled dependency detection, and cross-platform release docs.
+
+## v1.63.27 - 2026-04-06
+- Fixed local OPML imports, homepage feed repair, feed selection, dead-feed retries, chapter download timing, conditional refresh, and refresh CPU usage.
+
+## v1.63.23-v1.63.26 - 2026-03-08/2026-03-15
+- Added nested subcategory support in the tree.
+- Improved YouTube feed search ranking and playlist priority.
+- Reduced local refresh CPU load and refreshed imported OPML feeds.
+
+## v1.63.17-v1.63.22 - 2026-02-27/2026-02-28
+- Improved YouTube playback in packaged builds with proxy fallback, stream-proxy fallback, and the `android_vr` client.
+- Improved search dialog keyboard/status behavior and preserved article text selection shortcuts.
+- Clarified Grok/Groq naming in translation settings.
+
+## v1.63.12-v1.63.16 - 2026-02-27
+- Added Qwen, OpenRouter, and Groq translation support with provider-scoped settings.
+- Improved translation fallback reliability, model coverage, Gemini auth compatibility, and media search playback.
+- Fixed Windows notification prerequisites.
+
+## v1.63.8-v1.63.11 - 2026-02-25/2026-02-27
+- Improved Ning activity feed titles, formatting, and full-text replacement behavior.
+- Added feed-search source filtering and preserved text selection shortcuts.
+
+## v1.63.4-v1.63.7 - 2026-02-25
+- Added YouTube channel, YouTube playlist, Mastodon, Bluesky, PieFed, and video-search sources.
+- Added a feed tree delete shortcut and Miniflux fixes.
+
+## v1.63.0-v1.63.3 - 2026-02-19/2026-02-24
+- Restored podcast chapter support and added previous/next chapter keyboard shortcuts.
+- Added requested issue fixes, translation and UX improvements, and contact/community info.
+- Fixed Ctrl+Up/Down volume shortcuts, YouTube playback stalls, and OPML feed title preservation.
+
+## v1.62.0-v1.62.2 - 2026-02-17
+- Added Windows notification activation so articles can open/play from notifications.
+- Improved notification persistence in Action Center.
+
+## v1.61.0-v1.61.1 - 2026-02-17
+- Expanded Windows UX with sorting, startup, and notification improvements.
+- Fixed desktop shortcut creation.
+
+## v1.60.37-v1.60.39 - 2026-02-10/2026-02-17
+- Added built-in player soundcard selection.
+- Improved feed refreshing and Inoreader support.
+- Fixed stale feed refresh across providers and yt-dlp playback for YouTube Shorts and similar URLs.
+
+## v1.60.27-v1.60.36 - 2026-02-04/2026-02-10
+- Added article search filtering, persistent search visibility/configuration, and search scope controls.
+- Fixed search clearing, tab traversal, title+text search, RangeCacheProxy probe stalls, and yt-dlp playback.
+
+## v1.60.14-v1.60.26 - 2026-01-31/2026-02-02
+- Fixed VLC, proxy, and range-cache playback issues including URL normalization, undefined playback variables, new-feed episode visibility, slow startup, open-ended range handling, GUI-blocking probes, duplicate redirect resolution, and yt-dlp extractor preloading.
+- Tightened PyInstaller package collection.
+
+## v1.60.10-v1.60.13 - 2026-01-30
+- Bugfixes.
+- Made skip-silence defaults more conservative so quiet speech and natural pauses are less likely to be skipped.
+- Fixed Remember last selected feed/folder, including feeds nested in categories.
+- Fixed Mark All as Read plus refresh behavior so old read articles were not deleted during tree rebuild and recreated as unread later.
+
+## v1.60.0-v1.60.9 - 2026-01-26/2026-01-29
+- Added first-load article caching and Mark All as Read.
+- Improved playback startup responsiveness, duplicate article ID handling, provider/feed-scoped cache IDs, tree unread counts, Delete key feed removal, Show Only Unread, immediate shutdown, and updater logging/rollback behavior.
+- Fixed NPR conditional refresh behavior.
+
+## v1.58.0-v1.59.0 - 2026-01-24
+- Added and improved BazQux Reader support, including read/unread handling, strict filters, and Hide Read Articles setting.
+
+## v1.57.0-v1.57.5 - 2026-01-22/2026-01-23
+- Added podcast/player fixes.
+- Optimized large-feed refresh with batched database writes.
+- Improved Windows media-tool installation reliability.
+- Fixed dependency-check crashes, Alt+Space system menu behavior, and first-letter navigation.
+
+## v1.56.17-v1.56.27 - 2026-01-19/2026-01-21
+- Improved playback resume, seek repeat handling, silence-skip behavior, and startup maximize behavior.
+- Fixed Inoreader support and improved Windows dependency checks, dependency installs, and updater behavior.
+
+## v1.56.8-v1.56.16 - 2026-01-12/2026-01-17
+- Hardened yt-dlp headers and fixed menu IDs, cached column ordering, skip-silence backward seeks, BBC article detection, resume persistence, play/pause keyboard behavior, Bluesky RSS parsing, media fallback/open-in-browser behavior, article column order, and bundled Deno support.
+
+## v1.56.0-v1.56.7 - 2026-01-07/2026-01-12
+- Added an option to disable startup refresh.
+- Improved Load more articles behavior, focus retention, scroll/selection preservation, refresh sounds, and startup behavior.
+
+## v1.55.0 - 2026-01-07
+- Added Open in Browser to the article context menu.
+
+## v1.54.0-v1.54.2 - 2026-01-07
+- Fixed dialog closing, focus reset, undefined variables, feed refresh, NPR refresh, Android Authority boilerplate, list focus on refresh, All Articles naming, and Feed Properties button handling.
+- Added core and GUI unit tests.
+
+## v1.53.0-v1.53.7 - 2026-01-06
+- Improved article status management and full-text extraction triggers.
+- Fixed NPR audio/feed handling, sounds, accessibility, window maximize, bundled sound paths, update preservation of sounds, custom sound priority, feed parsing resilience, and dialog tab order.
+
+## v1.52.0-v1.52.5 - 2026-01-05/2026-01-06
+- Added single-feed refresh and Tyee boilerplate cleanup.
+- Fixed media content handling without enclosures, BBC yt-dlp support, Miniflux refresh argument handling, and Mutagen import issues.
+
+## v1.51.0 - 2026-01-05
+- Added Help menu, About dialog, interactive media-tool check, feed refresh fixes, and single-instance enforcement.
+
+## v1.50.0-v1.50.5 - 2026-01-05
+- Added feed editing and media polish.
+- Improved Wired/full-text extraction, podcast detection, pagination detection, All Feeds feed-source display, updater cleanup, podcast resume consistency, and range-cache Content-Range handling.
+
+## v1.49.0-v1.49.5 - 2026-01-03/2026-01-05
+- Prevented yt-dlp autoplay on publisher articles and avoided treating VoxMedia articles as yt-dlp-supported.
+- Improved build dry-run Python detection, PyInstaller webrtcvad packaging, locked SQLite playback-state handling, large local database responsiveness, full-text lead extraction, and feed deletion safety.
+
+## v1.48.11-v1.48.17 - 2026-01-03
+- Added Favorites view across providers.
+- Added lazy chapters and stable playback resume/seek persistence.
+- Fixed webrtcvad packaging, OneDrive updater behavior, media resolution for BBC/playlist-like sites, and reduced Miniflux refresh log noise.
+
+## v1.48.0-v1.48.10 - 2025-12-30/2025-12-31
+- Added Fediverse search and improved search/menu placement.
+- Reduced startup/update CPU, improved search focus/text, made updater launches invisible, supported cross-drive installs, fixed feed preview during refresh, and improved Odysee/Rumble URL handling and ffmpeg header behavior.
+
+## v1.43.0-v1.47.0 - 2025-12-30
+- Improved media support for Rumble/Odysee.
+- Added feed finder, gPodder keyword search, unified feed search, and Reddit search.
+- Fixed updater install-dir lock handling, config/database preservation on update, and OneDrive update retries.
+
+## v1.42.0-v1.42.10 - 2025-12-28
+- Added updater and release automation, debug mode, read/unread sections, date parsing fixes, and Miniflux/build improvements.
+- Improved signing, thumbprint, and hash handling for update manifests and release builds.

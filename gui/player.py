@@ -620,10 +620,21 @@ class PlayerFrame(wx.Frame):
             cache_ms = 0
         file_cache_ms = max(500, cache_ms)
         try:
+            startup_volume = max(0, min(100, int(self.config_manager.get("volume", 100))))
+        except Exception:
+            startup_volume = 100
+        try:
             self.instance = vlc.Instance(*build_vlc_instance_args(
                 "--no-video",
                 "--input-fast-seek",
                 "--aout=directsound",
+                # libvlc drops audio_set_volume until the audio output exists,
+                # and the output is only created once the stream actually
+                # produces audio. Seed the output modules' startup volume so
+                # the very first audible sample is already at the configured
+                # level instead of VLC's own default.
+                f"--directx-volume={startup_volume / 100.0:.4f}",
+                f"--mmdevice-volume={startup_volume / 100.0:.4f}",
                 f"--network-caching={cache_ms}",
                 f"--file-caching={file_cache_ms}",
                 "--http-reconnect",
@@ -4868,18 +4879,30 @@ class PlayerFrame(wx.Frame):
         except Exception:
             pass
 
-    def _apply_volume_when_ready(self, attempts_left: int = 12) -> None:
+    def _apply_volume_when_ready(self, _seq: int | None = None, _stubborn: int = 0,
+                                 _started: float | None = None) -> None:
         """Impose the tracked volume once VLC's audio output exists.
 
         libvlc silently drops audio_set_volume calls made before the audio
-        output is created (playback just started), which left VLC playing at
-        its own volume while self.volume held the configured one — so the
-        first Volume Up/Down jumped to configured±step. Retry applying until
-        VLC confirms the value; only if it never sticks, adopt VLC's actual
-        volume so adjustments stay relative to what the user is hearing.
+        output is created, and the output only appears once the stream
+        actually produces audio — for slow HTTP/podcast streams that can be
+        many seconds after play() (buffering). A fixed retry budget here
+        (formerly 12 x 250ms = 3s) expired before the output existed, leaving
+        VLC at its own default volume while self.volume held the configured
+        one — so the first Volume Up/Down jumped. Keep retrying for as long
+        as this playback attempt is alive; each new call supersedes pending
+        retries from older attempts. Only if the output exists but keeps
+        refusing our volume, adopt VLC's actual volume so adjustments stay
+        relative to what the user is hearing.
         """
         if self.is_casting:
             return
+        if _seq is None:
+            self._apply_volume_seq = int(getattr(self, "_apply_volume_seq", 0)) + 1
+            _seq = self._apply_volume_seq
+            _started = time.monotonic()
+        elif _seq != int(getattr(self, "_apply_volume_seq", 0)):
+            return  # superseded by a newer playback/resume attempt
         try:
             target = max(0, min(100, int(getattr(self, "volume", 100))))
             set_ok = self.player.audio_set_volume(target) == 0
@@ -4892,16 +4915,33 @@ class PlayerFrame(wx.Frame):
             except Exception:
                 pass
             return
-        if attempts_left <= 0:
-            if actual is not None and int(actual) >= 0:
+        if actual is not None and int(actual) >= 0:
+            # Output exists but rejects/mangles our volume (exotic aout).
+            # After several consecutive refusals stop fighting and adopt
+            # VLC's actual volume.
+            _stubborn += 1
+            if _stubborn >= 8:
                 self.volume = int(actual)
                 try:
                     self._update_volume_ui(int(actual))
                 except Exception:
                     pass
+                return
+        else:
+            _stubborn = 0
+        try:
+            state = self.player.get_state()
+            if state in (vlc.State.Ended, vlc.State.Error, vlc.State.Stopped):
+                return  # this playback attempt is over
+        except Exception:
+            pass
+        try:
+            if _started is not None and (time.monotonic() - float(_started)) > 120.0:
+                return
+        except Exception:
             return
         try:
-            wx.CallLater(250, self._apply_volume_when_ready, attempts_left - 1)
+            wx.CallLater(250, self._apply_volume_when_ready, _seq, _stubborn, _started)
         except Exception:
             pass
 

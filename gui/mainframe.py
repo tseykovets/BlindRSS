@@ -1521,7 +1521,7 @@ class MainFrame(wx.Frame):
         add_feed_item = file_menu.Append(wx.ID_ANY, "&Add Feed\tCtrl+N", "Add a new RSS feed")
         remove_feed_item = file_menu.Append(wx.ID_ANY, "&Remove Feed", "Remove selected feed")
         refresh_item = file_menu.Append(wx.ID_REFRESH, "&Refresh Feeds\tF5", "Refresh all feeds")
-        mark_all_read_item = file_menu.Append(wx.ID_ANY, "Mark All Items as &Read", "Mark all items as read")
+        mark_all_read_item = file_menu.Append(wx.ID_ANY, "Mark All Items as &Read", "Mark all items in all feeds as read")
         view_errors_item = file_menu.Append(wx.ID_ANY, "View Feed &Errors...", "View feeds that failed to update")
         file_menu.AppendSeparator()
         add_cat_item = file_menu.Append(wx.ID_ANY, "Add &Category", "Add a new category")
@@ -1552,6 +1552,15 @@ class MainFrame(wx.Frame):
         show_search_item = view_menu.AppendCheckItem(wx.ID_ANY, "Show &Search Field", "Show or hide the search field")
         show_search_item.Check(bool(getattr(self, "_search_visible", True)))
         self._show_search_item = show_search_item
+        # Global unread filter (issue #40): lives here rather than in the
+        # feed/category context menu because it applies to every view.
+        show_unread_only_item = view_menu.AppendCheckItem(
+            wx.ID_ANY,
+            "Show Only &Unread",
+            "Show only unread articles in all views",
+        )
+        show_unread_only_item.Check(bool(getattr(self, "_unread_filter_enabled", False)))
+        self._show_unread_only_item = show_unread_only_item
         accessible_browser_item = view_menu.Append(
             wx.ID_ANY,
             "Open &Accessible Browser",
@@ -3067,6 +3076,15 @@ class MainFrame(wx.Frame):
             refresh_category_item = menu.Append(wx.ID_ANY, "Refresh Category")
             self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_refresh_category(e, ct), refresh_category_item)
 
+            mark_cat_read_item = menu.Append(wx.ID_ANY, "Mark All Items as Read")
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, ct=cat_title: self._confirm_and_mark_all_read(
+                    f"category:{ct}", f'Mark all items in category "{ct}" as read?'
+                ),
+                mark_cat_read_item,
+            )
+
             if getattr(self.provider, "supports_subcategories", lambda: False)():
                 add_sub_item = menu.Append(wx.ID_ANY, "Add Subcategory")
                 self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_add_subcategory(ct), add_sub_item)
@@ -3091,6 +3109,18 @@ class MainFrame(wx.Frame):
             feed_id = str(data.get("id") or "").strip()
             refresh_feed_item = menu.Append(wx.ID_ANY, "Refresh Feed")
             self.Bind(wx.EVT_MENU, self.on_refresh_single_feed, refresh_feed_item)
+
+            feed_title = str(getattr((getattr(self, "feed_map", {}) or {}).get(feed_id), "title", "") or "").strip()
+            mark_feed_read_prompt = (
+                f'Mark all items in "{feed_title}" as read?' if feed_title
+                else "Mark all items in this feed as read?"
+            )
+            mark_feed_read_item = menu.Append(wx.ID_ANY, "Mark All Items as Read")
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, fid=feed_id, prompt=mark_feed_read_prompt: self._confirm_and_mark_all_read(fid, prompt),
+                mark_feed_read_item,
+            )
 
             edit_item = menu.Append(wx.ID_ANY, "Edit Feed...\tF2")
             self.Bind(wx.EVT_MENU, self.on_edit_feed, edit_item)
@@ -3143,13 +3173,9 @@ class MainFrame(wx.Frame):
             new_item = menu.Append(wx.ID_ANY, "New Smart Folder...")
             self.Bind(wx.EVT_MENU, lambda e: self.on_new_smart_folder(), new_item)
 
-        # View options only apply to real article views (feeds/categories/special
-        # views), not Smart Folder containers whose rules define their own filter.
-        if data.get("type") in ("all", "feed", "category"):
-            menu.AppendSeparator()
-            unread_only_item = menu.AppendCheckItem(wx.ID_ANY, "Show Only Unread")
-            unread_only_item.Check(self._unread_filter_enabled)
-            self.Bind(wx.EVT_MENU, self.on_toggle_unread_filter, unread_only_item)
+        # "Show Only Unread" is global, so it lives in the View menu instead of
+        # here (issue #40) — a per-item context entry misled users into thinking
+        # the filter was scoped to the clicked feed or category.
 
         if menu.GetMenuItemCount() > 0:
             self.tree.PopupMenu(menu, menu_pos)
@@ -3157,8 +3183,17 @@ class MainFrame(wx.Frame):
 
     def on_toggle_unread_filter(self, event):
         self._unread_filter_enabled = event.IsChecked()
+        self._sync_unread_filter_menu_check()
         # Force reload of the current view with the new filter setting
         self._reload_selected_articles()
+
+    def _sync_unread_filter_menu_check(self) -> None:
+        item = getattr(self, "_show_unread_only_item", None)
+        if item is not None:
+            try:
+                item.Check(bool(self._unread_filter_enabled))
+            except Exception:
+                pass
 
     def on_manage_filter_rules(self, event=None):
         if not getattr(self.provider, "supports_filter_rules", lambda: False)():
@@ -5109,6 +5144,7 @@ class MainFrame(wx.Frame):
                     cat_name = last_feed[16:]  # Remove "unread:category:" prefix
                     selected_data = {"type": "category", "id": cat_name}
                     self._unread_filter_enabled = True
+                    self._sync_unread_filter_menu_check()
                 elif last_feed.startswith("category:"):
                     cat_name = last_feed[9:]  # Remove "category:" prefix
                     selected_data = {"type": "category", "id": cat_name}
@@ -5116,6 +5152,7 @@ class MainFrame(wx.Frame):
                     feed_id = last_feed[7:]  # Remove "unread:" prefix
                     selected_data = {"type": "feed", "id": feed_id}
                     self._unread_filter_enabled = True
+                    self._sync_unread_filter_menu_check()
                 else:
                     selected_data = {"type": "feed", "id": last_feed}
         
@@ -7590,16 +7627,20 @@ class MainFrame(wx.Frame):
             self.mark_article_read(idx)
 
     def on_mark_all_read(self, event=None):
-        feed_id = getattr(self, "current_feed_id", None)
-        if not feed_id:
+        # File menu entry: global scope (issue #39). Per-feed/category marking
+        # lives in the tree context menu via _confirm_and_mark_all_read.
+        self._confirm_and_mark_all_read("all", "Mark all items in all feeds as read?")
+
+    def _confirm_and_mark_all_read(self, view_id: str, prompt: str):
+        view_id = str(view_id or "").strip()
+        if not view_id:
             return
         try:
-            prompt = "Mark all items as read?"
             if wx.MessageBox(prompt, "Mark All as Read", wx.YES_NO | wx.ICON_QUESTION) != wx.YES:
                 return
         except Exception:
             pass
-        threading.Thread(target=self._mark_all_read_thread, args=(feed_id,), daemon=True).start()
+        threading.Thread(target=self._mark_all_read_thread, args=(view_id,), daemon=True).start()
 
     def _mark_all_read_thread(self, feed_id: str):
         ok = False
@@ -7733,7 +7774,14 @@ class MainFrame(wx.Frame):
             pass
 
         try:
-            self._begin_articles_load(feed_id, full_load=True, clear_list=True)
+            # Reload the view the user is looking at, not the marked one: a
+            # context-menu mark on another feed/category must not hijack the
+            # current selection.
+            self._begin_articles_load(
+                getattr(self, "current_feed_id", None) or feed_id,
+                full_load=True,
+                clear_list=True,
+            )
         except Exception:
             pass
 

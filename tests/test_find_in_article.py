@@ -212,6 +212,7 @@ def test_not_found_announces_without_dialog(monkeypatch):
     calls = []
     monkeypatch.setattr(mainframe.wx, "MessageBox", lambda *a, **k: calls.append(a))
     monkeypatch.setattr(mainframe.sys, "platform", "win32")
+    monkeypatch.setattr(mainframe.screen_reader_announce, "speak_status", lambda *a, **k: False)
 
     host = _AnnounceHost()
     host._content_find_not_found("hello")
@@ -223,6 +224,7 @@ def test_not_found_announces_without_dialog(monkeypatch):
 def test_no_more_occurrences_announces_direction(monkeypatch):
     monkeypatch.setattr(mainframe.wx, "MessageBox", lambda *a, **k: (_ for _ in ()).throw(AssertionError("dialog shown")))
     monkeypatch.setattr(mainframe.sys, "platform", "win32")
+    monkeypatch.setattr(mainframe.screen_reader_announce, "speak_status", lambda *a, **k: False)
 
     host = _AnnounceHost()
     host._content_find_no_more("hello", forward=True)
@@ -245,6 +247,20 @@ def test_announce_falls_back_to_bell_off_windows(monkeypatch):
     # Off Windows, UIA is skipped entirely and the soft bell cues the user.
     assert host.uia == []
     assert bells == [True]
+    assert host.status[-1] == ("nothing here", 0)
+
+
+def test_direct_screen_reader_speech_suppresses_uia_and_bell(monkeypatch):
+    bells = []
+    monkeypatch.setattr(mainframe.sys, "platform", "win32")
+    monkeypatch.setattr(mainframe.screen_reader_announce, "speak_status", lambda message, interrupt=True: True)
+    monkeypatch.setattr(mainframe.wx, "Bell", lambda: bells.append(True))
+
+    host = _AnnounceHost()
+    host._announce("nothing here")
+
+    assert host.uia == []
+    assert bells == []
     assert host.status[-1] == ("nothing here", 0)
 
 

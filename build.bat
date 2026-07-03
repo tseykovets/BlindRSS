@@ -213,6 +213,14 @@ if not exist "%SCRIPT_DIR%bin\\deno.exe" (
     echo [X] deno.exe not found in "%SCRIPT_DIR%bin". Build cannot continue.
     exit /b 1
 )
+
+echo [BlindRSS Build] Ensuring NVDA Controller Client is present...
+"%VENV_PYTHON%" tools\ensure_nvda_controller_client.py --dest "%SCRIPT_DIR%bin"
+if errorlevel 1 exit /b 1
+if not exist "%SCRIPT_DIR%bin\\nvdaControllerClient.dll" (
+    echo [X] nvdaControllerClient.dll not found in "%SCRIPT_DIR%bin". Build cannot continue.
+    exit /b 1
+)
 exit /b 0
 
 :compute_next_version

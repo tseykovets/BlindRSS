@@ -101,6 +101,17 @@ try:
 except Exception:
     pass
 
+if importlib.util.find_spec('win32com') is not None:
+    hiddenimports.extend(['pythoncom', 'pywintypes', 'win32com', 'win32com.client'])
+
+nvda_controller_path = os.path.join(bin_path, 'nvdaControllerClient.dll')
+if os.path.isfile(nvda_controller_path):
+    binaries.append((nvda_controller_path, 'bin'))
+for nvda_doc in ('nvdaControllerClient-license.txt', 'nvdaControllerClient-readme.md'):
+    nvda_doc_path = os.path.join(bin_path, nvda_doc)
+    if os.path.isfile(nvda_doc_path):
+        datas.append((nvda_doc_path, 'bin'))
+
 for pkg in packages_to_collect:
     try:
         spec = importlib.util.find_spec(pkg)

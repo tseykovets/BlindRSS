@@ -37,6 +37,7 @@ from core import filters as filters_mod
 from core import translation as translation_mod
 from core import updater
 from core import windows_integration
+from core import screen_reader_announce
 from core.version import APP_VERSION
 from core import dependency_check
 import core.discovery
@@ -6267,13 +6268,12 @@ class MainFrame(wx.Frame):
         """Speak a short status message to the screen reader without stealing
         focus or popping a dialog.
 
-        Best-effort and non-blocking: on Windows it raises a UI Automation
-        notification (announced by NVDA and JAWS) from the active reading
-        control when possible; it also emits an MSAA status-change event after
-        updating the status bar. On other platforms, or if UIA is unavailable,
+        Best-effort and non-blocking: on Windows it first uses direct NVDA/JAWS
+        speech APIs when available, then falls back to UI Automation and MSAA
+        status-change events. On other platforms, or if no speech path succeeds,
         it falls back to the status bar plus a soft bell so the user still gets
-        a cue. Keyboard focus never moves, so the user stays in the article
-        text after Find.
+        a cue. Keyboard focus never moves, so the user stays in the article text
+        after Find.
         """
         message = str(message or "").strip()
         if not message:
@@ -6288,6 +6288,8 @@ class MainFrame(wx.Frame):
             self._announce_status_changed()
         except Exception:
             pass
+        if sys.platform.startswith("win") and screen_reader_announce.speak_status(message, interrupt=True):
+            return
         if sys.platform.startswith("win") and self._announce_via_uia(message):
             return
         try:

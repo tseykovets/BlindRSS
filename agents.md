@@ -284,21 +284,3 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 9. Release publication: a release MUST end up published and Latest or the updater never sees it. Do not remove the `build.bat release` guards (`--draft=false --latest`, no-drafts check, `/releases/latest` verify) or auto-delete releases. See **Build & Release** > Updater visibility.
 10. Tests: add/extend tests in `tests/` for behavior changes and regressions.
 11. Secrets: never print, log, commit, or include API keys/cookies/Authorization headers in tests or diagnostics.
-
-<!-- claude-memory:begin (managed by sync-claude-memory.py; canonical files live in C:\Users\admin\.claude - edit there, not here) -->
-## Memories (shared from ~/.claude - project: C--Users-admin-git-BlindRSS)
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\MEMORY.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\always-commit-agents-md.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-filter-and-i18n.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\category-identity-model.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\curl-cffi-impersonation-transport.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\deleted-purge-design.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\feed-title-custom-vs-upstream.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\filter-rules-design.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\provider-flat-vs-nested.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\refresh-speed-fixes.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\release-build-process.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\test-suite-live-stream-hazard.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\volume-jump-root-cause.md
-@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\youtube-live-format-selection.md
-<!-- claude-memory:end -->

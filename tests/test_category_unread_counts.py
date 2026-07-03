@@ -147,6 +147,9 @@ class _CategoryCountHost:
     _update_feed_unread_count_ui = mainframe.MainFrame._update_feed_unread_count_ui
     _update_category_unread_chain_ui = mainframe.MainFrame._update_category_unread_chain_ui
     _apply_feed_refresh_progress = mainframe.MainFrame._apply_feed_refresh_progress
+    _view_id_without_read_filter = mainframe.MainFrame._view_id_without_read_filter
+    _mark_all_read_feed_ids_for_view = mainframe.MainFrame._mark_all_read_feed_ids_for_view
+    _apply_mark_all_read_tree_updates = mainframe.MainFrame._apply_mark_all_read_tree_updates
     _schedule_article_reload = lambda self: None  # noqa: E731 - only reached via _apply_feed_refresh_progress
     _set_feed_activity_status = lambda self, state: None  # noqa: E731 - status bar text, not under test here
 
@@ -246,3 +249,86 @@ def test_refresh_progress_moves_totals_when_feed_changes_category():
     assert host.category_unread_totals["Tech"] == 2
     # ...and into News.
     assert host.category_unread_totals["News"] == 5
+
+
+def test_mark_all_read_patches_focused_feed_without_rebuilding_tree():
+    host = _CategoryCountHost()
+
+    host._apply_mark_all_read_tree_updates("unread:feed-1")
+
+    assert host.feed_map["feed-1"].unread_count == 0
+    assert host.tree.GetItemText(host.feed_node) == "Feed One"
+    assert host.category_unread_totals["Tech / Sub"] == 0
+    assert host.tree.GetItemText(host.sub_node) == "Sub"
+    assert host.category_unread_totals["Tech"] == 2
+    assert host.tree.GetItemText(host.cat_node) == "Tech (2)"
+    assert "feed-1" in host.feed_nodes
+
+
+def test_mark_all_read_category_scope_patches_descendant_feeds():
+    host = _CategoryCountHost()
+    host.feed_map["feed-2"] = SimpleNamespace(
+        id="feed-2",
+        title="Root Feed",
+        category="Tech",
+        unread_count=2,
+    )
+    host.feed_nodes["feed-2"] = _FakeNode()
+    host.category_unread_totals["Tech"] = 7
+
+    host._apply_mark_all_read_tree_updates("unread:category:Tech")
+
+    assert host.feed_map["feed-1"].unread_count == 0
+    assert host.feed_map["feed-2"].unread_count == 0
+    assert host.category_unread_totals["Tech / Sub"] == 0
+    assert host.category_unread_totals["Tech"] == 2
+
+
+class _FakeList:
+    def __init__(self):
+        self.items = []
+
+    def SetItem(self, idx, col, value):
+        self.items.append((idx, col, value))
+
+
+class _PostMarkAllHost:
+    _post_mark_all_read = mainframe.MainFrame._post_mark_all_read
+    _article_cache_id = mainframe.MainFrame._article_cache_id
+
+    def __init__(self):
+        import threading
+
+        self.current_articles = [
+            SimpleNamespace(id="a1", feed_id="feed-1", is_read=False),
+        ]
+        self.list_ctrl = _FakeList()
+        self._view_cache_lock = threading.Lock()
+        self.view_cache = {"unread:feed-1": {"articles": list(self.current_articles)}}
+        self.current_feed_id = "unread:feed-1"
+        self.tree_updates = []
+        self.loads = []
+        self.refresh_calls = 0
+
+    def _is_load_more_row(self, _idx):
+        return False
+
+    def _apply_mark_all_read_tree_updates(self, feed_id):
+        self.tree_updates.append(feed_id)
+
+    def _begin_articles_load(self, feed_id, full_load=True, clear_list=True):
+        self.loads.append((feed_id, full_load, clear_list))
+
+    def refresh_feeds(self):
+        self.refresh_calls += 1
+
+
+def test_post_mark_all_read_does_not_refresh_tree():
+    host = _PostMarkAllHost()
+
+    host._post_mark_all_read("unread:feed-1", True, ["a1"], used_direct=True)
+
+    assert host.current_articles[0].is_read is True
+    assert host.tree_updates == ["unread:feed-1"]
+    assert host.loads == [("unread:feed-1", True, True)]
+    assert host.refresh_calls == 0

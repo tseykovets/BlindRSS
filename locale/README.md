@@ -10,7 +10,7 @@ language, the interface stays in English.
 locale/
   blindrss.pot                     <- template, regenerated from source
   <lang>/LC_MESSAGES/blindrss.po   <- editable translation
-  <lang>/LC_MESSAGES/blindrss.mo   <- compiled catalog the app loads
+  <lang>/LC_MESSAGES/blindrss.mo   <- generated catalog the app loads
 ```
 
 ## Adding or updating a translation
@@ -36,18 +36,24 @@ locale/
 3. Translate the `msgstr` entries (any PO editor works, e.g. Poedit — which is
    screen-reader accessible — or a plain text editor).
 
-4. Compile:
-
-   ```
-   msgfmt locale/ru/LC_MESSAGES/blindrss.po -o locale/ru/LC_MESSAGES/blindrss.mo
-   ```
+4. Commit only the `.po` file. Generated `.mo` files are build artifacts and
+   are ignored by Git.
 
 5. Restart BlindRSS. The language is selected in Settings > General >
    "Interface language" ("Automatic" follows the OS locale), or via the
    `"language"` key in config.json.
 
-Compiled `.mo` files present at build time are bundled automatically by
+During `build.bat build`, `build.bat release`, and `build.sh build`,
+`tools/compile_translations.py` compiles every
+`locale/<lang>/LC_MESSAGES/blindrss.po` file to `blindrss.mo` before
+PyInstaller runs. The generated catalogs are bundled automatically by
 `main.spec` / `portable.spec`.
+
+For local source-tree testing without a full build, run:
+
+```
+python tools/compile_translations.py
+```
 
 Notes for translators:
 

@@ -61,18 +61,71 @@ def test_encode_non_ascii_url_preserves_port():
     )
 
 
+def test_encode_non_ascii_url_handles_cyrillic_domain_and_path_from_issue_41():
+    assert (
+        utils.encode_non_ascii_url("https://\u0446\u0435\u0439\u043a\u043e\u0432\u0435\u0446.\u0440\u0444/\u0442\u0435\u0441\u0442.xml")
+        == "https://xn--b1afbofy6cg.xn--p1ai/%D1%82%D0%B5%D1%81%D1%82.xml"
+    )
+
+
+def test_referer_for_url_punycodes_idn_domain():
+    assert (
+        utils.referer_for_url("https://\u0446\u0435\u0439\u043a\u043e\u0432\u0435\u0446.\u0440\u0444/\u0442\u0435\u0441\u0442.xml")
+        == "https://xn--b1afbofy6cg.xn--p1ai/"
+    )
+
+
+def test_encode_non_ascii_url_preserves_ipv6_brackets():
+    assert utils.encode_non_ascii_url("http://[::1]:8080/feed") == "http://[::1]:8080/feed"
+
+
 def test_safe_requests_get_normalizes_url(monkeypatch):
     seen = {}
 
     class _FakeSession:
         def get(self, url, **kwargs):
             seen["url"] = url
+            seen["headers"] = kwargs.get("headers")
             raise RuntimeError("stop here")
 
     monkeypatch.setattr(utils, "_get_plain_session", lambda: _FakeSession())
     with pytest.raises(RuntimeError):
         utils.safe_requests_get("http://пример.рф/лента.xml")
     assert seen["url"] == "http://xn--e1afmkfd.xn--p1ai/%D0%BB%D0%B5%D0%BD%D1%82%D0%B0.xml"
+
+
+def test_safe_requests_get_normalizes_url_headers(monkeypatch):
+    seen = {}
+
+    class _FakeSession:
+        def get(self, url, **kwargs):
+            seen["url"] = url
+            seen["headers"] = kwargs.get("headers")
+            raise RuntimeError("stop here")
+
+    monkeypatch.setattr(utils, "_get_plain_session", lambda: _FakeSession())
+    with pytest.raises(RuntimeError):
+        utils.safe_requests_get(
+            "https://\u0446\u0435\u0439\u043a\u043e\u0432\u0435\u0446.\u0440\u0444/\u0442\u0435\u0441\u0442.xml",
+            headers={"Referer": "https://\u0446\u0435\u0439\u043a\u043e\u0432\u0435\u0446.\u0440\u0444/"},
+        )
+
+    assert seen["url"] == "https://xn--b1afbofy6cg.xn--p1ai/%D1%82%D0%B5%D1%81%D1%82.xml"
+    assert seen["headers"]["Referer"] == "https://xn--b1afbofy6cg.xn--p1ai/"
+
+
+def test_refresh_error_formatter_handles_non_http_exceptions():
+    err = UnicodeEncodeError(
+        "latin-1",
+        "\u0446\u0435\u0439\u043a\u043e\u0432\u0435\u0446.\u0440\u0444",
+        0,
+        1,
+        "ordinal not in range",
+    )
+    msg = local_mod._format_refresh_error(err)
+
+    assert msg.startswith("Error: ")
+    assert "object has no attribute 'response'" not in msg
 
 
 # --- issue #42: SSL certificate tolerance ------------------------------------

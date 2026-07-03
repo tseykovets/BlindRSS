@@ -7754,6 +7754,49 @@ class MainFrame(wx.Frame):
             return False
         return True
 
+    def _view_id_without_read_filter(self, view_id: str) -> str:
+        view_id = str(view_id or "").strip()
+        if view_id.startswith("unread:"):
+            return view_id[7:]
+        if view_id.startswith("read:"):
+            return view_id[5:]
+        return view_id
+
+    def _mark_all_read_feed_ids_for_view(self, view_id: str) -> list[str]:
+        """Feed ids whose unread counts should be zeroed after Mark All Read.
+
+        This intentionally patches the existing tree instead of rebuilding it
+        so Unread Only does not remove the focused feed under keyboard users.
+        """
+        raw_view_id = self._view_id_without_read_filter(view_id)
+        feeds = getattr(self, "feed_map", {}) or {}
+        if not raw_view_id:
+            return []
+        if raw_view_id == "all":
+            return list(feeds.keys())
+        if raw_view_id.startswith("category:"):
+            category = raw_view_id.split(":", 1)[1]
+            from core.db import CATEGORY_PATH_SEP
+            result = []
+            for fid, feed in feeds.items():
+                feed_category = str(getattr(feed, "category", "") or "Uncategorized")
+                if feed_category == category or feed_category.startswith(category + CATEGORY_PATH_SEP):
+                    result.append(fid)
+            return result
+        if raw_view_id.startswith(("favorites:", "fav:", "starred:", "smart:", "deleted:")):
+            return []
+        return [raw_view_id] if raw_view_id in feeds else []
+
+    def _apply_mark_all_read_tree_updates(self, view_id: str) -> None:
+        for fid in self._mark_all_read_feed_ids_for_view(view_id):
+            feed = (getattr(self, "feed_map", {}) or {}).get(fid)
+            try:
+                unread = int(getattr(feed, "unread_count", 0) or 0)
+            except Exception:
+                unread = 0
+            if unread > 0:
+                self._update_feed_unread_count_ui(fid, -unread)
+
     def _collect_unread_ids_current_view(self, feed_id: str) -> list[str]:
         ids: list[str] = []
         seen: set[str] = set()
@@ -7835,6 +7878,11 @@ class MainFrame(wx.Frame):
         except Exception:
             pass
 
+        try:
+            self._apply_mark_all_read_tree_updates(feed_id)
+        except Exception:
+            pass
+
         # Clear cached views so filtered lists refresh correctly.
         try:
             with self._view_cache_lock:
@@ -7851,11 +7899,6 @@ class MainFrame(wx.Frame):
                 full_load=True,
                 clear_list=True,
             )
-        except Exception:
-            pass
-
-        try:
-            self.refresh_feeds()
         except Exception:
             pass
 

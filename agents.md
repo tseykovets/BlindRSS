@@ -30,7 +30,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 - When it exits, the release is already published and marked Latest, and the macOS/Linux runner build is dispatched.
 
 ### `build.bat` modes (Windows)
-- `release` — full release, in order: verify `origin` is `serrebidev/BlindRSS` → compute next version → bump `core/version.py` → clean PyInstaller build (`main.spec`) → Authenticode-sign `BlindRSS.exe` (signtool) → create portable ZIP → build/sign the Program Files Inno Setup installer → SHA-256 both → release notes → write `BlindRSS-update.json` → `git commit "Release vX.Y.Z"` + tag + push → `gh release create` (ZIP + installer + manifest, `--latest`) → force `--draft=false --latest` → assert no drafts → assert `/releases/latest` == new tag → dispatch `cross-platform-release.yml`. Any failed step aborts non-zero; fix it, don't bypass.
+- `release` — full release, in order: verify `origin` is `serrebidev/BlindRSS` → compute next version → bump `core/version.py` → compile gettext `.po` catalogs to ignored `.mo` artifacts → clean PyInstaller build (`main.spec`) → Authenticode-sign `BlindRSS.exe` (signtool) → create portable ZIP → build/sign the Program Files Inno Setup installer → SHA-256 both → release notes → update `CHANGELOG.md` → write `BlindRSS-update.json` → `git commit "Release vX.Y.Z"` + tag + push → `gh release create` (ZIP + installer + manifest, `--latest`) → force `--draft=false --latest` → assert no drafts → assert `/releases/latest` == new tag → dispatch `cross-platform-release.yml`. Any failed step aborts non-zero; fix it, don't bypass.
 - `build` — iterative LOCAL build only; no version bump, no git, no GitHub. Preserves `dist\BlindRSS` user data (`rss.db*`, `podcasts\`) across rebuilds.
 - `dry-run` — prints the next version and planned steps; changes nothing.
 
@@ -46,7 +46,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 - The GitHub release carries the Windows ZIP + manifest immediately; the macOS ZIP + `BlindRSS-update-macos.json` and Linux tarball + `BlindRSS-update-linux.json` are added minutes later by `cross-platform-release.yml`.
 
 ### macOS / Linux (`build.sh`, auto-detects platform)
-- `build` — LOCAL packaging only (bundles `yt-dlp`/`deno`/`ffmpeg`/VLC, runs `portable.spec`). macOS → ad-hoc-signed `dist/BlindRSS.app` + `dist/BlindRSS-macos-vX.Y.Z.zip`; Linux → `dist/BlindRSS/` + `dist/BlindRSS-linux-vX.Y.Z.tar.gz`. Never versions or releases.
+- `build` — LOCAL packaging only (compiles gettext `.po` catalogs to ignored `.mo` artifacts, bundles `yt-dlp`/`deno`/`ffmpeg`/VLC, runs `portable.spec`). macOS → ad-hoc-signed `dist/BlindRSS.app` + `dist/BlindRSS-macos-vX.Y.Z.zip`; Linux → `dist/BlindRSS/` + `dist/BlindRSS-linux-vX.Y.Z.tar.gz`. Never versions or releases.
 - `release <tag>` — does NOT build; only dispatches `cross-platform-release.yml` to attach mac/Linux assets to an EXISTING Windows-created tag.
 - `dry-run` — prints the plan; changes nothing.
 
@@ -169,7 +169,8 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - Inoreader note: `stream/contents` expects URL-encoded `streamId` in path segment, not `s=` query parameter.
 
 - `tools/`
-  - `release.py`: Windows release/version automation.
+  - `release.py`: Windows release/version automation; generates release notes, update manifests, and prepends versioned entries to `CHANGELOG.md`.
+  - `compile_translations.py`: build-time gettext compiler; compiles `locale/<lang>/LC_MESSAGES/blindrss.po` to ignored `.mo` catalogs before PyInstaller bundles translations.
   - `build_utils.py`: helper utilities used by build flows.
 
 ## Data Model (`rss.db`)

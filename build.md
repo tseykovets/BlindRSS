@@ -136,15 +136,18 @@ On macOS, `./build.sh release <tag>` is the approved way to publish the macOS ZI
 
 - Computes next version and bumps `core/version.py`.
 - Performs a clean build (wipes `build\` and `dist\`).
+- Compiles gettext `locale\<lang>\LC_MESSAGES\blindrss.po` catalogs to
+  generated `.mo` files before PyInstaller runs.
 - Signs executable.
 - Produces:
   - `dist\BlindRSS-vX.Y.Z.zip`
   - `dist\BlindRSS-Setup-vX.Y.Z.exe`
   - `dist\BlindRSS-update.json`
   - `dist\release-notes-vX.Y.Z.md`
-- Commits version bump, tags, pushes, creates GitHub release assets (ZIP +
-  installer + manifest), and dispatches the `cross-platform-release.yml`
-  GitHub Actions workflow to attach the macOS/Linux assets to the same release.
+- Updates `CHANGELOG.md`, commits the version bump + changelog entry, tags,
+  pushes, creates GitHub release assets (ZIP + installer + manifest), and
+  dispatches the `cross-platform-release.yml` GitHub Actions workflow to attach
+  the macOS/Linux assets to the same release.
 
 ## Windows Installer and Data Locations
 

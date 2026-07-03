@@ -12,6 +12,7 @@ sys.path.insert(0, ROOT)
 from core.update_config import GITHUB_OWNER, GITHUB_REPO
 
 VERSION_FILE = os.path.join(ROOT, "core", "version.py")
+CHANGELOG_FILE = os.path.join(ROOT, "CHANGELOG.md")
 APP_NAME = "BlindRSS"
 
 SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)(?:\.(\d+))?$")
@@ -232,6 +233,57 @@ def build_summary(breaking, features, fixes):
     return summary
 
 
+def changelog_entry_from_notes(version_tag, notes_text, release_date=None):
+    release_date = release_date or datetime.now(timezone.utc).date().isoformat()
+    lines = [f"## {version_tag} - {release_date}", ""]
+
+    body = []
+    for line in str(notes_text or "").splitlines():
+        if line.startswith("# "):
+            continue
+        if line.startswith("## "):
+            body.append("### " + line[3:])
+        else:
+            body.append(line)
+
+    while body and not body[0].strip():
+        body.pop(0)
+    while body and not body[-1].strip():
+        body.pop()
+
+    lines.extend(body or ["- Maintenance update."])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def update_changelog(version_tag, notes_text, changelog_path=CHANGELOG_FILE, release_date=None):
+    entry = changelog_entry_from_notes(version_tag, notes_text, release_date=release_date)
+    path = str(changelog_path)
+    if os.path.isfile(path):
+        with open(path, "r", encoding="utf-8") as f:
+            existing = f.read()
+    else:
+        existing = "# Changelog\n\nAll notable changes to BlindRSS are recorded here.\n"
+
+    if not existing.strip():
+        existing = "# Changelog\n\nAll notable changes to BlindRSS are recorded here.\n"
+    if not existing.startswith("# Changelog"):
+        existing = "# Changelog\n\n" + existing.lstrip()
+
+    heading_re = re.compile(rf"^##\s+{re.escape(version_tag)}(?:\s+-[^\n]*)?$", re.MULTILINE)
+    match = heading_re.search(existing)
+    if match:
+        next_match = re.search(r"^##\s+", existing[match.end():], re.MULTILINE)
+        end = match.end() + next_match.start() if next_match else len(existing)
+        updated = existing[:match.start()].rstrip() + "\n\n" + entry + "\n" + existing[end:].lstrip()
+    else:
+        first_version = re.search(r"^##\s+", existing, re.MULTILINE)
+        insert_at = first_version.start() if first_version else len(existing)
+        updated = existing[:insert_at].rstrip() + "\n\n" + entry + "\n" + existing[insert_at:].lstrip()
+
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(updated.rstrip() + "\n")
+
+
 def write_manifest(
     version_tag,
     asset_name,
@@ -318,6 +370,18 @@ def cmd_write_manifest(args):
     print(f"MANIFEST_FILE={args.output}")
 
 
+def cmd_update_changelog(args):
+    with open(args.notes_file, "r", encoding="utf-8") as f:
+        notes_text = f.read()
+    update_changelog(
+        args.version_tag,
+        notes_text,
+        changelog_path=args.output,
+        release_date=args.release_date,
+    )
+    print(f"CHANGELOG_FILE={args.output}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="BlindRSS release helper")
     subparsers = parser.add_subparsers(dest="cmd", required=True)
@@ -344,6 +408,12 @@ def main():
     manifest.add_argument("--installer-asset-name")
     manifest.add_argument("--installer-sha256")
 
+    changelog = subparsers.add_parser("update-changelog")
+    changelog.add_argument("--version-tag", required=True)
+    changelog.add_argument("--notes-file", required=True)
+    changelog.add_argument("--output", default=CHANGELOG_FILE)
+    changelog.add_argument("--release-date")
+
     args = parser.parse_args()
 
     if args.cmd == "next-version":
@@ -356,6 +426,8 @@ def main():
         cmd_write_notes(args)
     elif args.cmd == "write-manifest":
         cmd_write_manifest(args)
+    elif args.cmd == "update-changelog":
+        cmd_update_changelog(args)
     else:
         raise RuntimeError(f"Unknown command: {args.cmd}")
 

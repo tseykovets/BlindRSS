@@ -23,6 +23,7 @@ A vibe-coded, screen-reader-friendly desktop RSS and podcast client for Windows,
 ## Download and install
 
 Grab the latest build from the [Releases page](https://github.com/serrebidev/BlindRSS/releases).
+For a version-by-version history, see the [changelog](CHANGELOG.md).
 
 **Windows installer (recommended)**
 

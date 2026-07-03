@@ -981,6 +981,14 @@ def _http_status_from_error(error: Exception) -> Optional[int]:
     return status or None
 
 
+def _format_refresh_error(error: Exception) -> str:
+    status = _http_status_from_error(error)
+    detail = str(error) or type(error).__name__
+    if status is not None:
+        return f"HTTP {status}: {detail}"
+    return f"Error: {detail}"
+
+
 def _is_name_resolution_error(error: Exception) -> bool:
     text = str(error or "").lower()
     return any(marker in text for marker in _NAME_RESOLUTION_ERROR_MARKERS)
@@ -2398,7 +2406,7 @@ class LocalProvider(RSSProvider):
                     except Exception as e:
                         last_exc = e
                         status = "error"
-                        error_msg = f"HTTP {getattr(e.response, 'status_code', 'Error')}: {str(e)}"
+                        error_msg = _format_refresh_error(e)
                         failure_cooldown_seconds = _failure_cooldown_seconds_for_error(e)
                         retry_allowed = attempt <= configured_retries
                         fast_transport_retry = False

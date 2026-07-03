@@ -230,6 +230,56 @@ def test_build_release_notes_sections_and_placeholders():
     assert summary == "Feature: feat: add casting | Fix: fix: crash"
 
 
+def test_changelog_entry_from_notes_converts_release_heading():
+    notes = "# BlindRSS v1.80.0\n\n## Fixes\n- fix: thing\n"
+
+    entry = release.changelog_entry_from_notes("v1.80.0", notes, release_date="2026-07-03")
+
+    assert entry.startswith("## v1.80.0 - 2026-07-03")
+    assert "### Fixes\n- fix: thing" in entry
+    assert "# BlindRSS" not in entry
+
+
+def test_update_changelog_prepends_new_version(tmp_path):
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        "# Changelog\n\nAll notable changes to BlindRSS are recorded here.\n\n"
+        "## v1.79.0 - 2026-07-02\n\n### Fixes\n- old\n",
+        encoding="utf-8",
+    )
+
+    release.update_changelog(
+        "v1.80.0",
+        "# BlindRSS v1.80.0\n\n## Features\n- feat: new\n",
+        changelog_path=str(changelog),
+        release_date="2026-07-03",
+    )
+
+    text = changelog.read_text(encoding="utf-8")
+    assert text.index("## v1.80.0 - 2026-07-03") < text.index("## v1.79.0 - 2026-07-02")
+    assert "### Features\n- feat: new" in text
+
+
+def test_update_changelog_replaces_existing_version(tmp_path):
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        "# Changelog\n\n## v1.80.0 - 2026-07-03\n\n### Fixes\n- old\n",
+        encoding="utf-8",
+    )
+
+    release.update_changelog(
+        "v1.80.0",
+        "# BlindRSS v1.80.0\n\n## Fixes\n- new\n",
+        changelog_path=str(changelog),
+        release_date="2026-07-03",
+    )
+
+    text = changelog.read_text(encoding="utf-8")
+    assert text.count("## v1.80.0 - 2026-07-03") == 1
+    assert "- new" in text
+    assert "- old" not in text
+
+
 # --- manifest generation -----------------------------------------------------
 
 

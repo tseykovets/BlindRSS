@@ -40,7 +40,7 @@ if /I "%MODE%"=="dry-run" (
     echo [Dry Run] Latest tag: !LATEST_TAG!
     echo [Dry Run] Next version: v!NEXT_VERSION! [!BUMP! bump]
     echo [Dry Run] Inno Setup compiler: !INNO_SETUP_EXE!
-    echo [Dry Run] Would bump core/version.py, build, sign with "%SIGNTOOL_EXE%", create the portable ZIP and Program Files installer, generate the manifest, tag, push to "%RELEASE_REMOTE%", create a GitHub release in "%GITHUB_REPO_SLUG%", and dispatch the macOS/Linux GitHub Actions asset build.
+    echo [Dry Run] Would bump core/version.py, compile translations, build, sign with "%SIGNTOOL_EXE%", create the portable ZIP and Program Files installer, generate release notes, update CHANGELOG.md, generate the manifest, tag, push to "%RELEASE_REMOTE%", create a GitHub release in "%GITHUB_REPO_SLUG%", and dispatch the macOS/Linux GitHub Actions asset build.
     goto :done
 )
 
@@ -74,6 +74,8 @@ if /I "%MODE%"=="release" (
     call :hash_installer
     if errorlevel 1 exit /b 1
     call :write_notes
+    if errorlevel 1 exit /b 1
+    call :update_changelog
     if errorlevel 1 exit /b 1
     call :write_manifest
     if errorlevel 1 exit /b 1
@@ -274,6 +276,12 @@ echo [BlindRSS Build] Generating release notes...
 if errorlevel 1 exit /b 1
 exit /b 0
 
+:update_changelog
+echo [BlindRSS Build] Updating CHANGELOG.md...
+"%TOOL_PY%" tools\release.py update-changelog --version-tag "%VERSION_TAG%" --notes-file "%RELEASE_NOTES%" --output "%SCRIPT_DIR%CHANGELOG.md"
+if errorlevel 1 exit /b 1
+exit /b 0
+
 :build_app
 echo [BlindRSS Build] Ensuring config.json exists...
 if not exist "%SCRIPT_DIR%config.json" (
@@ -295,6 +303,13 @@ if /I "%MODE%"=="build" (
 echo [BlindRSS Build] Cleaning previous build...
 if exist "%SCRIPT_DIR%build" rd /s /q "%SCRIPT_DIR%build"
 if exist "%SCRIPT_DIR%dist" rd /s /q "%SCRIPT_DIR%dist"
+
+echo [BlindRSS Build] Compiling translation catalogs...
+"%TOOL_PY%" tools\compile_translations.py
+if errorlevel 1 (
+    call :restore_preserved_dist_data
+    exit /b 1
+)
 
 echo [BlindRSS Build] Running PyInstaller (main.spec)...
 if exist "main.spec" (
@@ -509,7 +524,7 @@ exit /b 0
 
 :git_release
 echo [BlindRSS Release] Committing version bump...
-git add core\version.py
+git add core\version.py CHANGELOG.md
 git commit -m "Release %VERSION_TAG%"
 if errorlevel 1 exit /b 1
 

@@ -418,7 +418,7 @@ def referer_for_url(url: str) -> str:
         return ""
     if not parts.scheme or not parts.netloc:
         return ""
-    return f"{parts.scheme}://{parts.netloc}/"
+    return encode_non_ascii_url(f"{parts.scheme}://{parts.netloc}/")
 
 
 def _redact_headers(headers: dict) -> dict:
@@ -481,6 +481,8 @@ def encode_non_ascii_url(url: str) -> str:
                 host = host.encode("idna").decode("ascii")
 
         netloc = host
+        if ":" in netloc and not netloc.startswith("["):
+            netloc = f"[{netloc}]"
         if parts.port is not None:
             netloc = f"{netloc}:{parts.port}"
         if parts.username:
@@ -499,6 +501,22 @@ def encode_non_ascii_url(url: str) -> str:
         return text
 
 
+_URL_HEADER_KEYS = {"referer", "referrer", "origin"}
+
+
+def _request_safe_headers(headers: dict) -> dict:
+    """Return request headers with URL-valued fields made HTTP-header safe."""
+    safe_headers = {}
+    for key, value in (headers or {}).items():
+        if value is None:
+            continue
+        if str(key).lower() in _URL_HEADER_KEYS:
+            safe_headers[key] = encode_non_ascii_url(str(value))
+        else:
+            safe_headers[key] = value
+    return safe_headers
+
+
 def safe_requests_get(url, *, impersonate: bool = False, **kwargs):
     """Wrapper for requests.get with default browser headers.
 
@@ -510,12 +528,13 @@ def safe_requests_get(url, *, impersonate: bool = False, **kwargs):
     url = encode_non_ascii_url(url)
     headers = kwargs.pop("headers", {})
     if impersonate and CURL_CFFI_AVAILABLE:
-        final_headers = _impersonated_headers(headers)
+        final_headers = _request_safe_headers(_impersonated_headers(headers))
         _log_http_request("GET", url, final_headers, f"curl_cffi:{IMPERSONATE_TARGET}")
         return _get_curl_session().get(url, headers=final_headers, impersonate=IMPERSONATE_TARGET, **kwargs)
     # Merge with defaults, preserving caller's headers if they exist
     final_headers = HEADERS.copy()
     final_headers.update(headers)
+    final_headers = _request_safe_headers(final_headers)
     _log_http_request("GET", url, final_headers, "requests")
     return _get_plain_session().get(url, headers=final_headers, **kwargs)
 
@@ -525,11 +544,12 @@ def safe_requests_head(url, *, impersonate: bool = False, **kwargs):
     url = encode_non_ascii_url(url)
     headers = kwargs.pop("headers", {})
     if impersonate and CURL_CFFI_AVAILABLE:
-        final_headers = _impersonated_headers(headers)
+        final_headers = _request_safe_headers(_impersonated_headers(headers))
         _log_http_request("HEAD", url, final_headers, f"curl_cffi:{IMPERSONATE_TARGET}")
         return _get_curl_session().head(url, headers=final_headers, impersonate=IMPERSONATE_TARGET, **kwargs)
     final_headers = HEADERS.copy()
     final_headers.update(headers)
+    final_headers = _request_safe_headers(final_headers)
     _log_http_request("HEAD", url, final_headers, "requests")
     return _get_plain_session().head(url, headers=final_headers, **kwargs)
 

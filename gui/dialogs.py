@@ -5284,7 +5284,7 @@ class PersistentSearchDialog(wx.Dialog):
 
 class AboutDialog(wx.Dialog):
     def __init__(self, parent, version_str):
-        super().__init__(parent, title="About BlindRSS", size=(400, 300))
+        super().__init__(parent, title="About BlindRSS", size=(430, 340))
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -5303,9 +5303,11 @@ class AboutDialog(wx.Dialog):
         # Buttons
         github_btn = wx.Button(self, label="Follow me on GitHub (@serrebidev)")
         repo_btn = wx.Button(self, label="Visit Repository")
+        changelog_btn = wx.Button(self, label="View Changelog")
 
         sizer.Add(github_btn, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         sizer.Add(repo_btn, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        sizer.Add(changelog_btn, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         sizer.AddSpacer(20)
 
@@ -5318,6 +5320,10 @@ class AboutDialog(wx.Dialog):
         # Bindings
         github_btn.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open("https://github.com/serrebidev"))
         repo_btn.Bind(wx.EVT_BUTTON, lambda e: webbrowser.open("https://github.com/serrebidev/BlindRSS"))
+        changelog_btn.Bind(
+            wx.EVT_BUTTON,
+            lambda e: webbrowser.open("https://github.com/serrebidev/BlindRSS/blob/main/CHANGELOG.md"),
+        )
         close_btn.Bind(wx.EVT_BUTTON, lambda e: self.EndModal(wx.ID_CLOSE))
 
 # Backwards-compatible name (menu item was historically called "Search Podcast").

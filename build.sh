@@ -403,6 +403,8 @@ build_pyinstaller() {
   read_version
   rm -rf "$SCRIPT_DIR/build" "$SCRIPT_DIR/dist"
   export BLINDRSS_APP_VERSION="$VERSION_NO_V"
+  echo "[BlindRSS Build] Compiling translation catalogs..."
+  "$SCRIPT_DIR/.venv/bin/python" tools/compile_translations.py
   echo "[BlindRSS Build] Running PyInstaller (portable.spec)..."
   "$SCRIPT_DIR/.venv/bin/python" -m PyInstaller --clean --noconfirm portable.spec
 }
@@ -443,11 +445,11 @@ if [[ "$MODE" == "dry-run" ]]; then
   echo "[Dry Run] Platform: $PLATFORM_ID ($UNAME_M)"
   echo "[Dry Run] Python: $PYTHON_EXE"
   if [[ "$PLATFORM_ID" == "macos" ]]; then
-    echo "[Dry Run] Would prepare .venv, install dependencies, bundle yt-dlp, deno, ffmpeg, and macOS VLC assets."
+    echo "[Dry Run] Would prepare .venv, install dependencies, compile translations, bundle yt-dlp, deno, ffmpeg, and macOS VLC assets."
     echo "[Dry Run] Would ad-hoc sign dist/BlindRSS.app and zip it to dist/BlindRSS-macos-v<version>.zip"
     echo "[Dry Run] ./build.sh release <tag> would dispatch the macOS GitHub Actions build to upload a ZIP to an existing GitHub release."
   else
-    echo "[Dry Run] Would prepare .venv, install dependencies, bundle yt-dlp, deno, ffmpeg, and Linux VLC assets."
+    echo "[Dry Run] Would prepare .venv, install dependencies, compile translations, bundle yt-dlp, deno, ffmpeg, and Linux VLC assets."
     echo "[Dry Run] Would build dist/BlindRSS/ and tar it to dist/BlindRSS-linux-v<version>.tar.gz"
     echo "[Dry Run] ./build.sh release <tag> would dispatch the GitHub Actions build to upload assets to an existing GitHub release."
   fi

@@ -253,6 +253,11 @@ def _entry_tags(entry) -> str:
     return "\n".join(out)
 
 
+# Link rels that never point at the item's webpage. Without this filter,
+# enclosure-only podcast items would report the mp3 as their article URL.
+_NON_WEBPAGE_LINK_RELS = {"enclosure", "self", "hub", "replies", "edit", "icon", "license", "payment"}
+
+
 def _entry_primary_link(entry) -> str:
     try:
         links = entry.get("links") or []
@@ -267,7 +272,9 @@ def _entry_primary_link(entry) -> str:
             except Exception:
                 rel = str(getattr(link, "rel", "") or "")
                 href = str(getattr(link, "href", "") or "").strip()
-            if href and (not wanted_rel or rel == wanted_rel):
+            if not href or rel in _NON_WEBPAGE_LINK_RELS:
+                continue
+            if not wanted_rel or rel == wanted_rel:
                 return href
 
     return _entry_text(entry, "link")
@@ -2439,7 +2446,7 @@ class LocalProvider(RSSProvider):
                 
                 # Pre-fetch existing articles to avoid N+1 SELECTs
                 c.execute(
-                    "SELECT id, date, chapter_url, media_url, media_type "
+                    "SELECT id, date, chapter_url, media_url, media_type, url "
                     "FROM articles WHERE feed_id = ?",
                     (feed_id,),
                 )
@@ -2449,6 +2456,7 @@ class LocalProvider(RSSProvider):
                         "chapter_url": row[2],
                         "media_url": row[3],
                         "media_type": row[4],
+                        "url": row[5] or "",
                     }
                     for row in c.fetchall()
                 }
@@ -2657,10 +2665,23 @@ class LocalProvider(RSSProvider):
                         break
 
                     if existing_article_id is not None:
+                        # Self-heal stored webpage URLs: adopt the feed's current
+                        # link, and clear stale values that were really the media
+                        # enclosure (older builds stored the mp3 as the article
+                        # URL). Never wipe a good URL just because the feed
+                        # temporarily omits its link.
+                        stored_url = str(existing_metadata.get("url") or "")
+                        url_to_store = stored_url
+                        if url and url != stored_url:
+                            url_to_store = url
+                        elif not url and stored_url and (
+                            stored_url == (media_url or "") or _media_type_from_url(stored_url)
+                        ):
+                            url_to_store = ""
                         c.execute(
-                            "UPDATE articles SET date = ?, description = ?, media_url = ?, media_type = ?, chapter_url = ? "
+                            "UPDATE articles SET date = ?, description = ?, media_url = ?, media_type = ?, chapter_url = ?, url = ? "
                             "WHERE id = ?",
-                            (date, description, media_url, media_type, chapter_url, existing_article_id),
+                            (date, description, media_url, media_type, chapter_url, url_to_store, existing_article_id),
                         )
                         # Change history: append a version when the feed's content
                         # for this item differs from the latest recorded version.
@@ -2679,6 +2700,7 @@ class LocalProvider(RSSProvider):
                             "chapter_url": chapter_url,
                             "media_url": media_url,
                             "media_type": media_type,
+                            "url": url_to_store,
                         }
                         continue
 
@@ -2709,6 +2731,7 @@ class LocalProvider(RSSProvider):
                             "chapter_url": chapter_url,
                             "media_url": media_url,
                             "media_type": media_type,
+                            "url": url,
                         }
                         _apply_rules_to_new_article(
                             article_id, title, content, description, author, url, tags,
@@ -2721,7 +2744,7 @@ class LocalProvider(RSSProvider):
                             return
                         if article_id == base_id:
                             try:
-                                c.execute("SELECT feed_id, date FROM articles WHERE id = ? LIMIT 1", (base_id,))
+                                c.execute("SELECT feed_id, date, url FROM articles WHERE id = ? LIMIT 1", (base_id,))
                                 row = c.fetchone()
                             except sqlite3.Error:
                                 row = None
@@ -2729,10 +2752,19 @@ class LocalProvider(RSSProvider):
                             if row:
                                 existing_feed_id = row[0]
                                 if existing_feed_id == feed_id:
+                                    # Same stale-URL healing as the main update path above.
+                                    stored_url = str(row[2] or "")
+                                    url_to_store = stored_url
+                                    if url and url != stored_url:
+                                        url_to_store = url
+                                    elif not url and stored_url and (
+                                        stored_url == (media_url or "") or _media_type_from_url(stored_url)
+                                    ):
+                                        url_to_store = ""
                                     c.execute(
                                         "UPDATE articles SET date = ?, media_url = ?, media_type = ?, "
-                                        "chapter_url = ?, description = ? WHERE id = ?",
-                                        (date, media_url, media_type, chapter_url, description, base_id),
+                                        "chapter_url = ?, description = ?, url = ? WHERE id = ?",
+                                        (date, media_url, media_type, chapter_url, description, url_to_store, base_id),
                                     )
                                     if inline_chapters:
                                         utils._replace_stored_chapters(

@@ -412,6 +412,25 @@ ITUNES_ONLY_RSS = """<?xml version="1.0"?>
 </rss>
 """
 
+# The Moth podcast shape: items carry only a guid, description and an audio
+# enclosure — no <link> at all. The enclosure must become media_url, never the
+# article's webpage URL.
+ENCLOSURE_ONLY_RSS = """<?xml version="1.0"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Enclosure Only Podcast</title>
+    <link>https://example.com/enclosure-podcast</link>
+    <description>Podcast channel</description>
+    <item>
+      <guid isPermaLink="false">enclosure-entry-1</guid>
+      <title>Linkless Episode</title>
+      <description>Episode notes from the feed.</description>
+      <enclosure url="https://example.com/audio/1.mp3" length="0" type="audio/mpeg" />
+    </item>
+  </channel>
+</rss>
+"""
+
 URL_ONLY_ITEM_RSS = """<?xml version="1.0"?>
 <rss version="2.0">
   <channel>
@@ -686,6 +705,60 @@ def test_local_provider_maps_itunes_author_summary_and_enclosure(provider, monke
     assert article.content == "Podcast summary from iTunes."
     assert article.media_url == "https://example.com/podcast/1.mp3"
     assert article.media_type == "audio/mpeg"
+
+
+def test_enclosure_only_item_gets_no_webpage_url(provider, monkeypatch):
+    feed_id = _insert_feed("https://example.com/enclosure-podcast.xml")
+    monkeypatch.setattr(
+        local_mod.utils,
+        "safe_requests_get",
+        lambda *args, **kwargs: _DummyResp(ENCLOSURE_ONLY_RSS),
+    )
+
+    assert provider.refresh_feed(feed_id) is True
+
+    article = provider.get_articles(feed_id=feed_id)[0]
+    assert article.media_url == "https://example.com/audio/1.mp3"
+    assert article.media_type == "audio/mpeg"
+    # No <link> in the item: the enclosure must not leak into the webpage URL.
+    assert (article.url or "") == ""
+
+
+def test_refresh_heals_enclosure_stored_as_webpage_url(provider, monkeypatch):
+    feed_id = _insert_feed("https://example.com/enclosure-podcast.xml")
+    monkeypatch.setattr(
+        local_mod.utils,
+        "safe_requests_get",
+        lambda *args, **kwargs: _DummyResp(ENCLOSURE_ONLY_RSS),
+    )
+
+    # Simulate a row written by an older build that stored the mp3 as the URL.
+    conn = db.get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO articles (id, feed_id, title, url, content, date, author, is_read, media_url, media_type) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
+            (
+                "enclosure-entry-1",
+                feed_id,
+                "Linkless Episode",
+                "https://example.com/audio/1.mp3",
+                "Episode notes from the feed.",
+                "2026-06-30 04:25:00",
+                "Podcast Host",
+                "https://example.com/audio/1.mp3",
+                "audio/mpeg",
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    assert provider.refresh_feed(feed_id) is True
+
+    article = provider.get_articles(feed_id=feed_id)[0]
+    assert (article.url or "") == ""
+    assert article.media_url == "https://example.com/audio/1.mp3"
 
 
 def test_url_only_item_content_does_not_emit_locator_warning(provider, monkeypatch):

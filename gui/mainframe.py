@@ -6268,10 +6268,12 @@ class MainFrame(wx.Frame):
         focus or popping a dialog.
 
         Best-effort and non-blocking: on Windows it raises a UI Automation
-        notification (announced by NVDA and JAWS) from the frame's window; on
-        other platforms, or if UIA is unavailable, it falls back to the status
-        bar plus a soft bell so the user still gets a cue. Keyboard focus never
-        moves, so the user stays in the article text after Find.
+        notification (announced by NVDA and JAWS) from the active reading
+        control when possible; it also emits an MSAA status-change event after
+        updating the status bar. On other platforms, or if UIA is unavailable,
+        it falls back to the status bar plus a soft bell so the user still gets
+        a cue. Keyboard focus never moves, so the user stays in the article
+        text after Find.
         """
         message = str(message or "").strip()
         if not message:
@@ -6282,12 +6284,73 @@ class MainFrame(wx.Frame):
             self.SetStatusText(message, 0)
         except Exception:
             pass
+        try:
+            self._announce_status_changed()
+        except Exception:
+            pass
         if sys.platform.startswith("win") and self._announce_via_uia(message):
             return
         try:
             wx.Bell()
         except Exception:
             pass
+
+    def _announce_status_changed(self) -> None:
+        """Tell MSAA clients the status-bar text changed.
+
+        UIA notifications are the primary speech path on modern Windows, but
+        NVDA/JAWS also listen to classic MSAA events in wx/Win32 apps. Raising
+        this after SetStatusText gives them a queryable status object without
+        moving keyboard focus.
+        """
+        try:
+            status_bar = self.GetStatusBar()
+        except Exception:
+            status_bar = None
+        if not status_bar:
+            return
+        try:
+            notify = wx.Accessible.NotifyEvent
+            objid = getattr(wx, "OBJID_CLIENT", -4)
+            childid = getattr(wx, "ACC_SELF", 0)
+            for event_type in (
+                getattr(wx, "ACC_EVENT_OBJECT_VALUECHANGE", None),
+                getattr(wx, "ACC_EVENT_OBJECT_NAMECHANGE", None),
+                getattr(wx, "ACC_EVENT_SYSTEM_ALERT", None),
+            ):
+                if event_type is not None:
+                    notify(event_type, status_bar, objid, childid)
+        except Exception:
+            pass
+
+    def _announcement_hwnds(self):
+        """Return native window handles to try as UIA notification sources."""
+        hwnds = []
+
+        def add_window(window):
+            if not window:
+                return
+            try:
+                hwnd = int(window.GetHandle())
+            except Exception:
+                hwnd = 0
+            if hwnd and hwnd not in hwnds:
+                hwnds.append(hwnd)
+
+        try:
+            add_window(self._get_focused_window())
+        except Exception:
+            pass
+        try:
+            add_window(self.content_ctrl)
+        except Exception:
+            pass
+        try:
+            add_window(self.GetStatusBar())
+        except Exception:
+            pass
+        add_window(self)
+        return hwnds
 
     def _announce_via_uia(self, message: str) -> bool:
         """Raise a Windows UI Automation notification so NVDA/JAWS speak `message`.
@@ -6301,11 +6364,8 @@ class MainFrame(wx.Frame):
             from ctypes import wintypes
         except Exception:
             return False
-        try:
-            hwnd = int(self.GetHandle())
-        except Exception:
-            hwnd = 0
-        if not hwnd:
+        hwnds = self._announcement_hwnds()
+        if not hwnds:
             return False
         try:
             core = ctypes.oledll.UIAutomationCore
@@ -6316,25 +6376,47 @@ class MainFrame(wx.Frame):
         oleaut32.SysAllocString.restype = ctypes.c_void_p
         oleaut32.SysAllocString.argtypes = [ctypes.c_wchar_p]
         oleaut32.SysFreeString.argtypes = [ctypes.c_void_p]
+        oleaut32.SysFreeString.restype = None
 
-        provider = ctypes.c_void_p()
+        core.UiaHostProviderFromHwnd.argtypes = [wintypes.HWND, ctypes.POINTER(ctypes.c_void_p)]
+        core.UiaHostProviderFromHwnd.restype = ctypes.HRESULT
+        core.UiaRaiseNotificationEvent.argtypes = [
+            ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p,
+        ]
+        core.UiaRaiseNotificationEvent.restype = ctypes.HRESULT
+
         bstr = None
         activity = None
         try:
-            # HRESULT UiaHostProviderFromHwnd(HWND, IRawElementProviderSimple**)
-            core.UiaHostProviderFromHwnd.argtypes = [wintypes.HWND, ctypes.POINTER(ctypes.c_void_p)]
-            core.UiaHostProviderFromHwnd(wintypes.HWND(hwnd), ctypes.byref(provider))
-            if not provider:
-                return False
             bstr = oleaut32.SysAllocString(message)
             activity = oleaut32.SysAllocString("blindrss.find")
-            # NotificationKind_ActionAborted = 3 (the find action produced nothing),
-            # NotificationProcessing_ImportantAll = 0 (never coalesced away).
-            core.UiaRaiseNotificationEvent.argtypes = [
-                ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p,
-            ]
-            core.UiaRaiseNotificationEvent(provider, 3, 0, bstr, activity)
-            return True
+            if not bstr or not activity:
+                return False
+            for hwnd in hwnds:
+                provider = ctypes.c_void_p()
+                try:
+                    # HRESULT UiaHostProviderFromHwnd(HWND, IRawElementProviderSimple**)
+                    hr = core.UiaHostProviderFromHwnd(wintypes.HWND(hwnd), ctypes.byref(provider))
+                    if hr != 0 or not provider:
+                        continue
+                    # NotificationKind_ActionAborted = 3 (the find action produced nothing),
+                    # NotificationProcessing_ImportantAll = 0 (never coalesced away).
+                    hr = core.UiaRaiseNotificationEvent(provider, 3, 0, bstr, activity)
+                    if hr == 0:
+                        return True
+                except Exception:
+                    continue
+                finally:
+                    if provider:
+                        # Release the host provider (IUnknown::Release is vtable slot 2).
+                        try:
+                            vtbl = ctypes.cast(provider, ctypes.POINTER(ctypes.c_void_p))[0]
+                            release_ptr = ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[2]
+                            release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(release_ptr)
+                            release(provider)
+                        except Exception:
+                            pass
+            return False
         except Exception:
             return False
         finally:
@@ -6346,15 +6428,6 @@ class MainFrame(wx.Frame):
             if activity:
                 try:
                     oleaut32.SysFreeString(activity)
-                except Exception:
-                    pass
-            if provider:
-                # Release the host provider (IUnknown::Release is vtable slot 2).
-                try:
-                    vtbl = ctypes.cast(provider, ctypes.POINTER(ctypes.c_void_p))[0]
-                    release_ptr = ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[2]
-                    release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(release_ptr)
-                    release(provider)
                 except Exception:
                     pass
 

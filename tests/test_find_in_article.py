@@ -246,3 +246,68 @@ def test_announce_falls_back_to_bell_off_windows(monkeypatch):
     assert host.uia == []
     assert bells == [True]
     assert host.status[-1] == ("nothing here", 0)
+
+
+class _FakeWindow:
+    def __init__(self, hwnd):
+        self.hwnd = int(hwnd)
+
+    def GetHandle(self):
+        return self.hwnd
+
+    def __bool__(self):
+        return bool(self.hwnd)
+
+
+class _AnnounceHwndHost:
+    _announcement_hwnds = mainframe.MainFrame._announcement_hwnds
+    _announce_status_changed = mainframe.MainFrame._announce_status_changed
+
+    def __init__(self):
+        self.focus = _FakeWindow(111)
+        self.content_ctrl = _FakeWindow(222)
+        self.status_bar = _FakeWindow(333)
+        self.frame = _FakeWindow(444)
+
+    def _get_focused_window(self):
+        return self.focus
+
+    def GetStatusBar(self):
+        return self.status_bar
+
+    def GetHandle(self):
+        return self.frame.GetHandle()
+
+
+def test_uia_notification_sources_prefer_focus_content_status_then_frame():
+    host = _AnnounceHwndHost()
+
+    assert host._announcement_hwnds() == [111, 222, 333, 444]
+
+
+def test_uia_notification_sources_deduplicate_handles():
+    host = _AnnounceHwndHost()
+    host.focus = host.content_ctrl
+    host.status_bar = _FakeWindow(222)
+
+    assert host._announcement_hwnds() == [222, 444]
+
+
+def test_announce_status_changed_emits_msaa_events(monkeypatch):
+    host = _AnnounceHwndHost()
+    calls = []
+
+    class FakeAccessible:
+        @staticmethod
+        def NotifyEvent(event_type, window, object_type, object_id):
+            calls.append((event_type, window, object_type, object_id))
+
+    monkeypatch.setattr(mainframe.wx, "Accessible", FakeAccessible)
+
+    host._announce_status_changed()
+
+    assert calls == [
+        (mainframe.wx.ACC_EVENT_OBJECT_VALUECHANGE, host.status_bar, mainframe.wx.OBJID_CLIENT, mainframe.wx.ACC_SELF),
+        (mainframe.wx.ACC_EVENT_OBJECT_NAMECHANGE, host.status_bar, mainframe.wx.OBJID_CLIENT, mainframe.wx.ACC_SELF),
+        (mainframe.wx.ACC_EVENT_SYSTEM_ALERT, host.status_bar, mainframe.wx.OBJID_CLIENT, mainframe.wx.ACC_SELF),
+    ]

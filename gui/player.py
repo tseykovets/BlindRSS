@@ -1720,17 +1720,11 @@ class PlayerFrame(wx.Frame):
                 self.apply_preferred_soundcard()
             except Exception:
                 pass
-            try:
-                self.player.audio_set_volume(int(getattr(self, 'volume', 100)))
-            except Exception:
-                pass
-            
-            # Sync the volume slider with VLC's actual volume to prevent jumps on first adjustment
-            try:
-                wx.CallLater(500, self._sync_volume_from_vlc)
-            except Exception:
-                pass
-            
+            # Apply the configured volume once VLC's audio output exists;
+            # setting it immediately is silently dropped and made the first
+            # volume adjustment jump.
+            self._apply_volume_when_ready()
+
             self.is_playing = True
             self._set_play_button_label(True)
 
@@ -4874,16 +4868,40 @@ class PlayerFrame(wx.Frame):
         except Exception:
             pass
 
-    def _sync_volume_from_vlc(self) -> None:
-        """Sync the volume slider with VLC's actual volume to prevent jumps on first adjustment."""
+    def _apply_volume_when_ready(self, attempts_left: int = 12) -> None:
+        """Impose the tracked volume once VLC's audio output exists.
+
+        libvlc silently drops audio_set_volume calls made before the audio
+        output is created (playback just started), which left VLC playing at
+        its own volume while self.volume held the configured one — so the
+        first Volume Up/Down jumped to configured±step. Retry applying until
+        VLC confirms the value; only if it never sticks, adopt VLC's actual
+        volume so adjustments stay relative to what the user is hearing.
+        """
         if self.is_casting:
             return
         try:
-            vlc_volume = self.player.audio_get_volume()
-            if vlc_volume >= 0:  # -1 means error
-                # Update our internal state and UI without persisting (already persisted)
-                self.volume = int(vlc_volume)
-                self._update_volume_ui(int(vlc_volume))
+            target = max(0, min(100, int(getattr(self, "volume", 100))))
+            set_ok = self.player.audio_set_volume(target) == 0
+            actual = self.player.audio_get_volume()
+        except Exception:
+            return
+        if set_ok and actual == target:
+            try:
+                self._update_volume_ui(target)
+            except Exception:
+                pass
+            return
+        if attempts_left <= 0:
+            if actual is not None and int(actual) >= 0:
+                self.volume = int(actual)
+                try:
+                    self._update_volume_ui(int(actual))
+                except Exception:
+                    pass
+            return
+        try:
+            wx.CallLater(250, self._apply_volume_when_ready, attempts_left - 1)
         except Exception:
             pass
 
@@ -5486,17 +5504,11 @@ class PlayerFrame(wx.Frame):
                     pass
                 self.player.play()
                 self.is_playing = True
-                try:
-                    self.player.audio_set_volume(int(getattr(self, "volume", 100)))
-                except Exception:
-                    pass
-                
-                # Sync the volume slider with VLC's actual volume to prevent jumps on first adjustment
-                try:
-                    wx.CallLater(500, self._sync_volume_from_vlc)
-                except Exception:
-                    pass
-                
+                # Apply the configured volume once VLC's audio output exists;
+                # setting it immediately is silently dropped and made the first
+                # volume adjustment jump.
+                self._apply_volume_when_ready()
+
                 self._set_play_button_label(True)
                 self._set_status("Playing")
                 if not self.timer.IsRunning():

@@ -2999,6 +2999,18 @@ class LocalProvider(RSSProvider):
         except Exception as e:
             log.debug(f"Progress callback failed: {e}")
 
+    def get_feed_read_counts(self):
+        """Read-article count per feed id, for the tree's Read filter (issue #36)."""
+        conn = get_connection()
+        try:
+            c = conn.cursor()
+            c.execute(
+                "SELECT feed_id, COUNT(*) FROM articles WHERE is_read = 1 GROUP BY feed_id"
+            )
+            return {row[0]: row[1] for row in c.fetchall()}
+        finally:
+            conn.close()
+
     def get_feeds(self) -> List[Feed]:
         conn = get_connection()
         try:

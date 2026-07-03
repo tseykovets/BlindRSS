@@ -40,6 +40,7 @@ from core import windows_integration
 from core import screen_reader_announce
 from core.version import APP_VERSION
 from core import dependency_check
+from core.i18n import _
 import core.discovery
 
 log = logging.getLogger(__name__)
@@ -152,7 +153,11 @@ class MainFrame(wx.Frame):
         self._refresh_progress_pending = {}
         self._refresh_progress_flush_scheduled = False
 
-        self._unread_filter_enabled = False
+        # Global read-status filter (issues #36/#40): "all", "unread", or "read".
+        # Applies to every article view and prunes the category tree to matching
+        # branches when not "all". _unread_filter_enabled is a compatibility
+        # property over this.
+        self._article_read_filter = "all"
         self._is_first_tree_load = True
         # Category-tree expansion memory (issue #33). The tree is fully rebuilt on
         # every refresh, so we track which category nodes the user explicitly
@@ -383,13 +388,13 @@ class MainFrame(wx.Frame):
         # No LC_SINGLE_SEL: allow multiple articles to be selected (e.g. Shift+Up/Down
         # to extend a range) so bulk actions like Delete/Copy work on the whole selection.
         self.list_ctrl = wx.ListCtrl(right_splitter, style=wx.LC_REPORT)
-        self.list_ctrl.SetName("Articles")
-        self.list_ctrl.InsertColumn(ARTICLE_COL_TITLE, "Title", width=320)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_AUTHOR, "Author", width=110)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_DATE, "Date", width=120)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_FEED, "Feed", width=140)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_DESCRIPTION, "Description", width=260)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_STATUS, "Status", width=80)
+        self.list_ctrl.SetName(_("Articles"))
+        self.list_ctrl.InsertColumn(ARTICLE_COL_TITLE, _("Title"), width=320)
+        self.list_ctrl.InsertColumn(ARTICLE_COL_AUTHOR, _("Author"), width=110)
+        self.list_ctrl.InsertColumn(ARTICLE_COL_DATE, _("Date"), width=120)
+        self.list_ctrl.InsertColumn(ARTICLE_COL_FEED, _("Feed"), width=140)
+        self.list_ctrl.InsertColumn(ARTICLE_COL_DESCRIPTION, _("Description"), width=260)
+        self.list_ctrl.InsertColumn(ARTICLE_COL_STATUS, _("Status"), width=80)
         
         # Bottom Right: Content (No embedded player anymore)
         self.content_ctrl = wx.TextCtrl(right_splitter, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2)
@@ -1518,70 +1523,77 @@ class MainFrame(wx.Frame):
         menubar = wx.MenuBar()
         
         file_menu = wx.Menu()
-        add_feed_item = file_menu.Append(wx.ID_ANY, "&Add Feed\tCtrl+N", "Add a new RSS feed")
-        remove_feed_item = file_menu.Append(wx.ID_ANY, "&Remove Feed", "Remove selected feed")
-        refresh_item = file_menu.Append(wx.ID_REFRESH, "&Refresh Feeds\tF5", "Refresh all feeds")
-        mark_all_read_item = file_menu.Append(wx.ID_ANY, "Mark All Items as &Read", "Mark all items in all feeds as read")
-        view_errors_item = file_menu.Append(wx.ID_ANY, "View Feed &Errors...", "View feeds that failed to update")
+        add_feed_item = file_menu.Append(wx.ID_ANY, _("&Add Feed") + "\tCtrl+N", _("Add a new RSS feed"))
+        remove_feed_item = file_menu.Append(wx.ID_ANY, _("&Remove Feed"), _("Remove selected feed"))
+        refresh_item = file_menu.Append(wx.ID_REFRESH, _("&Refresh Feeds") + "\tF5", _("Refresh all feeds"))
+        mark_all_read_item = file_menu.Append(wx.ID_ANY, _("Mark All Items as &Read"), _("Mark all items in all feeds as read"))
+        view_errors_item = file_menu.Append(wx.ID_ANY, _("View Feed &Errors..."), _("View feeds that failed to update"))
         file_menu.AppendSeparator()
-        add_cat_item = file_menu.Append(wx.ID_ANY, "Add &Category", "Add a new category")
-        remove_cat_item = file_menu.Append(wx.ID_ANY, "Remove C&ategory", "Remove selected category")
+        add_cat_item = file_menu.Append(wx.ID_ANY, _("Add &Category"), _("Add a new category"))
+        remove_cat_item = file_menu.Append(wx.ID_ANY, _("Remove C&ategory"), _("Remove selected category"))
         file_menu.AppendSeparator()
-        import_opml_item = file_menu.Append(wx.ID_ANY, "&Import OPML...", "Import feeds from OPML")
-        export_opml_item = file_menu.Append(wx.ID_ANY, "E&xport OPML...", "Export feeds to OPML")
+        import_opml_item = file_menu.Append(wx.ID_ANY, _("&Import OPML..."), _("Import feeds from OPML"))
+        export_opml_item = file_menu.Append(wx.ID_ANY, _("E&xport OPML..."), _("Export feeds to OPML"))
         file_menu.AppendSeparator()
-        persistent_search_item = file_menu.Append(wx.ID_ANY, "Configure Persistent Search...", "Configure saved search queries")
+        persistent_search_item = file_menu.Append(wx.ID_ANY, _("Configure Persistent Search..."), _("Configure saved search queries"))
         # Desktop/Start Menu/Taskbar shortcuts are Windows-only; hide the dead item on macOS.
         add_shortcuts_item = None
         if should_show_add_shortcuts():
-            add_shortcuts_item = file_menu.Append(wx.ID_ANY, "Add &Shortcuts...", "Create desktop, taskbar, or Start Menu shortcuts")
+            add_shortcuts_item = file_menu.Append(wx.ID_ANY, _("Add &Shortcuts..."), _("Create desktop, taskbar, or Start Menu shortcuts"))
         file_menu.AppendSeparator()
-        exit_item = file_menu.Append(wx.ID_EXIT, "E&xit", "Exit application")
+        exit_item = file_menu.Append(wx.ID_EXIT, _("E&xit"), _("Exit application"))
 
         # Standard Edit menu. The standard IDs route to the focused text control
         # automatically (no custom handlers needed), giving the article reader pane
         # and other text fields native Cut/Copy/Paste/Select All. wx maps Ctrl->Cmd
         # on macOS, where VoiceOver relies on these shortcuts existing.
         edit_menu = wx.Menu()
-        edit_menu.Append(wx.ID_CUT, "Cu&t\tCtrl+X", "Cut the selection")
-        edit_menu.Append(wx.ID_COPY, "&Copy\tCtrl+C", "Copy the selection")
-        edit_menu.Append(wx.ID_PASTE, "&Paste\tCtrl+V", "Paste from the clipboard")
-        edit_menu.Append(wx.ID_SELECTALL, "Select &All\tCtrl+A", "Select all")
+        edit_menu.Append(wx.ID_CUT, _("Cu&t") + "\tCtrl+X", _("Cut the selection"))
+        edit_menu.Append(wx.ID_COPY, _("&Copy") + "\tCtrl+C", _("Copy the selection"))
+        edit_menu.Append(wx.ID_PASTE, _("&Paste") + "\tCtrl+V", _("Paste from the clipboard"))
+        edit_menu.Append(wx.ID_SELECTALL, _("Select &All") + "\tCtrl+A", _("Select all"))
 
         view_menu = wx.Menu()
-        show_search_item = view_menu.AppendCheckItem(wx.ID_ANY, "Show &Search Field", "Show or hide the search field")
+        show_search_item = view_menu.AppendCheckItem(wx.ID_ANY, _("Show &Search Field"), _("Show or hide the search field"))
         show_search_item.Check(bool(getattr(self, "_search_visible", True)))
         self._show_search_item = show_search_item
-        # Global unread filter (issue #40): lives here rather than in the
-        # feed/category context menu because it applies to every view.
-        show_unread_only_item = view_menu.AppendCheckItem(
-            wx.ID_ANY,
-            "Show Only &Unread",
-            "Show only unread articles in all views",
-        )
-        show_unread_only_item.Check(bool(getattr(self, "_unread_filter_enabled", False)))
-        self._show_unread_only_item = show_unread_only_item
+        # Global read-status filter (issues #36/#40): lives here rather than in
+        # the feed/category context menu because it applies to every view. When
+        # not "All", the category tree hides branches with no matching articles.
+        filter_menu = wx.Menu()
+        self._article_filter_menu_items = {}
+        for mode, label, help_text in (
+            ("all", _("&All Articles"), _("Show read and unread articles in all views")),
+            ("unread", _("&Unread Only"), _("Show only unread articles in all views")),
+            ("read", _("&Read Only"), _("Show only read articles in all views")),
+        ):
+            item = filter_menu.AppendRadioItem(wx.ID_ANY, label, help_text)
+            self._article_filter_menu_items[mode] = item
+            if mode == getattr(self, "_article_read_filter", "all"):
+                item.Check(True)
+            self.Bind(wx.EVT_MENU, lambda e, m=mode: self.on_change_article_filter(m), item)
+        view_menu.AppendSubMenu(filter_menu, _("Article &Filter"), _("Filter all views by read status"))
         accessible_browser_item = view_menu.Append(
             wx.ID_ANY,
-            "Open &Accessible Browser",
-            "Open the VoiceOver-friendly browser window",
+            _("Open &Accessible Browser"),
+            _("Open the VoiceOver-friendly browser window"),
         )
         # Ctrl+P is handled globally (see main.py GlobalMediaKeyFilter). Do not make it a menu accelerator.
-        player_item = view_menu.Append(wx.ID_ANY, "Show/Hide &Player (Ctrl+P)", "Show or hide the media player window")
+        player_item = view_menu.Append(wx.ID_ANY, _("Show/Hide &Player (Ctrl+P)"), _("Show or hide the media player window"))
         view_menu.AppendSeparator()
 
         sort_menu = wx.Menu()
         self._sort_by_menu_items = {}
         sort_choices = [
-            ("date", "Date"),
-            ("name", "Name"),
-            ("author", "Author"),
-            ("description", "Description"),
-            ("feed", "Feed"),
-            ("status", "Status"),
+            ("date", _("Date"), _("Sort articles by date")),
+            ("name", _("Name"), _("Sort articles by name")),
+            ("author", _("Author"), _("Sort articles by author")),
+            ("description", _("Description"), _("Sort articles by description")),
+            ("feed", _("Feed"), _("Sort articles by feed")),
+            ("status", _("Status"), _("Sort articles by status")),
         ]
-        for key, label in sort_choices:
-            item = sort_menu.AppendRadioItem(wx.ID_ANY, label, f"Sort articles by {label.lower()}")
+        for key, label, sort_help in sort_choices:
+            item = sort_menu.AppendRadioItem(wx.ID_ANY, label, sort_help)
             self._sort_by_menu_items[int(item.GetId())] = key
             if key == getattr(self, "_article_sort_by", "date"):
                 item.Check(True)
@@ -1590,31 +1602,31 @@ class MainFrame(wx.Frame):
         sort_menu.AppendSeparator()
         self._sort_ascending_item = sort_menu.AppendCheckItem(
             wx.ID_ANY,
-            "Ascending",
-            "Sort in ascending order (default is descending by date)",
+            _("Ascending"),
+            _("Sort in ascending order (default is descending by date)"),
         )
         self._sort_ascending_item.Check(bool(getattr(self, "_article_sort_ascending", False)))
         self.Bind(wx.EVT_MENU, self.on_toggle_sort_direction, self._sort_ascending_item)
-        view_menu.AppendSubMenu(sort_menu, "Sort &By")
+        view_menu.AppendSubMenu(sort_menu, _("Sort &By"))
 
         # Player menu (media controls)
         player_menu = wx.Menu()
-        player_toggle_item = player_menu.Append(wx.ID_ANY, "Show/Hide Player (Ctrl+P)", "Show or hide the media player window")
+        player_toggle_item = player_menu.Append(wx.ID_ANY, _("Show/Hide Player (Ctrl+P)"), _("Show or hide the media player window"))
         player_menu.AppendSeparator()
-        player_play_pause_item = player_menu.Append(wx.ID_ANY, "Play/Pause", "Toggle play/pause")
-        player_stop_item = player_menu.Append(wx.ID_ANY, "Stop", "Stop playback")
+        player_play_pause_item = player_menu.Append(wx.ID_ANY, _("Play/Pause"), _("Toggle play/pause"))
+        player_stop_item = player_menu.Append(wx.ID_ANY, _("Stop"), _("Stop playback"))
         player_menu.AppendSeparator()
         # NOTE: Do not use '\tCtrl+...' menu accelerators here.
         # We implement Ctrl+Arrow globally via an event filter + hold-to-repeat gate.
         # Leaving these as accelerators causes double-seeks (EVT_MENU + key handlers).
-        player_rewind_item = player_menu.Append(wx.ID_ANY, "Rewind (Ctrl+Left)", "Rewind")
-        player_forward_item = player_menu.Append(wx.ID_ANY, "Fast Forward (Ctrl+Right)", "Fast forward")
+        player_rewind_item = player_menu.Append(wx.ID_ANY, _("Rewind (Ctrl+Left)"), _("Rewind"))
+        player_forward_item = player_menu.Append(wx.ID_ANY, _("Fast Forward (Ctrl+Right)"), _("Fast forward"))
         player_menu.AppendSeparator()
-        player_vol_up_item = player_menu.Append(wx.ID_ANY, "Volume Up (Ctrl+Up)", "Increase volume")
-        player_vol_down_item = player_menu.Append(wx.ID_ANY, "Volume Down (Ctrl+Down)", "Decrease volume")
+        player_vol_up_item = player_menu.Append(wx.ID_ANY, _("Volume Up (Ctrl+Up)"), _("Increase volume"))
+        player_vol_down_item = player_menu.Append(wx.ID_ANY, _("Volume Down (Ctrl+Down)"), _("Decrease volume"))
         player_menu.AppendSeparator()
         chapters_submenu = wx.Menu()
-        player_menu.AppendSubMenu(chapters_submenu, "Chapters")
+        player_menu.AppendSubMenu(chapters_submenu, _("Chapters"))
 
         self._player_menu = player_menu
         self._player_chapters_submenu = chapters_submenu
@@ -1627,33 +1639,33 @@ class MainFrame(wx.Frame):
         tools_menu = wx.Menu()
         find_feed_item = tools_menu.Append(
             wx.ID_ANY,
-            "Find a &Podcast or RSS Feed...\tCtrl+Shift+F",
-            "Find and add a podcast or RSS feed",
+            _("Find a &Podcast or RSS Feed...") + "\tCtrl+Shift+F",
+            _("Find and add a podcast or RSS feed"),
         )
         ytdlp_global_search_item = tools_menu.Append(
             wx.ID_ANY,
-            "&Video Search...",
-            "Search all yt-dlp query-search sites",
+            _("&Video Search..."),
+            _("Search all yt-dlp query-search sites"),
         )
         tools_menu.AppendSeparator()
         filter_rules_item = tools_menu.Append(
             wx.ID_ANY,
-            "Filter &Rules...",
-            "Create rules that categorize, label, or delete articles as they arrive",
+            _("Filter &Rules..."),
+            _("Create rules that categorize, label, or delete articles as they arrive"),
         )
         tools_menu.AppendSeparator()
-        settings_item = tools_menu.Append(wx.ID_PREFERENCES, "&Settings...", "Configure application")
-        
-        help_menu = wx.Menu()
-        check_updates_item = help_menu.Append(wx.ID_ANY, "Check for &Updates...", "Check for new versions")
-        about_item = help_menu.Append(wx.ID_ABOUT, "&About", "About BlindRSS")
+        settings_item = tools_menu.Append(wx.ID_PREFERENCES, _("&Settings..."), _("Configure application"))
 
-        menubar.Append(file_menu, "&File")
-        menubar.Append(edit_menu, "&Edit")
-        menubar.Append(view_menu, "&View")
-        menubar.Append(player_menu, "&Player")
-        menubar.Append(tools_menu, "&Tools")
-        menubar.Append(help_menu, "&Help")
+        help_menu = wx.Menu()
+        check_updates_item = help_menu.Append(wx.ID_ANY, _("Check for &Updates..."), _("Check for new versions"))
+        about_item = help_menu.Append(wx.ID_ABOUT, _("&About"), _("About BlindRSS"))
+
+        menubar.Append(file_menu, _("&File"))
+        menubar.Append(edit_menu, _("&Edit"))
+        menubar.Append(view_menu, _("&View"))
+        menubar.Append(player_menu, _("&Player"))
+        menubar.Append(tools_menu, _("&Tools"))
+        menubar.Append(help_menu, _("&Help"))
         self.SetMenuBar(menubar)
         
         self.Bind(wx.EVT_MENU, self.on_add_feed, add_feed_item)
@@ -3073,69 +3085,70 @@ class MainFrame(wx.Frame):
         if data["type"] == "category":
             cat_title = data["id"]
 
-            refresh_category_item = menu.Append(wx.ID_ANY, "Refresh Category")
+            refresh_category_item = menu.Append(wx.ID_ANY, _("Refresh Category"))
             self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_refresh_category(e, ct), refresh_category_item)
 
-            mark_cat_read_item = menu.Append(wx.ID_ANY, "Mark All Items as Read")
+            mark_cat_read_item = menu.Append(wx.ID_ANY, _("Mark All Items as Read"))
             self.Bind(
                 wx.EVT_MENU,
                 lambda e, ct=cat_title: self._confirm_and_mark_all_read(
-                    f"category:{ct}", f'Mark all items in category "{ct}" as read?'
+                    f"category:{ct}",
+                    _('Mark all items in category "{category}" as read?').format(category=ct),
                 ),
                 mark_cat_read_item,
             )
 
             if getattr(self.provider, "supports_subcategories", lambda: False)():
-                add_sub_item = menu.Append(wx.ID_ANY, "Add Subcategory")
+                add_sub_item = menu.Append(wx.ID_ANY, _("Add Subcategory"))
                 self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_add_subcategory(ct), add_sub_item)
 
             if cat_title != "Uncategorized":
-                rename_item = menu.Append(wx.ID_ANY, "Rename Category")
+                rename_item = menu.Append(wx.ID_ANY, _("Rename Category"))
                 self.Bind(wx.EVT_MENU, lambda e: self.on_rename_category(cat_title), rename_item)
 
-                remove_item = menu.Append(wx.ID_ANY, "Remove Category")
+                remove_item = menu.Append(wx.ID_ANY, _("Remove Category"))
                 self.Bind(wx.EVT_MENU, self.on_remove_category, remove_item)
 
-                delete_with_feeds_item = menu.Append(wx.ID_ANY, "Delete Category and Feeds")
+                delete_with_feeds_item = menu.Append(wx.ID_ANY, _("Delete Category and Feeds"))
                 self.Bind(wx.EVT_MENU, self.on_delete_category_with_feeds, delete_with_feeds_item)
 
-            import_item = menu.Append(wx.ID_ANY, "Import OPML Here...")
+            import_item = menu.Append(wx.ID_ANY, _("Import OPML Here..."))
             self.Bind(wx.EVT_MENU, lambda e: self.on_import_opml(e, target_category=cat_title), import_item)
 
-            export_item = menu.Append(wx.ID_ANY, "Export Category to OPML...")
+            export_item = menu.Append(wx.ID_ANY, _("Export Category to OPML..."))
             self.Bind(wx.EVT_MENU, lambda e: self.on_export_category_opml(e, category_title=cat_title), export_item)
             
         elif data["type"] == "feed":
             feed_id = str(data.get("id") or "").strip()
-            refresh_feed_item = menu.Append(wx.ID_ANY, "Refresh Feed")
+            refresh_feed_item = menu.Append(wx.ID_ANY, _("Refresh Feed"))
             self.Bind(wx.EVT_MENU, self.on_refresh_single_feed, refresh_feed_item)
 
             feed_title = str(getattr((getattr(self, "feed_map", {}) or {}).get(feed_id), "title", "") or "").strip()
             mark_feed_read_prompt = (
-                f'Mark all items in "{feed_title}" as read?' if feed_title
-                else "Mark all items in this feed as read?"
+                _('Mark all items in "{feed}" as read?').format(feed=feed_title) if feed_title
+                else _("Mark all items in this feed as read?")
             )
-            mark_feed_read_item = menu.Append(wx.ID_ANY, "Mark All Items as Read")
+            mark_feed_read_item = menu.Append(wx.ID_ANY, _("Mark All Items as Read"))
             self.Bind(
                 wx.EVT_MENU,
                 lambda e, fid=feed_id, prompt=mark_feed_read_prompt: self._confirm_and_mark_all_read(fid, prompt),
                 mark_feed_read_item,
             )
 
-            edit_item = menu.Append(wx.ID_ANY, "Edit Feed...\tF2")
+            edit_item = menu.Append(wx.ID_ANY, _("Edit Feed...") + "\tF2")
             self.Bind(wx.EVT_MENU, self.on_edit_feed, edit_item)
 
             try:
                 if bool(getattr(self.provider, "supports_feed_title_reset", lambda: False)()):
-                    reset_title_item = menu.Append(wx.ID_ANY, "Reset Title to Feed Default")
+                    reset_title_item = menu.Append(wx.ID_ANY, _("Reset Title to Feed Default"))
                     self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_reset_feed_title(e, fid), reset_title_item)
             except Exception:
                 pass
 
-            copy_url_item = menu.Append(wx.ID_ANY, "Copy Feed URL")
+            copy_url_item = menu.Append(wx.ID_ANY, _("Copy Feed URL"))
             self.Bind(wx.EVT_MENU, self.on_copy_feed_url, copy_url_item)
 
-            notifications_item = menu.AppendCheckItem(wx.ID_ANY, "Notifications for This Feed")
+            notifications_item = menu.AppendCheckItem(wx.ID_ANY, _("Notifications for This Feed"))
             notifications_item.Check(self._is_feed_notifications_enabled(feed_id))
             self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_toggle_feed_notifications(e, fid), notifications_item)
 
@@ -3146,31 +3159,31 @@ class MainFrame(wx.Frame):
             except Exception:
                 current_override = None
             images_menu = wx.Menu()
-            inherit_item = images_menu.AppendRadioItem(wx.ID_ANY, "Use default setting")
-            always_item = images_menu.AppendRadioItem(wx.ID_ANY, "Always show image alt text")
-            never_item = images_menu.AppendRadioItem(wx.ID_ANY, "Never show image alt text")
+            inherit_item = images_menu.AppendRadioItem(wx.ID_ANY, _("Use default setting"))
+            always_item = images_menu.AppendRadioItem(wx.ID_ANY, _("Always show image alt text"))
+            never_item = images_menu.AppendRadioItem(wx.ID_ANY, _("Never show image alt text"))
             inherit_item.Check(current_override is None)
             always_item.Check(current_override is True)
             never_item.Check(current_override is False)
             self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_set_feed_images(fid, None), inherit_item)
             self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_set_feed_images(fid, True), always_item)
             self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self.on_set_feed_images(fid, False), never_item)
-            menu.AppendSubMenu(images_menu, "Image Alt Text")
+            menu.AppendSubMenu(images_menu, _("Image Alt Text"))
 
-            remove_item = menu.Append(wx.ID_ANY, "Remove Feed")
+            remove_item = menu.Append(wx.ID_ANY, _("Remove Feed"))
             self.Bind(wx.EVT_MENU, self.on_remove_feed, remove_item)
 
         elif data["type"] == "smart_root":
-            new_item = menu.Append(wx.ID_ANY, "New Smart Folder...")
+            new_item = menu.Append(wx.ID_ANY, _("New Smart Folder..."))
             self.Bind(wx.EVT_MENU, lambda e: self.on_new_smart_folder(), new_item)
 
         elif data["type"] == "smart":
             smart_id = data.get("smart_id")
-            edit_item = menu.Append(wx.ID_ANY, "Edit Smart Folder...")
+            edit_item = menu.Append(wx.ID_ANY, _("Edit Smart Folder..."))
             self.Bind(wx.EVT_MENU, lambda e, sid=smart_id: self.on_edit_smart_folder(sid), edit_item)
-            delete_item = menu.Append(wx.ID_ANY, "Delete Smart Folder")
+            delete_item = menu.Append(wx.ID_ANY, _("Delete Smart Folder"))
             self.Bind(wx.EVT_MENU, lambda e, sid=smart_id: self.on_delete_smart_folder(sid), delete_item)
-            new_item = menu.Append(wx.ID_ANY, "New Smart Folder...")
+            new_item = menu.Append(wx.ID_ANY, _("New Smart Folder..."))
             self.Bind(wx.EVT_MENU, lambda e: self.on_new_smart_folder(), new_item)
 
         # "Show Only Unread" is global, so it lives in the View menu instead of
@@ -3181,17 +3194,34 @@ class MainFrame(wx.Frame):
             self.tree.PopupMenu(menu, menu_pos)
         menu.Destroy()
 
-    def on_toggle_unread_filter(self, event):
-        self._unread_filter_enabled = event.IsChecked()
+    @property
+    def _unread_filter_enabled(self) -> bool:
+        # Compatibility shim over the three-state filter (issue #36).
+        return getattr(self, "_article_read_filter", "all") == "unread"
+
+    @_unread_filter_enabled.setter
+    def _unread_filter_enabled(self, value) -> None:
+        self._article_read_filter = "unread" if value else "all"
+
+    def on_change_article_filter(self, mode: str):
+        mode = str(mode or "all").lower()
+        if mode not in ("all", "unread", "read"):
+            mode = "all"
+        if mode == getattr(self, "_article_read_filter", "all"):
+            return
+        self._article_read_filter = mode
         self._sync_unread_filter_menu_check()
-        # Force reload of the current view with the new filter setting
-        self._reload_selected_articles()
+        # Rebuild the tree (hides branches with no matching articles when the
+        # filter is active) and reload the current view with the new filter.
+        # _update_tree ends by reloading the selected view's articles.
+        self.refresh_feeds()
 
     def _sync_unread_filter_menu_check(self) -> None:
-        item = getattr(self, "_show_unread_only_item", None)
+        items = getattr(self, "_article_filter_menu_items", None) or {}
+        item = items.get(getattr(self, "_article_read_filter", "all"))
         if item is not None:
             try:
-                item.Check(bool(self._unread_filter_enabled))
+                item.Check(True)
             except Exception:
                 pass
 
@@ -5127,34 +5157,31 @@ class MainFrame(wx.Frame):
         if should_restore_saved:
             last_feed = self.config_manager.get("last_selected_feed")
             if last_feed:
-                # Parse the saved feed_id to create matching selected_data
-                if last_feed == "all":
+                # A leading unread:/read: prefix restores the global filter
+                # state (issue #36); the remainder identifies the view.
+                rest = last_feed
+                if rest.startswith("unread:"):
+                    rest = rest[7:]
+                    self._article_read_filter = "unread"
+                    self._sync_unread_filter_menu_check()
+                elif rest.startswith("read:"):
+                    rest = rest[5:]
+                    self._article_read_filter = "read"
+                    self._sync_unread_filter_menu_check()
+
+                if rest in ("all", ""):
                     selected_data = {"type": "all", "id": "all"}
-                elif last_feed == "unread:all":
-                    selected_data = {"type": "all", "id": "unread:all"}
-                elif last_feed == "read:all":
-                    selected_data = {"type": "all", "id": "read:all"}
-                elif last_feed == "favorites:all":
+                elif rest == "favorites:all":
                     selected_data = {"type": "all", "id": "favorites:all"}
-                elif last_feed == "deleted:all":
+                elif rest == "deleted:all":
                     selected_data = {"type": "all", "id": "deleted:all"}
-                elif last_feed.startswith("smart:"):
-                    selected_data = {"type": "smart", "id": last_feed, "smart_id": last_feed[len("smart:"):]}
-                elif last_feed.startswith("unread:category:"):
-                    cat_name = last_feed[16:]  # Remove "unread:category:" prefix
+                elif rest.startswith("smart:"):
+                    selected_data = {"type": "smart", "id": rest, "smart_id": rest[len("smart:"):]}
+                elif rest.startswith("category:"):
+                    cat_name = rest[9:]  # Remove "category:" prefix
                     selected_data = {"type": "category", "id": cat_name}
-                    self._unread_filter_enabled = True
-                    self._sync_unread_filter_menu_check()
-                elif last_feed.startswith("category:"):
-                    cat_name = last_feed[9:]  # Remove "category:" prefix
-                    selected_data = {"type": "category", "id": cat_name}
-                elif last_feed.startswith("unread:"):
-                    feed_id = last_feed[7:]  # Remove "unread:" prefix
-                    selected_data = {"type": "feed", "id": feed_id}
-                    self._unread_filter_enabled = True
-                    self._sync_unread_filter_menu_check()
                 else:
-                    selected_data = {"type": "feed", "id": last_feed}
+                    selected_data = {"type": "feed", "id": rest}
         
         # Mark that we've completed the first tree load
         self._is_first_tree_load = False
@@ -5171,20 +5198,18 @@ class MainFrame(wx.Frame):
             self.feed_map = {f.id: f for f in feeds}
             self.feed_nodes = {}
             
-            # Special Views
-            self.all_feeds_node = self.tree.AppendItem(self.root, "All Articles")
+            # Special Views. Dedicated "Unread Articles"/"Read Articles" nodes
+            # were replaced by the global View > Article Filter (issue #36).
+            self.all_feeds_node = self.tree.AppendItem(self.root, _("All Articles"))
             self.tree.SetItemData(self.all_feeds_node, {"type": "all", "id": "all"})
 
-            self.unread_node = self.tree.AppendItem(self.root, "Unread Articles")
-            self.tree.SetItemData(self.unread_node, {"type": "all", "id": "unread:all"})
-            
-            self.read_node = self.tree.AppendItem(self.root, "Read Articles")
-            self.tree.SetItemData(self.read_node, {"type": "all", "id": "read:all"})
+            self.unread_node = None
+            self.read_node = None
 
             self.favorites_node = None
             try:
                 if getattr(self.provider, "supports_favorites", lambda: False)():
-                    self.favorites_node = self.tree.AppendItem(self.root, "Favorites")
+                    self.favorites_node = self.tree.AppendItem(self.root, _("Favorites"))
                     self.tree.SetItemData(self.favorites_node, {"type": "all", "id": "favorites:all"})
             except Exception:
                 self.favorites_node = None
@@ -5192,7 +5217,7 @@ class MainFrame(wx.Frame):
             self.deleted_node = None
             try:
                 if getattr(self.provider, "supports_restore_deleted", lambda: False)():
-                    self.deleted_node = self.tree.AppendItem(self.root, "Deleted Articles")
+                    self.deleted_node = self.tree.AppendItem(self.root, _("Deleted Articles"))
                     self.tree.SetItemData(self.deleted_node, {"type": "all", "id": "deleted:all"})
             except Exception:
                 self.deleted_node = None
@@ -5204,7 +5229,7 @@ class MainFrame(wx.Frame):
             self.smart_folder_nodes = {}
             try:
                 if getattr(self.provider, "supports_smart_folders", lambda: False)():
-                    self.smart_root_node = self.tree.AppendItem(self.root, "Smart Folders")
+                    self.smart_root_node = self.tree.AppendItem(self.root, _("Smart Folders"))
                     self.tree.SetItemData(self.smart_root_node, {"type": "smart_root"})
                     for folder in (self.provider.get_smart_folders() or []):
                         sid = folder.get("id")
@@ -5254,9 +5279,45 @@ class MainFrame(wx.Frame):
             # regardless of nesting depth (issue #34).
             category_unread_totals = self._compute_category_unread_totals(cat_feeds_map, children_of)
 
+            # Global read-status filter (issue #36): when not "all", hide feeds
+            # with no matching articles and categories whose whole subtree has
+            # none. The tree only re-evaluates this on full rebuilds (filter
+            # change / feed refresh), never mid-interaction, so nodes don't
+            # vanish under the user's focus as they read articles.
+            filter_mode = getattr(self, "_article_read_filter", "all")
+            read_counts = None
+            if filter_mode == "read":
+                try:
+                    getter = getattr(self.provider, "get_feed_read_counts", None)
+                    read_counts = getter() if callable(getter) else None
+                except Exception:
+                    read_counts = None
+
+            def _feed_matches_filter(feed):
+                if filter_mode == "unread":
+                    return int(getattr(feed, "unread_count", 0) or 0) > 0
+                if filter_mode == "read" and read_counts is not None:
+                    return int(read_counts.get(feed.id, 0) or 0) > 0
+                # "all", or a provider that can't report read counts: show everything.
+                return True
+
+            _category_match_cache = {}
+
+            def _category_matches_filter(cat):
+                if filter_mode == "all":
+                    return True
+                cached = _category_match_cache.get(cat)
+                if cached is not None:
+                    return cached
+                result = any(_feed_matches_filter(f) for f in cat_feeds_map.get(cat, [])) or any(
+                    _category_matches_filter(child) for child in children_of.get(cat, [])
+                )
+                _category_match_cache[cat] = result
+                return result
+
             def _add_category_node(cat, parent_node):
                 nonlocal item_to_select
-                cat_feeds = cat_feeds_map.get(cat, [])
+                cat_feeds = [f for f in cat_feeds_map.get(cat, []) if _feed_matches_filter(f)]
                 cat_feeds.sort(key=lambda f: (f.title or "").lower())
 
                 # The node identity is the full path; nested nodes display only
@@ -5285,10 +5346,12 @@ class MainFrame(wx.Frame):
 
                 # Recursively add subcategories
                 for child_cat in children_of.get(cat, []):
-                    _add_category_node(child_cat, cat_node)
+                    if _category_matches_filter(child_cat):
+                        _add_category_node(child_cat, cat_node)
 
             for cat in top_level_cats:
-                _add_category_node(cat, self.root)
+                if _category_matches_filter(cat):
+                    _add_category_node(cat, self.root)
 
             # Persist for the incremental mark-read/unread path, which patches a
             # single feed's ancestor chain without rebuilding the whole tree.
@@ -5318,11 +5381,7 @@ class MainFrame(wx.Frame):
             if selection_target is not None:
                 pass
             elif selected_data and selected_data["type"] == "all":
-                if selected_data.get("id") == "unread:all":
-                    selection_target = self.unread_node
-                elif selected_data.get("id") == "read:all":
-                    selection_target = self.read_node
-                elif selected_data.get("id") == "favorites:all" and self.favorites_node and self.favorites_node.IsOk():
+                if selected_data.get("id") == "favorites:all" and self.favorites_node and self.favorites_node.IsOk():
                     selection_target = self.favorites_node
                 elif selected_data.get("id") == "deleted:all" and self.deleted_node and self.deleted_node.IsOk():
                     selection_target = self.deleted_node
@@ -5379,15 +5438,26 @@ class MainFrame(wx.Frame):
             return f"category:{data.get('id')}"
         return None
 
+    def _wrap_view_id_with_filter(self, feed_id):
+        """Apply the global read-status filter prefix to a view id (issue #36).
+
+        Smart Folders and the Deleted view carry their own semantics; the
+        filter must not wrap them (it would break their view id).
+        """
+        mode = getattr(self, "_article_read_filter", "all")
+        if (
+            mode in ("unread", "read")
+            and feed_id
+            and not feed_id.startswith(("smart:", "deleted:", "unread:", "read:"))
+        ):
+            return f"{mode}:{feed_id}"
+        return feed_id
+
     def _tree_selection_feed_id(self, item):
         feed_id = self._get_feed_id_from_tree_item(item)
         if not feed_id:
             return None
-        # Smart Folders and the Deleted view carry their own semantics; the global
-        # unread filter must not wrap them (it would break their view id).
-        if self._unread_filter_enabled and not feed_id.startswith(("smart:", "deleted:")):
-            feed_id = f"unread:{feed_id}"
-        return feed_id
+        return self._wrap_view_id_with_filter(feed_id)
 
     def _is_tree_home_end_key(self, key) -> bool:
         keys = {
@@ -5540,8 +5610,7 @@ class MainFrame(wx.Frame):
         if not feed_id:
             return
 
-        if self._unread_filter_enabled:
-            feed_id = f"unread:{feed_id}"
+        feed_id = self._wrap_view_id_with_filter(feed_id)
 
         base_articles = None
         if self._base_view_id == feed_id:
@@ -7629,14 +7698,14 @@ class MainFrame(wx.Frame):
     def on_mark_all_read(self, event=None):
         # File menu entry: global scope (issue #39). Per-feed/category marking
         # lives in the tree context menu via _confirm_and_mark_all_read.
-        self._confirm_and_mark_all_read("all", "Mark all items in all feeds as read?")
+        self._confirm_and_mark_all_read("all", _("Mark all items in all feeds as read?"))
 
     def _confirm_and_mark_all_read(self, view_id: str, prompt: str):
         view_id = str(view_id or "").strip()
         if not view_id:
             return
         try:
-            if wx.MessageBox(prompt, "Mark All as Read", wx.YES_NO | wx.ICON_QUESTION) != wx.YES:
+            if wx.MessageBox(prompt, _("Mark All as Read"), wx.YES_NO | wx.ICON_QUESTION) != wx.YES:
                 return
         except Exception:
             pass

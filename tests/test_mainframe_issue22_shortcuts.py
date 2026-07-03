@@ -301,6 +301,8 @@ class _TreeNavHost:
     on_tree_key_down = mainframe.MainFrame.on_tree_key_down
     on_tree_select = mainframe.MainFrame.on_tree_select
     _tree_selection_feed_id = mainframe.MainFrame._tree_selection_feed_id
+    _wrap_view_id_with_filter = mainframe.MainFrame._wrap_view_id_with_filter
+    _unread_filter_enabled = mainframe.MainFrame._unread_filter_enabled
     _is_tree_home_end_key = mainframe.MainFrame._is_tree_home_end_key
     _is_tree_navigation_key = mainframe.MainFrame._is_tree_navigation_key
     _should_defer_tree_selection = mainframe.MainFrame._should_defer_tree_selection
@@ -319,7 +321,7 @@ class _TreeNavHost:
 
         self.tree = _Tree()
         self._updating_tree = False
-        self._unread_filter_enabled = False
+        self._article_read_filter = "all"
         self._tree_selection_debounce_timer = None
         self._tree_selection_debounce_ms = 120
         self._tree_keyboard_nav_defer_until = 0.0

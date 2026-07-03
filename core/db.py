@@ -449,6 +449,35 @@ def init_db():
         )''')
         c.execute("CREATE INDEX IF NOT EXISTS idx_smart_folders_position ON smart_folders (position)")
 
+        # Filter Rules: an ordered pipeline of user-defined rules applied to
+        # articles as they arrive (and retroactively when rules change).
+        # `rule_json` reuses the Smart Folders boolean rule tree
+        # (core.smart_folders); `actions_json` is the action set
+        # (core.filters.normalize_actions). All matching enabled rules apply in
+        # position order; a rule with stop=1 halts the pipeline for that article.
+        c.execute('''CREATE TABLE IF NOT EXISTS filter_rules (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            rule_json TEXT NOT NULL,
+            actions_json TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            stop INTEGER NOT NULL DEFAULT 0,
+            position INTEGER NOT NULL DEFAULT 0
+        )''')
+        c.execute("CREATE INDEX IF NOT EXISTS idx_filter_rules_position ON filter_rules (position)")
+
+        # Article labels: extra category memberships assigned by filter rules
+        # ("label" action). A labeled article ALSO appears in `category`'s view
+        # while staying in its normal place; contrast with
+        # articles.category_override which MOVES it. `category` stores the full
+        # category path string (same identity model as feeds.category).
+        c.execute('''CREATE TABLE IF NOT EXISTS article_labels (
+            article_id TEXT NOT NULL,
+            category TEXT NOT NULL,
+            PRIMARY KEY (article_id, category),
+            FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE
+        )''')
+        c.execute("CREATE INDEX IF NOT EXISTS idx_article_labels_category ON article_labels (category)")
 
         # Migration: Add columns if they don't exist
         try:
@@ -480,6 +509,26 @@ def init_db():
             pass
         try:
             c.execute("CREATE INDEX IF NOT EXISTS idx_articles_opened_at ON articles (opened_at)")
+        except sqlite3.OperationalError:
+            pass
+
+        # tags: newline-separated tag/category strings the originating site
+        # attached to the article (feedparser entry.tags terms, JSON Feed tags).
+        # Stored for display and as a Filter Rules criterion ("tag" field).
+        try:
+            c.execute("ALTER TABLE articles ADD COLUMN tags TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # category_override: when a filter rule (or delete-to-category) MOVES an
+        # article, this holds the target category path. The article then appears
+        # only under this category, not its feed's category. NULL = no override.
+        try:
+            c.execute("ALTER TABLE articles ADD COLUMN category_override TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute("CREATE INDEX IF NOT EXISTS idx_articles_category_override ON articles (category_override)")
         except sqlite3.OperationalError:
             pass
 
@@ -524,6 +573,15 @@ def init_db():
         # headers, timeout, and browser-impersonation mode. See get_feed_settings().
         try:
             c.execute("ALTER TABLE feeds ADD COLUMN feed_settings TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # Per-feed delete-behavior override: NULL = inherit the global
+        # `delete_behavior` setting; otherwise "deleted" (tombstone/Deleted view),
+        # "purge" (remove permanently), or "category:<path>" (move to a category).
+        # Resolved by db.get_feed_delete_behavior / set by set_feed_delete_behavior.
+        try:
+            c.execute("ALTER TABLE feeds ADD COLUMN delete_behavior TEXT")
         except sqlite3.OperationalError:
             pass
 
@@ -701,6 +759,7 @@ def remember_deleted_article(
     *,
     deleted_at: float | None = None,
     snapshot: dict | None = None,
+    purged: bool = False,
     cursor=None,
 ) -> bool:
     """Persist a local article deletion so refresh does not recreate it.
@@ -708,6 +767,11 @@ def remember_deleted_article(
     When `snapshot` (a dict of the article's displayable fields) is supplied, the
     full article is preserved so the Deleted Articles view can show and restore
     it. Without a snapshot only the tombstone identity is stored.
+
+    `purged=True` marks the tombstone as permanently deleted (hidden from the
+    Deleted Articles view) — used when a filter rule deletes under a "remove
+    completely" delete behavior. The tombstone row is still kept so refresh never
+    resurrects the article.
     """
     fid = str(feed_id or "").strip()
     aid = str(article_id or "").strip()
@@ -716,6 +780,7 @@ def remember_deleted_article(
     clean_url = str(url or "").strip() or None
     timestamp = float(time.time() if deleted_at is None else deleted_at)
     snap = snapshot or {}
+    purged_val = 1 if purged else 0
 
     conn = None
     c = cursor
@@ -727,8 +792,9 @@ def remember_deleted_article(
             """
             INSERT INTO deleted_articles
                 (feed_id, article_id, url, deleted_at, title, content, description,
-                 date, author, media_url, media_type, chapter_url, is_read, is_favorite)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 date, author, media_url, media_type, chapter_url, is_read, is_favorite,
+                 purged)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(feed_id, article_id) DO UPDATE SET
                 url = excluded.url,
                 deleted_at = excluded.deleted_at,
@@ -741,7 +807,8 @@ def remember_deleted_article(
                 media_type = excluded.media_type,
                 chapter_url = excluded.chapter_url,
                 is_read = excluded.is_read,
-                is_favorite = excluded.is_favorite
+                is_favorite = excluded.is_favorite,
+                purged = excluded.purged
             """,
             (
                 fid,
@@ -758,6 +825,7 @@ def remember_deleted_article(
                 snap.get("chapter_url"),
                 _bool_or_none(snap.get("is_read")),
                 _bool_or_none(snap.get("is_favorite")),
+                purged_val,
             ),
         )
         if conn is not None:
@@ -1179,6 +1247,329 @@ def list_smart_folders(cursor=None):
             {"id": r[0], "name": r[1], "rule": _parse_rule_json(r[2]), "position": int(r[3] or 0)}
             for r in c.fetchall()
         ]
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ── Filter Rules (categorization pipeline) ───────────────────────────────────
+# An ordered list of rules applied to articles like email filters. Each rule has
+# a Smart-Folders-style boolean rule tree (rule_json) and an action set
+# (actions_json). See core.filters for the engine that evaluates and applies them.
+
+def _parse_actions_json(raw):
+    try:
+        parsed = json.loads(raw) if raw else {}
+    except Exception:
+        parsed = {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _filter_rule_row(row) -> dict:
+    return {
+        "id": row[0],
+        "name": row[1],
+        "rule": _parse_rule_json(row[2]),
+        "actions": _parse_actions_json(row[3]),
+        "enabled": bool(row[4]),
+        "stop": bool(row[5]),
+        "position": int(row[6] or 0),
+    }
+
+
+_FILTER_RULE_COLS = "id, name, rule_json, actions_json, enabled, stop, position"
+
+
+def create_filter_rule(name, rule, actions, enabled=True, stop=False, cursor=None) -> str:
+    """Create a filter rule and return its new id."""
+    rule_id = uuid.uuid4().hex
+    rule_json = json.dumps(rule or {"match": "all", "conditions": []})
+    actions_json = json.dumps(actions or {})
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("SELECT COALESCE(MAX(position), -1) + 1 FROM filter_rules")
+        position = int(c.fetchone()[0] or 0)
+        c.execute(
+            "INSERT INTO filter_rules (id, name, rule_json, actions_json, enabled, stop, position) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                rule_id,
+                str(name or "").strip() or "Filter",
+                rule_json,
+                actions_json,
+                1 if enabled else 0,
+                1 if stop else 0,
+                position,
+            ),
+        )
+        if conn is not None:
+            conn.commit()
+        return rule_id
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def update_filter_rule(
+    rule_id, name=None, rule=None, actions=None, enabled=None, stop=None, cursor=None
+) -> bool:
+    rid = str(rule_id or "").strip()
+    if not rid:
+        return False
+    sets = []
+    params: list = []
+    if name is not None:
+        sets.append("name = ?")
+        params.append(str(name or "").strip() or "Filter")
+    if rule is not None:
+        sets.append("rule_json = ?")
+        params.append(json.dumps(rule))
+    if actions is not None:
+        sets.append("actions_json = ?")
+        params.append(json.dumps(actions))
+    if enabled is not None:
+        sets.append("enabled = ?")
+        params.append(1 if enabled else 0)
+    if stop is not None:
+        sets.append("stop = ?")
+        params.append(1 if stop else 0)
+    if not sets:
+        return False
+    params.append(rid)
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(f"UPDATE filter_rules SET {', '.join(sets)} WHERE id = ?", tuple(params))
+        changed = int(c.rowcount or 0)
+        if conn is not None:
+            conn.commit()
+        return changed > 0
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def delete_filter_rule(rule_id, cursor=None) -> bool:
+    rid = str(rule_id or "").strip()
+    if not rid:
+        return False
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("DELETE FROM filter_rules WHERE id = ?", (rid,))
+        changed = int(c.rowcount or 0)
+        if conn is not None:
+            conn.commit()
+        return changed > 0
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def get_filter_rule(rule_id, cursor=None):
+    rid = str(rule_id or "").strip()
+    if not rid:
+        return None
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(f"SELECT {_FILTER_RULE_COLS} FROM filter_rules WHERE id = ?", (rid,))
+        row = c.fetchone()
+        return _filter_rule_row(row) if row else None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def list_filter_rules(enabled_only=False, cursor=None):
+    """Return filter rules ordered by position (pipeline order)."""
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        sql = f"SELECT {_FILTER_RULE_COLS} FROM filter_rules"
+        if enabled_only:
+            sql += " WHERE enabled = 1"
+        sql += " ORDER BY position ASC, name ASC"
+        c.execute(sql)
+        return [_filter_rule_row(r) for r in c.fetchall()]
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def reorder_filter_rules(ordered_ids, cursor=None) -> bool:
+    """Persist a new pipeline order given a list of rule ids top-to-bottom."""
+    ids = [str(i or "").strip() for i in (ordered_ids or []) if str(i or "").strip()]
+    if not ids:
+        return False
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        for pos, rid in enumerate(ids):
+            c.execute("UPDATE filter_rules SET position = ? WHERE id = ?", (pos, rid))
+        if conn is not None:
+            conn.commit()
+        return True
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ── Article category assignment (move) and labels (also-show) ────────────────
+
+def set_article_category_override(article_id, category, cursor=None) -> bool:
+    """MOVE an article to `category` (full path string), or clear with None."""
+    aid = str(article_id or "").strip()
+    if not aid:
+        return False
+    value = str(category).strip() if category is not None else None
+    if value == "":
+        value = None
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("UPDATE articles SET category_override = ? WHERE id = ?", (value, aid))
+        changed = int(c.rowcount or 0)
+        if conn is not None:
+            conn.commit()
+        return changed > 0
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def add_article_label(article_id, category, cursor=None) -> bool:
+    """LABEL an article with `category` so it ALSO appears under that category."""
+    aid = str(article_id or "").strip()
+    cat = str(category or "").strip()
+    if not aid or not cat:
+        return False
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(
+            "INSERT OR IGNORE INTO article_labels (article_id, category) VALUES (?, ?)",
+            (aid, cat),
+        )
+        if conn is not None:
+            conn.commit()
+        return True
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def remove_article_label(article_id, category, cursor=None) -> bool:
+    aid = str(article_id or "").strip()
+    cat = str(category or "").strip()
+    if not aid or not cat:
+        return False
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(
+            "DELETE FROM article_labels WHERE article_id = ? AND category = ?",
+            (aid, cat),
+        )
+        changed = int(c.rowcount or 0)
+        if conn is not None:
+            conn.commit()
+        return changed > 0
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def get_article_labels(article_id, cursor=None) -> list:
+    aid = str(article_id or "").strip()
+    if not aid:
+        return []
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute(
+            "SELECT category FROM article_labels WHERE article_id = ? ORDER BY category",
+            (aid,),
+        )
+        return [r[0] for r in c.fetchall()]
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ── Per-feed delete-behavior override ────────────────────────────────────────
+
+def get_feed_delete_behavior(feed_id, cursor=None):
+    """Return the per-feed delete-behavior override, or None to inherit global."""
+    fid = str(feed_id or "").strip()
+    if not fid:
+        return None
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("SELECT delete_behavior FROM feeds WHERE id = ?", (fid,))
+        row = c.fetchone()
+        if not row:
+            return None
+        value = str(row[0]).strip() if row[0] is not None else ""
+        return value or None
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def set_feed_delete_behavior(feed_id, behavior, cursor=None) -> bool:
+    fid = str(feed_id or "").strip()
+    if not fid:
+        return False
+    value = str(behavior).strip() if behavior is not None else None
+    if value == "":
+        value = None
+    conn = None
+    c = cursor
+    if c is None:
+        conn = get_connection()
+        c = conn.cursor()
+    try:
+        c.execute("UPDATE feeds SET delete_behavior = ? WHERE id = ?", (value, fid))
+        changed = int(c.rowcount or 0)
+        if conn is not None:
+            conn.commit()
+        return changed > 0
     finally:
         if conn is not None:
             conn.close()

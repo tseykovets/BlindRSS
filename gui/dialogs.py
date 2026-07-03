@@ -27,6 +27,7 @@ from core import windows_integration
 from core.casting import CastingManager
 from core import inoreader_oauth
 from core import translation as translation_mod
+from core import filters as filters_mod
 from core.vlc_options import build_vlc_instance_args
 
 log = logging.getLogger(__name__)
@@ -635,7 +636,37 @@ class SettingsDialog(wx.Dialog):
         self.confirm_delete_chk = wx.CheckBox(general_panel, label="Confirm before deleting articles")
         self.confirm_delete_chk.SetValue(bool(config.get("confirm_article_delete", True)))
         general_sizer.Add(self.confirm_delete_chk, 0, wx.ALL, 5)
-        
+
+        # What Delete does to a local article (global default; feeds can override
+        # this in Feed Properties). Maps to the delete_behavior config string.
+        del_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        del_sizer.Add(wx.StaticText(general_panel, label="When I delete an article:"), 0,
+                      wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self._delete_behavior_choices = [
+            ("deleted", "Move it to Deleted Articles (restorable)"),
+            ("purge", "Remove it permanently"),
+            ("category", "Move it to a category"),
+        ]
+        self.delete_behavior_ctrl = wx.Choice(
+            general_panel, choices=[lbl for _k, lbl in self._delete_behavior_choices]
+        )
+        self.delete_behavior_ctrl.SetName("Delete behavior")
+        del_sizer.Add(self.delete_behavior_ctrl, 0, wx.ALL, 5)
+        self.delete_category_ctrl = wx.TextCtrl(general_panel)
+        self.delete_category_ctrl.SetName("Delete target category (full path)")
+        self.delete_category_ctrl.SetHint("Category / Path")
+        del_sizer.Add(self.delete_category_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        general_sizer.Add(del_sizer, 0, wx.EXPAND | wx.ALL, 5)
+
+        kind, category = filters_mod.parse_delete_behavior(config.get("delete_behavior", "deleted"))
+        self.delete_behavior_ctrl.SetSelection(
+            next((i for i, (k, _l) in enumerate(self._delete_behavior_choices) if k == kind), 0)
+        )
+        if category:
+            self.delete_category_ctrl.SetValue(category)
+        self.delete_behavior_ctrl.Bind(wx.EVT_CHOICE, lambda e: self._sync_delete_category_enabled())
+        self._sync_delete_category_enabled()
+
         dl_path_sizer = wx.BoxSizer(wx.HORIZONTAL)
         dl_path_sizer.Add(wx.StaticText(general_panel, label="Download Path:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.dl_path_ctrl = wx.TextCtrl(general_panel, value=config.get("download_path", ""))
@@ -2204,6 +2235,22 @@ class SettingsDialog(wx.Dialog):
             choices.append((f"Saved device (currently unavailable): {preferred}", preferred))
         return choices
 
+    def _sync_delete_category_enabled(self):
+        """Enable the delete-target category field only for the 'Move to a
+        category' delete behavior."""
+        idx = self.delete_behavior_ctrl.GetSelection()
+        kind = self._delete_behavior_choices[idx][0] if idx >= 0 else "deleted"
+        self.delete_category_ctrl.Enable(kind == "category")
+
+    def _delete_behavior_setting(self):
+        """Encode the delete-behavior choice + category into the config string."""
+        idx = self.delete_behavior_ctrl.GetSelection()
+        kind = self._delete_behavior_choices[idx][0] if idx >= 0 else "deleted"
+        if kind == "category":
+            category = self.delete_category_ctrl.GetValue().strip()
+            return f"category:{category}" if category else "deleted"
+        return kind
+
     def on_browse_dl_path(self, event):
         dlg = wx.DirDialog(self, "Choose download directory", self.dl_path_ctrl.GetValue(), style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
@@ -2534,6 +2581,7 @@ class SettingsDialog(wx.Dialog):
             "cache_full_text": self.cache_full_text_chk.GetValue(),
             "downloads_enabled": self.downloads_chk.GetValue(),
             "confirm_article_delete": self.confirm_delete_chk.GetValue(),
+            "delete_behavior": self._delete_behavior_setting(),
             "download_path": self.dl_path_ctrl.GetValue(),
             "download_retention": self.retention_ctrl.GetValue(),
             "article_retention": self.art_retention_ctrl.GetValue(),
@@ -2631,6 +2679,42 @@ class FeedPropertiesDialog(wx.Dialog):
         self.cat_ctrl.SetValue(feed.category or "Uncategorized")
         sizer.Add(self.cat_ctrl, 0, wx.EXPAND | wx.ALL, 5)
 
+        # Per-feed delete-behavior override. "Use global setting" leaves
+        # feeds.delete_behavior NULL so the global setting applies.
+        try:
+            from core import db as _db
+            self._feed_delete_behavior = _db.get_feed_delete_behavior(getattr(feed, "id", "") or "")
+        except Exception:
+            self._feed_delete_behavior = None
+        sizer.Add(wx.StaticText(self, label="When I delete an article from this feed:"), 0, wx.ALL, 5)
+        del_row = wx.BoxSizer(wx.HORIZONTAL)
+        self._feed_delete_choices = [
+            (None, "Use global setting"),
+            ("deleted", "Move it to Deleted Articles"),
+            ("purge", "Remove it permanently"),
+            ("category", "Move it to a category"),
+        ]
+        self.feed_delete_ctrl = wx.Choice(self, choices=[lbl for _k, lbl in self._feed_delete_choices])
+        self.feed_delete_ctrl.SetName("Delete behavior for this feed")
+        del_row.Add(self.feed_delete_ctrl, 0, wx.ALL, 5)
+        self.feed_delete_category_ctrl = wx.TextCtrl(self)
+        self.feed_delete_category_ctrl.SetName("Delete target category (full path)")
+        self.feed_delete_category_ctrl.SetHint("Category / Path")
+        del_row.Add(self.feed_delete_category_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        sizer.Add(del_row, 0, wx.EXPAND)
+
+        fd_kind, fd_category = filters_mod.parse_delete_behavior(self._feed_delete_behavior)
+        if self._feed_delete_behavior is None:
+            self.feed_delete_ctrl.SetSelection(0)
+        else:
+            self.feed_delete_ctrl.SetSelection(
+                next((i for i, (k, _l) in enumerate(self._feed_delete_choices) if k == fd_kind), 0)
+            )
+        if fd_category:
+            self.feed_delete_category_ctrl.SetValue(fd_category)
+        self.feed_delete_ctrl.Bind(wx.EVT_CHOICE, lambda e: self._sync_feed_delete_category_enabled())
+        self._sync_feed_delete_category_enabled()
+
         # --- Per-feed HTTP fetch overrides (issue #29) ---
         sizer.Add(
             wx.StaticText(self, label="Custom request headers (one per line, Name: Value):"),
@@ -2716,8 +2800,31 @@ class FeedPropertiesDialog(wx.Dialog):
         if cancel_btn and ok_btn:
             cancel_btn.MoveAfterInTabOrder(ok_btn)
 
+    def _sync_feed_delete_category_enabled(self):
+        idx = self.feed_delete_ctrl.GetSelection()
+        kind = self._feed_delete_choices[idx][0] if idx >= 0 else None
+        self.feed_delete_category_ctrl.Enable(kind == "category")
+
+    def _feed_delete_behavior_setting(self):
+        """Encode the per-feed delete override, or None to inherit the global."""
+        idx = self.feed_delete_ctrl.GetSelection()
+        kind = self._feed_delete_choices[idx][0] if idx >= 0 else None
+        if kind is None:
+            return None
+        if kind == "category":
+            category = self.feed_delete_category_ctrl.GetValue().strip()
+            return f"category:{category}" if category else None
+        return kind
+
     def on_ok(self, event):
         self._save_feed_settings()
+        try:
+            from core import db as _db
+            _db.set_feed_delete_behavior(
+                getattr(self.feed, "id", "") or "", self._feed_delete_behavior_setting()
+            )
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to save per-feed delete behavior", exc_info=True)
         self.EndModal(wx.ID_OK)
 
     def _save_feed_settings(self):

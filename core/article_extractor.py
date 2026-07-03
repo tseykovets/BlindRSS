@@ -1122,12 +1122,19 @@ def _merge_texts(texts: List[str]) -> str:
     return _normalize_whitespace("\n\n".join(out))
 
 
-def extract_full_article(url: str, max_pages: int = 6, timeout: int = 20) -> Optional[FullArticle]:
+def extract_full_article(
+    url: str, max_pages: int = 6, timeout: int = 20, metadata_sink=None
+) -> Optional[FullArticle]:
     """
     Extract full article text from a URL. Attempts to follow pagination for multi-page articles.
 
     Returns FullArticle or None on unsupported/empty.
     Raises ExtractionError for download/extraction failures that should be shown to the user.
+
+    ``metadata_sink``, when given, is called once with ``(html, page_url)`` of
+    the FIRST successfully downloaded page so callers can harvest structured
+    metadata (see core.metadata_enrich) from HTML we already paid to fetch.
+    Sink errors are swallowed — they must never affect extraction.
     """
     url = (url or "").strip()
     if not url or _looks_like_media_url(url):
@@ -1157,6 +1164,11 @@ def extract_full_article(url: str, max_pages: int = 6, timeout: int = 20) -> Opt
         html = res.html
         if not html:
             break
+        if not downloaded_any and metadata_sink is not None:
+            try:
+                metadata_sink(html, current)
+            except Exception:
+                pass
         downloaded_any = True
 
         if not title or not author:
@@ -1219,6 +1231,7 @@ def render_full_article(
     prefer_feed_content: bool = True,
     max_pages: int = 6,
     timeout: int = 20,
+    metadata_sink=None,
 ) -> Optional[str]:
     """
     Render a full article into a single plain-text string (Title/Author/Text).
@@ -1226,6 +1239,8 @@ def render_full_article(
     Behavior:
     - If url is missing or looks like media, try fallback_html (feed content) and return that.
     - If url extraction fails, try fallback_html; if still fails, raise ExtractionError.
+    - ``metadata_sink`` is forwarded to extract_full_article (first fetched
+      page's HTML, for structured-metadata enrichment); it never affects output.
     """
     url = (url or "").strip()
 
@@ -1254,7 +1269,12 @@ def render_full_article(
     # Try webpage extraction.
     extraction_error: Optional[ExtractionError] = None
     try:
-        art = extract_full_article(url, max_pages=max_pages, timeout=timeout)
+        # Pass metadata_sink only when set: keeps compatibility with callers
+        # (and tests) that substitute extract_full_article without the kwarg.
+        if metadata_sink is not None:
+            art = extract_full_article(url, max_pages=max_pages, timeout=timeout, metadata_sink=metadata_sink)
+        else:
+            art = extract_full_article(url, max_pages=max_pages, timeout=timeout)
         if art:
             if fallback_title and not art.title:
                 art.title = fallback_title

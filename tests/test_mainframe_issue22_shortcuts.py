@@ -356,9 +356,13 @@ def _install_fake_call_later(monkeypatch):
 class _DeleteHost:
     on_delete_article = mainframe.MainFrame.on_delete_article
     _is_deleted_view = mainframe.MainFrame._is_deleted_view
+    # Behavior-aware confirmation prompt (delete_behavior feature); the host has
+    # no provider resolver, so it falls back to the default soft-delete wording.
+    _delete_confirm_prompt = mainframe.MainFrame._delete_confirm_prompt
 
     def __init__(self, *, confirm_setting=True):
         self.current_feed_id = "all"
+        self.provider = object()
         self.config_manager = _FakeConfig({"confirm_article_delete": confirm_setting})
         self.current_articles = [
             mainframe.Article(

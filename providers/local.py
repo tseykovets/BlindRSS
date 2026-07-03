@@ -28,8 +28,11 @@ from core.db import (
     purge_deleted_article,
     record_article_version,
     get_smart_folder,
+    list_filter_rules,
+    get_feed_delete_behavior,
 )
 from core import smart_folders as smart_folders_mod
+from core import filters as filters_mod
 from core.discovery import discover_feed
 from core import utils
 from core import rumble as rumble_mod
@@ -218,6 +221,36 @@ def _entry_author(entry) -> str:
             return name
 
     return _entry_text(entry, "author")
+
+
+def _entry_tags(entry) -> str:
+    """Return the article's site tags/categories as a newline-separated string.
+
+    feedparser exposes `<category>` / Atom `<category>` / media & podcast keyword
+    tags as ``entry.tags`` (each a dict with a ``term``, and sometimes a
+    ``label``). JSON Feed tags are mapped to the same shape upstream. Dedupes
+    case-insensitively while preserving first-seen order; returns "" when none.
+    """
+    try:
+        tags = entry.get("tags") or []
+    except Exception:
+        tags = []
+    seen = set()
+    out = []
+    for tag in tags:
+        if isinstance(tag, dict):
+            term = tag.get("term") or tag.get("label")
+        else:
+            term = getattr(tag, "term", None) or getattr(tag, "label", None)
+        term = str(term or "").strip()
+        if not term:
+            continue
+        key = term.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(term)
+    return "\n".join(out)
 
 
 def _entry_primary_link(entry) -> str:
@@ -1512,6 +1545,62 @@ class LocalProvider(RSSProvider):
             except Exception:
                 pass
 
+        def _apply_rules_to_new_article(
+            article_id, title, content, description, author, url, tags,
+            date, media_url, media_type, chapter_url,
+        ):
+            """Run the filter-rules pipeline against a just-inserted article.
+
+            Must be called immediately after ``_record_new_article`` so that a
+            "delete" or "skip notification" outcome can undo that article's
+            notification bookkeeping (it pops the summary it just appended). The
+            unread count is recomputed separately, so we only adjust ``new_items``
+            (the notification counter), never the row's read state here.
+            """
+            nonlocal new_items
+            if not filter_rules:
+                return
+            art = {
+                "title": title or "",
+                "content": content or "",
+                "description": description or "",
+                "author": author or "",
+                "feed": final_title or feed_title or "",
+                "url": url or "",
+                "tag": tags or "",
+                "read": False,
+                "favorite": False,
+                "opened": False,
+                "updated": False,
+            }
+            try:
+                agg = filters_mod.evaluate_pipeline(filter_rules, art)
+            except Exception:
+                log.debug("Filter pipeline evaluation failed", exc_info=True)
+                return
+            if not agg.get("matched_rule_ids"):
+                return
+            eff = filters_mod.resolve_effective_actions(agg, delete_behavior)
+            snapshot = {
+                "url": url, "title": title, "content": content, "description": description,
+                "date": date, "author": author, "media_url": media_url,
+                "media_type": media_type, "chapter_url": chapter_url,
+                "is_read": 0, "is_favorite": 0,
+            }
+            try:
+                removed = filters_mod.apply_effective_actions(
+                    c, article_id, eff, snapshot=snapshot, feed_id=feed_id
+                )
+            except Exception:
+                log.debug("Filter pipeline application failed for %s", article_id, exc_info=True)
+                return
+            if removed or eff.get("skip_notification"):
+                if new_article_summaries and str(new_article_summaries[-1].get("id")) == str(article_id):
+                    new_article_summaries.pop()
+                new_items = max(0, new_items - 1)
+            if removed:
+                existing_articles.pop(article_id, None)
+
         headers = utils.add_revalidation_headers({})
         is_npr_feed = npr_mod.is_npr_url(feed_url)
 
@@ -2368,6 +2457,15 @@ class LocalProvider(RSSProvider):
                     cursor=c,
                 )
 
+                # Categorization pipeline (see core.filters): load the enabled
+                # rules and this feed's effective delete behavior once, then apply
+                # them to each newly inserted article below.
+                try:
+                    filter_rules = list_filter_rules(enabled_only=True, cursor=c)
+                except Exception:
+                    filter_rules = []
+                delete_behavior = self._resolve_delete_behavior(feed_id) if filter_rules else "deleted"
+
                 entry_ids = []
                 for entry in d.entries:
                     content = _entry_content(entry)
@@ -2401,6 +2499,7 @@ class LocalProvider(RSSProvider):
 
                     content = _entry_content(entry)
                     description = _entry_description(entry)
+                    tags = _entry_tags(entry)
                     base_id = _entry_base_id(entry, feed_id, feed_url, content)
                     if not base_id:
                         continue
@@ -2585,8 +2684,8 @@ class LocalProvider(RSSProvider):
 
                     try:
                         c.execute(
-                            "INSERT INTO articles (id, feed_id, title, url, content, description, date, author, is_read, media_url, media_type, chapter_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
-                            (article_id, feed_id, title, url, content, description, date, author, media_url, media_type, chapter_url),
+                            "INSERT INTO articles (id, feed_id, title, url, content, description, date, author, is_read, media_url, media_type, chapter_url, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
+                            (article_id, feed_id, title, url, content, description, date, author, media_url, media_type, chapter_url, tags or None),
                         )
                         new_items += 1
                         # Change history: seed the original version at first fetch.
@@ -2611,6 +2710,10 @@ class LocalProvider(RSSProvider):
                             "media_url": media_url,
                             "media_type": media_type,
                         }
+                        _apply_rules_to_new_article(
+                            article_id, title, content, description, author, url, tags,
+                            date, media_url, media_type, chapter_url,
+                        )
                     except sqlite3.IntegrityError as e:
                         if _rollback_and_abort_on_foreign_key(conn, e):
                             status = "deleted"
@@ -2641,8 +2744,8 @@ class LocalProvider(RSSProvider):
 
                                 try:
                                     c.execute(
-                                        "INSERT INTO articles (id, feed_id, title, url, content, description, date, author, is_read, media_url, media_type, chapter_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
-                                        (scoped_id, feed_id, title, url, content, description, date, author, media_url, media_type, chapter_url),
+                                        "INSERT INTO articles (id, feed_id, title, url, content, description, date, author, is_read, media_url, media_type, chapter_url, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
+                                        (scoped_id, feed_id, title, url, content, description, date, author, media_url, media_type, chapter_url, tags or None),
                                     )
                                     article_id = scoped_id
                                     new_items += 1
@@ -2663,6 +2766,10 @@ class LocalProvider(RSSProvider):
                                         "media_url": media_url,
                                         "media_type": media_type,
                                     }
+                                    _apply_rules_to_new_article(
+                                        article_id, title, content, description, author, url, tags,
+                                        date, media_url, media_type, chapter_url,
+                                    )
                                 except sqlite3.IntegrityError:
                                     continue
                             else:
@@ -2727,6 +2834,20 @@ class LocalProvider(RSSProvider):
                 feed_url,
             )
             self._emit_progress(progress_cb, state)
+
+    def _resolve_delete_behavior(self, feed_id):
+        """Per-feed delete-behavior override, else the global setting, else soft
+        delete. Drives what a filter-rule "delete" action does for this feed."""
+        try:
+            override = get_feed_delete_behavior(feed_id)
+            if override:
+                return override
+        except Exception:
+            pass
+        try:
+            return str(self.config.get("delete_behavior", "deleted") or "deleted")
+        except Exception:
+            return "deleted"
 
     def _collect_feed_state(self, feed_id, title, category, status, new_items, error_msg, new_articles=None):
         unread = 0
@@ -2818,6 +2939,30 @@ class LocalProvider(RSSProvider):
                 break
 
         return real_feed_id, filter_read, filter_favorite
+
+    @staticmethod
+    def _category_membership_clause(cat_names, *, aliased):
+        """SQL clause + params selecting articles that belong to a category view.
+
+        An article belongs to a category when: its feed is in the category AND it
+        has not been moved elsewhere (``category_override IS NULL``); OR it was
+        MOVED here (``category_override`` in the set); OR it is LABELED with the
+        category (article_labels). ``aliased`` picks the ``a.``/``f.`` form used
+        by the JOINed listing queries vs. the bare-column form for
+        ``UPDATE articles``. See core.filters for how those columns get set.
+        """
+        prefix = "a." if aliased else ""
+        ph = ",".join("?" for _ in cat_names)
+        if aliased:
+            feed_cat = f"f.category IN ({ph})"
+        else:
+            feed_cat = f"feed_id IN (SELECT id FROM feeds WHERE category IN ({ph}))"
+        clause = (
+            f"(({prefix}category_override IS NULL AND {feed_cat}) "
+            f"OR {prefix}category_override IN ({ph}) "
+            f"OR {prefix}id IN (SELECT article_id FROM article_labels WHERE category IN ({ph})))"
+        )
+        return clause, list(cat_names) * 3
 
     @staticmethod
     def _is_deleted_view_id(feed_id) -> bool:
@@ -2947,9 +3092,9 @@ class LocalProvider(RSSProvider):
                     FROM articles a
                     JOIN feeds f ON a.feed_id = f.id
                 """]
-                placeholders = ",".join("?" for _ in cat_names)
-                where_clauses.append(f"f.category IN ({placeholders})")
-                params.extend(cat_names)
+                clause, cat_params = self._category_membership_clause(cat_names, aliased=True)
+                where_clauses.append(clause)
+                params.extend(cat_params)
             elif real_feed_id != "all":
                 where_clauses.append("feed_id = ?")
                 params.append(real_feed_id)
@@ -3039,9 +3184,9 @@ class LocalProvider(RSSProvider):
                 sub_cats = get_subcategory_titles(cat_name)
                 cat_names = [cat_name] + sub_cats
                 count_sql_parts = ["SELECT COUNT(*) FROM articles a JOIN feeds f ON a.feed_id = f.id"]
-                placeholders = ",".join("?" for _ in cat_names)
-                count_where.append(f"f.category IN ({placeholders})")
-                count_params.extend(cat_names)
+                clause, cat_params = self._category_membership_clause(cat_names, aliased=True)
+                count_where.append(clause)
+                count_params.extend(cat_params)
             elif real_feed_id == "all":
                 count_sql_parts = ["SELECT COUNT(*) FROM articles"]
             else:
@@ -3083,13 +3228,13 @@ class LocalProvider(RSSProvider):
                     FROM articles a
                     JOIN feeds f ON a.feed_id = f.id
                 """]
-                placeholders = ",".join("?" for _ in cat_names)
-                where_clauses.append(f"f.category IN ({placeholders})")
-                params.extend(cat_names)
+                clause, cat_params = self._category_membership_clause(cat_names, aliased=True)
+                where_clauses.append(clause)
+                params.extend(cat_params)
             elif real_feed_id != "all":
                 where_clauses.append("feed_id = ?")
                 params.append(real_feed_id)
-                
+
             if filter_read is not None:
                 col = "a.is_read" if is_category else "is_read"
                 where_clauses.append(f"{col} = ?")
@@ -3236,9 +3381,9 @@ class LocalProvider(RSSProvider):
                 from core.db import get_subcategory_titles
                 sub_cats = get_subcategory_titles(cat_name)
                 all_cats = [cat_name] + sub_cats
-                placeholders = ",".join("?" for _ in all_cats)
-                where_clauses.append(f"feed_id IN (SELECT id FROM feeds WHERE category IN ({placeholders}))")
-                params.extend(all_cats)
+                clause, cat_params = self._category_membership_clause(all_cats, aliased=False)
+                where_clauses.append(clause)
+                params.extend(cat_params)
             elif real_feed_id != "all":
                 where_clauses.append("feed_id = ?")
                 params.append(real_feed_id)
@@ -3307,6 +3452,90 @@ class LocalProvider(RSSProvider):
         from core.db import delete_smart_folder
         return delete_smart_folder(folder_id)
 
+    # ── Filter Rules (categorization pipeline) ──────────────────────────────
+    def supports_filter_rules(self) -> bool:
+        return True
+
+    def get_filter_rules(self):
+        from core.db import list_filter_rules
+        return list_filter_rules()
+
+    def get_filter_rule(self, rule_id):
+        from core.db import get_filter_rule
+        return get_filter_rule(rule_id)
+
+    def create_filter_rule(self, name, rule, actions, enabled=True, stop=False):
+        from core.db import create_filter_rule
+        return create_filter_rule(name, rule, actions, enabled=enabled, stop=stop)
+
+    def update_filter_rule(self, rule_id, **kwargs):
+        from core.db import update_filter_rule
+        return update_filter_rule(rule_id, **kwargs)
+
+    def delete_filter_rule(self, rule_id):
+        from core.db import delete_filter_rule
+        return delete_filter_rule(rule_id)
+
+    def reorder_filter_rules(self, ordered_ids):
+        from core.db import reorder_filter_rules
+        return reorder_filter_rules(ordered_ids)
+
+    def apply_filter_rules_to_existing(self) -> dict:
+        """Run the enabled rule pipeline against every existing local article
+        (retroactive apply, e.g. after creating or editing a rule). Returns
+        ``{"scanned": N, "changed": M}``. Safe to call from a background thread.
+        """
+        rules = list_filter_rules(enabled_only=True)
+        if not rules:
+            return {"scanned": 0, "changed": 0}
+        global_behavior = self._resolve_delete_behavior(None)
+        scanned = 0
+        changed = 0
+        conn = get_connection()
+        try:
+            c = conn.cursor()
+            feed_behavior = {}
+            for fid, beh in c.execute("SELECT id, delete_behavior FROM feeds").fetchall():
+                if beh:
+                    feed_behavior[fid] = beh
+            rows = c.execute(
+                "SELECT a.id, a.feed_id, a.title, a.content, a.description, a.author, "
+                "COALESCE(f.title, ''), a.url, COALESCE(a.tags, ''), a.is_read, a.is_favorite, "
+                "CASE WHEN a.opened_at IS NOT NULL THEN 1 ELSE 0 END, "
+                "(SELECT COUNT(*) FROM article_versions v WHERE v.article_id = a.id) "
+                "FROM articles a LEFT JOIN feeds f ON a.feed_id = f.id"
+            ).fetchall()
+            for row in rows:
+                scanned += 1
+                article_id, feed_id = row[0], row[1]
+                art = {
+                    "title": row[2] or "",
+                    "content": row[3] or "",
+                    "description": row[4] or "",
+                    "author": row[5] or "",
+                    "feed": row[6] or "",
+                    "url": row[7] or "",
+                    "tag": row[8] or "",
+                    "read": bool(row[9]),
+                    "favorite": bool(row[10]),
+                    "opened": bool(row[11]),
+                    "updated": int(row[12] or 0) > 1,
+                }
+                agg = filters_mod.evaluate_pipeline(rules, art)
+                if not agg.get("matched_rule_ids"):
+                    continue
+                behavior = feed_behavior.get(feed_id, global_behavior)
+                eff = filters_mod.resolve_effective_actions(agg, behavior)
+                try:
+                    filters_mod.apply_effective_actions(c, article_id, eff, feed_id=feed_id)
+                    changed += 1
+                except Exception:
+                    log.debug("Retroactive rule apply failed for %s", article_id, exc_info=True)
+            conn.commit()
+        finally:
+            conn.close()
+        return {"scanned": scanned, "changed": changed}
+
     def toggle_favorite(self, article_id: str):
         conn = get_connection()
         try:
@@ -3335,7 +3564,18 @@ class LocalProvider(RSSProvider):
         finally:
             conn.close()
 
-    def delete_article(self, article_id: str) -> bool:
+    def delete_article(self, article_id: str, behavior: str | None = None) -> bool:
+        """Delete an article, honoring the configured delete behavior.
+
+        ``behavior`` (resolved by the caller from the per-feed override or the
+        global ``delete_behavior`` setting) selects what "delete" does:
+          * "deleted"/None → soft delete: tombstone + remove (Deleted view).
+          * "purge"        → permanent: tombstone marked purged (hidden from the
+                             Deleted view) + remove; refresh still won't resurrect.
+          * "category:<p>" → MOVE: file the article under category ``<p>`` (set
+                             category_override) and keep the row.
+        See core.filters.parse_delete_behavior for the parsing.
+        """
         if not article_id:
             return False
         conn = get_connection()
@@ -3346,6 +3586,7 @@ class LocalProvider(RSSProvider):
                 pass
             c = conn.cursor()
             c.execute("BEGIN IMMEDIATE")
+
             c.execute(
                 "SELECT feed_id, url, title, content, description, date, author, "
                 "media_url, media_type, chapter_url, is_read, is_favorite "
@@ -3357,6 +3598,21 @@ class LocalProvider(RSSProvider):
                 conn.rollback()
                 return False
             feed_id, article_url = row[0], row[1]
+
+            # Resolve the effective behavior now that we know the feed (per-feed
+            # override wins over the global setting) when the caller didn't pass one.
+            effective_behavior = behavior if behavior is not None else self._resolve_delete_behavior(feed_id)
+            kind, category = filters_mod.parse_delete_behavior(effective_behavior)
+
+            if kind == "category" and category:
+                # Move, don't remove: refile under the target category.
+                c.execute(
+                    "UPDATE articles SET category_override = ? WHERE id = ?",
+                    (category, article_id),
+                )
+                moved = int(c.rowcount or 0)
+                conn.commit()
+                return moved > 0
             # Preserve the full article so the Deleted Articles view can show and
             # restore it (the row itself is removed below).
             snapshot = {
@@ -3371,7 +3627,11 @@ class LocalProvider(RSSProvider):
                 "is_read": row[10],
                 "is_favorite": row[11],
             }
-            remember_deleted_article(feed_id, article_id, article_url, snapshot=snapshot, cursor=c)
+            remember_deleted_article(
+                feed_id, article_id, article_url,
+                snapshot=snapshot, purged=(kind == "purge"), cursor=c,
+            )
+            c.execute("DELETE FROM article_labels WHERE article_id = ?", (article_id,))
             c.execute("DELETE FROM chapters WHERE article_id = ?", (article_id,))
             local_cache_key = f"local:{article_id}"
             c.execute("DELETE FROM chapter_cache WHERE cache_key = ?", (local_cache_key,))

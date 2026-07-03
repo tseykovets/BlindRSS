@@ -89,6 +89,8 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - `article_extractor.py`: Full-text extraction (trafilatura primary, BeautifulSoup fallback), pagination merge, boilerplate cleanup.
     - Ning handling: avoid pagination-follow on `*.ning.com`; prefer web full-text for forum/topic/article links, and prefer feed fragments only for profile-style activity links.
     - Bot/interstitial handling should return the clear "open in browser" style failure rather than replacing good feed content with anti-bot boilerplate.
+  - `filters.py`: Filter Rules categorization engine (GUI-free). An ordered pipeline of user rules (like email filters): each rule pairs a Smart-Folders boolean rule tree with an action set (move to category, label with category, mark read/favorite, delete, skip notification). All matching enabled rules apply in position order; a rule's `stop` flag halts the pipeline for that article. `evaluate_pipeline`/`resolve_effective_actions` are pure; `apply_effective_actions` is the only DB writer. The abstract "delete" action resolves through the delete behavior (`parse_delete_behavior`): "deleted" = tombstone/Deleted view, "purge" = permanent (tombstone kept with purged=1 so refresh never resurrects), "category:<path>" = set the article's `category_override` instead of removing. Rules run on new articles during local refresh (`providers/local.py` `_apply_rules_to_new_article`) and retroactively via `LocalProvider.apply_filter_rules_to_existing`; the Tools > Filter Rules... dialog manages them.
+  - `metadata_enrich.py`: Structured-metadata enrichment (GUI-free, extruct + trafilatura). Extracts author/tags/section from page HTML the full-text pipeline ALREADY downloaded (JSON-LD Article schema, then microdata, then OpenGraph `article:*`, then `trafilatura.extract_metadata`) — never issues its own network requests. `enrich_stored_article` fills `articles.author` only when it is empty/"Unknown" and unions tags into `articles.tags` so Filter Rules matching on author/tag work on feeds that omit them. Wired through the optional `metadata_sink` parameter of `article_extractor.extract_full_article`/`render_full_article` (default None = no behavior change; only pass the kwarg when a sink is set so monkeypatched substitutes without it keep working). extruct is an optional import: everything fails closed.
   - `casting.py`: Unified casting manager for Chromecast, DLNA/UPnP, and AirPlay.
   - `browser_bridge.py`: Optional registered browser fetch hook used by extraction fallback paths. It must fail closed (`None`) so missing browser integration never breaks normal fetch.
   - `translation.py`: Optional automatic article translation. Supports Grok/xAI, Groq, OpenAI, OpenRouter, Gemini, and Qwen; chunks text, caps total submitted text, retries alternate model candidates/endpoints on model-access failures, and stores API keys only in local `config.json`.
@@ -138,6 +140,8 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
     - Optional translation is triggered through the background full-text pipeline; translated full-text cache keys include a `::tr[provider:lang]` suffix and the cache is cleared when translation settings change.
     - macOS uses standard wx menu role IDs (`ID_ABOUT`, `ID_PREFERENCES`, `ID_EXIT`) and an Edit menu so native relocation/accelerators and focused text-control copy/select-all keep working.
     - Player chapter actions live in menus and shortcuts (`Ctrl+Shift+Left/Right` for previous/next). Keep menu labels screen-reader friendly and direction buttons disabled when unavailable.
+    - Find-in-article failure feedback ("not found" / "no more occurrences" on F3/Shift+F3) must ANNOUNCE, not pop a dialog: `MainFrame._announce` raises a Windows UI Automation notification (`UiaRaiseNotificationEvent`, spoken by NVDA/JAWS without moving focus) with a status-bar echo and a `wx.Bell` fallback off-Windows. Do not replace these with `wx.MessageBox` — dismissing an OK button mid-read is exactly the interruption the change removed.
+    - Filter Rules UI: Tools > "Filter Rules..." opens `FilterRulesDialog` (ordered list with Add/Edit/Delete/Move Up/Down/Enable-Disable/"Apply to Existing Articles"); `FilterRuleEditorDialog` shares the Smart Folder condition-builder constants and adds the action set + stop/enabled flags. The delete-behavior confirmation prompt (`MainFrame._delete_confirm_prompt`) states the real outcome (restorable soft delete / permanent / move to category) — keep it honest when touching delete flows.
   - `player.py`: VLC-backed player window with proxy integration and async chapter/media load.
   - `hotkeys.py`: `HoldRepeatHotkeys` — hold-to-repeat handler for Ctrl+key shortcuts (quick tap fires once; holding repeats), used by `mainframe.py`/`player.py` to avoid multi-seek on quick taps. Not a global/OS media-key hook.
     - On macOS, Option/Alt+Arrow maps to the same seek/volume actions because Ctrl+Left/Right are often captured by Mission Control. Off macOS, Alt+Arrow must stay free for normal navigation.
@@ -169,15 +173,22 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - `build_utils.py`: helper utilities used by build flows.
 
 ## Data Model (`rss.db`)
-- `feeds`: `id`, `url`, `title`, `title_is_custom`, `category`, `icon_url`, `etag`, `last_modified`, `show_images`.
+- `feeds`: `id`, `url`, `title`, `title_is_custom`, `category`, `icon_url`, `etag`, `last_modified`, `show_images`, `delete_behavior`.
   - `title_is_custom`: 1 when the user renamed the feed, so a refresh does not overwrite the custom title with the feed's own.
   - `show_images`: per-feed image-alt override. NULL = inherit the global `show_image_alt` setting, 0 = never, 1 = always. Resolved by `db.get_feed_show_images` / set by `db.set_feed_show_images`.
-- `articles`: `id`, `feed_id`, `title`, `url`, `content`, `description`, `date`, `author`, `is_read`, `is_favorite`, `media_url`, `media_type`, `chapter_url`.
+  - `delete_behavior`: per-feed delete-behavior override; NULL = inherit the global `delete_behavior` config ("deleted" | "purge" | "category:<path>"). Resolved by `LocalProvider._resolve_delete_behavior`; edited in Feed Properties. The Settings General tab edits the global value.
+- `articles`: `id`, `feed_id`, `title`, `url`, `content`, `description`, `date`, `author`, `is_read`, `is_favorite`, `media_url`, `media_type`, `chapter_url`, `tags`, `category_override`.
+  - `tags`: newline-separated site tags/categories from the feed entry (feedparser `entry.tags`, JSON Feed tags) plus any page-metadata enrichment (`core/metadata_enrich.py`). Matched by the Smart Folders / Filter Rules `tag` text field (`a.tags` column).
+  - `category_override`: when set (by a Filter Rule "move" action or delete-to-category), the article belongs to THIS category path in category views instead of its feed's category. NULL = normal feed-category membership. Category views everywhere must use `LocalProvider._category_membership_clause` (feed category minus moved-away, plus moved-here, plus labeled) instead of raw `f.category IN (...)`.
+- `article_labels`: `article_id`, `category` — extra category memberships from Filter Rule "label" actions; the article ALSO appears under `category` while staying in place. Cascade-deleted with the article.
+- `filter_rules`: `id`, `name`, `rule_json`, `actions_json`, `enabled`, `stop`, `position` — the ordered Filter Rules pipeline (see `core/filters.py`). CRUD in `core/db.py` (`create/update/delete/get/list_filter_rules`, `reorder_filter_rules`).
   - `chapter_url`: optional external chapter source (e.g. podcast chapters JSON) fetched lazily via `utils.fetch_and_store_chapters`.
   - `description`: the feed-provided item description/summary when distinct from richer content (for example RSS `<description>` alongside `content:encoded`). UI may fall back to `content` for legacy rows/providers that do not expose a separate summary.
   - Indexed for `feed_id`, `is_read`, `date`, plus composite indexes for common list/count paths.
-- `deleted_articles`: `feed_id`, `article_id`, `url`, `deleted_at`.
+- `deleted_articles`: `feed_id`, `article_id`, `url`, `deleted_at`, snapshot columns, `purged`.
   - Local-provider tombstones for user-deleted articles. Refresh must skip matching item IDs and stable URLs so delete does not behave like temporary hide; feed removal cascades these rows.
+  - `remember_deleted_article(..., purged=True)` writes the tombstone already hidden from the Deleted view (used by the "purge" delete behavior and rule deletes under it); the row is still kept so refresh never resurrects the article.
+  - Delete-to-category ("category:<path>" behavior) does NOT tombstone: `LocalProvider.delete_article` just sets `category_override` and keeps the row.
 - `chapters`: `id`, `article_id`, `start`, `title`, `href`.
 - `chapter_cache`: `id`, `cache_key`, `start`, `title`, `href`.
   - Used for hosted-provider chapter rows where the article is not in the local `articles` table.
@@ -280,6 +291,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\category-identity-model.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\curl-cffi-impersonation-transport.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\deleted-purge-design.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\filter-rules-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\provider-flat-vs-nested.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\refresh-speed-fixes.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\release-build-process.md

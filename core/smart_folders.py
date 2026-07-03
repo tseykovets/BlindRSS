@@ -28,7 +28,10 @@ Unknown/empty leaves are skipped in BOTH paths so the two never diverge. An empt
 from __future__ import annotations
 
 BOOL_FIELDS = ("read", "favorite", "opened", "updated")
-TEXT_FIELDS = ("title", "content", "description", "author", "feed", "url")
+# "tag" matches the newline-separated site tags/categories stored in
+# articles.tags (see providers.local tag extraction). In the Python evaluator the
+# article dict carries them under the same "tag" key.
+TEXT_FIELDS = ("title", "content", "description", "author", "feed", "url", "tag")
 TEXT_OPS = ("contains", "not_contains", "equals", "starts_with")
 
 # Text field -> SQL column (articles aliased `a`, feeds aliased `f`).
@@ -39,6 +42,7 @@ _TEXT_COLS = {
     "author": "a.author",
     "feed": "f.title",
     "url": "a.url",
+    "tag": "a.tags",
 }
 _BOOL_COLS = {
     "read": "a.is_read",

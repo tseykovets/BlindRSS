@@ -213,6 +213,12 @@ DEFAULT_CONFIG = {
     "max_cached_views": 15,
     "cache_full_text": False,
     "confirm_article_delete": True,
+    # What the Delete action does to a local article. "deleted" = soft delete
+    # (tombstone, shown in the Deleted Articles view, restorable); "purge" =
+    # remove permanently; "category:<Full / Path>" = move it to that category.
+    # A per-feed override (feeds.delete_behavior) takes precedence. See
+    # core.filters.parse_delete_behavior.
+    "delete_behavior": "deleted",
     "playback_speed": 1.0,
     "volume": 100,
     "volume_step": 5,

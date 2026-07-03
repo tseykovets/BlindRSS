@@ -178,3 +178,71 @@ def test_ctrl_f_ignored_when_content_not_focused():
 
     assert "on_find_in_article" not in host.calls
     assert evt.skipped is True
+
+
+# ---------------------------------------------------------------------------
+# C) Find-failure feedback announces to the screen reader (no modal dialog)
+# ---------------------------------------------------------------------------
+
+class _AnnounceHost:
+    """Borrows the real find-failure feedback methods plus _announce so we can
+    verify they announce instead of popping a modal wx.MessageBox."""
+
+    _content_find_not_found = mainframe.MainFrame._content_find_not_found
+    _content_find_no_more = mainframe.MainFrame._content_find_no_more
+    _announce = mainframe.MainFrame._announce
+
+    def __init__(self):
+        self.announced = []
+        self.status = []
+        self.uia = []
+
+    # Stand-ins for the wx frame surface _announce touches.
+    def SetStatusText(self, text, field=0):
+        self.status.append((text, field))
+
+    def _announce_via_uia(self, message):
+        # Pretend the UIA notification succeeded so _announce does not ring the
+        # fallback bell; record what would have been spoken.
+        self.uia.append(message)
+        return True
+
+
+def test_not_found_announces_without_dialog(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mainframe.wx, "MessageBox", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(mainframe.sys, "platform", "win32")
+
+    host = _AnnounceHost()
+    host._content_find_not_found("hello")
+
+    assert host.uia == ['"hello" was not found.']
+    assert calls == []  # no modal dialog
+
+
+def test_no_more_occurrences_announces_direction(monkeypatch):
+    monkeypatch.setattr(mainframe.wx, "MessageBox", lambda *a, **k: (_ for _ in ()).throw(AssertionError("dialog shown")))
+    monkeypatch.setattr(mainframe.sys, "platform", "win32")
+
+    host = _AnnounceHost()
+    host._content_find_no_more("hello", forward=True)
+    host._content_find_no_more("hello", forward=False)
+
+    assert host.uia == [
+        'No more occurrences of "hello".',
+        'No previous occurrences of "hello".',
+    ]
+
+
+def test_announce_falls_back_to_bell_off_windows(monkeypatch):
+    bells = []
+    monkeypatch.setattr(mainframe.sys, "platform", "linux")
+    monkeypatch.setattr(mainframe.wx, "Bell", lambda: bells.append(True))
+
+    host = _AnnounceHost()
+    host._announce("nothing here")
+
+    # Off Windows, UIA is skipped entirely and the soft bell cues the user.
+    assert host.uia == []
+    assert bells == [True]
+    assert host.status[-1] == ("nothing here", 0)

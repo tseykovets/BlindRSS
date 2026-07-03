@@ -33,6 +33,7 @@ from core.models import Article
 from core import utils
 from core import article_extractor
 from core import smart_folders as smart_folders_mod
+from core import filters as filters_mod
 from core import translation as translation_mod
 from core import updater
 from core import windows_integration
@@ -1625,6 +1626,12 @@ class MainFrame(wx.Frame):
             "Search all yt-dlp query-search sites",
         )
         tools_menu.AppendSeparator()
+        filter_rules_item = tools_menu.Append(
+            wx.ID_ANY,
+            "Filter &Rules...",
+            "Create rules that categorize, label, or delete articles as they arrive",
+        )
+        tools_menu.AppendSeparator()
         settings_item = tools_menu.Append(wx.ID_PREFERENCES, "&Settings...", "Configure application")
         
         help_menu = wx.Menu()
@@ -1666,6 +1673,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_exit, exit_item)
         self.Bind(wx.EVT_MENU, self.on_find_feed, find_feed_item)
         self.Bind(wx.EVT_MENU, self.on_ytdlp_global_search, ytdlp_global_search_item)
+        self.Bind(wx.EVT_MENU, self.on_manage_filter_rules, filter_rules_item)
         self.Bind(wx.EVT_MENU, self.on_about, about_item)
         self.Bind(wx.EVT_MENU_OPEN, self.on_menu_open)
         self._refresh_player_chapters_submenu()
@@ -3151,6 +3159,26 @@ class MainFrame(wx.Frame):
         # Force reload of the current view with the new filter setting
         self._reload_selected_articles()
 
+    def on_manage_filter_rules(self, event=None):
+        if not getattr(self.provider, "supports_filter_rules", lambda: False)():
+            wx.MessageBox(
+                "The current provider does not support filter rules.",
+                "Not Supported",
+                wx.ICON_INFORMATION,
+            )
+            return
+        dlg = FilterRulesDialog(self, self.provider)
+        try:
+            dlg.ShowModal()
+        finally:
+            dlg.Destroy()
+        # Rules may have moved/labeled/deleted articles; refresh the tree + list.
+        try:
+            self.refresh_feeds()
+            self._reload_selected_articles()
+        except Exception:
+            log.debug("Failed to refresh views after managing filter rules", exc_info=True)
+
     def on_new_smart_folder(self):
         if not getattr(self.provider, "supports_smart_folders", lambda: False)():
             return
@@ -4084,11 +4112,7 @@ class MainFrame(wx.Frame):
             except Exception:
                 confirm = True
         if confirm:
-            prompt = (
-                "Delete this article? This cannot be undone."
-                if count == 1
-                else f"Delete {count} articles? This cannot be undone."
-            )
+            prompt = self._delete_confirm_prompt(indices, count)
             try:
                 ok = wx.MessageBox(prompt, "Confirm Delete", wx.YES_NO | wx.ICON_WARNING)
             except Exception:
@@ -4110,6 +4134,26 @@ class MainFrame(wx.Frame):
             args=(items, anchor_idx),
             daemon=True,
         ).start()
+
+    def _delete_confirm_prompt(self, indices, count: int) -> str:
+        """Describe what Delete will actually do (soft delete / purge / move),
+        resolved from the first selected article's feed so the screen-reader
+        user hears the real outcome instead of a generic warning."""
+        behavior = "deleted"
+        try:
+            resolver = getattr(self.provider, "_resolve_delete_behavior", None)
+            if callable(resolver) and indices:
+                article = self.current_articles[indices[0]]
+                behavior = resolver(getattr(article, "feed_id", None))
+        except Exception:
+            behavior = "deleted"
+        kind, category = filters_mod.parse_delete_behavior(behavior)
+        subject = "this article" if count == 1 else f"{count} articles"
+        if kind == "category" and category:
+            return f'Move {subject} to the "{category}" category?'
+        if kind == "purge":
+            return f"Permanently delete {subject}? This cannot be undone."
+        return f"Delete {subject}? Deleted articles can be restored from the Deleted Articles view."
 
     def _purge_deleted_articles(self, indices, *, confirm: bool | None = None) -> None:
         """Permanently delete the given Deleted-view rows."""
@@ -6210,17 +6254,109 @@ class MainFrame(wx.Frame):
             log.exception("Error selecting find match in article text")
 
     def _content_find_not_found(self, term):
-        try:
-            wx.MessageBox(f'"{term}" was not found.', "Find", wx.OK | wx.ICON_INFORMATION, self)
-        except Exception:
-            pass
+        # Announce, don't interrupt: a modal dialog forces the screen-reader user
+        # to dismiss an OK button just to keep reading. A live announcement is
+        # spoken by NVDA/JAWS and leaves keyboard focus in the article text.
+        self._announce(f'"{term}" was not found.')
 
     def _content_find_no_more(self, term, forward: bool):
         where = "No more occurrences" if forward else "No previous occurrences"
+        self._announce(f'{where} of "{term}".')
+
+    def _announce(self, message: str) -> None:
+        """Speak a short status message to the screen reader without stealing
+        focus or popping a dialog.
+
+        Best-effort and non-blocking: on Windows it raises a UI Automation
+        notification (announced by NVDA and JAWS) from the frame's window; on
+        other platforms, or if UIA is unavailable, it falls back to the status
+        bar plus a soft bell so the user still gets a cue. Keyboard focus never
+        moves, so the user stays in the article text after Find.
+        """
+        message = str(message or "").strip()
+        if not message:
+            return
+        # Reflect the message in transient status field 0 (see init_ui) as well:
+        # harmless, and gives sighted users / a status query the same text.
         try:
-            wx.MessageBox(f'{where} of "{term}".', "Find", wx.OK | wx.ICON_INFORMATION, self)
+            self.SetStatusText(message, 0)
         except Exception:
             pass
+        if sys.platform.startswith("win") and self._announce_via_uia(message):
+            return
+        try:
+            wx.Bell()
+        except Exception:
+            pass
+
+    def _announce_via_uia(self, message: str) -> bool:
+        """Raise a Windows UI Automation notification so NVDA/JAWS speak `message`.
+
+        Returns True if the notification was raised. Fully guarded: any failure
+        (older Windows without the notification API, missing DLL, COM error)
+        returns False so the caller can fall back.
+        """
+        try:
+            import ctypes
+            from ctypes import wintypes
+        except Exception:
+            return False
+        try:
+            hwnd = int(self.GetHandle())
+        except Exception:
+            hwnd = 0
+        if not hwnd:
+            return False
+        try:
+            core = ctypes.oledll.UIAutomationCore
+            oleaut32 = ctypes.windll.oleaut32
+        except Exception:
+            return False
+
+        oleaut32.SysAllocString.restype = ctypes.c_void_p
+        oleaut32.SysAllocString.argtypes = [ctypes.c_wchar_p]
+        oleaut32.SysFreeString.argtypes = [ctypes.c_void_p]
+
+        provider = ctypes.c_void_p()
+        bstr = None
+        activity = None
+        try:
+            # HRESULT UiaHostProviderFromHwnd(HWND, IRawElementProviderSimple**)
+            core.UiaHostProviderFromHwnd.argtypes = [wintypes.HWND, ctypes.POINTER(ctypes.c_void_p)]
+            core.UiaHostProviderFromHwnd(wintypes.HWND(hwnd), ctypes.byref(provider))
+            if not provider:
+                return False
+            bstr = oleaut32.SysAllocString(message)
+            activity = oleaut32.SysAllocString("blindrss.find")
+            # NotificationKind_ActionAborted = 3 (the find action produced nothing),
+            # NotificationProcessing_ImportantAll = 0 (never coalesced away).
+            core.UiaRaiseNotificationEvent.argtypes = [
+                ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p,
+            ]
+            core.UiaRaiseNotificationEvent(provider, 3, 0, bstr, activity)
+            return True
+        except Exception:
+            return False
+        finally:
+            if bstr:
+                try:
+                    oleaut32.SysFreeString(bstr)
+                except Exception:
+                    pass
+            if activity:
+                try:
+                    oleaut32.SysFreeString(activity)
+                except Exception:
+                    pass
+            if provider:
+                # Release the host provider (IUnknown::Release is vtable slot 2).
+                try:
+                    vtbl = ctypes.cast(provider, ctypes.POINTER(ctypes.c_void_p))[0]
+                    release_ptr = ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[2]
+                    release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(release_ptr)
+                    release(provider)
+                except Exception:
+                    pass
 
     def on_find_in_article(self, event=None):
         text = ""
@@ -6882,6 +7018,22 @@ class MainFrame(wx.Frame):
             render_source = None
             prefer_feed_first = False
 
+            # Structured-metadata enrichment (core.metadata_enrich): harvest
+            # author/tags from page HTML the extraction below already fetches,
+            # so Filter Rules matching on author/tag work on feeds that omit
+            # them. Local-provider articles only (no-op for hosted rows) and
+            # strictly best-effort — never interferes with rendering.
+            article_id_for_meta = str(req.get("article_id") or "").strip()
+
+            def _metadata_sink(html, page_url, _aid=article_id_for_meta):
+                if not _aid:
+                    return
+                try:
+                    from core import metadata_enrich
+                    metadata_enrich.enrich_stored_article(_aid, html, page_url)
+                except Exception:
+                    pass
+
             if is_prefetch:
                 # Background prefetch uses provider-side fetch only (avoids hammering sites).
                 provider_html = None
@@ -6890,6 +7042,7 @@ class MainFrame(wx.Frame):
                 except Exception as e:
                     if not err: err = str(e) or "Unknown error"
                 if provider_html:
+                    _metadata_sink(provider_html, url)
                     try:
                         rendered = article_extractor.render_full_article(
                             "",
@@ -6915,6 +7068,7 @@ class MainFrame(wx.Frame):
                             fallback_title=fallback_title,
                             fallback_author=fallback_author,
                             prefer_feed_content=prefer_feed_first,
+                            metadata_sink=_metadata_sink,
                         )
                         render_source = "feed_preferred" if prefer_feed_first else "web"
                     except Exception as e:
@@ -6929,6 +7083,7 @@ class MainFrame(wx.Frame):
                     except Exception as e:
                         if not err: err = str(e) or "Unknown error"
                     if provider_html:
+                        _metadata_sink(provider_html, url)
                         try:
                             rendered = article_extractor.render_full_article(
                                 "",
@@ -9357,6 +9512,7 @@ class SmartFolderDialog(wx.Dialog):
         ("author", "Author"),
         ("feed", "Feed / Publication"),
         ("url", "Link (URL)"),
+        ("tag", "Tag / Site category"),
         ("read_no", "Is unread"),
         ("read_yes", "Is read"),
         ("fav_yes", "Is favorite"),
@@ -9485,3 +9641,372 @@ class SmartFolderDialog(wx.Dialog):
                 bf, bv = self._BOOL_MAP[key]
                 conditions.append({"field": bf, "op": "is", "value": bool(bv)})
         return name, {"match": match, "conditions": conditions}
+
+
+class FilterRuleEditorDialog(wx.Dialog):
+    """Accessible editor for a single Filter Rule: a condition builder (shared
+    with Smart Folders) plus the action set the rule performs on matches."""
+
+    MAX_ROWS = SmartFolderDialog.MAX_ROWS
+    _FIELDS = SmartFolderDialog._FIELDS
+    _OPS = SmartFolderDialog._OPS
+    _TEXT_FIELDS = SmartFolderDialog._TEXT_FIELDS
+    _BOOL_MAP = SmartFolderDialog._BOOL_MAP
+
+    def __init__(self, parent, name="", rule=None, actions=None, enabled=True, stop=False):
+        super().__init__(parent, title="Filter Rule",
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        actions = filters_mod.normalize_actions(actions)
+        outer = wx.BoxSizer(wx.VERTICAL)
+
+        name_row = wx.BoxSizer(wx.HORIZONTAL)
+        name_row.Add(wx.StaticText(self, label="Rule &name:"), 0,
+                     wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
+        self.name_ctrl = wx.TextCtrl(self, value=name or "")
+        self.name_ctrl.SetName("Rule name")
+        name_row.Add(self.name_ctrl, 1)
+        outer.Add(name_row, 0, wx.EXPAND | wx.ALL, 8)
+
+        self.match_box = wx.RadioBox(
+            self, label="Apply this rule to articles that match",
+            choices=["All conditions (AND)", "Any condition (OR)"],
+            majorDimension=1, style=wx.RA_SPECIFY_ROWS,
+        )
+        outer.Add(self.match_box, 0, wx.EXPAND | wx.ALL, 8)
+
+        cond_box = wx.StaticBoxSizer(wx.VERTICAL, self, "Conditions")
+        self.rows = []
+        grid = wx.FlexGridSizer(cols=3, vgap=6, hgap=6)
+        grid.AddGrowableCol(2, 1)
+        grid.Add(wx.StaticText(self, label="Field"), 0)
+        grid.Add(wx.StaticText(self, label="Condition"), 0)
+        grid.Add(wx.StaticText(self, label="Value"), 0, wx.EXPAND)
+        field_labels = [lbl for _k, lbl in self._FIELDS]
+        op_labels = [lbl for _k, lbl in self._OPS]
+        for i in range(self.MAX_ROWS):
+            field_ctrl = wx.Choice(self, choices=field_labels)
+            field_ctrl.SetName(f"Condition {i + 1} field")
+            field_ctrl.SetSelection(0)
+            op_ctrl = wx.Choice(self, choices=op_labels)
+            op_ctrl.SetName(f"Condition {i + 1} operator")
+            op_ctrl.SetSelection(0)
+            val_ctrl = wx.TextCtrl(self)
+            val_ctrl.SetName(f"Condition {i + 1} value")
+            grid.Add(field_ctrl, 0)
+            grid.Add(op_ctrl, 0)
+            grid.Add(val_ctrl, 0, wx.EXPAND)
+            row = {"field": field_ctrl, "op": op_ctrl, "val": val_ctrl}
+            self.rows.append(row)
+            field_ctrl.Bind(wx.EVT_CHOICE, lambda e, r=row: self._update_row_enabled(r))
+        cond_box.Add(grid, 1, wx.EXPAND | wx.ALL, 4)
+        outer.Add(cond_box, 1, wx.EXPAND | wx.ALL, 8)
+
+        # Actions the rule performs on each matching article.
+        act_box = wx.StaticBoxSizer(wx.VERTICAL, self, "Then do this")
+        move_row = wx.BoxSizer(wx.HORIZONTAL)
+        move_row.Add(wx.StaticText(self, label="&Move to category:"), 0,
+                     wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
+        self.move_ctrl = wx.TextCtrl(self, value=actions.get("move") or "")
+        self.move_ctrl.SetName("Move to category (full path, blank for none)")
+        move_row.Add(self.move_ctrl, 1)
+        act_box.Add(move_row, 0, wx.EXPAND | wx.ALL, 4)
+
+        label_row = wx.BoxSizer(wx.HORIZONTAL)
+        label_row.Add(wx.StaticText(self, label="Also &label with category:"), 0,
+                      wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
+        self.label_ctrl = wx.TextCtrl(self, value=actions.get("label") or "")
+        self.label_ctrl.SetName("Also show under category (label, blank for none)")
+        label_row.Add(self.label_ctrl, 1)
+        act_box.Add(label_row, 0, wx.EXPAND | wx.ALL, 4)
+
+        self.mark_read_ctrl = wx.CheckBox(self, label="Mark as &read")
+        self.mark_read_ctrl.SetValue(bool(actions.get("mark_read")))
+        self.mark_fav_ctrl = wx.CheckBox(self, label="Mark as &favorite")
+        self.mark_fav_ctrl.SetValue(bool(actions.get("mark_favorite")))
+        self.delete_ctrl = wx.CheckBox(self, label="&Delete (uses the configured delete behavior)")
+        self.delete_ctrl.SetValue(bool(actions.get("delete")))
+        self.skip_notify_ctrl = wx.CheckBox(self, label="Skip &notification")
+        self.skip_notify_ctrl.SetValue(bool(actions.get("skip_notification")))
+        for ctrl in (self.mark_read_ctrl, self.mark_fav_ctrl, self.delete_ctrl, self.skip_notify_ctrl):
+            act_box.Add(ctrl, 0, wx.ALL, 4)
+        outer.Add(act_box, 0, wx.EXPAND | wx.ALL, 8)
+
+        self.stop_ctrl = wx.CheckBox(self, label="&Stop processing later rules when this rule matches")
+        self.stop_ctrl.SetValue(bool(stop))
+        outer.Add(self.stop_ctrl, 0, wx.ALL, 8)
+        self.enabled_ctrl = wx.CheckBox(self, label="Rule &enabled")
+        self.enabled_ctrl.SetValue(bool(enabled))
+        outer.Add(self.enabled_ctrl, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+        btns = self.CreateStdDialogButtonSizer(wx.OK | wx.CANCEL)
+        if btns:
+            outer.Add(btns, 0, wx.EXPAND | wx.ALL, 8)
+
+        self.SetSizer(outer)
+        self.SetSize((680, 640))
+        self.Bind(wx.EVT_BUTTON, self._on_ok, id=wx.ID_OK)
+
+        if rule:
+            self._load_rule(rule)
+        for r in self.rows:
+            self._update_row_enabled(r)
+
+    # Condition-row helpers mirror SmartFolderDialog (shared field/op constants).
+    _field_key = SmartFolderDialog._field_key
+    _select_field = SmartFolderDialog._select_field
+    _update_row_enabled = SmartFolderDialog._update_row_enabled
+    _load_rule = SmartFolderDialog._load_rule
+
+    def _collect_rule(self):
+        match = "any" if self.match_box.GetSelection() == 1 else "all"
+        conditions = []
+        for row in self.rows:
+            key = self._field_key(row)
+            if not key:
+                continue
+            if key in self._TEXT_FIELDS:
+                op_idx = row["op"].GetSelection()
+                op = self._OPS[op_idx][0] if op_idx >= 0 else "contains"
+                value = row["val"].GetValue().strip()
+                if not value and op != "equals":
+                    continue
+                conditions.append({"field": key, "op": op, "value": value})
+            elif key in self._BOOL_MAP:
+                bf, bv = self._BOOL_MAP[key]
+                conditions.append({"field": bf, "op": "is", "value": bool(bv)})
+        return {"match": match, "conditions": conditions}
+
+    def _collect_actions(self):
+        return filters_mod.normalize_actions({
+            "move": self.move_ctrl.GetValue().strip(),
+            "label": self.label_ctrl.GetValue().strip(),
+            "mark_read": self.mark_read_ctrl.GetValue(),
+            "mark_favorite": self.mark_fav_ctrl.GetValue(),
+            "delete": self.delete_ctrl.GetValue(),
+            "skip_notification": self.skip_notify_ctrl.GetValue(),
+        })
+
+    def _on_ok(self, event):
+        if filters_mod.actions_are_empty(self._collect_actions()):
+            wx.MessageBox(
+                "Choose at least one action for this rule (move, label, mark, delete, or skip notification).",
+                "No Actions",
+                wx.ICON_WARNING,
+                self,
+            )
+            return
+        event.Skip()  # allow the dialog to close with wx.ID_OK
+
+    def get_result(self):
+        name = self.name_ctrl.GetValue().strip() or "Filter"
+        return (
+            name,
+            self._collect_rule(),
+            self._collect_actions(),
+            bool(self.enabled_ctrl.GetValue()),
+            bool(self.stop_ctrl.GetValue()),
+        )
+
+
+class FilterRulesDialog(wx.Dialog):
+    """Accessible manager for the ordered Filter Rules pipeline."""
+
+    def __init__(self, parent, provider):
+        super().__init__(parent, title="Filter Rules",
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        self.provider = provider
+        self._rules = []
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+        outer.Add(
+            wx.StaticText(self, label="Rules run top to bottom for each incoming article, like email filters."),
+            0, wx.ALL, 8,
+        )
+
+        body = wx.BoxSizer(wx.HORIZONTAL)
+        self.list_ctrl = wx.ListBox(self, style=wx.LB_SINGLE)
+        self.list_ctrl.SetName("Filter rules")
+        self.list_ctrl.Bind(wx.EVT_LISTBOX_DCLICK, lambda e: self._on_edit())
+        body.Add(self.list_ctrl, 1, wx.EXPAND | wx.ALL, 8)
+
+        btn_col = wx.BoxSizer(wx.VERTICAL)
+        self._add_btn = wx.Button(self, label="&Add...")
+        self._edit_btn = wx.Button(self, label="&Edit...")
+        self._delete_btn = wx.Button(self, label="De&lete")
+        self._up_btn = wx.Button(self, label="Move &Up")
+        self._down_btn = wx.Button(self, label="Move &Down")
+        self._toggle_btn = wx.Button(self, label="En&able/Disable")
+        self._apply_btn = wx.Button(self, label="Apply to E&xisting Articles")
+        for b in (self._add_btn, self._edit_btn, self._delete_btn, self._up_btn,
+                  self._down_btn, self._toggle_btn, self._apply_btn):
+            btn_col.Add(b, 0, wx.EXPAND | wx.BOTTOM, 6)
+        body.Add(btn_col, 0, wx.ALL, 8)
+        outer.Add(body, 1, wx.EXPAND)
+
+        close_btns = self.CreateStdDialogButtonSizer(wx.CLOSE)
+        if close_btns:
+            outer.Add(close_btns, 0, wx.EXPAND | wx.ALL, 8)
+
+        self.SetSizer(outer)
+        self.SetSize((720, 480))
+
+        self._add_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_add())
+        self._edit_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_edit())
+        self._delete_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_delete())
+        self._up_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_move(-1))
+        self._down_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_move(1))
+        self._toggle_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_toggle())
+        self._apply_btn.Bind(wx.EVT_BUTTON, lambda e: self._on_apply_existing())
+        self.Bind(wx.EVT_BUTTON, lambda e: self.EndModal(wx.ID_CLOSE), id=wx.ID_CLOSE)
+
+        self._reload()
+
+    def _reload(self, select_index=None):
+        try:
+            self._rules = list(self.provider.get_filter_rules() or [])
+        except Exception:
+            log.exception("Failed to load filter rules")
+            self._rules = []
+        self.list_ctrl.Clear()
+        for rule in self._rules:
+            self.list_ctrl.Append(self._format_rule(rule))
+        if self._rules:
+            idx = 0 if select_index is None else max(0, min(select_index, len(self._rules) - 1))
+            self.list_ctrl.SetSelection(idx)
+
+    @staticmethod
+    def _format_rule(rule):
+        name = rule.get("name") or "Filter"
+        cond = smart_folders_mod.describe_rule(rule.get("rule"))
+        acts = filters_mod.describe_actions(rule.get("actions"))
+        label = f"{name}: if {cond} then {acts}"
+        if rule.get("stop"):
+            label += " [stop]"
+        if not rule.get("enabled", True):
+            label += " (disabled)"
+        return label
+
+    def _selected_index(self):
+        idx = self.list_ctrl.GetSelection()
+        return idx if idx != wx.NOT_FOUND else None
+
+    def _on_add(self):
+        dlg = FilterRuleEditorDialog(self)
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                name, rule, actions, enabled, stop = dlg.get_result()
+                try:
+                    self.provider.create_filter_rule(name, rule, actions, enabled=enabled, stop=stop)
+                except Exception:
+                    log.exception("Error creating filter rule")
+                    wx.MessageBox("Could not create the rule.", "Error", wx.ICON_ERROR, self)
+                    return
+                self._reload(select_index=len(self._rules))
+        finally:
+            dlg.Destroy()
+
+    def _on_edit(self):
+        idx = self._selected_index()
+        if idx is None:
+            return
+        rule = self._rules[idx]
+        dlg = FilterRuleEditorDialog(
+            self,
+            name=rule.get("name"),
+            rule=rule.get("rule"),
+            actions=rule.get("actions"),
+            enabled=rule.get("enabled", True),
+            stop=rule.get("stop", False),
+        )
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                name, cond, actions, enabled, stop = dlg.get_result()
+                try:
+                    self.provider.update_filter_rule(
+                        rule["id"], name=name, rule=cond, actions=actions,
+                        enabled=enabled, stop=stop,
+                    )
+                except Exception:
+                    log.exception("Error updating filter rule")
+                    wx.MessageBox("Could not update the rule.", "Error", wx.ICON_ERROR, self)
+                    return
+                self._reload(select_index=idx)
+        finally:
+            dlg.Destroy()
+
+    def _on_delete(self):
+        idx = self._selected_index()
+        if idx is None:
+            return
+        rule = self._rules[idx]
+        name = rule.get("name") or "this rule"
+        if wx.MessageBox(
+            f'Delete filter rule "{name}"? Articles it already filed are not changed.',
+            "Delete Rule", wx.YES_NO | wx.ICON_QUESTION, self,
+        ) != wx.YES:
+            return
+        try:
+            self.provider.delete_filter_rule(rule["id"])
+        except Exception:
+            log.exception("Error deleting filter rule")
+        self._reload(select_index=idx)
+
+    def _on_move(self, delta):
+        idx = self._selected_index()
+        if idx is None:
+            return
+        new_idx = idx + delta
+        if new_idx < 0 or new_idx >= len(self._rules):
+            return
+        order = [r["id"] for r in self._rules]
+        order[idx], order[new_idx] = order[new_idx], order[idx]
+        try:
+            self.provider.reorder_filter_rules(order)
+        except Exception:
+            log.exception("Error reordering filter rules")
+            return
+        self._reload(select_index=new_idx)
+
+    def _on_toggle(self):
+        idx = self._selected_index()
+        if idx is None:
+            return
+        rule = self._rules[idx]
+        try:
+            self.provider.update_filter_rule(rule["id"], enabled=not rule.get("enabled", True))
+        except Exception:
+            log.exception("Error toggling filter rule")
+            return
+        self._reload(select_index=idx)
+
+    def _on_apply_existing(self):
+        if wx.MessageBox(
+            "Run all enabled rules against every existing article now? "
+            "This may move, label, or delete articles.",
+            "Apply to Existing Articles", wx.YES_NO | wx.ICON_QUESTION, self,
+        ) != wx.YES:
+            return
+        self._apply_btn.Disable()
+
+        def _worker():
+            try:
+                result = self.provider.apply_filter_rules_to_existing()
+            except Exception as e:
+                result = {"error": str(e)}
+            wx.CallAfter(_done, result)
+
+        def _done(result):
+            try:
+                self._apply_btn.Enable()
+            except Exception:
+                pass
+            if result.get("error"):
+                wx.MessageBox(f"Could not apply rules.\n\n{result['error']}", "Error", wx.ICON_ERROR, self)
+                return
+            wx.MessageBox(
+                f"Scanned {result.get('scanned', 0)} articles; {result.get('changed', 0)} matched a rule.",
+                "Filter Rules Applied", wx.ICON_INFORMATION, self,
+            )
+            self._reload(select_index=self._selected_index())
+
+        threading.Thread(target=_worker, daemon=True).start()

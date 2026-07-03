@@ -92,7 +92,7 @@ def test_describe_rule_is_human_readable():
 
 
 def test_smart_folder_dialog_uses_rule_engine_constants():
-    assert SmartFolderDialog._TEXT_FIELDS == ("title", "content", "description", "author", "feed", "url")
+    assert SmartFolderDialog._TEXT_FIELDS == ("title", "content", "description", "author", "feed", "url", "tag")
     assert SmartFolderDialog._BOOL_MAP["opened_yes"] == ("opened", True)
     assert SmartFolderDialog._BOOL_MAP["updated_no"] == ("updated", False)
 

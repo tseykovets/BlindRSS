@@ -1000,6 +1000,35 @@ def _should_retry_refresh_error(error: Exception) -> bool:
     return False
 
 
+def _resolve_feed_title_update(stored_title, title_is_custom, prev_upstream_title, fetched_title, feed_url):
+    """Decide what to store for a feed's title after a refresh (issue #43).
+
+    The user's custom name must always win over the feed-provided <title>.
+    Returns (title_to_store, title_is_custom_to_store). A stored title that
+    matches neither the previous upstream title, the feed URL, nor an empty
+    placeholder is treated as a user rename even when title_is_custom was
+    never set (renames made in builds that predate the flag) and is flagged
+    custom so it survives future refreshes.
+    """
+    stored = str(stored_title or "").strip()
+    fetched = str(fetched_title or "").strip()
+    prev_upstream = str(prev_upstream_title or "").strip()
+    url = str(feed_url or "").strip()
+
+    if bool(int(title_is_custom or 0)) and stored:
+        return stored, 1
+
+    refresh_managed = (
+        not stored
+        or stored == url
+        or stored == fetched
+        or (prev_upstream and stored == prev_upstream)
+    )
+    if refresh_managed:
+        return (fetched or stored or url), 0
+    return stored, 1
+
+
 _SSL_CERTIFICATE_ERROR_MARKERS = (
     "ssl certificate problem",
     "certificate verify failed",
@@ -1365,7 +1394,7 @@ class LocalProvider(RSSProvider):
         try:
             c = conn.cursor()
             c.execute(
-                "SELECT id, url, title, category, etag, last_modified, COALESCE(title_is_custom, 0) "
+                "SELECT id, url, title, category, etag, last_modified, COALESCE(title_is_custom, 0), upstream_title "
                 "FROM feeds WHERE id = ?",
                 (feed_id,),
             )
@@ -1463,7 +1492,7 @@ class LocalProvider(RSSProvider):
             c = conn.cursor()
             # Fetch etag/last_modified for conditional get plus metadata for UI updates
             c.execute(
-                "SELECT id, url, title, category, etag, last_modified, COALESCE(title_is_custom, 0) FROM feeds"
+                "SELECT id, url, title, category, etag, last_modified, COALESCE(title_is_custom, 0), upstream_title FROM feeds"
             )
             feeds = c.fetchall()
         finally:
@@ -1492,7 +1521,7 @@ class LocalProvider(RSSProvider):
             c = conn.cursor()
             placeholders = ",".join(["?"] * len(ordered_ids))
             c.execute(
-                "SELECT id, url, title, category, etag, last_modified, COALESCE(title_is_custom, 0) "
+                "SELECT id, url, title, category, etag, last_modified, COALESCE(title_is_custom, 0), upstream_title "
                 f"FROM feeds WHERE id IN ({placeholders})",
                 ordered_ids,
             )
@@ -1518,7 +1547,7 @@ class LocalProvider(RSSProvider):
         respect_failure_cooldown: bool = False,
     ):
         # Each thread gets its own connection
-        feed_id, feed_url, feed_title, feed_category, etag, last_modified, title_is_custom = feed_row
+        feed_id, feed_url, feed_title, feed_category, etag, last_modified, title_is_custom, upstream_title = feed_row
         status = "ok"
         new_items = 0
         new_article_summaries = []
@@ -1799,12 +1828,12 @@ class LocalProvider(RSSProvider):
                     c.execute("SELECT 1 FROM feeds WHERE id = ? LIMIT 1", (feed_id,))
                     if not c.fetchone():
                         return
-                    title_to_store = (
-                        str(feed_title or "").strip() if bool(int(title_is_custom or 0)) and str(feed_title or "").strip() else final_title
+                    title_to_store, custom_to_store = _resolve_feed_title_update(
+                        feed_title, title_is_custom, upstream_title, final_title, feed_url
                     )
                     c.execute(
-                        "UPDATE feeds SET title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                        (title_to_store, None, None, feed_id),
+                        "UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                        (title_to_store, custom_to_store, str(final_title or "").strip(), None, None, feed_id),
                     )
                     conn.commit()
                     deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
@@ -1917,12 +1946,12 @@ class LocalProvider(RSSProvider):
                     c.execute("SELECT 1 FROM feeds WHERE id = ? LIMIT 1", (feed_id,))
                     if not c.fetchone():
                         return
-                    title_to_store = (
-                        str(feed_title or "").strip() if bool(int(title_is_custom or 0)) and str(feed_title or "").strip() else final_title
+                    title_to_store, custom_to_store = _resolve_feed_title_update(
+                        feed_title, title_is_custom, upstream_title, final_title, feed_url
                     )
                     c.execute(
-                        "UPDATE feeds SET title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                        (title_to_store, None, None, feed_id),
+                        "UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                        (title_to_store, custom_to_store, str(final_title or "").strip(), None, None, feed_id),
                     )
                     conn.commit()
                     deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
@@ -2093,12 +2122,12 @@ class LocalProvider(RSSProvider):
                     if not c.fetchone():
                         return
                     # Clear conditional-cache metadata (HTML listing refresh does not use ETag/Last-Modified)
-                    title_to_store = (
-                        str(feed_title or "").strip() if bool(int(title_is_custom or 0)) and str(feed_title or "").strip() else final_title
+                    title_to_store, custom_to_store = _resolve_feed_title_update(
+                        feed_title, title_is_custom, upstream_title, final_title, feed_url
                     )
                     c.execute(
-                        "UPDATE feeds SET title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                        (title_to_store, None, None, feed_id),
+                        "UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                        (title_to_store, custom_to_store, str(final_title or "").strip(), None, None, feed_id),
                     )
                     conn.commit()
                     deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
@@ -2480,17 +2509,18 @@ class LocalProvider(RSSProvider):
                     return
                 
                 final_title = d.feed.get('title', final_title)
-                title_to_store = (
-                    str(feed_title or "").strip() if bool(int(title_is_custom or 0)) and str(feed_title or "").strip() else final_title
+                title_to_store, custom_to_store = _resolve_feed_title_update(
+                    feed_title, title_is_custom, upstream_title, final_title, feed_url
                 )
+                upstream_to_store = str(final_title or "").strip()
                 if canonical_feed_url:
                     c.execute(
-                        "UPDATE feeds SET url = ?, title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                        (canonical_feed_url, title_to_store, new_etag, new_last_modified, feed_id),
+                        "UPDATE feeds SET url = ?, title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                        (canonical_feed_url, title_to_store, custom_to_store, upstream_to_store, new_etag, new_last_modified, feed_id),
                     )
                 else:
-                    c.execute("UPDATE feeds SET title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                              (title_to_store, new_etag, new_last_modified, feed_id))
+                    c.execute("UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                              (title_to_store, custom_to_store, upstream_to_store, new_etag, new_last_modified, feed_id))
                 
                 # Pre-fetch existing articles to avoid N+1 SELECTs
                 c.execute(
@@ -3787,8 +3817,8 @@ class LocalProvider(RSSProvider):
         try:
             c = conn.cursor()
             feed_id = str(uuid.uuid4())
-            c.execute("INSERT INTO feeds (id, url, title, category, icon_url) VALUES (?, ?, ?, ?, ?)",
-                      (feed_id, real_url, title, category, ""))
+            c.execute("INSERT INTO feeds (id, url, title, upstream_title, category, icon_url) VALUES (?, ?, ?, ?, ?, ?)",
+                      (feed_id, real_url, title, title, category, ""))
             conn.commit()
             return True
         finally:
@@ -3934,8 +3964,15 @@ class LocalProvider(RSSProvider):
             c = conn.cursor()
             # Clear the custom-title flag so the next refresh restores the feed-provided title.
             # Also clear validators so a subsequent refresh re-fetches metadata promptly.
+            # Restore the last-known upstream title immediately (and make
+            # title == upstream_title) so the rename-detection in
+            # _resolve_feed_title_update sees the title as refresh-managed
+            # again instead of re-flagging the old custom name (issue #43).
             c.execute(
-                "UPDATE feeds SET title_is_custom = 0, etag = NULL, last_modified = NULL WHERE id = ?",
+                "UPDATE feeds SET title_is_custom = 0, "
+                "title = COALESCE(NULLIF(upstream_title, ''), title), "
+                "upstream_title = COALESCE(NULLIF(upstream_title, ''), title), "
+                "etag = NULL, last_modified = NULL WHERE id = ?",
                 (feed_id,),
             )
             conn.commit()

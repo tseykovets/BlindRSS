@@ -54,9 +54,11 @@ def _insert_feed(feed_url: str = "https://example.com/feed.xml") -> str:
     feed_id = str(uuid.uuid4())
     conn = db.get_connection()
     try:
+        # upstream_title == title marks the seed title as feed-provided, so
+        # refresh keeps syncing it (a mismatch would read as a user rename).
         conn.execute(
-            "INSERT INTO feeds (id, url, title, category, icon_url) VALUES (?, ?, ?, ?, ?)",
-            (feed_id, feed_url, "Compatibility Feed", "Tests", ""),
+            "INSERT INTO feeds (id, url, title, upstream_title, category, icon_url) VALUES (?, ?, ?, ?, ?, ?)",
+            (feed_id, feed_url, "Compatibility Feed", "Compatibility Feed", "Tests", ""),
         )
         conn.commit()
     finally:

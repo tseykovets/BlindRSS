@@ -194,12 +194,15 @@ def test_local_feed_reset_title_restores_remote_title_on_refresh():
             finally:
                 conn.close()
 
+            _FeedHandler.titles["/feed1"] = "Remote Feed Title Before Reset"
             assert provider.refresh_feed(feed_id) is True
             assert provider.update_feed(feed_id, title="My Custom Podcasts") is True
             assert provider.reset_feed_title(feed_id) is True
 
+            # Reset restores the feed-provided title immediately (issue #43),
+            # not only after the next refresh.
             title, title_is_custom = _get_feed_row(feed_id)
-            assert title == "My Custom Podcasts"
+            assert title == "Remote Feed Title Before Reset"
             assert int(title_is_custom or 0) == 0
 
             _FeedHandler.titles["/feed1"] = "Remote Feed Title Reset"

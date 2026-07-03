@@ -564,6 +564,15 @@ def init_db():
             c.execute("ALTER TABLE feeds ADD COLUMN title_is_custom INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
+        # Last feed-provided <title> seen on refresh (issue #43). Kept separate
+        # from `title` so a user-renamed feed is detected even when
+        # title_is_custom was never set (renames made in builds that predate
+        # the flag): refresh only auto-updates `title` while it still matches
+        # what the feed itself last reported (or the URL/empty placeholder).
+        try:
+            c.execute("ALTER TABLE feeds ADD COLUMN upstream_title TEXT")
+        except sqlite3.OperationalError:
+            pass
         # Per-feed image-alt-text override: NULL = inherit global setting, 0 = off, 1 = on.
         try:
             c.execute("ALTER TABLE feeds ADD COLUMN show_images INTEGER")

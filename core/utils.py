@@ -455,6 +455,50 @@ def _impersonated_headers(headers: dict) -> dict:
     return final_headers
 
 
+def encode_non_ascii_url(url: str) -> str:
+    """Make a URL with non-ASCII parts request-safe (issue #41).
+
+    Converts an internationalized hostname to its Punycode/IDNA form (e.g.
+    пример.рф -> xn--e1afmkfd.xn--p1ai) and percent-encodes non-ASCII
+    characters in the path, query, and fragment per RFC 3986. ASCII URLs are
+    returned unchanged, and existing percent-escapes are never double-encoded.
+    Applied only at the request layer — stored/displayed URLs stay as typed.
+    """
+    text = str(url or "").strip()
+    if not text or text.isascii():
+        return text
+    try:
+        parts = urllib.parse.urlsplit(text)
+
+        host = parts.hostname or ""
+        if host and not host.isascii():
+            try:
+                # UTS-46 mapping matches how browsers resolve IDNs; the idna
+                # package ships as a requests dependency.
+                import idna
+                host = idna.encode(host, uts46=True).decode("ascii")
+            except Exception:
+                host = host.encode("idna").decode("ascii")
+
+        netloc = host
+        if parts.port is not None:
+            netloc = f"{netloc}:{parts.port}"
+        if parts.username:
+            userinfo = urllib.parse.quote(parts.username, safe="%")
+            if parts.password:
+                userinfo += ":" + urllib.parse.quote(parts.password, safe="%")
+            netloc = f"{userinfo}@{netloc}"
+
+        # "%" stays in safe so already-encoded sequences survive unchanged.
+        path = urllib.parse.quote(parts.path, safe="%/:@!$&'()*+,;=~-._")
+        query = urllib.parse.quote(parts.query, safe="%/:@!$&'()*+,;=~-._?")
+        fragment = urllib.parse.quote(parts.fragment, safe="%/:@!$&'()*+,;=~-._?")
+
+        return urllib.parse.urlunsplit((parts.scheme, netloc, path, query, fragment))
+    except Exception:
+        return text
+
+
 def safe_requests_get(url, *, impersonate: bool = False, **kwargs):
     """Wrapper for requests.get with default browser headers.
 
@@ -463,6 +507,7 @@ def safe_requests_get(url, *, impersonate: bool = False, **kwargs):
     WAFs that reset non-browser connections (issue #29). Falls back to plain
     ``requests`` when curl_cffi is unavailable, so behavior degrades gracefully.
     """
+    url = encode_non_ascii_url(url)
     headers = kwargs.pop("headers", {})
     if impersonate and CURL_CFFI_AVAILABLE:
         final_headers = _impersonated_headers(headers)
@@ -477,6 +522,7 @@ def safe_requests_get(url, *, impersonate: bool = False, **kwargs):
 
 def safe_requests_head(url, *, impersonate: bool = False, **kwargs):
     """Wrapper for requests.head with default browser headers (see safe_requests_get)."""
+    url = encode_non_ascii_url(url)
     headers = kwargs.pop("headers", {})
     if impersonate and CURL_CFFI_AVAILABLE:
         final_headers = _impersonated_headers(headers)

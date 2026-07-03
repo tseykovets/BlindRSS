@@ -1000,6 +1000,28 @@ def _should_retry_refresh_error(error: Exception) -> bool:
     return False
 
 
+_SSL_CERTIFICATE_ERROR_MARKERS = (
+    "ssl certificate problem",
+    "certificate verify failed",
+    "certificate_verify_failed",
+    "unable to get local issuer certificate",
+    "self-signed certificate",
+    "self signed certificate",
+    "certificate has expired",
+    "curl: (60)",
+    "curl: (77)",
+)
+
+
+def _looks_like_ssl_certificate_error(error: Exception) -> bool:
+    """True for certificate-validation failures (untrusted issuer, self-signed,
+    expired, incomplete chain) from either the requests or curl_cffi transport."""
+    if isinstance(error, requests.exceptions.SSLError):
+        return True
+    text = str(error or "").lower()
+    return any(marker in text for marker in _SSL_CERTIFICATE_ERROR_MARKERS)
+
+
 def _should_escalate_to_impersonation(error: Exception) -> bool:
     """True for transport/connection failures a browser-TLS impersonation retry might
     get past -- e.g. anti-bot WAFs that reset the connection (issue #29).
@@ -1621,6 +1643,13 @@ class LocalProvider(RSSProvider):
         feed_impersonate_mode = str(feed_settings.get("impersonate") or "auto").lower()
         if feed_impersonate_mode not in ("auto", "always", "never"):
             feed_impersonate_mode = "auto"
+        # Issue #42: public feeds behind broken certificates (self-signed,
+        # missing intermediates, expired) should still load. When a fetch fails
+        # certificate validation we log a warning and retry once without
+        # verification. Set "ignore_feed_ssl_errors": false in config.json to
+        # enforce strict validation instead. Feed retrieval only — other
+        # network operations keep full verification.
+        ignore_feed_ssl_errors = bool(self.config.get("ignore_feed_ssl_errors", True))
         feed_custom_headers = feed_settings.get("custom_headers")
         if not isinstance(feed_custom_headers, dict):
             feed_custom_headers = {}
@@ -2223,13 +2252,32 @@ class LocalProvider(RSSProvider):
                     else:
                         impersonate_now = do_impersonation_next
                     try:
-                        resp = utils.safe_requests_get(
-                            feed_url,
-                            headers=headers,
-                            timeout=direct_fetch_timeout,
-                            impersonate=impersonate_now,
-                            proxies=feed_proxies,
-                        )
+                        try:
+                            resp = utils.safe_requests_get(
+                                feed_url,
+                                headers=headers,
+                                timeout=direct_fetch_timeout,
+                                impersonate=impersonate_now,
+                                proxies=feed_proxies,
+                            )
+                        except Exception as fetch_exc:
+                            if not (ignore_feed_ssl_errors and _looks_like_ssl_certificate_error(fetch_exc)):
+                                raise
+                            log.warning(
+                                "SSL certificate problem for feed id=%s url=%s (%s); "
+                                "retrying without certificate verification (issue #42)",
+                                feed_id,
+                                feed_url,
+                                fetch_exc,
+                            )
+                            resp = utils.safe_requests_get(
+                                feed_url,
+                                headers=headers,
+                                timeout=direct_fetch_timeout,
+                                impersonate=impersonate_now,
+                                proxies=feed_proxies,
+                                verify=False,
+                            )
                         resp = _retry_feed_not_acceptable(
                             resp,
                             feed_url,

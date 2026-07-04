@@ -83,7 +83,7 @@ class MainFrame(wx.Frame):
     def __init__(self, provider: RSSProvider, config_manager):
         start_maximized = bool(config_manager.get("start_maximized", False))
         style = wx.DEFAULT_FRAME_STYLE
-        super().__init__(None, title="BlindRSS", size=(1000, 700), style=style)
+        super().__init__(None, title=_("BlindRSS"), size=(1000, 700), style=style)
         self.provider = provider
         self.config_manager = config_manager
         self._start_maximized = start_maximized
@@ -266,7 +266,7 @@ class MainFrame(wx.Frame):
                     msg += "\nWould you like to install them automatically (via winget/Ninite) and add them to PATH?"
                     msg += "\n\nTip: You can disable this prompt in Settings > General."
 
-                    if wx.MessageBox(msg, "Install Dependencies", wx.YES_NO | wx.ICON_QUESTION) == wx.YES:
+                    if wx.MessageBox(msg, _("Install Dependencies"), wx.YES_NO | wx.ICON_QUESTION) == wx.YES:
                         self.SetStatusText("Installing dependencies...")
                         # Run in thread to avoid freezing
                         threading.Thread(
@@ -279,7 +279,7 @@ class MainFrame(wx.Frame):
                     msg += "\n\nThis macOS/Linux build should already bundle these tools."
                     msg += f"\nIf they still appear missing, see the log: {log_path}"
                     msg += "\n\nTip: You can disable this prompt in Settings > General."
-                    wx.MessageBox(msg, "Missing Dependencies", wx.OK | wx.ICON_WARNING)
+                    wx.MessageBox(msg, _("Missing Dependencies"), wx.OK | wx.ICON_WARNING)
         except Exception as e:
             log.error(f"Dependency check failed: {e}")
 
@@ -329,7 +329,11 @@ class MainFrame(wx.Frame):
                 taskbar=bool(data.get("taskbar")),
             )
         except Exception as e:
-            wx.MessageBox(f"Could not add shortcuts:\n{e}", "Shortcuts", wx.ICON_ERROR)
+            wx.MessageBox(
+                _("Could not add shortcuts:\n{error}").format(error=e),
+                _("Shortcuts"),
+                wx.ICON_ERROR,
+            )
             return
 
         lines = []
@@ -344,7 +348,7 @@ class MainFrame(wx.Frame):
             lines.append("No shortcut actions were performed.")
 
         failed = any(not bool(results.get(k, (True, ""))[0]) for k in results.keys())
-        wx.MessageBox("\n".join(lines), "Shortcuts", wx.ICON_WARNING if failed else wx.ICON_INFORMATION)
+        wx.MessageBox("\n".join(lines), _("Shortcuts"), wx.ICON_WARNING if failed else wx.ICON_INFORMATION)
 
     def init_ui(self):
         # Field 0 keeps the existing user-facing transient messages (filter-match
@@ -373,7 +377,7 @@ class MainFrame(wx.Frame):
             self.search_ctrl.SetDescriptiveText("Filter current view (Enter)")
         except Exception:
             try:
-                self.search_ctrl.SetHint("Filter current view (Enter)")
+                self.search_ctrl.SetHint(_("Filter current view (Enter)"))
             except Exception:
                 pass
         try:
@@ -584,11 +588,11 @@ class MainFrame(wx.Frame):
                 self._persistent_search_items[int(item.GetId())] = query
                 self.Bind(wx.EVT_MENU, self.on_persistent_search_select, item)
         else:
-            empty_item = menu.Append(wx.ID_ANY, "(No saved searches)")
+            empty_item = menu.Append(wx.ID_ANY, _("(No saved searches)"))
             empty_item.Enable(False)
 
         menu.AppendSeparator()
-        manage_item = menu.Append(wx.ID_ANY, "Configure Persistent Search...")
+        manage_item = menu.Append(wx.ID_ANY, _("Configure Persistent Search..."))
         self.Bind(wx.EVT_MENU, self.on_configure_persistent_search, manage_item)
 
         try:
@@ -2138,7 +2142,7 @@ class MainFrame(wx.Frame):
 
         if not has_chapters:
             try:
-                empty_item = submenu.Append(wx.ID_ANY, "No chapters available")
+                empty_item = submenu.Append(wx.ID_ANY, _("No chapters available"))
                 empty_item.Enable(False)
                 self._player_chapter_dynamic_item_ids.append(int(empty_item.GetId()))
             except Exception:
@@ -2169,8 +2173,8 @@ class MainFrame(wx.Frame):
         try:
             self._player_chapters_show_item = submenu.Append(
                 wx.ID_ANY,
-                "Show Chapters...",
-                "Show chapter list",
+                _("Show Chapters..."),
+                _("Show chapter list"),
             )
             self.Bind(wx.EVT_MENU, self.on_player_show_chapters, self._player_chapters_show_item)
             self._player_chapter_static_item_ids.append(int(self._player_chapters_show_item.GetId()))
@@ -2180,8 +2184,8 @@ class MainFrame(wx.Frame):
         try:
             self._player_chapters_prev_item = submenu.Append(
                 wx.ID_ANY,
-                "Previous Chapter (Ctrl+Shift+Left)",
-                "Jump to previous chapter",
+                _("Previous Chapter (Ctrl+Shift+Left)"),
+                _("Jump to previous chapter"),
             )
             self.Bind(wx.EVT_MENU, self.on_player_prev_chapter, self._player_chapters_prev_item)
             self._player_chapter_static_item_ids.append(int(self._player_chapters_prev_item.GetId()))
@@ -2191,8 +2195,8 @@ class MainFrame(wx.Frame):
         try:
             self._player_chapters_next_item = submenu.Append(
                 wx.ID_ANY,
-                "Next Chapter (Ctrl+Shift+Right)",
-                "Jump to next chapter",
+                _("Next Chapter (Ctrl+Shift+Right)"),
+                _("Jump to next chapter"),
             )
             self.Bind(wx.EVT_MENU, self.on_player_next_chapter, self._player_chapters_next_item)
             self._player_chapter_static_item_ids.append(int(self._player_chapters_next_item.GetId()))
@@ -3228,8 +3232,8 @@ class MainFrame(wx.Frame):
     def on_manage_filter_rules(self, event=None):
         if not getattr(self.provider, "supports_filter_rules", lambda: False)():
             wx.MessageBox(
-                "The current provider does not support filter rules.",
-                "Not Supported",
+                _("The current provider does not support filter rules."),
+                _("Not Supported"),
                 wx.ICON_INFORMATION,
             )
             return
@@ -3256,7 +3260,7 @@ class MainFrame(wx.Frame):
                     self.provider.create_smart_folder(name, rule)
                 except Exception:
                     log.exception("Error creating smart folder")
-                    wx.MessageBox("Could not create the Smart Folder.", "Error", wx.ICON_ERROR)
+                    wx.MessageBox(_("Could not create the Smart Folder."), _("Error"), wx.ICON_ERROR)
                     return
                 self.refresh_feeds()
         finally:
@@ -3280,7 +3284,7 @@ class MainFrame(wx.Frame):
                     self.provider.update_smart_folder(smart_id, name=name, rule=rule)
                 except Exception:
                     log.exception("Error updating smart folder")
-                    wx.MessageBox("Could not update the Smart Folder.", "Error", wx.ICON_ERROR)
+                    wx.MessageBox(_("Could not update the Smart Folder."), _("Error"), wx.ICON_ERROR)
                     return
                 self.refresh_feeds()
         finally:
@@ -3296,8 +3300,8 @@ class MainFrame(wx.Frame):
             folder = None
         name = (folder or {}).get("name") or "this Smart Folder"
         if wx.MessageBox(
-            f'Delete Smart Folder "{name}"? Your articles are not affected.',
-            "Delete Smart Folder",
+            _('Delete Smart Folder "{name}"? Your articles are not affected.').format(name=name),
+            _("Delete Smart Folder"),
             wx.YES_NO | wx.ICON_QUESTION,
         ) != wx.YES:
             return
@@ -3364,15 +3368,15 @@ class MainFrame(wx.Frame):
         in_deleted_view = self._is_deleted_view(getattr(self, "current_feed_id", "") or "")
 
         menu = wx.Menu()
-        open_item = menu.Append(wx.ID_ANY, "Open Article")
-        open_browser_item = menu.Append(wx.ID_ANY, "Open in Default Browser")
+        open_item = menu.Append(wx.ID_ANY, _("Open Article"))
+        open_browser_item = menu.Append(wx.ID_ANY, _("Open in Default Browser"))
         menu.AppendSeparator()
         if multi:
-            mark_read_item = menu.Append(wx.ID_ANY, f"Mark {count} as &Read")
-            mark_unread_item = menu.Append(wx.ID_ANY, f"Mark {count} as &Unread")
+            mark_read_item = menu.Append(wx.ID_ANY, _("Mark {count} as &Read").format(count=count))
+            mark_unread_item = menu.Append(wx.ID_ANY, _("Mark {count} as &Unread").format(count=count))
         else:
-            mark_read_item = menu.Append(wx.ID_ANY, "Mark as &Read")
-            mark_unread_item = menu.Append(wx.ID_ANY, "Mark as &Unread")
+            mark_read_item = menu.Append(wx.ID_ANY, _("Mark as &Read"))
+            mark_unread_item = menu.Append(wx.ID_ANY, _("Mark as &Unread"))
         delete_item = None
         if (
             valid_article_idx
@@ -3380,28 +3384,40 @@ class MainFrame(wx.Frame):
             and self._supports_article_delete()
             and not MainFrame._is_feed_refresh_active(self)
         ):
-            delete_label = f"Delete {count} Articles\tDel" if multi else "Delete Article\tDel"
+            delete_label = (
+                _("Delete {count} Articles\tDel").format(count=count)
+                if multi
+                else _("Delete Article\tDel")
+            )
             delete_item = menu.Append(wx.ID_ANY, delete_label)
         elif valid_article_idx and in_deleted_view and self._supports_purge_deleted():
             delete_label = (
-                f"Delete {count} Articles Permanently\tDel"
+                _("Delete {count} Articles Permanently\tDel").format(count=count)
                 if multi
-                else "Delete Article Permanently\tDel"
+                else _("Delete Article Permanently\tDel")
             )
             delete_item = menu.Append(wx.ID_ANY, delete_label)
         restore_item = None
         if valid_article_idx and in_deleted_view and self._supports_restore_deleted():
-            restore_label = f"Restore {count} Articles" if multi else "Restore Article"
+            restore_label = (
+                _("Restore {count} Articles").format(count=count)
+                if multi
+                else _("Restore Article")
+            )
             restore_item = menu.Append(wx.ID_ANY, restore_label)
         menu.AppendSeparator()
-        copy_item = menu.Append(wx.ID_ANY, "Copy Links" if multi else "Copy Link")
+        copy_item = menu.Append(wx.ID_ANY, _("Copy Links") if multi else _("Copy Link"))
         download_item = None
         if valid_article_idx:
             article_for_menu = self.current_articles[idx]
-            copy_text_label = f"Copy Text ({count} articles)" if multi else "Copy Text"
+            copy_text_label = (
+                _("Copy Text ({count} articles)").format(count=count)
+                if multi
+                else _("Copy Text")
+            )
             copy_text_item = menu.Append(wx.ID_ANY, copy_text_label)
             self.Bind(wx.EVT_MENU, lambda e, ii=list(menu_indices): self.on_copy_texts(ii), copy_text_item)
-            view_description_item = menu.Append(wx.ID_ANY, "View Feed Description...")
+            view_description_item = menu.Append(wx.ID_ANY, _("View Feed Description..."))
             self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_view_feed_description(i), view_description_item)
             if article_for_menu.media_url:
                 # Only offer "Copy Media Link" when media_url is a genuine direct
@@ -3410,16 +3426,16 @@ class MainFrame(wx.Frame):
                 # audio+video direct link, so copying it would just duplicate
                 # "Copy Link" or hand out a split/expiring stream.
                 if self._has_direct_media_link(article_for_menu):
-                    copy_audio_item = menu.Append(wx.ID_ANY, "Copy Media Link")
+                    copy_audio_item = menu.Append(wx.ID_ANY, _("Copy Media Link"))
                     self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_media_link(i), copy_audio_item)
-                download_item = menu.Append(wx.ID_ANY, "Download")
+                download_item = menu.Append(wx.ID_ANY, _("Download"))
                 self.Bind(wx.EVT_MENU, lambda e, a=article_for_menu: self.on_download_article(a), download_item)
             else:
-                detect_audio_item = menu.Append(wx.ID_ANY, "Detect Audio")
+                detect_audio_item = menu.Append(wx.ID_ANY, _("Detect Audio"))
                 self.Bind(wx.EVT_MENU, lambda e, a=article_for_menu: self.on_detect_audio(a), detect_audio_item)
             try:
                 if utils.content_has_images(getattr(article_for_menu, "content", "")):
-                    copy_image_item = menu.Append(wx.ID_ANY, "Copy Image Link")
+                    copy_image_item = menu.Append(wx.ID_ANY, _("Copy Image Link"))
                     self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_image_link(i), copy_image_item)
             except Exception:
                 pass
@@ -3432,25 +3448,31 @@ class MainFrame(wx.Frame):
             if chapter_links:
                 chapter_links_menu = wx.Menu()
                 for chapter, href in chapter_links:
-                    label = f"Open {self._format_player_chapter_menu_label(chapter)}"
+                    label = _("Open {chapter}").format(
+                        chapter=self._format_player_chapter_menu_label(chapter)
+                    )
                     item = chapter_links_menu.Append(wx.ID_ANY, label)
                     self.Bind(
                         wx.EVT_MENU,
                         lambda e, chapter_href=href: self.on_open_chapter_link(chapter_href),
                         item,
                     )
-                menu.AppendSubMenu(chapter_links_menu, "Chapter Links")
+                menu.AppendSubMenu(chapter_links_menu, _("Chapter Links"))
 
             try:
                 if getattr(self.provider, "supports_favorites", lambda: False)() and hasattr(self, "_toggle_favorite_id"):
-                    label = "Remove from Favorites" if getattr(article_for_menu, "is_favorite", False) else "Add to Favorites"
+                    label = (
+                        _("Remove from Favorites")
+                        if getattr(article_for_menu, "is_favorite", False)
+                        else _("Add to Favorites")
+                    )
                     menu.Append(int(self._toggle_favorite_id), f"{label}\tCtrl+D")
             except Exception:
                 pass
 
             try:
                 if not in_deleted_view and self._article_has_history(article_for_menu):
-                    history_item = menu.Append(wx.ID_ANY, "View History...")
+                    history_item = menu.Append(wx.ID_ANY, _("View History..."))
                     self.Bind(
                         wx.EVT_MENU,
                         lambda e, a=article_for_menu: self.on_view_article_history(a),
@@ -3587,7 +3609,7 @@ class MainFrame(wx.Frame):
         if not description:
             description = "No feed description is available for this item."
 
-        dlg = wx.Dialog(self, title="Feed Description", size=(720, 520))
+        dlg = wx.Dialog(self, title=_("Feed Description"), size=(720, 520))
 
         def _on_char_hook(event):
             try:
@@ -3614,8 +3636,8 @@ class MainFrame(wx.Frame):
             sizer.Add(desc_ctrl, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 8)
 
             btns = wx.BoxSizer(wx.HORIZONTAL)
-            copy_btn = wx.Button(dlg, label="Copy")
-            close_btn = wx.Button(dlg, id=wx.ID_CLOSE, label="Close")
+            copy_btn = wx.Button(dlg, label=_("Copy"))
+            close_btn = wx.Button(dlg, id=wx.ID_CLOSE, label=_("Close"))
             btns.Add(copy_btn, 0, wx.RIGHT, 8)
             btns.Add(close_btn, 0)
             sizer.Add(btns, 0, wx.ALIGN_RIGHT | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
@@ -3752,7 +3774,7 @@ class MainFrame(wx.Frame):
         if not article or not article.url:
             return
             
-        wx.MessageBox("Scanning for audio... This may take a few seconds.", "Detect Audio", wx.ICON_INFORMATION)
+        wx.MessageBox(_("Scanning for audio... This may take a few seconds."), _("Detect Audio"), wx.ICON_INFORMATION)
         
         def _worker():
             try:
@@ -3828,8 +3850,8 @@ class MainFrame(wx.Frame):
 
     def _show_delete_blocked_by_refresh_message(self) -> None:
         wx.MessageBox(
-            "Articles cannot be deleted while feeds are refreshing. Try again after the refresh is complete.",
-            "Refresh in Progress",
+            _("Articles cannot be deleted while feeds are refreshing. Try again after the refresh is complete."),
+            _("Refresh in Progress"),
             wx.ICON_INFORMATION,
         )
 
@@ -3961,12 +3983,12 @@ class MainFrame(wx.Frame):
         except Exception:
             versions = []
         if not versions:
-            wx.MessageBox("No change history for this article.", "Article History",
+            wx.MessageBox(_("No change history for this article."), _("Article History"),
                           wx.OK | wx.ICON_INFORMATION, self)
             return
 
         total = len(versions)  # newest-first
-        dlg = wx.Dialog(self, title="Article History",
+        dlg = wx.Dialog(self, title=_("Article History"),
                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         dlg.SetSize((720, 520))
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -4161,8 +4183,8 @@ class MainFrame(wx.Frame):
 
         if not self._supports_article_delete():
             wx.MessageBox(
-                "This provider does not support deleting articles.",
-                "Not Supported",
+                _("This provider does not support deleting articles."),
+                _("Not Supported"),
                 wx.ICON_INFORMATION,
             )
             return
@@ -4180,7 +4202,7 @@ class MainFrame(wx.Frame):
         if confirm:
             prompt = self._delete_confirm_prompt(indices, count)
             try:
-                ok = wx.MessageBox(prompt, "Confirm Delete", wx.YES_NO | wx.ICON_WARNING)
+                ok = wx.MessageBox(prompt, _("Confirm Delete"), wx.YES_NO | wx.ICON_WARNING)
             except Exception:
                 ok = wx.NO
             if ok != wx.YES:
@@ -4225,8 +4247,8 @@ class MainFrame(wx.Frame):
         """Permanently delete the given Deleted-view rows."""
         if not self._supports_purge_deleted():
             wx.MessageBox(
-                "This provider does not support permanently deleting articles.",
-                "Not Supported",
+                _("This provider does not support permanently deleting articles."),
+                _("Not Supported"),
                 wx.ICON_INFORMATION,
             )
             return
@@ -4244,7 +4266,7 @@ class MainFrame(wx.Frame):
                 else f"Permanently delete {count} articles? They cannot be restored."
             )
             try:
-                ok = wx.MessageBox(prompt, "Confirm Permanent Delete", wx.YES_NO | wx.ICON_WARNING)
+                ok = wx.MessageBox(prompt, _("Confirm Permanent Delete"), wx.YES_NO | wx.ICON_WARNING)
             except Exception:
                 ok = wx.NO
             if ok != wx.YES:
@@ -4345,7 +4367,7 @@ class MainFrame(wx.Frame):
             if first_err:
                 msg += f"\n\n{first_err}"
             try:
-                wx.MessageBox(msg, "Error", wx.ICON_ERROR)
+                wx.MessageBox(msg, _("Error"), wx.ICON_ERROR)
             except Exception:
                 pass
 
@@ -4391,8 +4413,8 @@ class MainFrame(wx.Frame):
 
     def _show_restore_blocked_by_refresh_message(self) -> None:
         wx.MessageBox(
-            "Articles cannot be restored while feeds are refreshing. Try again after the refresh is complete.",
-            "Refresh in Progress",
+            _("Articles cannot be restored while feeds are refreshing. Try again after the refresh is complete."),
+            _("Refresh in Progress"),
             wx.ICON_INFORMATION,
         )
 
@@ -4451,9 +4473,9 @@ class MainFrame(wx.Frame):
         if failures:
             try:
                 wx.MessageBox(
-                    "Could not restore article." if failures == 1
-                    else f"Could not restore {failures} articles.",
-                    "Error",
+                    _("Could not restore article.") if failures == 1
+                    else _("Could not restore {count} articles.").format(count=failures),
+                    _("Error"),
                     wx.ICON_ERROR,
                 )
             except Exception:
@@ -4526,24 +4548,29 @@ class MainFrame(wx.Frame):
         # old_title is the category's full path; the user edits only the leaf.
         from core.db import category_display_leaf
         leaf = category_display_leaf(old_title)
-        dlg = wx.TextEntryDialog(self, f"Rename category '{leaf}' to:", "Rename Category", value=leaf)
+        dlg = wx.TextEntryDialog(
+            self,
+            _("Rename category '{category}' to:").format(category=leaf),
+            _("Rename Category"),
+            value=leaf,
+        )
         if dlg.ShowModal() == wx.ID_OK:
             new_leaf = dlg.GetValue().strip()
             if new_leaf and new_leaf != leaf:
                 if self.provider.rename_category(old_title, new_leaf):
                     self.refresh_feeds()
                 else:
-                    wx.MessageBox("Could not rename category.", "Error", wx.ICON_ERROR)
+                    wx.MessageBox(_("Could not rename category."), _("Error"), wx.ICON_ERROR)
         dlg.Destroy()
 
     def on_add_category(self, event):
         # Only offer a parent picker for providers that support nested categories
         # (folders within folders). Flat providers get a plain top-level add.
         supports_sub = bool(getattr(self.provider, "supports_subcategories", lambda: False)())
-        dlg = wx.Dialog(self, title="Add Category", size=(400, 220 if supports_sub else 160))
+        dlg = wx.Dialog(self, title=_("Add Category"), size=(400, 220 if supports_sub else 160))
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        sizer.Add(wx.StaticText(dlg, label="Category name:"), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(dlg, label=_("Category name:")), 0, wx.ALL, 5)
         name_ctrl = wx.TextCtrl(dlg)
         name_ctrl.SetName("Category name")
         sizer.Add(name_ctrl, 0, wx.EXPAND | wx.ALL, 5)
@@ -4552,7 +4579,7 @@ class MainFrame(wx.Frame):
         if supports_sub:
             cats = self.provider.get_categories()
             choices = ["(None - Top Level)"] + sorted(cats, key=lambda s: s.lower())
-            sizer.Add(wx.StaticText(dlg, label="Parent category:"), 0, wx.ALL, 5)
+            sizer.Add(wx.StaticText(dlg, label=_("Parent category:")), 0, wx.ALL, 5)
             parent_ctrl = wx.ComboBox(dlg, choices=choices, style=wx.CB_READONLY)
             parent_ctrl.SetSelection(0)
             sizer.Add(parent_ctrl, 0, wx.EXPAND | wx.ALL, 5)
@@ -4573,21 +4600,25 @@ class MainFrame(wx.Frame):
                 if self.provider.add_category(name, parent_title=parent_title):
                     self.refresh_feeds()
                 else:
-                    wx.MessageBox("Could not add category.", "Error", wx.ICON_ERROR)
+                    wx.MessageBox(_("Could not add category."), _("Error"), wx.ICON_ERROR)
         dlg.Destroy()
 
     def on_add_subcategory(self, parent_cat_title):
         # parent_cat_title is the parent's full path; show just its leaf to the user.
         from core.db import category_display_leaf
         parent_leaf = category_display_leaf(parent_cat_title)
-        dlg = wx.TextEntryDialog(self, f"Enter subcategory name (under '{parent_leaf}'):", "Add Subcategory")
+        dlg = wx.TextEntryDialog(
+            self,
+            _("Enter subcategory name (under '{category}'):").format(category=parent_leaf),
+            _("Add Subcategory"),
+        )
         if dlg.ShowModal() == wx.ID_OK:
             name = dlg.GetValue().strip()
             if name:
                 if self.provider.add_category(name, parent_title=parent_cat_title):
                     self.refresh_feeds()
                 else:
-                    wx.MessageBox("Could not add subcategory.", "Error", wx.ICON_ERROR)
+                    wx.MessageBox(_("Could not add subcategory."), _("Error"), wx.ICON_ERROR)
         dlg.Destroy()
 
     def _get_parent_category_hint(self, cat_title):
@@ -4604,14 +4635,20 @@ class MainFrame(wx.Frame):
         if item.IsOk():
             data = self.tree.GetItemData(item)
             if data and data["type"] == "category":
-                if wx.MessageBox(f"Remove category '{self.tree.GetItemText(item)}'? Feeds will be moved to Uncategorized.", "Confirm", wx.YES_NO) == wx.YES:
+                if wx.MessageBox(
+                    _("Remove category '{category}'? Feeds will be moved to Uncategorized.").format(
+                        category=self.tree.GetItemText(item)
+                    ),
+                    _("Confirm"),
+                    wx.YES_NO,
+                ) == wx.YES:
                     self._selection_hint = self._get_parent_category_hint(data["id"])
                     if self.provider.delete_category(data["id"]):
                         self.refresh_feeds()
                     else:
-                        wx.MessageBox("Could not remove category.", "Error", wx.ICON_ERROR)
+                        wx.MessageBox(_("Could not remove category."), _("Error"), wx.ICON_ERROR)
             else:
-                 wx.MessageBox("Please select a category to remove.", "Info")
+                 wx.MessageBox(_("Please select a category to remove."), _("Info"))
 
     def on_delete_category_with_feeds(self, event):
         item = self.tree.GetSelection()
@@ -4619,12 +4656,12 @@ class MainFrame(wx.Frame):
             return
         data = self.tree.GetItemData(item)
         if not data or data.get("type") != "category":
-            wx.MessageBox("Please select a category to remove.", "Info")
+            wx.MessageBox(_("Please select a category to remove."), _("Info"))
             return
 
         cat_title = data.get("id")
         if not cat_title or str(cat_title).lower() == "uncategorized":
-            wx.MessageBox("The Uncategorized folder cannot be removed.", "Info")
+            wx.MessageBox(_("The Uncategorized folder cannot be removed."), _("Info"))
             return
 
         feed_ids = []
@@ -4646,7 +4683,7 @@ class MainFrame(wx.Frame):
             f"Delete category '{cat_title}'{sub_note} and its {count} feed(s)?\n\n"
             "This will remove the feeds and their articles."
         )
-        if wx.MessageBox(prompt, "Confirm", wx.YES_NO | wx.ICON_WARNING) != wx.YES:
+        if wx.MessageBox(prompt, _("Confirm"), wx.YES_NO | wx.ICON_WARNING) != wx.YES:
             return
 
         self._selection_hint = self._get_parent_category_hint(cat_title)
@@ -4714,7 +4751,7 @@ class MainFrame(wx.Frame):
         if failed:
             warnings.append(f"{len(failed)} feed(s) could not be removed.")
         if warnings:
-            wx.MessageBox("\n\n".join(warnings), "Warning", wx.ICON_WARNING)
+            wx.MessageBox("\n\n".join(warnings), _("Warning"), wx.ICON_WARNING)
 
     def refresh_loop(self):
         # If auto-refresh on startup is disabled, wait for one interval before the first check.
@@ -6547,7 +6584,7 @@ class MainFrame(wx.Frame):
             text = ""
         if not text.strip():
             return
-        dlg = wx.TextEntryDialog(self, "Find in article:", "Find", self._content_find_term or "")
+        dlg = wx.TextEntryDialog(self, _("Find in article:"), _("Find"), self._content_find_term or "")
         try:
             if dlg.ShowModal() != wx.ID_OK:
                 return
@@ -7855,12 +7892,12 @@ class MainFrame(wx.Frame):
             msg = "Failed to mark all items as read."
             if err:
                 msg += f"\n\n{err}"
-            wx.MessageBox(msg, "Error", wx.ICON_ERROR)
+            wx.MessageBox(msg, _("Error"), wx.ICON_ERROR)
             return
 
         if not unread_ids and not used_direct:
             try:
-                wx.MessageBox("All items are already marked as read.", "Mark All as Read", wx.ICON_INFORMATION)
+                wx.MessageBox(_("All items are already marked as read."), _("Mark All as Read"), wx.ICON_INFORMATION)
             except Exception:
                 pass
             return
@@ -8011,7 +8048,7 @@ class MainFrame(wx.Frame):
                     f"Could not open the article with your custom command:\n\n{err}\n\n"
                     "Opening in the default browser instead. You can change this in "
                     "Settings > General > Article opening method.",
-                    "Custom command failed",
+                    _("Custom command failed"),
                     wx.ICON_WARNING,
                 )
         webbrowser.open(url)
@@ -8339,10 +8376,10 @@ class MainFrame(wx.Frame):
 
     def on_download_article(self, article):
         if not article or not getattr(article, "media_url", None):
-            wx.MessageBox("No downloadable media found for this item.", "Download", wx.ICON_INFORMATION)
+            wx.MessageBox(_("No downloadable media found for this item."), _("Download"), wx.ICON_INFORMATION)
             return
         if not self.config_manager.get("downloads_enabled", False):
-            wx.MessageBox("Downloads are disabled. Enable them in Settings > Downloads.", "Downloads disabled", wx.ICON_INFORMATION)
+            wx.MessageBox(_("Downloads are disabled. Enable them in Settings > Downloads."), _("Downloads disabled"), wx.ICON_INFORMATION)
             return
         threading.Thread(target=self._download_article_thread, args=(article,), daemon=True).start()
 
@@ -8488,8 +8525,8 @@ class MainFrame(wx.Frame):
                     )
                 except FileNotFoundError:
                     wx.CallAfter(lambda: wx.MessageBox(
-                        "yt-dlp is not installed. Install it via Settings to download YouTube items.",
-                        "Download error", wx.ICON_ERROR))
+                        _("yt-dlp is not installed. Install it via Settings to download YouTube items."),
+                        _("Download error"), wx.ICON_ERROR))
                     self._post_activity_status(f"Download failed: {title}")
                     return
                 except subprocess.TimeoutExpired:
@@ -8506,7 +8543,12 @@ class MainFrame(wx.Frame):
                         self._record_article_download(article, produced)
                     self._apply_download_retention(target_dir)
                     dest = produced or target_dir
-                    wx.CallAfter(lambda d=dest: wx.MessageBox(f"Downloaded to:\n{d}", "Download complete"))
+                    wx.CallAfter(
+                        lambda d=dest: wx.MessageBox(
+                            _("Downloaded to:\n{path}").format(path=d),
+                            _("Download complete"),
+                        )
+                    )
                     self._post_activity_status(f"Download complete: {title}")
                     return
 
@@ -8518,7 +8560,13 @@ class MainFrame(wx.Frame):
             if timed_out:
                 break
 
-        wx.CallAfter(lambda e=last_err: wx.MessageBox(f"Download failed: {e}", "Download error", wx.ICON_ERROR))
+        wx.CallAfter(
+            lambda e=last_err: wx.MessageBox(
+                _("Download failed: {error}").format(error=e),
+                _("Download error"),
+                wx.ICON_ERROR,
+            )
+        )
         self._post_activity_status(f"Download failed: {title}")
 
     def _find_downloaded_file(self, target_dir, base_name):
@@ -8577,14 +8625,19 @@ class MainFrame(wx.Frame):
 
             self._record_article_download(article, target_path)
             self._apply_download_retention(target_dir)
-            wx.CallAfter(lambda: wx.MessageBox(f"Downloaded to:\n{target_path}", "Download complete"))
+            wx.CallAfter(
+                lambda: wx.MessageBox(
+                    _("Downloaded to:\n{path}").format(path=target_path),
+                    _("Download complete"),
+                )
+            )
             self._post_activity_status(f"Download complete: {title}")
         except Exception as e:
             error_message = str(e) or type(e).__name__
             wx.CallAfter(
                 lambda message=error_message: wx.MessageBox(
                     f"Download failed: {message}",
-                    "Download error",
+                    _("Download error"),
                     wx.ICON_ERROR,
                 )
             )
@@ -8818,14 +8871,14 @@ class MainFrame(wx.Frame):
             # Refresh regardless of success to be safe/consistent
             self.refresh_feeds()
         if not success:
-             wx.MessageBox("Failed to add feed.", "Error", wx.ICON_ERROR)
+             wx.MessageBox(_("Failed to add feed."), _("Error"), wx.ICON_ERROR)
 
     def on_remove_feed(self, event):
         item = self.tree.GetSelection()
         if item.IsOk():
             data = self.tree.GetItemData(item)
             if data and data["type"] == "feed":
-                if wx.MessageBox("Are you sure you want to remove this feed?", "Confirm", wx.YES_NO) == wx.YES:
+                if wx.MessageBox(_("Are you sure you want to remove this feed?"), _("Confirm"), wx.YES_NO) == wx.YES:
                     feed_id = data.get("id")
                     feed_title = self._get_feed_title(feed_id) if feed_id else None
                     # Logic to find the "next" best item to focus (alphabetical neighbor)
@@ -8897,7 +8950,7 @@ class MainFrame(wx.Frame):
                     parts.append(f"Error: {error_message}")
 
             parts.append("Please try again.")
-            wx.MessageBox("\n\n".join(parts), "Error", wx.ICON_ERROR)
+            wx.MessageBox("\n\n".join(parts), _("Error"), wx.ICON_ERROR)
             return
 
         # Underlying DB rows changed significantly; drop view caches to avoid stale entries.
@@ -8928,7 +8981,7 @@ class MainFrame(wx.Frame):
 
         try:
             if not bool(getattr(self.provider, "supports_feed_edit", lambda: False)()):
-                wx.MessageBox("This provider does not support editing feeds.", "Not supported", wx.ICON_INFORMATION)
+                wx.MessageBox(_("This provider does not support editing feeds."), _("Not supported"), wx.ICON_INFORMATION)
                 return
         except Exception:
             pass
@@ -8965,9 +9018,11 @@ class MainFrame(wx.Frame):
         url_changed = (new_url or "") != (old_url or "")
         if url_changed and not allow_url_edit:
             wx.MessageBox(
-                "This provider does not support changing the feed URL.\n"
-                "The title and category will be updated, but the URL will stay the same.",
-                "Feed URL not supported",
+                _(
+                    "This provider does not support changing the feed URL.\n"
+                    "The title and category will be updated, but the URL will stay the same."
+                ),
+                _("Feed URL not supported"),
                 wx.ICON_INFORMATION,
             )
             new_url = old_url
@@ -9000,7 +9055,7 @@ class MainFrame(wx.Frame):
         msg = "Could not update feed."
         if err:
             msg = f"{msg}\n\n{err}"
-        wx.MessageBox(msg, "Error", wx.ICON_ERROR)
+        wx.MessageBox(msg, _("Error"), wx.ICON_ERROR)
 
     def on_reset_feed_title(self, event=None, feed_id: str | None = None):
         fid = str(feed_id or "").strip()
@@ -9016,8 +9071,8 @@ class MainFrame(wx.Frame):
         try:
             if not bool(getattr(self.provider, "supports_feed_title_reset", lambda: False)()):
                 wx.MessageBox(
-                    "This provider does not support resetting feed titles.",
-                    "Not supported",
+                    _("This provider does not support resetting feed titles."),
+                    _("Not supported"),
                     wx.ICON_INFORMATION,
                 )
                 return
@@ -9051,7 +9106,7 @@ class MainFrame(wx.Frame):
         msg = "Could not reset feed title."
         if err:
             msg = f"{msg}\n\n{err}"
-        wx.MessageBox(msg, "Error", wx.ICON_ERROR)
+        wx.MessageBox(msg, _("Error"), wx.ICON_ERROR)
 
     def on_import_opml(self, event, target_category=None):
         dlg = wx.FileDialog(self, "Import OPML", wildcard="OPML files (*.opml)|*.opml", style=wx.FD_OPEN)
@@ -9237,9 +9292,9 @@ class MainFrame(wx.Frame):
             else:
                 threading.Thread(target=self._manual_refresh_thread, daemon=True).start()
         if success:
-            wx.MessageBox("Import successful.")
+            wx.MessageBox(_("Import successful."))
         else:
-            wx.MessageBox("Import failed. Please check the latest opml_debug_*.log in the temporary directory.")
+            wx.MessageBox(_("Import failed. Please check the latest opml_debug_*.log in the temporary directory."))
 
     def on_export_opml(self, event):
         dlg = wx.FileDialog(self, "Export OPML", wildcard="OPML files (*.opml)|*.opml", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
@@ -9248,9 +9303,9 @@ class MainFrame(wx.Frame):
             wx.BeginBusyCursor()
             try:
                 if self.provider.export_opml(path):
-                    wx.MessageBox("Export successful.")
+                    wx.MessageBox(_("Export successful."))
                 else:
-                    wx.MessageBox("Export failed.")
+                    wx.MessageBox(_("Export failed."))
             finally:
                 wx.EndBusyCursor()
         dlg.Destroy()
@@ -9301,11 +9356,11 @@ class MainFrame(wx.Frame):
             try:
                 ok, err = self._export_category_opml_to_path(target_cat, path)
                 if ok:
-                    wx.MessageBox("Export successful.")
+                    wx.MessageBox(_("Export successful."))
                 else:
-                    wx.MessageBox(err or "Export failed.")
+                    wx.MessageBox(err or _("Export failed."))
             except Exception as e:
-                wx.MessageBox(f"Export failed: {e}")
+                wx.MessageBox(_("Export failed: {error}").format(error=e))
             finally:
                 wx.EndBusyCursor()
         dlg.Destroy()
@@ -9357,15 +9412,17 @@ class MainFrame(wx.Frame):
                 ok, msg = self.config_manager.change_data_location(new_data_location)
                 if not ok:
                     wx.MessageBox(
-                        msg or "Could not move config file.",
-                        "Storage Location",
+                        msg or _("Could not move config file."),
+                        _("Storage Location"),
                         wx.ICON_WARNING,
                     )
                 else:
                     wx.MessageBox(
-                        "Config has been moved. The feed database will be migrated "
-                        "to the new location the next time BlindRSS starts.",
-                        "Storage Location Changed",
+                        _(
+                            "Config has been moved. The feed database will be migrated "
+                            "to the new location the next time BlindRSS starts."
+                        ),
+                        _("Storage Location Changed"),
                         wx.ICON_INFORMATION,
                     )
 
@@ -9398,7 +9455,7 @@ class MainFrame(wx.Frame):
                         self.config_manager.set("start_on_windows_login", old_start_on_login)
                     except Exception:
                         pass
-                    wx.MessageBox(msg or "Could not update startup registration.", "Settings", wx.ICON_WARNING)
+                    wx.MessageBox(msg or "Could not update startup registration.", _("Settings"), wx.ICON_WARNING)
 
             if sys.platform.startswith("win"):
                 try:
@@ -9411,8 +9468,8 @@ class MainFrame(wx.Frame):
                     )
                     if not ok:
                         wx.MessageBox(
-                            msg or "Windows notification prerequisites could not be fully configured.",
-                            "Notifications",
+                            msg or _("Windows notification prerequisites could not be fully configured."),
+                            _("Notifications"),
                             wx.ICON_WARNING,
                         )
 
@@ -9554,17 +9611,17 @@ class MainFrame(wx.Frame):
 
         if result.status == "error":
             if manual:
-                wx.MessageBox(result.message, "Update Check Failed", wx.ICON_ERROR)
+                wx.MessageBox(result.message, _("Update Check Failed"), wx.ICON_ERROR)
             return
 
         if result.status == "up_to_date":
             if manual:
-                wx.MessageBox(result.message, "No Updates", wx.ICON_INFORMATION)
+                wx.MessageBox(result.message, _("No Updates"), wx.ICON_INFORMATION)
             return
 
         if result.status != "update_available" or not result.info:
             if manual:
-                wx.MessageBox("Unable to determine update status.", "Updates", wx.ICON_ERROR)
+                wx.MessageBox(_("Unable to determine update status."), _("Updates"), wx.ICON_ERROR)
             return
 
         info = result.info
@@ -9574,7 +9631,7 @@ class MainFrame(wx.Frame):
             f"{summary}\n\n"
             "Download and install this update now?"
         )
-        if wx.MessageBox(prompt, "Update Available", wx.YES_NO | wx.ICON_INFORMATION) == wx.YES:
+        if wx.MessageBox(prompt, _("Update Available"), wx.YES_NO | wx.ICON_INFORMATION) == wx.YES:
             self._start_update_install(info)
 
     def _start_update_install(self, info: updater.UpdateInfo):
@@ -9582,9 +9639,11 @@ class MainFrame(wx.Frame):
             return
         if not updater.is_update_supported():
             wx.MessageBox(
-                "Auto-update is only available in the packaged app build.\n"
-                "Download the latest release from GitHub.",
-                "Updates",
+                _(
+                    "Auto-update is only available in the packaged app build.\n"
+                    "Download the latest release from GitHub."
+                ),
+                _("Updates"),
                 wx.ICON_INFORMATION,
             )
             return
@@ -9649,7 +9708,7 @@ class MainFrame(wx.Frame):
             # A user-initiated cancel is not an error; just return quietly.
             if msg == updater.UPDATE_CANCELED_MESSAGE:
                 return
-            wx.MessageBox(msg, "Update Failed", wx.ICON_ERROR)
+            wx.MessageBox(msg, _("Update Failed"), wx.ICON_ERROR)
             return
         log.info("Update prepared; closing BlindRSS so the helper can apply it: %s", msg)
         try:
@@ -9767,12 +9826,12 @@ class SmartFolderDialog(wx.Dialog):
     _BOOL_MAP = smart_folders_mod.BOOL_ROW_KEYS
 
     def __init__(self, parent, name="", rule=None):
-        super().__init__(parent, title="Smart Folder",
+        super().__init__(parent, title=_("Smart Folder"),
                          style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         outer = wx.BoxSizer(wx.VERTICAL)
 
         name_row = wx.BoxSizer(wx.HORIZONTAL)
-        name_row.Add(wx.StaticText(self, label="Folder &name:"), 0,
+        name_row.Add(wx.StaticText(self, label=_("Folder &name:")), 0,
                      wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         self.name_ctrl = wx.TextCtrl(self, value=name or "")
         self.name_ctrl.SetName("Folder name")
@@ -9780,7 +9839,7 @@ class SmartFolderDialog(wx.Dialog):
         outer.Add(name_row, 0, wx.EXPAND | wx.ALL, 8)
 
         self.match_box = wx.RadioBox(
-            self, label="Show articles that match",
+            self, label=_("Show articles that match"),
             choices=["All conditions (AND)", "Any condition (OR)"],
             majorDimension=1, style=wx.RA_SPECIFY_ROWS,
         )
@@ -9789,9 +9848,9 @@ class SmartFolderDialog(wx.Dialog):
         self.rows = []
         grid = wx.FlexGridSizer(cols=3, vgap=6, hgap=6)
         grid.AddGrowableCol(2, 1)
-        grid.Add(wx.StaticText(self, label="Field"), 0)
-        grid.Add(wx.StaticText(self, label="Condition"), 0)
-        grid.Add(wx.StaticText(self, label="Value"), 0, wx.EXPAND)
+        grid.Add(wx.StaticText(self, label=_("Field")), 0)
+        grid.Add(wx.StaticText(self, label=_("Condition")), 0)
+        grid.Add(wx.StaticText(self, label=_("Value")), 0, wx.EXPAND)
         field_labels = [lbl for _k, lbl in self._FIELDS]
         op_labels = [lbl for _k, lbl in self._OPS]
         for i in range(self.MAX_ROWS):
@@ -9889,13 +9948,13 @@ class FilterRuleEditorDialog(wx.Dialog):
     _BOOL_MAP = SmartFolderDialog._BOOL_MAP
 
     def __init__(self, parent, name="", rule=None, actions=None, enabled=True, stop=False):
-        super().__init__(parent, title="Filter Rule",
+        super().__init__(parent, title=_("Filter Rule"),
                          style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         actions = filters_mod.normalize_actions(actions)
         outer = wx.BoxSizer(wx.VERTICAL)
 
         name_row = wx.BoxSizer(wx.HORIZONTAL)
-        name_row.Add(wx.StaticText(self, label="Rule &name:"), 0,
+        name_row.Add(wx.StaticText(self, label=_("Rule &name:")), 0,
                      wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         self.name_ctrl = wx.TextCtrl(self, value=name or "")
         self.name_ctrl.SetName("Rule name")
@@ -9903,7 +9962,7 @@ class FilterRuleEditorDialog(wx.Dialog):
         outer.Add(name_row, 0, wx.EXPAND | wx.ALL, 8)
 
         self.match_box = wx.RadioBox(
-            self, label="Apply this rule to articles that match",
+            self, label=_("Apply this rule to articles that match"),
             choices=["All conditions (AND)", "Any condition (OR)"],
             majorDimension=1, style=wx.RA_SPECIFY_ROWS,
         )
@@ -9913,9 +9972,9 @@ class FilterRuleEditorDialog(wx.Dialog):
         self.rows = []
         grid = wx.FlexGridSizer(cols=3, vgap=6, hgap=6)
         grid.AddGrowableCol(2, 1)
-        grid.Add(wx.StaticText(self, label="Field"), 0)
-        grid.Add(wx.StaticText(self, label="Condition"), 0)
-        grid.Add(wx.StaticText(self, label="Value"), 0, wx.EXPAND)
+        grid.Add(wx.StaticText(self, label=_("Field")), 0)
+        grid.Add(wx.StaticText(self, label=_("Condition")), 0)
+        grid.Add(wx.StaticText(self, label=_("Value")), 0, wx.EXPAND)
         field_labels = [lbl for _k, lbl in self._FIELDS]
         op_labels = [lbl for _k, lbl in self._OPS]
         for i in range(self.MAX_ROWS):
@@ -9939,7 +9998,7 @@ class FilterRuleEditorDialog(wx.Dialog):
         # Actions the rule performs on each matching article.
         act_box = wx.StaticBoxSizer(wx.VERTICAL, self, "Then do this")
         move_row = wx.BoxSizer(wx.HORIZONTAL)
-        move_row.Add(wx.StaticText(self, label="&Move to category:"), 0,
+        move_row.Add(wx.StaticText(self, label=_("&Move to category:")), 0,
                      wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         self.move_ctrl = wx.TextCtrl(self, value=actions.get("move") or "")
         self.move_ctrl.SetName("Move to category (full path, blank for none)")
@@ -9947,29 +10006,29 @@ class FilterRuleEditorDialog(wx.Dialog):
         act_box.Add(move_row, 0, wx.EXPAND | wx.ALL, 4)
 
         label_row = wx.BoxSizer(wx.HORIZONTAL)
-        label_row.Add(wx.StaticText(self, label="Also &label with category:"), 0,
+        label_row.Add(wx.StaticText(self, label=_("Also &label with category:")), 0,
                       wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         self.label_ctrl = wx.TextCtrl(self, value=actions.get("label") or "")
         self.label_ctrl.SetName("Also show under category (label, blank for none)")
         label_row.Add(self.label_ctrl, 1)
         act_box.Add(label_row, 0, wx.EXPAND | wx.ALL, 4)
 
-        self.mark_read_ctrl = wx.CheckBox(self, label="Mark as &read")
+        self.mark_read_ctrl = wx.CheckBox(self, label=_("Mark as &read"))
         self.mark_read_ctrl.SetValue(bool(actions.get("mark_read")))
-        self.mark_fav_ctrl = wx.CheckBox(self, label="Mark as &favorite")
+        self.mark_fav_ctrl = wx.CheckBox(self, label=_("Mark as &favorite"))
         self.mark_fav_ctrl.SetValue(bool(actions.get("mark_favorite")))
-        self.delete_ctrl = wx.CheckBox(self, label="&Delete (uses the configured delete behavior)")
+        self.delete_ctrl = wx.CheckBox(self, label=_("&Delete (uses the configured delete behavior)"))
         self.delete_ctrl.SetValue(bool(actions.get("delete")))
-        self.skip_notify_ctrl = wx.CheckBox(self, label="Skip &notification")
+        self.skip_notify_ctrl = wx.CheckBox(self, label=_("Skip &notification"))
         self.skip_notify_ctrl.SetValue(bool(actions.get("skip_notification")))
         for ctrl in (self.mark_read_ctrl, self.mark_fav_ctrl, self.delete_ctrl, self.skip_notify_ctrl):
             act_box.Add(ctrl, 0, wx.ALL, 4)
         outer.Add(act_box, 0, wx.EXPAND | wx.ALL, 8)
 
-        self.stop_ctrl = wx.CheckBox(self, label="&Stop processing later rules when this rule matches")
+        self.stop_ctrl = wx.CheckBox(self, label=_("&Stop processing later rules when this rule matches"))
         self.stop_ctrl.SetValue(bool(stop))
         outer.Add(self.stop_ctrl, 0, wx.ALL, 8)
-        self.enabled_ctrl = wx.CheckBox(self, label="Rule &enabled")
+        self.enabled_ctrl = wx.CheckBox(self, label=_("Rule &enabled"))
         self.enabled_ctrl.SetValue(bool(enabled))
         outer.Add(self.enabled_ctrl, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
@@ -10024,8 +10083,8 @@ class FilterRuleEditorDialog(wx.Dialog):
     def _on_ok(self, event):
         if filters_mod.actions_are_empty(self._collect_actions()):
             wx.MessageBox(
-                "Choose at least one action for this rule (move, label, mark, delete, or skip notification).",
-                "No Actions",
+                _("Choose at least one action for this rule (move, label, mark, delete, or skip notification)."),
+                _("No Actions"),
                 wx.ICON_WARNING,
                 self,
             )
@@ -10047,14 +10106,14 @@ class FilterRulesDialog(wx.Dialog):
     """Accessible manager for the ordered Filter Rules pipeline."""
 
     def __init__(self, parent, provider):
-        super().__init__(parent, title="Filter Rules",
+        super().__init__(parent, title=_("Filter Rules"),
                          style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.provider = provider
         self._rules = []
 
         outer = wx.BoxSizer(wx.VERTICAL)
         outer.Add(
-            wx.StaticText(self, label="Rules run top to bottom for each incoming article, like email filters."),
+            wx.StaticText(self, label=_("Rules run top to bottom for each incoming article, like email filters.")),
             0, wx.ALL, 8,
         )
 
@@ -10065,13 +10124,13 @@ class FilterRulesDialog(wx.Dialog):
         body.Add(self.list_ctrl, 1, wx.EXPAND | wx.ALL, 8)
 
         btn_col = wx.BoxSizer(wx.VERTICAL)
-        self._add_btn = wx.Button(self, label="&Add...")
-        self._edit_btn = wx.Button(self, label="&Edit...")
-        self._delete_btn = wx.Button(self, label="De&lete")
-        self._up_btn = wx.Button(self, label="Move &Up")
-        self._down_btn = wx.Button(self, label="Move &Down")
-        self._toggle_btn = wx.Button(self, label="En&able/Disable")
-        self._apply_btn = wx.Button(self, label="Apply to E&xisting Articles")
+        self._add_btn = wx.Button(self, label=_("&Add..."))
+        self._edit_btn = wx.Button(self, label=_("&Edit..."))
+        self._delete_btn = wx.Button(self, label=_("De&lete"))
+        self._up_btn = wx.Button(self, label=_("Move &Up"))
+        self._down_btn = wx.Button(self, label=_("Move &Down"))
+        self._toggle_btn = wx.Button(self, label=_("En&able/Disable"))
+        self._apply_btn = wx.Button(self, label=_("Apply to E&xisting Articles"))
         for b in (self._add_btn, self._edit_btn, self._delete_btn, self._up_btn,
                   self._down_btn, self._toggle_btn, self._apply_btn):
             btn_col.Add(b, 0, wx.EXPAND | wx.BOTTOM, 6)
@@ -10134,7 +10193,7 @@ class FilterRulesDialog(wx.Dialog):
                     self.provider.create_filter_rule(name, rule, actions, enabled=enabled, stop=stop)
                 except Exception:
                     log.exception("Error creating filter rule")
-                    wx.MessageBox("Could not create the rule.", "Error", wx.ICON_ERROR, self)
+                    wx.MessageBox(_("Could not create the rule."), _("Error"), wx.ICON_ERROR, self)
                     return
                 self._reload(select_index=len(self._rules))
         finally:
@@ -10163,7 +10222,7 @@ class FilterRulesDialog(wx.Dialog):
                     )
                 except Exception:
                     log.exception("Error updating filter rule")
-                    wx.MessageBox("Could not update the rule.", "Error", wx.ICON_ERROR, self)
+                    wx.MessageBox(_("Could not update the rule."), _("Error"), wx.ICON_ERROR, self)
                     return
                 self._reload(select_index=idx)
         finally:
@@ -10176,8 +10235,8 @@ class FilterRulesDialog(wx.Dialog):
         rule = self._rules[idx]
         name = rule.get("name") or "this rule"
         if wx.MessageBox(
-            f'Delete filter rule "{name}"? Articles it already filed are not changed.',
-            "Delete Rule", wx.YES_NO | wx.ICON_QUESTION, self,
+            _('Delete filter rule "{name}"? Articles it already filed are not changed.').format(name=name),
+            _("Delete Rule"), wx.YES_NO | wx.ICON_QUESTION, self,
         ) != wx.YES:
             return
         try:
@@ -10216,9 +10275,11 @@ class FilterRulesDialog(wx.Dialog):
 
     def _on_apply_existing(self):
         if wx.MessageBox(
-            "Run all enabled rules against every existing article now? "
-            "This may move, label, or delete articles.",
-            "Apply to Existing Articles", wx.YES_NO | wx.ICON_QUESTION, self,
+            _(
+                "Run all enabled rules against every existing article now? "
+                "This may move, label, or delete articles."
+            ),
+            _("Apply to Existing Articles"), wx.YES_NO | wx.ICON_QUESTION, self,
         ) != wx.YES:
             return
         self._apply_btn.Disable()
@@ -10236,11 +10297,16 @@ class FilterRulesDialog(wx.Dialog):
             except Exception:
                 pass
             if result.get("error"):
-                wx.MessageBox(f"Could not apply rules.\n\n{result['error']}", "Error", wx.ICON_ERROR, self)
+                wx.MessageBox(
+                    _("Could not apply rules.\n\n{error}").format(error=result["error"]),
+                    _("Error"),
+                    wx.ICON_ERROR,
+                    self,
+                )
                 return
             wx.MessageBox(
                 f"Scanned {result.get('scanned', 0)} articles; {result.get('changed', 0)} matched a rule.",
-                "Filter Rules Applied", wx.ICON_INFORMATION, self,
+                _("Filter Rules Applied"), wx.ICON_INFORMATION, self,
             )
             self._reload(select_index=self._selected_index())
 

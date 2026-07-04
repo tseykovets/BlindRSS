@@ -9,6 +9,7 @@ import wx
 
 from core import utils
 from core import article_extractor
+from core.i18n import _
 from .clipboard_utils import copy_textctrl_selection_to_clipboard
 
 log = logging.getLogger(__name__)
@@ -316,7 +317,7 @@ def format_accessible_view_label(entry, expanded_categories=None):
 
 class AccessibleBrowserFrame(wx.Frame):
     def __init__(self, mainframe):
-        super().__init__(mainframe, title="BlindRSS Accessible Browser", size=(1280, 820))
+        super().__init__(mainframe, title=_("BlindRSS Accessible Browser"), size=(1280, 820))
         self.mainframe = mainframe
         self.current_view_id = None
         self._view_entries = []
@@ -365,7 +366,7 @@ class AccessibleBrowserFrame(wx.Frame):
 
         intro = wx.StaticText(
             panel,
-            label=(
+            label=_(
                 "VoiceOver-friendly browser for feeds, articles, and content. "
                 "Use the lists below to choose a view and article."
             ),
@@ -373,35 +374,35 @@ class AccessibleBrowserFrame(wx.Frame):
         root.Add(intro, 0, wx.ALL | wx.EXPAND, 8)
 
         toolbar = wx.BoxSizer(wx.HORIZONTAL)
-        self.refresh_btn = wx.Button(panel, label="Refresh Feeds")
+        self.refresh_btn = wx.Button(panel, label=_("Refresh Feeds"))
         self.refresh_btn.SetName("Refresh Feeds")
         toolbar.Add(self.refresh_btn, 0, wx.RIGHT, 6)
-        self.load_more_btn = wx.Button(panel, label="Load More Articles")
+        self.load_more_btn = wx.Button(panel, label=_("Load More Articles"))
         self.load_more_btn.SetName("Load More Articles")
         toolbar.Add(self.load_more_btn, 0, wx.RIGHT, 6)
-        self.expand_btn = wx.Button(panel, label="Expand Category")
+        self.expand_btn = wx.Button(panel, label=_("Expand Category"))
         self.expand_btn.SetName("Expand Category")
         toolbar.Add(self.expand_btn, 0, wx.RIGHT, 6)
-        self.collapse_btn = wx.Button(panel, label="Collapse Category")
+        self.collapse_btn = wx.Button(panel, label=_("Collapse Category"))
         self.collapse_btn.SetName("Collapse Category")
         toolbar.Add(self.collapse_btn, 0, wx.RIGHT, 6)
-        self.open_btn = wx.Button(panel, label="Open or Play Article")
+        self.open_btn = wx.Button(panel, label=_("Open or Play Article"))
         self.open_btn.SetName("Open or Play Article")
         toolbar.Add(self.open_btn, 0, wx.RIGHT, 6)
-        self.mark_read_btn = wx.Button(panel, label="Mark Read")
+        self.mark_read_btn = wx.Button(panel, label=_("Mark Read"))
         self.mark_read_btn.SetName("Mark Read")
         toolbar.Add(self.mark_read_btn, 0, wx.RIGHT, 6)
-        self.mark_unread_btn = wx.Button(panel, label="Mark Unread")
+        self.mark_unread_btn = wx.Button(panel, label=_("Mark Unread"))
         self.mark_unread_btn.SetName("Mark Unread")
         toolbar.Add(self.mark_unread_btn, 0, wx.RIGHT, 6)
-        self.download_btn = wx.Button(panel, label="Download")
+        self.download_btn = wx.Button(panel, label=_("Download"))
         self.download_btn.SetName("Download Article")
         self.download_btn.Enable(False)
         toolbar.Add(self.download_btn, 0)
         root.Add(toolbar, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         search_row = wx.BoxSizer(wx.HORIZONTAL)
-        search_lbl = wx.StaticText(panel, label="Filter Articles:")
+        search_lbl = wx.StaticText(panel, label=_("Filter Articles:"))
         search_row.Add(search_lbl, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         self.search_ctrl = wx.TextCtrl(panel)
         self.search_ctrl.SetName("Accessible Article Filter")
@@ -415,7 +416,7 @@ class AccessibleBrowserFrame(wx.Frame):
         content = wx.BoxSizer(wx.HORIZONTAL)
 
         left = wx.BoxSizer(wx.VERTICAL)
-        views_lbl = wx.StaticText(panel, label="Views")
+        views_lbl = wx.StaticText(panel, label=_("Views"))
         left.Add(views_lbl, 0, wx.BOTTOM, 4)
         self.view_list = wx.ListBox(panel)
         self.view_list.SetName("Accessible Views")
@@ -429,7 +430,7 @@ class AccessibleBrowserFrame(wx.Frame):
         left.Add(self.view_list, 1, wx.EXPAND)
         self.view_hint_lbl = wx.StaticText(
             panel,
-            label=(
+            label=_(
                 "Categories can be expanded or collapsed. "
                 "Use the buttons, or use Right Arrow to expand and Left Arrow to collapse."
             ),
@@ -438,7 +439,7 @@ class AccessibleBrowserFrame(wx.Frame):
         content.Add(left, 1, wx.ALL | wx.EXPAND, 8)
 
         middle = wx.BoxSizer(wx.VERTICAL)
-        articles_lbl = wx.StaticText(panel, label="Articles")
+        articles_lbl = wx.StaticText(panel, label=_("Articles"))
         middle.Add(articles_lbl, 0, wx.BOTTOM, 4)
         self.article_list = wx.ListBox(panel)
         self.article_list.SetName("Accessible Articles")
@@ -448,12 +449,12 @@ class AccessibleBrowserFrame(wx.Frame):
         except Exception:
             pass
         middle.Add(self.article_list, 1, wx.EXPAND)
-        self.status_lbl = wx.StaticText(panel, label="Choose a view to load articles.")
+        self.status_lbl = wx.StaticText(panel, label=_("Choose a view to load articles."))
         middle.Add(self.status_lbl, 0, wx.TOP, 6)
         content.Add(middle, 1, wx.ALL | wx.EXPAND, 8)
 
         right = wx.BoxSizer(wx.VERTICAL)
-        article_lbl = wx.StaticText(panel, label="Article Content")
+        article_lbl = wx.StaticText(panel, label=_("Article Content"))
         right.Add(article_lbl, 0, wx.BOTTOM, 4)
         self.content_ctrl = wx.TextCtrl(
             panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_BESTWRAP
@@ -575,7 +576,7 @@ class AccessibleBrowserFrame(wx.Frame):
 
     def on_refresh_feeds(self, _event):
         self.mainframe.refresh_feeds()
-        self.status_lbl.SetLabel("Refreshing feeds...")
+        self.status_lbl.SetLabel(_("Refreshing feeds..."))
 
     def on_view_selected(self, _event):
         entry = self._selected_view_entry()
@@ -717,7 +718,7 @@ class AccessibleBrowserFrame(wx.Frame):
             self._prefetch_queue.clear()
         self.article_list.Set(["Loading articles..."])
         self.content_ctrl.SetValue("")
-        self.status_lbl.SetLabel("Loading articles...")
+        self.status_lbl.SetLabel(_("Loading articles..."))
         threading.Thread(target=self._load_articles_page_thread, args=(self.current_view_id, 0), daemon=True).start()
 
     def _load_articles_page_thread(self, view_id, offset):
@@ -1223,7 +1224,7 @@ class AccessibleBrowserFrame(wx.Frame):
         if self._loading or not self.current_view_id:
             return
         self._loading = True
-        self.status_lbl.SetLabel("Loading more articles...")
+        self.status_lbl.SetLabel(_("Loading more articles..."))
         threading.Thread(
             target=self._load_articles_page_thread,
             args=(self.current_view_id, int(self._paged_offset)),

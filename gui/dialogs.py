@@ -29,13 +29,14 @@ from core import inoreader_oauth
 from core import translation as translation_mod
 from core import filters as filters_mod
 from core.vlc_options import build_vlc_instance_args
+from core.i18n import _
 
 log = logging.getLogger(__name__)
 
 
 class AddFeedDialog(wx.Dialog):
     def __init__(self, parent, categories=None):
-        super().__init__(parent, title="Add Feed", size=(400, 250))
+        super().__init__(parent, title=_("Add Feed"), size=(400, 250))
         
         self.categories = categories or ["Uncategorized"]
         self._check_timer = None
@@ -43,10 +44,10 @@ class AddFeedDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         
         # URL Input
-        sizer.Add(wx.StaticText(self, label="Feed or Media URL:"), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(self, label=_("Feed or Media URL:")), 0, wx.ALL, 5)
         self.url_ctrl = wx.TextCtrl(self)
         self.url_ctrl.SetName("Feed or Media URL")
-        self.url_ctrl.SetHint("https://example.com/feed or a YouTube/podcast URL")
+        self.url_ctrl.SetHint(_("https://example.com/feed or a YouTube/podcast URL"))
         wx.CallAfter(self.url_ctrl.SetFocus)
         sizer.Add(self.url_ctrl, 0, wx.EXPAND | wx.ALL, 5)
         
@@ -56,7 +57,7 @@ class AddFeedDialog(wx.Dialog):
         sizer.Add(self.status_lbl, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
         
         # Category Input
-        sizer.Add(wx.StaticText(self, label="Category:"), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(self, label=_("Category:")), 0, wx.ALL, 5)
         self.cat_ctrl = wx.ComboBox(self, choices=self.categories, style=wx.CB_DROPDOWN)
         self.cat_ctrl.SetName("Category")
         if self.categories:
@@ -94,14 +95,14 @@ class AddFeedDialog(wx.Dialog):
         domain = parsed.netloc.lower()
         
         if "youtube.com" in domain or "youtu.be" in domain:
-            self.status_lbl.SetLabel("OK: Recognized as YouTube source")
+            self.status_lbl.SetLabel(_("OK: Recognized as YouTube source"))
             # Auto-switch category to YouTube if available
             yt_idx = self.cat_ctrl.FindString("YouTube")
             if yt_idx != wx.NOT_FOUND:
                 self.cat_ctrl.SetSelection(yt_idx)
             return
 
-        self.status_lbl.SetLabel("Checking compatibility...")
+        self.status_lbl.SetLabel(_("Checking compatibility..."))
         # Background thread for heavier yt-dlp check
         threading.Thread(target=self._heavy_check, args=(url,), daemon=True).start()
 
@@ -117,7 +118,7 @@ class AddFeedDialog(wx.Dialog):
 
 class AddShortcutsDialog(wx.Dialog):
     def __init__(self, parent):
-        super().__init__(parent, title="Add BlindRSS Shortcuts", size=(460, 280))
+        super().__init__(parent, title=_("Add BlindRSS Shortcuts"), size=(460, 280))
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         intro = (
@@ -126,15 +127,15 @@ class AddShortcutsDialog(wx.Dialog):
         )
         sizer.Add(wx.StaticText(self, label=intro), 0, wx.ALL, 10)
 
-        self.desktop_chk = wx.CheckBox(self, label="Desktop")
+        self.desktop_chk = wx.CheckBox(self, label=_("Desktop"))
         self.desktop_chk.SetValue(True)
         sizer.Add(self.desktop_chk, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
-        self.start_menu_chk = wx.CheckBox(self, label="Start Menu")
+        self.start_menu_chk = wx.CheckBox(self, label=_("Start Menu"))
         self.start_menu_chk.SetValue(True)
         sizer.Add(self.start_menu_chk, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
-        self.taskbar_chk = wx.CheckBox(self, label="Taskbar")
+        self.taskbar_chk = wx.CheckBox(self, label=_("Taskbar"))
         self.taskbar_chk.SetValue(False)
         sizer.Add(self.taskbar_chk, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
 
@@ -160,7 +161,7 @@ class AddShortcutsDialog(wx.Dialog):
 
 class ExcludeNotificationFeedsDialog(wx.Dialog):
     def __init__(self, parent, feed_entries=None, excluded_ids=None):
-        super().__init__(parent, title="Exclude Feeds from Notifications", size=(480, 420))
+        super().__init__(parent, title=_("Exclude Feeds from Notifications"), size=(480, 420))
         self._feed_entries = list(feed_entries or [])
         self._excluded_ids = {str(x) for x in (excluded_ids or []) if str(x or "").strip()}
         self._feed_id_by_index = {}
@@ -170,7 +171,7 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
         sizer.Add(
             wx.StaticText(
                 self,
-                label=(
+                label=_(
                     "Feeds are checked by default.\n"
                     "Uncheck feeds that should not send notifications."
                 ),
@@ -209,8 +210,8 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
         self.feed_list.Bind(wx.EVT_CHECKLISTBOX, self.on_feed_toggled)
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
-        check_all_btn = wx.Button(self, label="Check All")
-        uncheck_all_btn = wx.Button(self, label="Uncheck All")
+        check_all_btn = wx.Button(self, label=_("Check All"))
+        uncheck_all_btn = wx.Button(self, label=_("Uncheck All"))
         actions.Add(check_all_btn, 0, wx.RIGHT, 8)
         actions.Add(uncheck_all_btn, 0)
         sizer.Add(actions, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
@@ -229,7 +230,7 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
             self.feed_list.Disable()
             check_all_btn.Disable()
             uncheck_all_btn.Disable()
-            self._selection_status.SetLabel("No feeds available.")
+            self._selection_status.SetLabel(_("No feeds available."))
         else:
             try:
                 self.feed_list.SetSelection(0)
@@ -267,7 +268,7 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
             except Exception:
                 index = wx.NOT_FOUND
         if index == wx.NOT_FOUND:
-            self._selection_status.SetLabel("No feed selected.")
+            self._selection_status.SetLabel(_("No feed selected."))
             return
         if index < 0 or index >= len(self._feed_base_labels):
             self._selection_status.SetLabel("")
@@ -517,7 +518,7 @@ class SettingsDialog(wx.Dialog):
     ]
 
     def __init__(self, parent, config, notification_feeds=None):
-        super().__init__(parent, title="Settings", size=(500, 450))
+        super().__init__(parent, title=_("Settings"), size=(500, 450))
         
         self.config = config
         self._notification_feed_entries = list(notification_feeds or [])
@@ -532,7 +533,7 @@ class SettingsDialog(wx.Dialog):
         general_sizer = wx.BoxSizer(wx.VERTICAL)
         
         refresh_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        refresh_sizer.Add(wx.StaticText(general_panel, label="Refresh Interval:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        refresh_sizer.Add(wx.StaticText(general_panel, label=_("Refresh Interval:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         
         self.refresh_map = {
             "Never": 0,
@@ -573,7 +574,7 @@ class SettingsDialog(wx.Dialog):
         general_sizer.Add(refresh_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         search_mode_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        search_mode_sizer.Add(wx.StaticText(general_panel, label="Search Matches:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        search_mode_sizer.Add(wx.StaticText(general_panel, label=_("Search Matches:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.search_mode_map = {
             "Titles only": "title_only",
             "Titles + article text": "title_content",
@@ -593,54 +594,54 @@ class SettingsDialog(wx.Dialog):
         general_sizer.Add(search_mode_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         concurrency_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        concurrency_sizer.Add(wx.StaticText(general_panel, label="Max Concurrent Refreshes:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        concurrency_sizer.Add(wx.StaticText(general_panel, label=_("Max Concurrent Refreshes:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.concurrent_ctrl = wx.SpinCtrl(general_panel, min=1, max=50, initial=int(config.get("max_concurrent_refreshes", 6)))
         concurrency_sizer.Add(self.concurrent_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(concurrency_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         per_host_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        per_host_sizer.Add(wx.StaticText(general_panel, label="Max Connections Per Host:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        per_host_sizer.Add(wx.StaticText(general_panel, label=_("Max Connections Per Host:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.per_host_ctrl = wx.SpinCtrl(general_panel, min=1, max=10, initial=int(config.get("per_host_max_connections", 2)))
         per_host_sizer.Add(self.per_host_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(per_host_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         timeout_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        timeout_sizer.Add(wx.StaticText(general_panel, label="Feed Timeout (seconds):"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        timeout_sizer.Add(wx.StaticText(general_panel, label=_("Feed Timeout (seconds):")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.timeout_ctrl = wx.SpinCtrl(general_panel, min=5, max=120, initial=int(config.get("feed_timeout_seconds", 15)))
         timeout_sizer.Add(self.timeout_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(timeout_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         retry_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        retry_sizer.Add(wx.StaticText(general_panel, label="Feed Retry Attempts:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        retry_sizer.Add(wx.StaticText(general_panel, label=_("Feed Retry Attempts:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.retry_ctrl = wx.SpinCtrl(general_panel, min=0, max=5, initial=int(config.get("feed_retry_attempts", 1)))
         retry_sizer.Add(self.retry_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(retry_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         # Cache views
         cache_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        cache_sizer.Add(wx.StaticText(general_panel, label="Max Cached Views:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        cache_sizer.Add(wx.StaticText(general_panel, label=_("Max Cached Views:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.cache_ctrl = wx.SpinCtrl(general_panel, min=5, max=100, initial=int(config.get("max_cached_views", 15)))
         cache_sizer.Add(self.cache_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(cache_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         # Full-text caching
-        self.cache_full_text_chk = wx.CheckBox(general_panel, label="Cache full text in background")
+        self.cache_full_text_chk = wx.CheckBox(general_panel, label=_("Cache full text in background"))
         self.cache_full_text_chk.SetValue(bool(config.get("cache_full_text", False)))
         general_sizer.Add(self.cache_full_text_chk, 0, wx.ALL, 5)
         
         # Downloads
-        self.downloads_chk = wx.CheckBox(general_panel, label="Enable Downloads")
+        self.downloads_chk = wx.CheckBox(general_panel, label=_("Enable Downloads"))
         self.downloads_chk.SetValue(config.get("downloads_enabled", False))
         general_sizer.Add(self.downloads_chk, 0, wx.ALL, 5)
 
-        self.confirm_delete_chk = wx.CheckBox(general_panel, label="Confirm before deleting articles")
+        self.confirm_delete_chk = wx.CheckBox(general_panel, label=_("Confirm before deleting articles"))
         self.confirm_delete_chk.SetValue(bool(config.get("confirm_article_delete", True)))
         general_sizer.Add(self.confirm_delete_chk, 0, wx.ALL, 5)
 
         # What Delete does to a local article (global default; feeds can override
         # this in Feed Properties). Maps to the delete_behavior config string.
         del_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        del_sizer.Add(wx.StaticText(general_panel, label="When I delete an article:"), 0,
+        del_sizer.Add(wx.StaticText(general_panel, label=_("When I delete an article:")), 0,
                       wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self._delete_behavior_choices = [
             ("deleted", "Move it to Deleted Articles (restorable)"),
@@ -654,7 +655,7 @@ class SettingsDialog(wx.Dialog):
         del_sizer.Add(self.delete_behavior_ctrl, 0, wx.ALL, 5)
         self.delete_category_ctrl = wx.TextCtrl(general_panel)
         self.delete_category_ctrl.SetName("Delete target category (full path)")
-        self.delete_category_ctrl.SetHint("Category / Path")
+        self.delete_category_ctrl.SetHint(_("Category / Path"))
         del_sizer.Add(self.delete_category_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         general_sizer.Add(del_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
@@ -668,18 +669,18 @@ class SettingsDialog(wx.Dialog):
         self._sync_delete_category_enabled()
 
         dl_path_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        dl_path_sizer.Add(wx.StaticText(general_panel, label="Download Path:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        dl_path_sizer.Add(wx.StaticText(general_panel, label=_("Download Path:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.dl_path_ctrl = wx.TextCtrl(general_panel, value=config.get("download_path", ""))
         self.dl_path_ctrl.SetName("Download path")
         dl_path_sizer.Add(self.dl_path_ctrl, 1, wx.ALL, 5)
-        browse_btn = wx.Button(general_panel, label="Browse...")
+        browse_btn = wx.Button(general_panel, label=_("Browse..."))
         browse_btn.SetName("Browse for download folder")
         browse_btn.Bind(wx.EVT_BUTTON, self.on_browse_dl_path)
         dl_path_sizer.Add(browse_btn, 0, wx.ALL, 5)
         general_sizer.Add(dl_path_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         retention_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        retention_sizer.Add(wx.StaticText(general_panel, label="Retention Policy:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        retention_sizer.Add(wx.StaticText(general_panel, label=_("Retention Policy:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         retention_opts = ["1 day", "3 days", "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "6 months", "1 year", "2 years", "5 years", "Unlimited"]
         self.retention_ctrl = wx.ComboBox(general_panel, choices=retention_opts, style=wx.CB_READONLY)
         self.retention_ctrl.SetValue(config.get("download_retention", "Unlimited"))
@@ -687,54 +688,54 @@ class SettingsDialog(wx.Dialog):
         general_sizer.Add(retention_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         art_retention_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        art_retention_sizer.Add(wx.StaticText(general_panel, label="Article Retention:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        art_retention_sizer.Add(wx.StaticText(general_panel, label=_("Article Retention:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.art_retention_ctrl = wx.ComboBox(general_panel, choices=retention_opts, style=wx.CB_READONLY)
         self.art_retention_ctrl.SetValue(config.get("article_retention", "Unlimited"))
         art_retention_sizer.Add(self.art_retention_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(art_retention_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         # Tray settings
-        self.close_tray_chk = wx.CheckBox(general_panel, label="Close to Tray")
+        self.close_tray_chk = wx.CheckBox(general_panel, label=_("Close to Tray"))
         self.close_tray_chk.SetValue(config.get("close_to_tray", False))
         general_sizer.Add(self.close_tray_chk, 0, wx.ALL, 5)
         
-        self.min_tray_chk = wx.CheckBox(general_panel, label="Minimize to Tray")
+        self.min_tray_chk = wx.CheckBox(general_panel, label=_("Minimize to Tray"))
         self.min_tray_chk.SetValue(config.get("minimize_to_tray", True))        
         general_sizer.Add(self.min_tray_chk, 0, wx.ALL, 5)
 
-        self.start_maximized_chk = wx.CheckBox(general_panel, label="Always start maximized")
+        self.start_maximized_chk = wx.CheckBox(general_panel, label=_("Always start maximized"))
         self.start_maximized_chk.SetValue(bool(config.get("start_maximized", False)))
         general_sizer.Add(self.start_maximized_chk, 0, wx.ALL, 5)
 
-        self.debug_mode_chk = wx.CheckBox(general_panel, label="Debug mode (show console on startup)")
+        self.debug_mode_chk = wx.CheckBox(general_panel, label=_("Debug mode (show console on startup)"))
         self.debug_mode_chk.SetValue(bool(config.get("debug_mode", False)))     
         general_sizer.Add(self.debug_mode_chk, 0, wx.ALL, 5)
 
-        self.auto_update_chk = wx.CheckBox(general_panel, label="Check for updates on startup")
+        self.auto_update_chk = wx.CheckBox(general_panel, label=_("Check for updates on startup"))
         self.auto_update_chk.SetValue(bool(config.get("auto_check_updates", True)))
         general_sizer.Add(self.auto_update_chk, 0, wx.ALL, 5)
 
-        self.refresh_startup_chk = wx.CheckBox(general_panel, label="Automatically refresh feeds upon start")
+        self.refresh_startup_chk = wx.CheckBox(general_panel, label=_("Automatically refresh feeds upon start"))
         self.refresh_startup_chk.SetValue(bool(config.get("refresh_on_startup", True)))
         general_sizer.Add(self.refresh_startup_chk, 0, wx.ALL, 5)
 
         self.ignore_feed_cache_chk = wx.CheckBox(
             general_panel,
-            label="Always fetch full feeds in the background (ignore feed caching)",
+            label=_("Always fetch full feeds in the background (ignore feed caching)"),
         )
         self.ignore_feed_cache_chk.SetValue(bool(config.get("ignore_feed_cache", False)))
         general_sizer.Add(self.ignore_feed_cache_chk, 0, wx.ALL, 5)
 
         self.show_image_alt_chk = wx.CheckBox(
             general_panel,
-            label="Include image alt text in articles (announces images, can override per feed)",
+            label=_("Include image alt text in articles (announces images, can override per feed)"),
         )
         self.show_image_alt_chk.SetValue(bool(config.get("show_image_alt", False)))
         general_sizer.Add(self.show_image_alt_chk, 0, wx.ALL, 5)
 
         cookies_label = wx.StaticText(
             general_panel,
-            label=(
+            label=_(
                 "yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, or "
                 "members-only YouTube content. Installed browsers are detected automatically; Firefox "
                 "is recommended. Chrome, Edge, and Brave may fail on Windows because their cookies can "
@@ -747,34 +748,34 @@ class SettingsDialog(wx.Dialog):
         cookies_row = wx.BoxSizer(wx.HORIZONTAL)
         self.ytdlp_cookies_ctrl = wx.TextCtrl(general_panel, value=str(config.get("ytdlp_cookies_file", "") or ""))
         self.ytdlp_cookies_ctrl.SetName("yt-dlp cookies file path")
-        self.ytdlp_cookies_ctrl.SetHint("Path to a cookies.txt file")
+        self.ytdlp_cookies_ctrl.SetHint(_("Path to a cookies.txt file"))
         cookies_row.Add(self.ytdlp_cookies_ctrl, 1, wx.EXPAND | wx.RIGHT, 5)
-        cookies_browse = wx.Button(general_panel, label="Browse...")
+        cookies_browse = wx.Button(general_panel, label=_("Browse..."))
         cookies_browse.SetName("Browse for cookies file")
         cookies_browse.Bind(wx.EVT_BUTTON, self._on_browse_cookies_file)
         cookies_row.Add(cookies_browse, 0, wx.RIGHT, 5)
-        cookies_import = wx.Button(general_panel, label="Import from browser...")
+        cookies_import = wx.Button(general_panel, label=_("Import from browser..."))
         cookies_import.Bind(wx.EVT_BUTTON, self._on_import_cookies_from_browser)
         cookies_row.Add(cookies_import, 0)
         general_sizer.Add(cookies_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
 
         self.auto_import_cookies_chk = wx.CheckBox(
             general_panel,
-            label="Automatically import a YouTube cookies.txt when you export one to Downloads",
+            label=_("Automatically import a YouTube cookies.txt when you export one to Downloads"),
         )
         self.auto_import_cookies_chk.SetValue(bool(config.get("auto_import_browser_cookies", True)))
         general_sizer.Add(self.auto_import_cookies_chk, 0, wx.ALL, 5)
 
         self.youtube_play_via_download_chk = wx.CheckBox(
             general_panel,
-            label="Play YouTube by downloading first (most reliable; slower to start)",
+            label=_("Play YouTube by downloading first (most reliable; slower to start)"),
         )
         self.youtube_play_via_download_chk.SetValue(bool(config.get("youtube_play_via_download", False)))
         general_sizer.Add(self.youtube_play_via_download_chk, 0, wx.ALL, 5)
 
         cache_label = wx.StaticText(
             general_panel,
-            label="YouTube playback cache folder (blank = default, next to your data):",
+            label=_("YouTube playback cache folder (blank = default, next to your data):"),
         )
         general_sizer.Add(cache_label, 0, wx.LEFT | wx.TOP, 5)
         cache_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -782,20 +783,20 @@ class SettingsDialog(wx.Dialog):
             general_panel, value=str(config.get("youtube_play_cache_dir", "") or "")
         )
         self.youtube_play_cache_dir_ctrl.SetName("YouTube playback cache folder")
-        self.youtube_play_cache_dir_ctrl.SetHint("Leave blank for the default location")
+        self.youtube_play_cache_dir_ctrl.SetHint(_("Leave blank for the default location"))
         cache_row.Add(self.youtube_play_cache_dir_ctrl, 1, wx.EXPAND | wx.RIGHT, 5)
-        cache_browse = wx.Button(general_panel, label="Browse...")
+        cache_browse = wx.Button(general_panel, label=_("Browse..."))
         cache_browse.SetName("Browse for playback cache folder")
         cache_browse.Bind(wx.EVT_BUTTON, self._on_browse_play_cache_dir)
         cache_row.Add(cache_browse, 0, wx.RIGHT, 5)
-        cache_clear = wx.Button(general_panel, label="Clear cache now")
+        cache_clear = wx.Button(general_panel, label=_("Clear cache now"))
         cache_clear.Bind(wx.EVT_BUTTON, self._on_clear_play_cache)
         cache_row.Add(cache_clear, 0)
         general_sizer.Add(cache_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
 
         size_row = wx.BoxSizer(wx.HORIZONTAL)
         size_row.Add(
-            wx.StaticText(general_panel, label="Max cache size (MB, 0 = unlimited):"),
+            wx.StaticText(general_panel, label=_("Max cache size (MB, 0 = unlimited):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
         )
         self.youtube_play_cache_max_mb_ctrl = wx.SpinCtrl(
@@ -807,7 +808,7 @@ class SettingsDialog(wx.Dialog):
 
         self.prompt_missing_deps_chk = wx.CheckBox(
             general_panel,
-            label="Ask to install missing media dependencies on startup",
+            label=_("Ask to install missing media dependencies on startup"),
         )
         self.prompt_missing_deps_chk.SetValue(
             bool(config.get("prompt_missing_dependencies_on_startup", True))
@@ -820,7 +821,7 @@ class SettingsDialog(wx.Dialog):
             self.start_on_login_chk.Disable()
         general_sizer.Add(self.start_on_login_chk, 0, wx.ALL, 5)
 
-        self.remember_last_feed_chk = wx.CheckBox(general_panel, label="Remember last selected feed/folder on startup")
+        self.remember_last_feed_chk = wx.CheckBox(general_panel, label=_("Remember last selected feed/folder on startup"))
         self.remember_last_feed_chk.SetValue(bool(config.get("remember_last_feed", False)))
         general_sizer.Add(self.remember_last_feed_chk, 0, wx.ALL, 5)
 
@@ -829,7 +830,7 @@ class SettingsDialog(wx.Dialog):
         # gettext falls back to the built-in English strings otherwise.
         language_sizer = wx.BoxSizer(wx.HORIZONTAL)
         language_sizer.Add(
-            wx.StaticText(general_panel, label="Interface language (requires restart):"),
+            wx.StaticText(general_panel, label=_("Interface language (requires restart):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         try:
@@ -853,7 +854,7 @@ class SettingsDialog(wx.Dialog):
         # Default expansion state of the feed category tree on launch (issue #33).
         tree_state_sizer = wx.BoxSizer(wx.HORIZONTAL)
         tree_state_sizer.Add(
-            wx.StaticText(general_panel, label="Feed category tree on startup:"),
+            wx.StaticText(general_panel, label=_("Feed category tree on startup:")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         self.tree_expand_map = {
@@ -873,7 +874,7 @@ class SettingsDialog(wx.Dialog):
         # Article opening method (issue #31): default browser vs a custom command.
         article_open_sizer = wx.BoxSizer(wx.HORIZONTAL)
         article_open_sizer.Add(
-            wx.StaticText(general_panel, label="Article opening method:"),
+            wx.StaticText(general_panel, label=_("Article opening method:")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         self.article_open_method_map = {
@@ -892,7 +893,7 @@ class SettingsDialog(wx.Dialog):
 
         cmd_sizer = wx.BoxSizer(wx.HORIZONTAL)
         cmd_sizer.Add(
-            wx.StaticText(general_panel, label="Custom command:"),
+            wx.StaticText(general_panel, label=_("Custom command:")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         self.article_open_command_ctrl = wx.TextCtrl(
@@ -900,14 +901,14 @@ class SettingsDialog(wx.Dialog):
         )
         self.article_open_command_ctrl.SetName("Custom article open command")
         cmd_sizer.Add(self.article_open_command_ctrl, 1, wx.ALL, 5)
-        self.article_open_test_btn = wx.Button(general_panel, label="Test")
+        self.article_open_test_btn = wx.Button(general_panel, label=_("Test"))
         self.article_open_test_btn.SetName("Test custom article open command")
         cmd_sizer.Add(self.article_open_test_btn, 0, wx.ALL, 5)
         general_sizer.Add(cmd_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         self.article_open_help_lbl = wx.StaticText(
             general_panel,
-            label="Use %1 for the article URL. Example: chrome --incognito %1",
+            label=_("Use %1 for the article URL. Example: chrome --incognito %1"),
         )
         general_sizer.Add(self.article_open_help_lbl, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
@@ -916,7 +917,7 @@ class SettingsDialog(wx.Dialog):
         self._sync_article_open_controls()
 
         general_panel.SetSizer(general_sizer)
-        notebook.AddPage(general_panel, "General")
+        notebook.AddPage(general_panel, _("General"))
 
         # Media Player Tab
         media_panel = wx.Panel(notebook)
@@ -924,7 +925,7 @@ class SettingsDialog(wx.Dialog):
 
         # Preferred soundcard (enumerated in background to avoid blocking dialog open)
         soundcard_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        soundcard_sizer.Add(wx.StaticText(media_panel, label="Preferred Soundcard:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        soundcard_sizer.Add(wx.StaticText(media_panel, label=_("Preferred Soundcard:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self._current_soundcard = str(config.get("preferred_soundcard", "") or "")
         self._soundcard_choices = [("System Default", "")]
         self._soundcard_labels = ["Loading soundcards..."]
@@ -934,13 +935,13 @@ class SettingsDialog(wx.Dialog):
         media_sizer.Add(soundcard_sizer, 0, wx.EXPAND | wx.ALL, 5)
         threading.Thread(target=self._load_soundcards_async, daemon=True).start()
 
-        self.skip_silence_chk = wx.CheckBox(media_panel, label="Skip Silence (Experimental)")
+        self.skip_silence_chk = wx.CheckBox(media_panel, label=_("Skip Silence (Experimental)"))
         self.skip_silence_chk.SetValue(config.get("skip_silence", False))
         media_sizer.Add(self.skip_silence_chk, 0, wx.ALL, 5)
 
         # Playback speed
         speed_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        speed_sizer.Add(wx.StaticText(media_panel, label="Default Playback Speed:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        speed_sizer.Add(wx.StaticText(media_panel, label=_("Default Playback Speed:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
         # Build speed choices using utils
         speeds = utils.build_playback_speeds()
@@ -963,18 +964,18 @@ class SettingsDialog(wx.Dialog):
         media_sizer.Add(speed_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         # Player window behavior
-        self.show_player_on_play_chk = wx.CheckBox(media_panel, label="Show player window when starting playback")
+        self.show_player_on_play_chk = wx.CheckBox(media_panel, label=_("Show player window when starting playback"))
         self.show_player_on_play_chk.SetValue(bool(config.get("show_player_on_play", True)))
         media_sizer.Add(self.show_player_on_play_chk, 0, wx.ALL, 5)
 
         # VLC network caching (helps on high latency streams)
         cache_net_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        cache_net_sizer.Add(wx.StaticText(media_panel, label="Network Cache (ms):"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        cache_net_sizer.Add(wx.StaticText(media_panel, label=_("Network Cache (ms):")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.vlc_cache_ctrl = wx.SpinCtrl(media_panel, min=500, max=60000, initial=int(config.get("vlc_network_caching_ms", 5000)))
         cache_net_sizer.Add(self.vlc_cache_ctrl, 0, wx.ALL, 5)
         media_sizer.Add(cache_net_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
-        self.range_cache_debug_chk = wx.CheckBox(media_panel, label="Verbose range-cache proxy debug logs")
+        self.range_cache_debug_chk = wx.CheckBox(media_panel, label=_("Verbose range-cache proxy debug logs"))
         self.range_cache_debug_chk.SetValue(bool(config.get("range_cache_debug", False)))
         media_sizer.Add(self.range_cache_debug_chk, 0, wx.ALL, 5)
 
@@ -987,7 +988,7 @@ class SettingsDialog(wx.Dialog):
         tools_box.Add(
             wx.StaticText(
                 media_panel,
-                label="Leave a path blank to auto-detect. A set path overrides detection.",
+                label=_("Leave a path blank to auto-detect. A set path overrides detection."),
             ),
             0, wx.ALL, 4,
         )
@@ -1007,7 +1008,7 @@ class SettingsDialog(wx.Dialog):
             ctrl = wx.TextCtrl(media_panel, value=str(config.get(cfg_key, "") or ""))
             ctrl.SetName(f"{tool_label} executable path override")
             row.Add(ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-            browse = wx.Button(media_panel, label="Browse...")
+            browse = wx.Button(media_panel, label=_("Browse..."))
             browse.Bind(
                 wx.EVT_BUTTON,
                 lambda evt, c=ctrl, lbl=tool_label: self._on_browse_media_tool(c, lbl),
@@ -1023,13 +1024,13 @@ class SettingsDialog(wx.Dialog):
         threading.Thread(target=self._detect_media_tools_async, daemon=True).start()
 
         media_panel.SetSizer(media_sizer)
-        notebook.AddPage(media_panel, "Media Player")
+        notebook.AddPage(media_panel, _("Media Player"))
         
         # Provider Tab
         provider_panel = wx.Panel(notebook)
         provider_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        provider_sizer.Add(wx.StaticText(provider_panel, label="Active Provider:"), 0, wx.ALL, 5)
+        provider_sizer.Add(wx.StaticText(provider_panel, label=_("Active Provider:")), 0, wx.ALL, 5)
 
         # Build provider list from config (keeps future providers visible).
         cfg_providers = list((config.get("providers") or {}).keys()) if isinstance(config, dict) else []
@@ -1081,14 +1082,14 @@ class SettingsDialog(wx.Dialog):
             ctrls = {}
             p_cfg = (config.get("providers") or {}).get(name, {}) if isinstance(config, dict) else {}
 
-            fg.Add(wx.StaticText(pnl, label="Inoreader App ID:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2)
+            fg.Add(wx.StaticText(pnl, label=_("Inoreader App ID:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2)
             app_id_ctrl = wx.TextCtrl(pnl)
             app_id_ctrl.SetName("Inoreader App ID")
             app_id_ctrl.SetValue(str(p_cfg.get("app_id", "") or ""))
             fg.Add(app_id_ctrl, 1, wx.EXPAND | wx.ALL, 2)
             ctrls["app_id"] = app_id_ctrl
 
-            fg.Add(wx.StaticText(pnl, label="Inoreader App Key:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2)
+            fg.Add(wx.StaticText(pnl, label=_("Inoreader App Key:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2)
             app_key_ctrl = wx.TextCtrl(pnl, style=wx.TE_PASSWORD)
             app_key_ctrl.SetName("Inoreader App Key")
             app_key_ctrl.SetValue(str(p_cfg.get("app_key", "") or ""))
@@ -1099,7 +1100,7 @@ class SettingsDialog(wx.Dialog):
             redirect_uri_ctrl = wx.TextCtrl(pnl)
             redirect_uri_ctrl.SetName("Redirect URI")
             redirect_uri_ctrl.SetValue(str(p_cfg.get("redirect_uri", "") or "").strip() or default_redirect_uri)
-            fg.Add(wx.StaticText(pnl, label="Redirect URI:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2)
+            fg.Add(wx.StaticText(pnl, label=_("Redirect URI:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 2)
             fg.Add(redirect_uri_ctrl, 1, wx.EXPAND | wx.ALL, 2)
             ctrls["redirect_uri"] = redirect_uri_ctrl
 
@@ -1107,7 +1108,7 @@ class SettingsDialog(wx.Dialog):
 
             help_lbl = wx.StaticText(
                 pnl,
-                label=(
+                label=_(
                     "Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
                     "localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
                     "when prompted."
@@ -1119,8 +1120,8 @@ class SettingsDialog(wx.Dialog):
             outer.Add(status_lbl, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 2)
 
             btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-            auth_btn = wx.Button(pnl, label="Authorize Inoreader")
-            clear_btn = wx.Button(pnl, label="Clear Authorization")
+            auth_btn = wx.Button(pnl, label=_("Authorize Inoreader"))
+            clear_btn = wx.Button(pnl, label=_("Clear Authorization"))
             btn_sizer.Add(auth_btn, 0, wx.ALL, 2)
             btn_sizer.Add(clear_btn, 0, wx.ALL, 2)
             outer.Add(btn_sizer, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 2)
@@ -1170,13 +1171,13 @@ class SettingsDialog(wx.Dialog):
         self._update_provider_panels()
 
         provider_panel.SetSizer(provider_sizer)
-        notebook.AddPage(provider_panel, "Provider")
+        notebook.AddPage(provider_panel, _("Provider"))
         
         # Sounds Tab
         sounds_panel = wx.Panel(notebook)
         sounds_sizer = wx.BoxSizer(wx.VERTICAL)
         
-        self.sounds_enabled_chk = wx.CheckBox(sounds_panel, label="Enable Sound Notifications")
+        self.sounds_enabled_chk = wx.CheckBox(sounds_panel, label=_("Enable Sound Notifications"))
         self.sounds_enabled_chk.SetValue(config.get("sounds_enabled", True))
         sounds_sizer.Add(self.sounds_enabled_chk, 0, wx.ALL, 5)
         
@@ -1188,7 +1189,7 @@ class SettingsDialog(wx.Dialog):
             ctrl = wx.TextCtrl(sounds_panel, value=str(val))
             ctrl.SetName(field_name)
             s.Add(ctrl, 1, wx.ALL, 5)
-            browse_btn = wx.Button(sounds_panel, label="Browse...")
+            browse_btn = wx.Button(sounds_panel, label=_("Browse..."))
             browse_btn.SetName(f"Browse for {field_name}")
 
             def _on_browse(evt):
@@ -1206,7 +1207,7 @@ class SettingsDialog(wx.Dialog):
         self.sound_error_ctrl = _add_sound_field("Refresh Error Sound:", "sound_refresh_error")
         
         sounds_panel.SetSizer(sounds_sizer)
-        notebook.AddPage(sounds_panel, "Sounds")
+        notebook.AddPage(sounds_panel, _("Sounds"))
 
         # Notifications Tab
         notifications_panel = wx.Panel(notebook)
@@ -1220,7 +1221,7 @@ class SettingsDialog(wx.Dialog):
 
         self.windows_notifications_chk = wx.CheckBox(
             notifications_panel,
-            label="Enable notifications for new articles",
+            label=_("Enable notifications for new articles"),
         )
         self.windows_notifications_chk.SetValue(bool(config.get("windows_notifications_enabled", False)))
         if not utils.platform_supports_notifications():
@@ -1229,7 +1230,7 @@ class SettingsDialog(wx.Dialog):
 
         self.windows_notifications_feed_chk = wx.CheckBox(
             notifications_panel,
-            label="Include feed name in notification text",
+            label=_("Include feed name in notification text"),
         )
         self.windows_notifications_feed_chk.SetValue(
             bool(config.get("windows_notifications_include_feed_name", True))
@@ -1238,7 +1239,7 @@ class SettingsDialog(wx.Dialog):
 
         cap_row = wx.BoxSizer(wx.HORIZONTAL)
         cap_row.Add(
-            wx.StaticText(notifications_panel, label="Max notifications per refresh (0 = no limit):"),
+            wx.StaticText(notifications_panel, label=_("Max notifications per refresh (0 = no limit):")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1254,18 +1255,18 @@ class SettingsDialog(wx.Dialog):
 
         self.windows_notifications_summary_chk = wx.CheckBox(
             notifications_panel,
-            label="Show a summary notification when notification cap is reached",
+            label=_("Show a summary notification when notification cap is reached"),
         )
         self.windows_notifications_summary_chk.SetValue(
             bool(config.get("windows_notifications_show_summary_when_capped", True))
         )
         notifications_sizer.Add(self.windows_notifications_summary_chk, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
-        self.test_notification_btn = wx.Button(notifications_panel, label="Test Notification")
+        self.test_notification_btn = wx.Button(notifications_panel, label=_("Test Notification"))
         self.test_notification_btn.Bind(wx.EVT_BUTTON, self.on_test_notification)
         notifications_sizer.Add(self.test_notification_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
-        self.exclude_feeds_btn = wx.Button(notifications_panel, label="Exclude Feeds...")
+        self.exclude_feeds_btn = wx.Button(notifications_panel, label=_("Exclude Feeds..."))
         self.exclude_feeds_btn.Bind(wx.EVT_BUTTON, self.on_exclude_notification_feeds)
         notifications_sizer.Add(self.exclude_feeds_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
@@ -1277,7 +1278,7 @@ class SettingsDialog(wx.Dialog):
         self._update_notification_controls()
 
         notifications_panel.SetSizer(notifications_sizer)
-        notebook.AddPage(notifications_panel, "Notifications")
+        notebook.AddPage(notifications_panel, _("Notifications"))
 
         # Translate Tab (automatic article translation via Grok/Groq/OpenAI/OpenRouter/Gemini/Qwen)
         translate_panel = wx.Panel(notebook)
@@ -1291,7 +1292,7 @@ class SettingsDialog(wx.Dialog):
 
         self.translation_enabled_chk = wx.CheckBox(
             translate_panel,
-            label="Enable automatic translation for article content",
+            label=_("Enable automatic translation for article content"),
         )
         self.translation_enabled_chk.SetValue(bool(config.get("translation_enabled", False)))
         translate_sizer.Add(self.translation_enabled_chk, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
@@ -1311,7 +1312,7 @@ class SettingsDialog(wx.Dialog):
         _provider_display_names = list(self._translation_provider_display_to_key.keys())
 
         provider_row = wx.BoxSizer(wx.HORIZONTAL)
-        provider_row.Add(wx.StaticText(translate_panel, label="Provider:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        provider_row.Add(wx.StaticText(translate_panel, label=_("Provider:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         self.translation_provider_ctrl = wx.Choice(translate_panel, choices=_provider_display_names)
         _saved_provider = str(config.get("translation_provider", "grok") or "grok").strip().lower()
         _saved_display = self._translation_provider_key_to_display.get(_saved_provider, _provider_display_names[0])
@@ -1331,7 +1332,7 @@ class SettingsDialog(wx.Dialog):
 
         target_row = wx.BoxSizer(wx.HORIZONTAL)
         target_row.Add(
-            wx.StaticText(translate_panel, label="Target language:"),
+            wx.StaticText(translate_panel, label=_("Target language:")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1352,7 +1353,7 @@ class SettingsDialog(wx.Dialog):
         translate_sizer.Add(
             wx.StaticText(
                 translate_panel,
-                label="Choose a language or type a code (e.g. en, es, fr, pt-BR).",
+                label=_("Choose a language or type a code (e.g. en, es, fr, pt-BR)."),
             ),
             0,
             wx.LEFT | wx.RIGHT | wx.BOTTOM,
@@ -1361,7 +1362,7 @@ class SettingsDialog(wx.Dialog):
 
         model_row = wx.BoxSizer(wx.HORIZONTAL)
         model_row.Add(
-            wx.StaticText(translate_panel, label="Grok (xAI) model (optional):"),
+            wx.StaticText(translate_panel, label=_("Grok (xAI) model (optional):")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1382,7 +1383,7 @@ class SettingsDialog(wx.Dialog):
         translate_sizer.Add(model_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         self.translation_grok_model_hint_lbl = wx.StaticText(
             translate_panel,
-            label="Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select 'Groq (LLaMA, Mistral)' instead.",
+            label=_("Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select 'Groq (LLaMA, Mistral)' instead."),
         )
         translate_sizer.Add(
             self.translation_grok_model_hint_lbl,
@@ -1392,7 +1393,7 @@ class SettingsDialog(wx.Dialog):
         )
 
         api_key_row = wx.BoxSizer(wx.HORIZONTAL)
-        api_key_row.Add(wx.StaticText(translate_panel, label="Grok (xAI) API key (starts with xai-):"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        api_key_row.Add(wx.StaticText(translate_panel, label=_("Grok (xAI) API key (starts with xai-):")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         self.translation_grok_api_key_ctrl = wx.TextCtrl(
             translate_panel,
             value=str(config.get("translation_grok_api_key", "") or ""),
@@ -1404,7 +1405,7 @@ class SettingsDialog(wx.Dialog):
 
         groq_model_row = wx.BoxSizer(wx.HORIZONTAL)
         groq_model_row.Add(
-            wx.StaticText(translate_panel, label="Groq model (optional) - hosts LLaMA and Mistral:"),
+            wx.StaticText(translate_panel, label=_("Groq model (optional) - hosts LLaMA and Mistral:")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1426,7 +1427,7 @@ class SettingsDialog(wx.Dialog):
 
         groq_api_key_row = wx.BoxSizer(wx.HORIZONTAL)
         groq_api_key_row.Add(
-            wx.StaticText(translate_panel, label="Groq API key (starts with gsk_):"),
+            wx.StaticText(translate_panel, label=_("Groq API key (starts with gsk_):")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1441,7 +1442,7 @@ class SettingsDialog(wx.Dialog):
         translate_sizer.Add(groq_api_key_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         self.translation_groq_hint_lbl = wx.StaticText(
             translate_panel,
-            label="Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA and Mistral models).",
+            label=_("Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA and Mistral models)."),
         )
         translate_sizer.Add(
             self.translation_groq_hint_lbl,
@@ -1452,7 +1453,7 @@ class SettingsDialog(wx.Dialog):
 
         openai_model_row = wx.BoxSizer(wx.HORIZONTAL)
         openai_model_row.Add(
-            wx.StaticText(translate_panel, label="OpenAI model (optional):"),
+            wx.StaticText(translate_panel, label=_("OpenAI model (optional):")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1474,7 +1475,7 @@ class SettingsDialog(wx.Dialog):
 
         openai_api_key_row = wx.BoxSizer(wx.HORIZONTAL)
         openai_api_key_row.Add(
-            wx.StaticText(translate_panel, label="OpenAI API key:"),
+            wx.StaticText(translate_panel, label=_("OpenAI API key:")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1490,7 +1491,7 @@ class SettingsDialog(wx.Dialog):
 
         openrouter_model_row = wx.BoxSizer(wx.HORIZONTAL)
         openrouter_model_row.Add(
-            wx.StaticText(translate_panel, label="OpenRouter model (optional):"),
+            wx.StaticText(translate_panel, label=_("OpenRouter model (optional):")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1512,7 +1513,7 @@ class SettingsDialog(wx.Dialog):
 
         openrouter_api_key_row = wx.BoxSizer(wx.HORIZONTAL)
         openrouter_api_key_row.Add(
-            wx.StaticText(translate_panel, label="OpenRouter API key:"),
+            wx.StaticText(translate_panel, label=_("OpenRouter API key:")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1527,18 +1528,18 @@ class SettingsDialog(wx.Dialog):
         translate_sizer.Add(openrouter_api_key_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         openrouter_tools_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.translation_openrouter_load_models_btn = wx.Button(translate_panel, label="Load OpenRouter Models")
+        self.translation_openrouter_load_models_btn = wx.Button(translate_panel, label=_("Load OpenRouter Models"))
         openrouter_tools_row.Add(self.translation_openrouter_load_models_btn, 0, wx.RIGHT, 8)
         self.translation_openrouter_models_status_lbl = wx.StaticText(
             translate_panel,
-            label="Loads all available model IDs from OpenRouter.",
+            label=_("Loads all available model IDs from OpenRouter."),
         )
         openrouter_tools_row.Add(self.translation_openrouter_models_status_lbl, 0, wx.ALIGN_CENTER_VERTICAL)
         translate_sizer.Add(openrouter_tools_row, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         gemini_model_row = wx.BoxSizer(wx.HORIZONTAL)
         gemini_model_row.Add(
-            wx.StaticText(translate_panel, label="Gemini model (optional):"),
+            wx.StaticText(translate_panel, label=_("Gemini model (optional):")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1560,7 +1561,7 @@ class SettingsDialog(wx.Dialog):
 
         gemini_api_key_row = wx.BoxSizer(wx.HORIZONTAL)
         gemini_api_key_row.Add(
-            wx.StaticText(translate_panel, label="Gemini API key:"),
+            wx.StaticText(translate_panel, label=_("Gemini API key:")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1576,7 +1577,7 @@ class SettingsDialog(wx.Dialog):
 
         qwen_model_row = wx.BoxSizer(wx.HORIZONTAL)
         qwen_model_row.Add(
-            wx.StaticText(translate_panel, label="Qwen model (optional):"),
+            wx.StaticText(translate_panel, label=_("Qwen model (optional):")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1598,7 +1599,7 @@ class SettingsDialog(wx.Dialog):
 
         qwen_api_key_row = wx.BoxSizer(wx.HORIZONTAL)
         qwen_api_key_row.Add(
-            wx.StaticText(translate_panel, label="Qwen API key:"),
+            wx.StaticText(translate_panel, label=_("Qwen API key:")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
@@ -1628,18 +1629,18 @@ class SettingsDialog(wx.Dialog):
         self._update_translation_provider_controls()
 
         translate_panel.SetSizer(translate_sizer)
-        notebook.AddPage(translate_panel, "Translate")
+        notebook.AddPage(translate_panel, _("Translate"))
 
         # Advanced Tab
         advanced_panel = wx.Panel(notebook)
         advanced_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        storage_group = wx.StaticBox(advanced_panel, label="Data Storage Location")
+        storage_group = wx.StaticBox(advanced_panel, label=_("Data Storage Location"))
         storage_sizer = wx.StaticBoxSizer(storage_group, wx.VERTICAL)
 
         storage_help = wx.StaticText(
             advanced_panel,
-            label=(
+            label=_(
                 "Where BlindRSS stores config.json and rss.db.\n"
                 "User Data Folder keeps your settings and feeds across app upgrades,\n"
                 "especially on macOS where the installed app bundle is replaced."
@@ -1654,7 +1655,7 @@ class SettingsDialog(wx.Dialog):
         storage_choices = list(self._storage_location_map.keys())
         storage_row = wx.BoxSizer(wx.HORIZONTAL)
         storage_row.Add(
-            wx.StaticText(advanced_panel, label="Storage Location:"),
+            wx.StaticText(advanced_panel, label=_("Storage Location:")),
             0,
             wx.ALIGN_CENTER_VERTICAL | wx.ALL,
             5,
@@ -1687,7 +1688,7 @@ class SettingsDialog(wx.Dialog):
         advanced_sizer.Add(storage_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
         advanced_panel.SetSizer(advanced_sizer)
-        notebook.AddPage(advanced_panel, "Advanced")
+        notebook.AddPage(advanced_panel, _("Advanced"))
 
         # Main Sizer
         main_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -1726,7 +1727,7 @@ class SettingsDialog(wx.Dialog):
         except Exception:
             pass
         try:
-            self.translation_openrouter_models_status_lbl.SetLabel("Loading OpenRouter models...")
+            self.translation_openrouter_models_status_lbl.SetLabel(_("Loading OpenRouter models..."))
         except Exception:
             pass
 
@@ -1888,11 +1889,11 @@ class SettingsDialog(wx.Dialog):
 
     def on_test_notification(self, event):
         if not utils.platform_supports_notifications():
-            wx.MessageBox("Notifications are not supported on this platform.", "Notifications", wx.ICON_INFORMATION)
+            wx.MessageBox(_("Notifications are not supported on this platform."), _("Notifications"), wx.ICON_INFORMATION)
             return
 
-        title = "BlindRSS notification test"
-        body = "If you can read this, notifications are working."
+        title = _("BlindRSS notification test")
+        body = _("If you can read this, notifications are working.")
         shown = False
 
         parent = self.GetParent()
@@ -1922,7 +1923,7 @@ class SettingsDialog(wx.Dialog):
             )
             wx.MessageBox(
                 f"Notification APIs were unavailable. {hint}",
-                "Notifications",
+                _("Notifications"),
                 wx.ICON_WARNING,
             )
 
@@ -1997,7 +1998,7 @@ class SettingsDialog(wx.Dialog):
         app_key = (app_key_ctrl.GetValue() or "").strip()
         redirect_uri = (redirect_uri_ctrl.GetValue() or "").strip()
         if not app_id or not app_key:
-            wx.MessageBox("Enter your Inoreader App ID and App Key first.", "Inoreader", wx.ICON_INFORMATION)
+            wx.MessageBox(_("Enter your Inoreader App ID and App Key first."), _("Inoreader"), wx.ICON_INFORMATION)
             return
         btn = getattr(self, "_inoreader_authorize_btn", None)
         if btn:
@@ -2015,7 +2016,7 @@ class SettingsDialog(wx.Dialog):
     def _prompt_inoreader_redirect_paste(self, redirect_uri: str, result_q) -> None:
         result = None
         try:
-            dlg = wx.Dialog(self, title="Inoreader Authorization", size=(580, 320))
+            dlg = wx.Dialog(self, title=_("Inoreader Authorization"), size=(580, 320))
             sizer = wx.BoxSizer(wx.VERTICAL)
             msg = (
                 "After authorizing in your browser, it will redirect to your Redirect URI.\n"
@@ -2026,7 +2027,7 @@ class SettingsDialog(wx.Dialog):
             sizer.Add(wx.StaticText(dlg, label=msg), 0, wx.ALL, 10)
             tc = wx.TextCtrl(dlg, style=wx.TE_MULTILINE)
             tc.SetName("Redirected URL")
-            tc.SetHint("Paste the full URL from your browser address bar")
+            tc.SetHint(_("Paste the full URL from your browser address bar"))
             sizer.Add(tc, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
             btns = dlg.CreateButtonSizer(wx.OK | wx.CANCEL)
             sizer.Add(btns, 0, wx.ALIGN_CENTER | wx.ALL, 10)
@@ -2151,7 +2152,11 @@ class SettingsDialog(wx.Dialog):
                 btn.Enable()
             except Exception:
                 pass
-        wx.MessageBox(f"Inoreader authorization failed:\n{message}", "Inoreader", wx.ICON_ERROR)
+        wx.MessageBox(
+            _("Inoreader authorization failed:\n{message}").format(message=message),
+            _("Inoreader"),
+            wx.ICON_ERROR,
+        )
 
     def _clear_inoreader_authorization(self, event) -> None:
         self._inoreader_tokens = {
@@ -2320,13 +2325,13 @@ class SettingsDialog(wx.Dialog):
         if count == 0:
             wx.MessageBox(
                 f"The playback cache is already empty.\n\n{cache_dir}",
-                "Playback cache",
+                _("Playback cache"),
                 wx.ICON_INFORMATION,
             )
             return
         confirm = wx.MessageBox(
             f"Delete {count} cached file(s) ({play_cache.human_size(size)})?\n\n{cache_dir}",
-            "Clear playback cache",
+            _("Clear playback cache"),
             wx.YES_NO | wx.ICON_QUESTION,
         )
         if confirm != wx.YES:
@@ -2334,7 +2339,7 @@ class SettingsDialog(wx.Dialog):
         removed, freed = play_cache.clear_cache(cache_dir)
         wx.MessageBox(
             f"Removed {removed} file(s), freed {play_cache.human_size(freed)}.",
-            "Playback cache cleared",
+            _("Playback cache cleared"),
             wx.ICON_INFORMATION,
         )
 
@@ -2419,14 +2424,14 @@ class SettingsDialog(wx.Dialog):
         except ValueError as e:
             wx.MessageBox(
                 f"That file is not a usable YouTube cookie export:\n\n{e}",
-                "Import failed",
+                _("Import failed"),
                 wx.ICON_ERROR,
             )
             return
         except OSError as e:
             wx.MessageBox(
                 f"Could not import the cookies file:\n\n{e}",
-                "Import failed",
+                _("Import failed"),
                 wx.ICON_ERROR,
             )
             return
@@ -2436,7 +2441,7 @@ class SettingsDialog(wx.Dialog):
             f"Imported YouTube cookies from:\n{found}\n\n"
             f"Saved as:\n{dest}\n\n"
             "Save settings to start using it.",
-            "Cookies imported",
+            _("Cookies imported"),
             wx.ICON_INFORMATION,
         )
 
@@ -2504,8 +2509,8 @@ class SettingsDialog(wx.Dialog):
         template = (self.article_open_command_ctrl.GetValue() or "").strip()
         if not template:
             wx.MessageBox(
-                "Enter a command to test. Use %1 where the article URL should go.",
-                "Nothing to test", wx.ICON_INFORMATION, self,
+                _("Enter a command to test. Use %1 where the article URL should go."),
+                _("Nothing to test"), wx.ICON_INFORMATION, self,
             )
             return
         test_url = "https://example.com/"
@@ -2515,7 +2520,7 @@ class SettingsDialog(wx.Dialog):
         except ValueError as exc:
             wx.MessageBox(
                 f"The command could not be parsed:\n\n{exc}",
-                "Invalid command", wx.ICON_ERROR, self,
+                _("Invalid command"), wx.ICON_ERROR, self,
             )
             return
         ok, err = _utils.launch_open_command(template, test_url)
@@ -2524,12 +2529,12 @@ class SettingsDialog(wx.Dialog):
                 "Launched the test command with a sample URL:\n\n"
                 f"{' '.join(argv)}\n\n"
                 "Check that your browser opened https://example.com/ as expected.",
-                "Test launched", wx.ICON_INFORMATION, self,
+                _("Test launched"), wx.ICON_INFORMATION, self,
             )
         else:
             wx.MessageBox(
                 f"The command could not be run:\n\n{err}",
-                "Test failed", wx.ICON_ERROR, self,
+                _("Test failed"), wx.ICON_ERROR, self,
             )
 
     def get_data(self):
@@ -2665,7 +2670,7 @@ class SettingsDialog(wx.Dialog):
 
 class FeedPropertiesDialog(wx.Dialog):
     def __init__(self, parent, feed, categories, allow_url_edit: bool = True):
-        super().__init__(parent, title="Feed Properties", size=(540, 620))
+        super().__init__(parent, title=_("Feed Properties"), size=(540, 620))
 
         self.feed = feed
         self.categories = categories
@@ -2682,14 +2687,14 @@ class FeedPropertiesDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         title_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        title_sizer.Add(wx.StaticText(self, label="Title:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        title_sizer.Add(wx.StaticText(self, label=_("Title:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.title_ctrl = wx.TextCtrl(self, value=str(feed.title or ""))
         self.title_ctrl.SetName("Feed title")
         title_sizer.Add(self.title_ctrl, 1, wx.ALL, 5)
         sizer.Add(title_sizer, 0, wx.EXPAND)
 
         url_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        url_sizer.Add(wx.StaticText(self, label="URL:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        url_sizer.Add(wx.StaticText(self, label=_("URL:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.url_ctrl = wx.TextCtrl(self, value=str(feed.url or ""))
         self.url_ctrl.SetName("Feed URL")
         if not bool(allow_url_edit):
@@ -2700,7 +2705,7 @@ class FeedPropertiesDialog(wx.Dialog):
         url_sizer.Add(self.url_ctrl, 1, wx.ALL, 5)
         sizer.Add(url_sizer, 0, wx.EXPAND)
 
-        sizer.Add(wx.StaticText(self, label="Category:"), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(self, label=_("Category:")), 0, wx.ALL, 5)
         self.cat_ctrl = wx.ComboBox(self, choices=self.categories, style=wx.CB_DROPDOWN)
         self.cat_ctrl.SetName("Category")
         self.cat_ctrl.SetValue(feed.category or "Uncategorized")
@@ -2713,7 +2718,7 @@ class FeedPropertiesDialog(wx.Dialog):
             self._feed_delete_behavior = _db.get_feed_delete_behavior(getattr(feed, "id", "") or "")
         except Exception:
             self._feed_delete_behavior = None
-        sizer.Add(wx.StaticText(self, label="When I delete an article from this feed:"), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(self, label=_("When I delete an article from this feed:")), 0, wx.ALL, 5)
         del_row = wx.BoxSizer(wx.HORIZONTAL)
         self._feed_delete_choices = [
             (None, "Use global setting"),
@@ -2726,7 +2731,7 @@ class FeedPropertiesDialog(wx.Dialog):
         del_row.Add(self.feed_delete_ctrl, 0, wx.ALL, 5)
         self.feed_delete_category_ctrl = wx.TextCtrl(self)
         self.feed_delete_category_ctrl.SetName("Delete target category (full path)")
-        self.feed_delete_category_ctrl.SetHint("Category / Path")
+        self.feed_delete_category_ctrl.SetHint(_("Category / Path"))
         del_row.Add(self.feed_delete_category_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         sizer.Add(del_row, 0, wx.EXPAND)
 
@@ -2744,7 +2749,7 @@ class FeedPropertiesDialog(wx.Dialog):
 
         # --- Per-feed HTTP fetch overrides (issue #29) ---
         sizer.Add(
-            wx.StaticText(self, label="Custom request headers (one per line, Name: Value):"),
+            wx.StaticText(self, label=_("Custom request headers (one per line, Name: Value):")),
             0, wx.ALL, 5,
         )
         headers_value = ""
@@ -2760,7 +2765,7 @@ class FeedPropertiesDialog(wx.Dialog):
 
         timeout_sizer = wx.BoxSizer(wx.HORIZONTAL)
         timeout_sizer.Add(
-            wx.StaticText(self, label="Request timeout in seconds (blank = default):"),
+            wx.StaticText(self, label=_("Request timeout in seconds (blank = default):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         timeout_value = ""
@@ -2775,7 +2780,7 @@ class FeedPropertiesDialog(wx.Dialog):
         timeout_sizer.Add(self.timeout_ctrl, 1, wx.ALL, 5)
         sizer.Add(timeout_sizer, 0, wx.EXPAND)
 
-        sizer.Add(wx.StaticText(self, label="Browser impersonation:"), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(self, label=_("Browser impersonation:")), 0, wx.ALL, 5)
         self.impersonate_ctrl = wx.Choice(self, choices=["Auto", "Always", "Never"])
         self.impersonate_ctrl.SetName("Browser impersonation")
         try:
@@ -2788,7 +2793,7 @@ class FeedPropertiesDialog(wx.Dialog):
 
         proxy_sizer = wx.BoxSizer(wx.HORIZONTAL)
         proxy_sizer.Add(
-            wx.StaticText(self, label="Proxy URL (optional, e.g. http://host:port):"),
+            wx.StaticText(self, label=_("Proxy URL (optional, e.g. http://host:port):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         proxy_value = ""
@@ -2931,7 +2936,7 @@ class FeedErrorsDialog(wx.Dialog):
     def __init__(self, parent, errors, provider=None):
         super().__init__(
             parent,
-            title="Feeds with Errors",
+            title=_("Feeds with Errors"),
             size=(840, 580),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
@@ -2949,13 +2954,13 @@ class FeedErrorsDialog(wx.Dialog):
         # as the user arrows through, so the row itself conveys the essentials.
         self.list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         self.list.SetName("Feeds with errors")
-        self.list.InsertColumn(0, "Feed", width=250)
-        self.list.InsertColumn(1, "Last attempt", width=160)
-        self.list.InsertColumn(2, "Failures", width=80)
-        self.list.InsertColumn(3, "Error", width=320)
+        self.list.InsertColumn(0, _("Feed"), width=250)
+        self.list.InsertColumn(1, _("Last attempt"), width=160)
+        self.list.InsertColumn(2, _("Failures"), width=80)
+        self.list.InsertColumn(3, _("Error"), width=320)
         sizer.Add(self.list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
 
-        detail_label = wx.StaticText(self, label="Error &details:")
+        detail_label = wx.StaticText(self, label=_("Error &details:"))
         sizer.Add(detail_label, 0, wx.LEFT | wx.TOP, 8)
         self.detail = wx.TextCtrl(
             self,
@@ -2966,10 +2971,10 @@ class FeedErrorsDialog(wx.Dialog):
         sizer.Add(self.detail, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.refresh_btn = wx.Button(self, label="&Refresh Selected")
-        self.copy_btn = wx.Button(self, label="&Copy Details")
-        self.props_btn = wx.Button(self, label="Feed &Properties...")
-        self.remove_btn = wx.Button(self, label="Re&move Feed")
+        self.refresh_btn = wx.Button(self, label=_("&Refresh Selected"))
+        self.copy_btn = wx.Button(self, label=_("&Copy Details"))
+        self.props_btn = wx.Button(self, label=_("Feed &Properties..."))
+        self.remove_btn = wx.Button(self, label=_("Re&move Feed"))
         self.close_btn = wx.Button(self, wx.ID_CLOSE, "&Close")
         for b in (self.refresh_btn, self.copy_btn, self.props_btn, self.remove_btn):
             btn_sizer.Add(b, 0, wx.RIGHT, 6)
@@ -3161,8 +3166,8 @@ class FeedErrorsDialog(wx.Dialog):
         fn = getattr(frame, "edit_feed_by_id", None)
         if not callable(fn):
             wx.MessageBox(
-                "Editing feed properties is not available here.",
-                "Not available",
+                _("Editing feed properties is not available here."),
+                _("Not available"),
                 wx.ICON_INFORMATION,
                 self,
             )
@@ -3186,7 +3191,7 @@ class FeedErrorsDialog(wx.Dialog):
         title = err.get("title") or "this feed"
         if wx.MessageBox(
             f"Remove the feed “{title}”?\n\nThis deletes the feed and all of its articles.",
-            "Confirm Remove",
+            _("Confirm Remove"),
             wx.YES_NO | wx.ICON_QUESTION,
             self,
         ) != wx.YES:
@@ -3226,7 +3231,7 @@ class FeedSearchDialog(wx.Dialog):
     ]
 
     def __init__(self, parent):
-        super().__init__(parent, title="Find a Podcast or RSS Feed", size=(800, 600))
+        super().__init__(parent, title=_("Find a Podcast or RSS Feed"), size=(800, 600))
         
         self.selected_url = None
         self._threads = []
@@ -3236,44 +3241,44 @@ class FeedSearchDialog(wx.Dialog):
         
         # Search Box
         input_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        input_sizer.Add(wx.StaticText(self, label="Search:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        input_sizer.Add(wx.StaticText(self, label=_("Search:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         
         self.search_ctrl = wx.SearchCtrl(self, style=wx.TE_PROCESS_ENTER)
         self.search_ctrl.ShowCancelButton(True)
         self.search_ctrl.SetName("Search for a podcast or RSS feed")
-        self.search_ctrl.SetHint("Podcast name, topic, or site URL")
+        self.search_ctrl.SetHint(_("Podcast name, topic, or site URL"))
         wx.CallAfter(self.search_ctrl.SetFocus)
         input_sizer.Add(self.search_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
-        input_sizer.Add(wx.StaticText(self, label="Source:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+        input_sizer.Add(wx.StaticText(self, label=_("Source:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
         source_labels = [label for label, _ in self._SOURCE_CHOICES]
         self.source_combo = wx.ComboBox(self, choices=source_labels, style=wx.CB_READONLY)
         self.source_combo.SetName("Search source")
         self.source_combo.SetSelection(0)
         input_sizer.Add(self.source_combo, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 5)
 
-        self.search_btn = wx.Button(self, label="Search")
+        self.search_btn = wx.Button(self, label=_("Search"))
         input_sizer.Add(self.search_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         
         sizer.Add(input_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         # Provider Status (optional, to show what's happening)
-        self.status_lbl = wx.StaticText(self, label="Ready.")
+        self.status_lbl = wx.StaticText(self, label=_("Ready."))
         sizer.Add(self.status_lbl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
         
         # Results List
         self.results_list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
         self.results_list.SetName("Search results")
-        self.results_list.InsertColumn(0, "Title", width=350)
-        self.results_list.InsertColumn(1, "Provider", width=120)
-        self.results_list.InsertColumn(2, "Details", width=250)
-        self.results_list.InsertColumn(3, "URL", width=0) # Hidden
+        self.results_list.InsertColumn(0, _("Title"), width=350)
+        self.results_list.InsertColumn(1, _("Provider"), width=120)
+        self.results_list.InsertColumn(2, _("Details"), width=250)
+        self.results_list.InsertColumn(3, _("URL"), width=0) # Hidden
         
         sizer.Add(self.results_list, 1, wx.EXPAND | wx.ALL, 5)
 
         # Attribution / Help
         help_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        help_sizer.Add(wx.StaticText(self, label="Sources: iTunes, gPodder, YouTube, Feedly, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)"), 0, wx.ALL, 5)
+        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, YouTube, Feedly, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
         sizer.Add(help_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
         
         # Buttons
@@ -3376,7 +3381,7 @@ class FeedSearchDialog(wx.Dialog):
         self.source_combo.Disable()
         self.search_btn.Disable()
         if source_key == self._SOURCE_ALL:
-            self.status_lbl.SetLabel("Searching all sources...")
+            self.status_lbl.SetLabel(_("Searching all sources..."))
         else:
             self.status_lbl.SetLabel(f"Searching {source_label}...")
 
@@ -3866,7 +3871,7 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
     }
 
     def __init__(self, parent):
-        super().__init__(parent, title="Video Search", size=(980, 680))
+        super().__init__(parent, title=_("Video Search"), size=(980, 680))
 
         self._stop_event = threading.Event()
         self._search_thread = None
@@ -3905,25 +3910,25 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         root = wx.BoxSizer(wx.VERTICAL)
 
         query_row = wx.BoxSizer(wx.HORIZONTAL)
-        query_row.Add(wx.StaticText(self, label="Search:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        query_row.Add(wx.StaticText(self, label=_("Search:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.search_ctrl = wx.SearchCtrl(self, style=wx.TE_PROCESS_ENTER)
         self.search_ctrl.ShowCancelButton(True)
         self.search_ctrl.SetName("Video search")
-        self.search_ctrl.SetHint("Search videos across sites")
+        self.search_ctrl.SetHint(_("Search videos across sites"))
         query_row.Add(self.search_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.search_btn = wx.Button(self, label="Search")
+        self.search_btn = wx.Button(self, label=_("Search"))
         query_row.Add(self.search_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.load_more_btn = wx.Button(self, label="Load More Results (+80/site)")
+        self.load_more_btn = wx.Button(self, label=_("Load More Results (+80/site)"))
         self.load_more_btn.Disable()
         query_row.Add(self.load_more_btn, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         root.Add(query_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 5)
 
         opts_row = wx.BoxSizer(wx.HORIZONTAL)
-        opts_row.Add(wx.StaticText(self, label="Search Sites:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        opts_row.Add(wx.StaticText(self, label=_("Search Sites:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.scope_choice = wx.Choice(self)
         self.scope_choice.SetName("Search sites")
         opts_row.Add(self.scope_choice, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        opts_row.Add(wx.StaticText(self, label="Filter Results:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        opts_row.Add(wx.StaticText(self, label=_("Filter Results:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.filter_choice = wx.Choice(self)
         self.filter_choice.SetName("Filter results by site")
         opts_row.Add(self.filter_choice, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
@@ -3931,7 +3936,7 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
 
         self.status_lbl = wx.StaticText(
             self,
-            label="Ready.",
+            label=_("Ready."),
         )
         try:
             self.status_lbl.SetToolTip(
@@ -3945,16 +3950,16 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             self.results_list.SetName("Search results")
         except Exception:
             pass
-        self.results_list.InsertColumn(0, "Title", width=340)
-        self.results_list.InsertColumn(1, "Site", width=140)
-        self.results_list.InsertColumn(2, "Kind", width=90)
-        self.results_list.InsertColumn(3, "Plays", width=100)
-        self.results_list.InsertColumn(4, "Details", width=220)
-        self.results_list.InsertColumn(5, "URL", width=0)  # Hidden storage column
+        self.results_list.InsertColumn(0, _("Title"), width=340)
+        self.results_list.InsertColumn(1, _("Site"), width=140)
+        self.results_list.InsertColumn(2, _("Kind"), width=90)
+        self.results_list.InsertColumn(3, _("Plays"), width=100)
+        self.results_list.InsertColumn(4, _("Details"), width=220)
+        self.results_list.InsertColumn(5, _("URL"), width=0)  # Hidden storage column
         root.Add(self.results_list, 1, wx.EXPAND | wx.ALL, 5)
 
         action_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.close_btn = wx.Button(self, wx.ID_CLOSE, "Close")
+        self.close_btn = wx.Button(self, wx.ID_CLOSE, _("Close"))
         action_row.AddStretchSpacer(1)
         action_row.Add(self.close_btn, 0, wx.ALL, 5)
         root.Add(action_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
@@ -4762,7 +4767,7 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
 
         sites = self._get_scope_sites()
         if not sites:
-            self.status_lbl.SetLabel("No searchable sites.")
+            self.status_lbl.SetLabel(_("No searchable sites."))
             return
         self._last_search_term = term
         self._last_search_sites = list(sites or [])
@@ -4994,9 +4999,9 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         play_ok, subscribe_ok, copy_ok = self._get_selected_action_availability()
 
         menu = wx.Menu()
-        play_item = menu.Append(wx.ID_ANY, "Play")
-        subscribe_item = menu.Append(wx.ID_ANY, "Subscribe")
-        copy_item = menu.Append(wx.ID_ANY, "Copy URL")
+        play_item = menu.Append(wx.ID_ANY, _("Play"))
+        subscribe_item = menu.Append(wx.ID_ANY, _("Subscribe"))
+        copy_item = menu.Append(wx.ID_ANY, _("Copy URL"))
         play_item.Enable(bool(play_ok))
         subscribe_item.Enable(bool(subscribe_ok))
         copy_item.Enable(bool(copy_ok))
@@ -5099,7 +5104,7 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
                     elif st.lower() in ("paused",):
                         lbl.SetLabel(f"Paused: {title_str}" if title_str else "Paused")
                     elif st.lower() in ("stopped",):
-                        lbl.SetLabel("Ready.")
+                        lbl.SetLabel(_("Ready."))
                     elif st.lower().startswith("buffering"):
                         lbl.SetLabel(f"Buffering: {title_str}" if title_str else "Buffering...")
                     elif st.lower().startswith("connecting"):
@@ -5151,7 +5156,11 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             try:
                 parent.play_ytdlp_search_result(url, title=title)
             except Exception as e:
-                wx.MessageBox(f"Could not start playback: {e}", "Playback Error", wx.ICON_ERROR)
+                wx.MessageBox(
+                    _("Could not start playback: {error}").format(error=e),
+                    _("Playback Error"),
+                    wx.ICON_ERROR,
+                )
                 return
             self.status_lbl.SetLabel(f"Playing: {title}")
             self._register_player_status_callback(parent, title)
@@ -5167,13 +5176,17 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             return
         parent = self._get_parent_mainframe()
         if not parent or not hasattr(parent, "add_feed_from_url_prompt"):
-            wx.MessageBox("Parent window does not support subscribing from this dialog.", "Subscribe", wx.ICON_ERROR)
+            wx.MessageBox(_("Parent window does not support subscribing from this dialog."), _("Subscribe"), wx.ICON_ERROR)
             return
         try:
             parent.add_feed_from_url_prompt(url)
             self.status_lbl.SetLabel(f"{label}: {url}")
         except Exception as e:
-            wx.MessageBox(f"Could not subscribe: {e}", "Subscribe Error", wx.ICON_ERROR)
+            wx.MessageBox(
+                _("Could not subscribe: {error}").format(error=e),
+                _("Subscribe Error"),
+                wx.ICON_ERROR,
+            )
 
     def on_subscribe_best(self, event):
         item = self._get_selected_result()
@@ -5209,28 +5222,28 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
                 wx.TheClipboard.SetData(wx.TextDataObject(url))
                 wx.TheClipboard.Flush()
                 wx.TheClipboard.Close()
-                self.status_lbl.SetLabel("Copied URL.")
+                self.status_lbl.SetLabel(_("Copied URL."))
         except Exception:
             pass
 
 
 class PersistentSearchDialog(wx.Dialog):
     def __init__(self, parent, searches=None):
-        super().__init__(parent, title="Configure Persistent Search", size=(420, 320))
+        super().__init__(parent, title=_("Configure Persistent Search"), size=(420, 320))
 
         self._searches = list(searches or [])
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        sizer.Add(wx.StaticText(self, label="Saved searches:"), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(self, label=_("Saved searches:")), 0, wx.ALL, 5)
 
         self.list_ctrl = wx.ListBox(self, choices=self._searches)
         self.list_ctrl.SetName("Saved searches")
         sizer.Add(self.list_ctrl, 1, wx.EXPAND | wx.ALL, 5)
 
         btn_row = wx.BoxSizer(wx.HORIZONTAL)
-        add_btn = wx.Button(self, label="Add...")
-        remove_btn = wx.Button(self, label="Remove")
+        add_btn = wx.Button(self, label=_("Add..."))
+        remove_btn = wx.Button(self, label=_("Remove"))
         btn_row.Add(add_btn, 0, wx.ALL, 5)
         btn_row.Add(remove_btn, 0, wx.ALL, 5)
         sizer.Add(btn_row, 0, wx.ALIGN_LEFT | wx.ALL, 0)
@@ -5257,7 +5270,7 @@ class PersistentSearchDialog(wx.Dialog):
         return False
 
     def on_add(self, event):
-        dlg = wx.TextEntryDialog(self, "Search query:", "Add Search")
+        dlg = wx.TextEntryDialog(self, _("Search query:"), _("Add Search"))
         if dlg.ShowModal() == wx.ID_OK:
             query = self._normalize_query(dlg.GetValue())
             if query and not self._has_query(query):
@@ -5284,7 +5297,7 @@ class PersistentSearchDialog(wx.Dialog):
 
 class AboutDialog(wx.Dialog):
     def __init__(self, parent, version_str):
-        super().__init__(parent, title="About BlindRSS", size=(430, 340))
+        super().__init__(parent, title=_("About BlindRSS"), size=(430, 340))
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -5295,15 +5308,15 @@ class AboutDialog(wx.Dialog):
         sizer.Add(title_txt, 0, wx.ALIGN_CENTER | wx.TOP, 15)
 
         # Copyright
-        copy_txt = wx.StaticText(self, label="Copyright (c) 2024-2026 serrebidev and contributors")
+        copy_txt = wx.StaticText(self, label=_("Copyright (c) 2024-2026 serrebidev and contributors"))
         sizer.Add(copy_txt, 0, wx.ALIGN_CENTER | wx.TOP, 10)
 
         sizer.AddSpacer(20)
 
         # Buttons
-        github_btn = wx.Button(self, label="Follow me on GitHub (@serrebidev)")
-        repo_btn = wx.Button(self, label="Visit Repository")
-        changelog_btn = wx.Button(self, label="View Changelog")
+        github_btn = wx.Button(self, label=_("Follow me on GitHub (@serrebidev)"))
+        repo_btn = wx.Button(self, label=_("Visit Repository"))
+        changelog_btn = wx.Button(self, label=_("View Changelog"))
 
         sizer.Add(github_btn, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         sizer.Add(repo_btn, 0, wx.ALIGN_CENTER | wx.ALL, 5)

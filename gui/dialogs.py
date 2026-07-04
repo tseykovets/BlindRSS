@@ -1998,7 +1998,7 @@ class SettingsDialog(wx.Dialog):
         app_key = (app_key_ctrl.GetValue() or "").strip()
         redirect_uri = (redirect_uri_ctrl.GetValue() or "").strip()
         if not app_id or not app_key:
-            wx.MessageBox(_("Enter your Inoreader App ID and App Key first."), _("Inoreader"), wx.ICON_INFORMATION)
+            wx.MessageBox(_("Enter your Inoreader App ID and App Key first."), "Inoreader", wx.ICON_INFORMATION)
             return
         btn = getattr(self, "_inoreader_authorize_btn", None)
         if btn:
@@ -2154,7 +2154,7 @@ class SettingsDialog(wx.Dialog):
                 pass
         wx.MessageBox(
             _("Inoreader authorization failed:\n{message}").format(message=message),
-            _("Inoreader"),
+            "Inoreader",
             wx.ICON_ERROR,
         )
 

@@ -102,6 +102,7 @@ from core.dependency_check import check_and_install_dependencies, set_user_tool_
 import wx
 from core.config import ConfigManager
 from core.factory import get_provider
+from core.i18n import _
 from core import updater as app_updater
 from core import windows_integration
 from gui.mainframe import MainFrame
@@ -195,7 +196,7 @@ class RSSApp(wx.App):
     def OnInit(self):
         self.instance_checker = wx.SingleInstanceChecker("BlindRSS-Instance-Lock")
         if self.instance_checker.IsAnotherRunning():
-            wx.MessageBox("BlindRSS is already running.", "BlindRSS", wx.ICON_ERROR)
+            wx.MessageBox(_("BlindRSS is already running."), _("BlindRSS"), wx.ICON_ERROR)
             return False
 
         self.config_manager = ConfigManager()

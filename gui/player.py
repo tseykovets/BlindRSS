@@ -16,6 +16,7 @@ from core import discovery
 from core import playback_state
 from core.casting import CastingManager
 from core.vlc_options import build_vlc_instance_args
+from core.i18n import _
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 from core.range_cache_proxy import get_range_cache_proxy
@@ -312,7 +313,7 @@ def _should_reapply_seek(target_ms: int, current_ms: int, tolerance_ms: int, rem
 
 class CastDialog(wx.Dialog):
     def __init__(self, parent, manager: CastingManager):
-        super().__init__(parent, title="Cast to Device", size=(400, 300))
+        super().__init__(parent, title=_("Cast to Device"), size=(400, 300))
         self.manager = manager
         self.devices = []
         self.selected_device = None
@@ -323,17 +324,17 @@ class CastDialog(wx.Dialog):
         sizer.Add(self.list_box, 1, wx.EXPAND | wx.ALL, 5)
         
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        refresh_btn = wx.Button(self, label="Refresh")
-        refresh_btn.Bind(wx.EVT_BUTTON, self.on_refresh)
-        btn_sizer.Add(refresh_btn, 0, wx.ALL, 5)
+        self.refresh_btn = wx.Button(self, label=_("Refresh"))
+        self.refresh_btn.Bind(wx.EVT_BUTTON, self.on_refresh)
+        btn_sizer.Add(self.refresh_btn, 0, wx.ALL, 5)
         
-        connect_btn = wx.Button(self, label="Connect")
-        connect_btn.Bind(wx.EVT_BUTTON, self.on_connect)
-        btn_sizer.Add(connect_btn, 0, wx.ALL, 5)
+        self.connect_btn = wx.Button(self, label=_("Connect"))
+        self.connect_btn.Bind(wx.EVT_BUTTON, self.on_connect)
+        btn_sizer.Add(self.connect_btn, 0, wx.ALL, 5)
         
-        cancel_btn = wx.Button(self, label="Cancel")
-        cancel_btn.Bind(wx.EVT_BUTTON, self.on_cancel)
-        btn_sizer.Add(cancel_btn, 0, wx.ALL, 5)
+        self.cancel_btn = wx.Button(self, label=_("Cancel"))
+        self.cancel_btn.Bind(wx.EVT_BUTTON, self.on_cancel)
+        btn_sizer.Add(self.cancel_btn, 0, wx.ALL, 5)
         
         sizer.Add(btn_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         
@@ -345,7 +346,7 @@ class CastDialog(wx.Dialog):
 
     def on_refresh(self, event):
         self.list_box.Clear()
-        self.list_box.Append("Scanning...")
+        self.list_box.Append(_("Scanning..."))
         threading.Thread(target=self._scan, daemon=True).start()
 
     def _scan(self):
@@ -355,7 +356,7 @@ class CastDialog(wx.Dialog):
     def _update_list(self):
         self.list_box.Clear()
         if not self.devices:
-            self.list_box.Append("No devices found")
+            self.list_box.Append(_("No devices found"))
             return
             
         for dev in self.devices:
@@ -368,9 +369,9 @@ class CastDialog(wx.Dialog):
             
             # Disable UI while connecting
             self.list_box.Disable()
-            self.FindWindowByLabel("Connect").Disable()
-            self.FindWindowByLabel("Refresh").Disable()
-            self.FindWindowByLabel("Cancel").Disable()
+            self.connect_btn.Disable()
+            self.refresh_btn.Disable()
+            self.cancel_btn.Disable()
             
             # Show busy cursor
             wx.BeginBusyCursor()
@@ -389,7 +390,11 @@ class CastDialog(wx.Dialog):
             wx.CallAfter(self._on_connect_complete, success)
 
     def _on_connect_error(self, error_msg):
-        wx.MessageBox(f"Connection failed: {error_msg}", "Error", wx.ICON_ERROR)
+        wx.MessageBox(
+            _("Connection failed: {error}").format(error=error_msg),
+            _("Error"),
+            wx.ICON_ERROR,
+        )
 
     def _on_connect_complete(self, success):
         wx.EndBusyCursor()
@@ -398,9 +403,9 @@ class CastDialog(wx.Dialog):
         else:
             # Re-enable UI
             self.list_box.Enable()
-            self.FindWindowByLabel("Connect").Enable()
-            self.FindWindowByLabel("Refresh").Enable()
-            self.FindWindowByLabel("Cancel").Enable()
+            self.connect_btn.Enable()
+            self.refresh_btn.Enable()
+            self.cancel_btn.Enable()
 
     def on_cancel(self, event):
         self.EndModal(wx.ID_CANCEL)
@@ -408,7 +413,7 @@ class CastDialog(wx.Dialog):
 
 class PlayerFrame(wx.Frame):
     def __init__(self, parent, config_manager):
-        super().__init__(parent, title="Audio Player", size=(520, 260), style=wx.DEFAULT_FRAME_STYLE | wx.STAY_ON_TOP)
+        super().__init__(parent, title=_("Audio Player"), size=(520, 260), style=wx.DEFAULT_FRAME_STYLE | wx.STAY_ON_TOP)
         self.config_manager = config_manager
         
         # Casting
@@ -1773,7 +1778,7 @@ class PlayerFrame(wx.Frame):
         sizer = wx.BoxSizer(wx.VERTICAL)
         
         # Title
-        self.title_lbl = wx.StaticText(panel, label="No Track Loaded")
+        self.title_lbl = wx.StaticText(panel, label=_("No Track Loaded"))
         sizer.Add(self.title_lbl, 0, wx.ALL | wx.CENTER, 5)
 
         # Status (helps screen readers during connect/buffer)
@@ -1794,9 +1799,9 @@ class PlayerFrame(wx.Frame):
         
         # Time Labels
         time_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.current_time_lbl = wx.StaticText(panel, label="00:00")
+        self.current_time_lbl = wx.StaticText(panel, label=_("00:00"))
         self.current_time_lbl.SetName("Elapsed Time: 00:00")
-        self.total_time_lbl = wx.StaticText(panel, label="00:00")
+        self.total_time_lbl = wx.StaticText(panel, label=_("00:00"))
         self.total_time_lbl.SetName("Total Time: 00:00")
         time_sizer.Add(self.current_time_lbl, 0, wx.LEFT, 5)
         time_sizer.AddStretchSpacer()
@@ -1807,23 +1812,23 @@ class PlayerFrame(wx.Frame):
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
         
         # Rewind 10s
-        rewind_btn = wx.Button(panel, label="-10s")
+        rewind_btn = wx.Button(panel, label=_("-10s"))
         rewind_btn.SetName("Rewind 10 seconds")
         rewind_btn.Bind(wx.EVT_BUTTON, self.on_rewind)
         btn_sizer.Add(rewind_btn, 0, wx.ALL, 5)
         
         # Play/Pause
-        self.play_btn = wx.Button(panel, label="Play")
+        self.play_btn = wx.Button(panel, label=_("Play"))
         self.play_btn.Bind(wx.EVT_BUTTON, self.on_play_pause)
         btn_sizer.Add(self.play_btn, 0, wx.ALL, 5)
 
         # Stop
-        self.stop_btn = wx.Button(panel, label="Stop")
+        self.stop_btn = wx.Button(panel, label=_("Stop"))
         self.stop_btn.Bind(wx.EVT_BUTTON, self.on_stop)
         btn_sizer.Add(self.stop_btn, 0, wx.ALL, 5)
         
         # Forward 10s
-        forward_btn = wx.Button(panel, label="+10s")
+        forward_btn = wx.Button(panel, label=_("+10s"))
         forward_btn.SetName("Fast Forward 10 seconds")
         forward_btn.Bind(wx.EVT_BUTTON, self.on_forward)
         btn_sizer.Add(forward_btn, 0, wx.ALL, 5)
@@ -1836,12 +1841,12 @@ class PlayerFrame(wx.Frame):
         btn_sizer.Add(self.speed_combo, 0, wx.ALL, 5)
         
         # Cast
-        self.cast_btn = wx.Button(panel, label="Cast")
+        self.cast_btn = wx.Button(panel, label=_("Cast"))
         self.cast_btn.Bind(wx.EVT_BUTTON, self.on_cast)
         btn_sizer.Add(self.cast_btn, 0, wx.ALL, 5)
 
         # Chapters menu
-        self.chapters_btn = wx.Button(panel, label="Chapters")
+        self.chapters_btn = wx.Button(panel, label=_("Chapters"))
         self.chapters_btn.SetName("Chapters Menu")
         self.chapters_btn.Bind(wx.EVT_BUTTON, self.on_show_chapters_menu)
         btn_sizer.Add(self.chapters_btn, 0, wx.ALL, 5)
@@ -1850,7 +1855,7 @@ class PlayerFrame(wx.Frame):
 
         # Volume
         volume_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        volume_lbl = wx.StaticText(panel, label="Volume")
+        volume_lbl = wx.StaticText(panel, label=_("Volume"))
         volume_sizer.Add(volume_lbl, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
         self.volume_slider = wx.Slider(panel, value=int(getattr(self, "volume", 100)), minValue=0, maxValue=100, style=wx.SL_HORIZONTAL)
         self.volume_slider.SetName("Volume")
@@ -1883,16 +1888,16 @@ class PlayerFrame(wx.Frame):
             menubar = wx.MenuBar()
             chapters_menu = wx.Menu()
 
-            self._chapter_menu_show_item = chapters_menu.Append(wx.ID_ANY, "Show &Chapters\tCtrl+M")
+            self._chapter_menu_show_item = chapters_menu.Append(wx.ID_ANY, _("Show &Chapters\tCtrl+M"))
             self._chapter_menu_open_link_item = chapters_menu.Append(
                 wx.ID_ANY,
-                "Open Chapter &Link\tCtrl+Shift+L",
+                _("Open Chapter &Link\tCtrl+Shift+L"),
             )
             chapters_menu.AppendSeparator()
-            self._chapter_menu_prev_item = chapters_menu.Append(wx.ID_ANY, "&Previous Chapter\tCtrl+Shift+Left")
-            self._chapter_menu_next_item = chapters_menu.Append(wx.ID_ANY, "&Next Chapter\tCtrl+Shift+Right")
+            self._chapter_menu_prev_item = chapters_menu.Append(wx.ID_ANY, _("&Previous Chapter\tCtrl+Shift+Left"))
+            self._chapter_menu_next_item = chapters_menu.Append(wx.ID_ANY, _("&Next Chapter\tCtrl+Shift+Right"))
 
-            menubar.Append(chapters_menu, "&Chapters")
+            menubar.Append(chapters_menu, _("&Chapters"))
             self.SetMenuBar(menubar)
 
             self.Bind(wx.EVT_MENU, self.on_show_chapters_menu, self._chapter_menu_show_item)
@@ -2028,14 +2033,16 @@ class PlayerFrame(wx.Frame):
         try:
             chapters = list(getattr(self, "current_chapters", []) or [])
             if not chapters:
-                empty_item = menu.Append(wx.ID_ANY, "No chapters available")
+                empty_item = menu.Append(wx.ID_ANY, _("No chapters available"))
                 empty_item.Enable(False)
             else:
                 active_idx = self._active_chapter_index()
                 link_idx = self._chapter_link_action_index()
                 link_label = "Open Link for Selected Chapter"
                 if 0 <= link_idx < len(chapters):
-                    link_label = f"Open Link for {self._format_chapter_menu_label(chapters[link_idx])}"
+                    link_label = _("Open Link for {chapter}").format(
+                        chapter=self._format_chapter_menu_label(chapters[link_idx])
+                    )
                 link_item = menu.Append(wx.ID_ANY, link_label)
                 link_item.Enable(self._chapter_href_at_index(link_idx) is not None)
                 menu.Bind(
@@ -2133,7 +2140,7 @@ class PlayerFrame(wx.Frame):
 
             self.is_casting = False
             try:
-                self.cast_btn.SetLabel('Cast')
+                self.cast_btn.SetLabel(_("Cast"))
             except Exception:
                 pass
             try:
@@ -2205,7 +2212,7 @@ class PlayerFrame(wx.Frame):
                 if not self.casting_manager.is_connected_to(device):
                     self.casting_manager.connect(device)
                 self.is_casting = True
-                self.cast_btn.SetLabel('Disconnect')
+                self.cast_btn.SetLabel(_("Disconnect"))
                 self.title_lbl.SetLabel(f"{self.current_title} (Casting to {device.name})")
 
                 if local_was_playing:
@@ -2251,7 +2258,7 @@ class PlayerFrame(wx.Frame):
                 self.is_casting = False
                 self._cast_handoff_source_url = None
                 try:
-                    self.cast_btn.SetLabel('Cast')
+                    self.cast_btn.SetLabel(_("Cast"))
                 except Exception:
                     pass
                 try:
@@ -2263,7 +2270,11 @@ class PlayerFrame(wx.Frame):
                         self.player.play()
                     except Exception:
                         pass
-                wx.MessageBox(f"Casting failed: {e}", 'Error', wx.ICON_ERROR)
+                wx.MessageBox(
+                    _("Casting failed: {error}").format(error=e),
+                    _("Error"),
+                    wx.ICON_ERROR,
+                )
         finally:
             try:
                 dlg.Destroy()
@@ -3575,7 +3586,11 @@ class PlayerFrame(wx.Frame):
     def load_media(self, url, use_ytdlp=False, chapters=None, title=None, article_id=None):
         if not self.is_casting:
             if not self._ensure_vlc_ready():
-                wx.MessageBox("VLC is not initialized. Playback is unavailable.", "Error", wx.OK | wx.ICON_ERROR)
+                wx.MessageBox(
+                    _("VLC is not initialized. Playback is unavailable."),
+                    _("Error"),
+                    wx.OK | wx.ICON_ERROR,
+                )
                 return
         _log(f"load_media: {url} (ytdlp={use_ytdlp})")
         log.debug("load_media url=%s is_casting=%s", url, self.is_casting)

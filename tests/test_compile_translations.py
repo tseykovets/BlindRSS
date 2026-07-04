@@ -1,4 +1,5 @@
 import gettext
+from pathlib import Path
 
 from tools import compile_translations
 
@@ -39,3 +40,11 @@ def test_iter_catalogs_finds_blindrss_po_only(tmp_path):
     other.write_text('msgid ""\nmsgstr ""\n', encoding="utf-8")
 
     assert compile_translations.iter_catalogs(tmp_path) == [good]
+
+
+def test_repository_russian_catalog_has_readable_cyrillic():
+    catalog = Path("locale/ru/LC_MESSAGES/blindrss.po")
+    messages = compile_translations.read_po(catalog)
+
+    assert messages["All Articles"] == "Все статьи"
+    assert "Ð" not in messages["All Articles"]

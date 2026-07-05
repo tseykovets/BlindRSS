@@ -196,7 +196,7 @@ class RSSApp(wx.App):
     def OnInit(self):
         self.instance_checker = wx.SingleInstanceChecker("BlindRSS-Instance-Lock")
         if self.instance_checker.IsAnotherRunning():
-            wx.MessageBox(_("BlindRSS is already running."), _("BlindRSS"), wx.ICON_ERROR)
+            wx.MessageBox(_("BlindRSS is already running."), "BlindRSS", wx.ICON_ERROR)
             return False
 
         self.config_manager = ConfigManager()

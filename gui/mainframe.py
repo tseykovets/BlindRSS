@@ -83,7 +83,7 @@ class MainFrame(wx.Frame):
     def __init__(self, provider: RSSProvider, config_manager):
         start_maximized = bool(config_manager.get("start_maximized", False))
         style = wx.DEFAULT_FRAME_STYLE
-        super().__init__(None, title=_("BlindRSS"), size=(1000, 700), style=style)
+        super().__init__(None, title="BlindRSS", size=(1000, 700), style=style)
         self.provider = provider
         self.config_manager = config_manager
         self._start_maximized = start_maximized

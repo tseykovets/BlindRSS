@@ -1799,9 +1799,9 @@ class PlayerFrame(wx.Frame):
         
         # Time Labels
         time_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.current_time_lbl = wx.StaticText(panel, label=_("00:00"))
+        self.current_time_lbl = wx.StaticText(panel, label="00:00")
         self.current_time_lbl.SetName("Elapsed Time: 00:00")
-        self.total_time_lbl = wx.StaticText(panel, label=_("00:00"))
+        self.total_time_lbl = wx.StaticText(panel, label="00:00")
         self.total_time_lbl.SetName("Total Time: 00:00")
         time_sizer.Add(self.current_time_lbl, 0, wx.LEFT, 5)
         time_sizer.AddStretchSpacer()

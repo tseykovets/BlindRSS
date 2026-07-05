@@ -36,10 +36,10 @@ def startup_supported() -> bool:
 def startup_setting_label() -> str:
     """Platform-appropriate label for the start-at-login checkbox."""
     if is_windows():
-        return _("Start BlindRSS when Windows starts")
+        return "Start BlindRSS when Windows starts"
     if is_macos():
-        return _("Start BlindRSS when you log in")
-    return _("Start BlindRSS at login")
+        return "Start BlindRSS when you log in"
+    return "Start BlindRSS at login"
 
 
 def _quote_cmd_arg(value: str) -> str:

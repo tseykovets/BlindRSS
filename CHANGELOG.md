@@ -4,6 +4,14 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.79.1 - 2026-07-05
+
+- Sync Claude memory index in agents.md.
+- Merge pull request #50 from tseykovets/gettext.
+- Merge pull request #49 from tseykovets/ru.
+- Remove gettext functions around strings that don't need translation.
+- Update Russian translation.
+
 ## v1.79.0 - 2026-07-04
 
 - Add Russian translation.

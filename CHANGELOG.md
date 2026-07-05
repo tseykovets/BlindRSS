@@ -4,6 +4,12 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.80.1 - 2026-07-05
+
+- Merge pull request #51 from tseykovets/ru.
+- Update Russian translation.
+- Add gettext function calls for localizability of interface strings.
+
 ## v1.80.0 - 2026-07-05
 
 - Add German, Japanese, Spanish, Hindi, Chinese (Simplified/Traditional), Polish, French, Dutch (NL/BE), Italian, and Portuguese (BR/PT) translations.

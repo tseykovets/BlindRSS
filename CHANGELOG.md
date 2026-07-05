@@ -4,6 +4,11 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.80.3 - 2026-07-05
+
+- Merge pull request #53 from tseykovets/gettext.
+- Restore internationalization infrastructure to state of release v1.80.1.
+
 ## v1.80.2 - 2026-07-05
 
 - Merge pull request #52 from tseykovets/ru.

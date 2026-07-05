@@ -255,16 +255,16 @@ class MainFrame(wx.Frame):
                 return
             missing_vlc, missing_ffmpeg, missing_ytdlp = dependency_check.check_media_tools_status()
             if missing_vlc or missing_ffmpeg or missing_ytdlp:
-                msg = "Missing recommended tools:\n"
+                msg = f'{_("Missing recommended tools:")}\n'
                 if missing_vlc:
-                    msg += "- VLC Media Player (required for playback)\n"
+                    msg += f'- {_("VLC Media Player (required for playback)")}\n'
                 if missing_ffmpeg:
-                    msg += "- FFmpeg (required for some podcasts)\n"
+                    msg += f'- {_("FFmpeg (required for some podcasts)")}\n'
                 if missing_ytdlp:
-                    msg += "- yt-dlp (required for YouTube and many media sources)\n"
+                    msg += f'- {_("yt-dlp (required for YouTube and many media sources)")}\n'
                 if sys.platform.startswith("win"):
-                    msg += "\nWould you like to install them automatically (via winget/Ninite) and add them to PATH?"
-                    msg += "\n\nTip: You can disable this prompt in Settings > General."
+                    msg += f'\n{_("Would you like to install them automatically (via winget/Ninite) and add them to PATH?")}'
+                    msg += f'\n\n{_("Tip: You can disable this prompt in Settings > General.")}'
 
                     if wx.MessageBox(msg, _("Install Dependencies"), wx.YES_NO | wx.ICON_QUESTION) == wx.YES:
                         self.SetStatusText("Installing dependencies...")

@@ -122,8 +122,10 @@ class AddShortcutsDialog(wx.Dialog):
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         intro = (
-            "Choose where to add BlindRSS shortcuts.\n"
-            "Taskbar pinning may be limited by your Windows version/policies."
+            _(
+                "Choose where to add BlindRSS shortcuts.\n"
+                "Taskbar pinning may be limited by your Windows version/policies."
+            )
         )
         sizer.Add(wx.StaticText(self, label=intro), 0, wx.ALL, 10)
 
@@ -1193,7 +1195,7 @@ class SettingsDialog(wx.Dialog):
             browse_btn.SetName(f"Browse for {field_name}")
 
             def _on_browse(evt):
-                dlg = wx.FileDialog(self, f"Choose {label}", defaultFile=ctrl.GetValue(), wildcard="WAV files (*.wav)|*.wav|All files (*.*)|*.*", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
+                dlg = wx.FileDialog(self, f"Choose {label}", defaultFile=ctrl.GetValue(), wildcard=f'{_("WAV files")} (*.wav)|*.wav|{_("All files")} (*.*)|*.*', style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
                 if dlg.ShowModal() == wx.ID_OK:
                     ctrl.SetValue(dlg.GetPath())
                 dlg.Destroy()
@@ -2291,9 +2293,9 @@ class SettingsDialog(wx.Dialog):
     def _on_browse_cookies_file(self, event):
         dlg = wx.FileDialog(
             self,
-            "Choose yt-dlp cookies.txt",
+            _("Choose yt-dlp cookies.txt"),
             defaultFile=self.ytdlp_cookies_ctrl.GetValue(),
-            wildcard="Cookies (*.txt)|*.txt|All files (*.*)|*.*",
+            wildcard=f'{_("Cookies")} (*.txt)|*.txt|{_("All files")} (*.*)|*.*',
             style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
         )
         if dlg.ShowModal() == wx.ID_OK:
@@ -2371,7 +2373,7 @@ class SettingsDialog(wx.Dialog):
             "Import cookies from browser",
             style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
         )
-        dlg.SetYesNoCancelLabels("Find my export", "Open extension page", "Cancel")
+        dlg.SetYesNoCancelLabels(_("Find my export"), _("Open extension page"), _("Cancel"))
         choice = dlg.ShowModal()
         dlg.Destroy()
 
@@ -2402,15 +2404,15 @@ class SettingsDialog(wx.Dialog):
                 "No export found",
                 style=wx.OK | wx.CANCEL | wx.ICON_WARNING,
             )
-            pick.SetOKCancelLabels("Choose file...", "Cancel")
+            pick.SetOKCancelLabels(_("Choose file..."), _("Cancel"))
             do_pick = pick.ShowModal()
             pick.Destroy()
             if do_pick != wx.ID_OK:
                 return
             fdlg = wx.FileDialog(
                 self,
-                "Choose exported cookies.txt",
-                wildcard="Cookies (*.txt)|*.txt|All files (*.*)|*.*",
+                _("Choose exported cookies.txt"),
+                wildcard=f'{_("Cookies")} (*.txt)|*.txt|{_("All files")} (*.*)|*.*',
                 style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
             )
             if fdlg.ShowModal() != wx.ID_OK:
@@ -2447,9 +2449,9 @@ class SettingsDialog(wx.Dialog):
 
     def _on_browse_media_tool(self, ctrl, label):
         if sys.platform.startswith("win"):
-            wildcard = "Executables (*.exe)|*.exe|All files (*.*)|*.*"
+            wildcard = f'{_("Executables")} (*.exe)|*.exe|{_("All files")} (*.*)|*.*'
         else:
-            wildcard = "All files (*.*)|*.*"
+            wildcard = f'{_("All files")} (*.*)|*.*'
         dlg = wx.FileDialog(
             self,
             f"Choose {label} executable",
@@ -3002,9 +3004,9 @@ class FeedErrorsDialog(wx.Dialog):
     def _heading_text(self) -> str:
         n = len(self._errors)
         if n == 0:
-            return "No feeds reported errors during their most recent update."
+            return _("No feeds reported errors during their most recent update.")
         if n == 1:
-            return "1 feed failed to update during its most recent attempt:"
+            return _("1 feed failed to update during its most recent attempt:")
         return f"{n} feeds failed to update during their most recent attempt:"
 
     @staticmethod
@@ -3036,9 +3038,11 @@ class FeedErrorsDialog(wx.Dialog):
             b.Enable(has_rows)
         if not has_rows:
             self.detail.SetValue(
-                "No feeds reported errors during their most recent update attempt.\n\n"
-                "Feeds appear here automatically when an update fails (for example a "
-                "dead URL, an HTTP error, a timeout, or an invalid feed format)."
+                _(
+                    "No feeds reported errors during their most recent update attempt.\n\n"
+                    "Feeds appear here automatically when an update fails (for example a "
+                    "dead URL, an HTTP error, a timeout, or an invalid feed format)."
+                )
             )
 
     def _selected_index(self) -> int:
@@ -5324,7 +5328,7 @@ class AboutDialog(wx.Dialog):
 
         sizer.AddSpacer(20)
 
-        close_btn = wx.Button(self, wx.ID_CLOSE, "Close")
+        close_btn = wx.Button(self, wx.ID_CLOSE, _("Close"))
         sizer.Add(close_btn, 0, wx.ALIGN_CENTER | wx.BOTTOM, 15)
 
         self.SetSizer(sizer)

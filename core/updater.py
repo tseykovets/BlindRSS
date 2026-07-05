@@ -196,7 +196,7 @@ def check_for_updates() -> UpdateCheckResult:
         return UpdateCheckResult("error", f"Latest release tag is not semver: {tag}")
 
     if latest <= current:
-        return UpdateCheckResult("up_to_date", f"BlindRSS is up to date ({_format_version_tag(current)}).")
+        return UpdateCheckResult("up_to_date", _("BlindRSS is up to date ({version}).").format(version=_format_version_tag(current)))
 
     platform = current_platform()
     if not platform:

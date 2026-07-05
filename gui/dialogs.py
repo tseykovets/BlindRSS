@@ -578,8 +578,8 @@ class SettingsDialog(wx.Dialog):
         search_mode_sizer = wx.BoxSizer(wx.HORIZONTAL)
         search_mode_sizer.Add(wx.StaticText(general_panel, label=_("Search Matches:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.search_mode_map = {
-            "Titles only": "title_only",
-            "Titles + article text": "title_content",
+            _("Titles only"): "title_only",
+            _("Titles and article text"): "title_content",
         }
         self.search_mode_choices = list(self.search_mode_map.keys())
         self.search_mode_ctrl = wx.Choice(general_panel, choices=self.search_mode_choices)
@@ -590,7 +590,7 @@ class SettingsDialog(wx.Dialog):
                 selected_label = label
                 break
         if not selected_label:
-            selected_label = "Titles + article text"
+            selected_label = _("Titles and article text")
         self.search_mode_ctrl.SetStringSelection(selected_label)
         search_mode_sizer.Add(self.search_mode_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(search_mode_sizer, 0, wx.EXPAND | wx.ALL, 5)
@@ -646,9 +646,9 @@ class SettingsDialog(wx.Dialog):
         del_sizer.Add(wx.StaticText(general_panel, label=_("When I delete an article:")), 0,
                       wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self._delete_behavior_choices = [
-            ("deleted", "Move it to Deleted Articles (restorable)"),
-            ("purge", "Remove it permanently"),
-            ("category", "Move it to a category"),
+            ("deleted", _("Move it to Deleted Articles (restorable)")),
+            ("purge", _("Remove it permanently")),
+            ("category", _("Move it to a category")),
         ]
         self.delete_behavior_ctrl = wx.Choice(
             general_panel, choices=[lbl for _k, lbl in self._delete_behavior_choices]
@@ -843,7 +843,7 @@ class SettingsDialog(wx.Dialog):
         self.language_choices = ["auto", "en"] + [c for c in _lang_codes if c != "en"]
         self.language_choice = wx.Choice(
             general_panel,
-            choices=["Automatic (system language)", "English"] + [c for c in _lang_codes if c != "en"],
+            choices=[_("Automatic (system language)"), "English"] + [c for c in _lang_codes if c != "en"],
         )
         current_language = str(config.get("language", "auto") or "auto")
         try:
@@ -860,15 +860,15 @@ class SettingsDialog(wx.Dialog):
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         self.tree_expand_map = {
-            "All items expanded": True,
-            "All items collapsed": False,
+            _("All items expanded"): True,
+            _("All items collapsed"): False,
         }
         self.tree_expand_choices = list(self.tree_expand_map.keys())
         self.tree_expand_ctrl = wx.Choice(general_panel, choices=self.tree_expand_choices)
         self.tree_expand_ctrl.SetName("Feed category tree default state on startup")
         current_tree_expanded = bool(config.get("category_tree_default_expanded", True))
         self.tree_expand_ctrl.SetStringSelection(
-            "All items expanded" if current_tree_expanded else "All items collapsed"
+            _("All items expanded") if current_tree_expanded else _("All items collapsed")
         )
         tree_state_sizer.Add(self.tree_expand_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(tree_state_sizer, 0, wx.EXPAND | wx.ALL, 5)
@@ -880,15 +880,15 @@ class SettingsDialog(wx.Dialog):
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         self.article_open_method_map = {
-            "Default browser": "default",
-            "Custom command": "custom",
+            _("Default browser"): "default",
+            _("Custom command"): "custom",
         }
         self.article_open_method_choices = list(self.article_open_method_map.keys())
         self.article_open_method_ctrl = wx.Choice(general_panel, choices=self.article_open_method_choices)
         self.article_open_method_ctrl.SetName("Article opening method")
         current_open_method = str(config.get("article_open_method", "default") or "default").lower()
         self.article_open_method_ctrl.SetStringSelection(
-            "Custom command" if current_open_method == "custom" else "Default browser"
+            _("Custom command") if current_open_method == "custom" else _("Default browser")
         )
         article_open_sizer.Add(self.article_open_method_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(article_open_sizer, 0, wx.EXPAND | wx.ALL, 5)
@@ -985,7 +985,7 @@ class SettingsDialog(wx.Dialog):
         # Leaving a field blank auto-detects (PATH, Scoop/Choco/WinGet, portable
         # layouts, etc.). Detection runs in the background to keep the dialog snappy.
         tools_box = wx.StaticBoxSizer(
-            wx.VERTICAL, media_panel, "Media tools (ffmpeg, ffprobe, yt-dlp)"
+            wx.VERTICAL, media_panel, _("Media tools (ffmpeg, ffprobe, yt-dlp)")
         )
         tools_box.Add(
             wx.StaticText(
@@ -1004,7 +1004,7 @@ class SettingsDialog(wx.Dialog):
         for tool_key, tool_label, cfg_key in _media_tool_specs:
             row = wx.BoxSizer(wx.HORIZONTAL)
             row.Add(
-                wx.StaticText(media_panel, label=f"{tool_label} path:"),
+                wx.StaticText(media_panel, label=_("{tool_label} path:").format(tool_label=tool_label)),
                 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 4,
             )
             ctrl = wx.TextCtrl(media_panel, value=str(config.get(cfg_key, "") or ""))
@@ -1017,8 +1017,8 @@ class SettingsDialog(wx.Dialog):
             )
             row.Add(browse, 0)
             tools_box.Add(row, 0, wx.EXPAND | wx.ALL, 2)
-            detected = wx.StaticText(media_panel, label=f"Detected {tool_label}: checking…")
-            detected.SetName(f"Detected {tool_label}")
+            detected = wx.StaticText(media_panel, label=_("Detected {tool_label}: checking…").format(tool_label=tool_label))
+            detected.SetName(_("Detected {tool_label}").format(tool_label=tool_label))
             tools_box.Add(detected, 0, wx.LEFT | wx.BOTTOM, 12)
             self._media_tool_path_ctrls[cfg_key] = ctrl
             self._media_tool_detected_lbls[tool_key] = detected
@@ -1205,8 +1205,8 @@ class SettingsDialog(wx.Dialog):
             sounds_sizer.Add(s, 0, wx.EXPAND | wx.ALL, 5)
             return ctrl
             
-        self.sound_complete_ctrl = _add_sound_field("Refresh Complete Sound:", "sound_refresh_complete")
-        self.sound_error_ctrl = _add_sound_field("Refresh Error Sound:", "sound_refresh_error")
+        self.sound_complete_ctrl = _add_sound_field(_("Refresh Complete Sound:"), "sound_refresh_complete")
+        self.sound_error_ctrl = _add_sound_field(_("Refresh Error Sound:"), "sound_refresh_error")
         
         sounds_panel.SetSizer(sounds_sizer)
         notebook.AddPage(sounds_panel, _("Sounds"))
@@ -2357,15 +2357,17 @@ class SettingsDialog(wx.Dialog):
         from core import cookies_import
 
         steps = (
-            "To use your YouTube login with yt-dlp:\n\n"
-            "1. Install a cookies.txt exporter extension in your browser, e.g. "
-            "\"Get cookies.txt LOCALLY\".\n"
-            "2. Open youtube.com and make sure you are signed in.\n"
-            "3. Click the extension and Export to download a cookies.txt.\n"
-            "4. Come back here and choose \"Find my export\".\n\n"
-            "Cookies are only needed for age-restricted, private, or members-only "
-            "videos. Firefox and LibreWolf do not need this — their cookies are "
-            "detected automatically."
+            _(
+                "To use your YouTube login with yt-dlp:\n\n"
+                "1. Install a cookies.txt exporter extension in your browser, e.g. "
+                "\"Get cookies.txt LOCALLY\".\n"
+                "2. Open youtube.com and make sure you are signed in.\n"
+                "3. Click the extension and Export to download a cookies.txt.\n"
+                "4. Come back here and choose \"Find my export\".\n\n"
+                "Cookies are only needed for age-restricted, private, or members-only "
+                "videos. Firefox and LibreWolf do not need this — their cookies are "
+                "detected automatically."
+            )
         )
         dlg = wx.MessageDialog(
             self,
@@ -2484,11 +2486,11 @@ class SettingsDialog(wx.Dialog):
             path = info.get("path")
             nm = names.get(key, key)
             if not path:
-                text = f"Detected {nm}: not found"
+                text = _("Detected {nm}: not found").format(nm=nm)
             elif info.get("valid") is False:
-                text = f"Detected {nm}: {path} (failed version check)"
+                text = _("Detected {nm}: {path} (failed version check)").format(nm=nm, path=path)
             else:
-                text = f"Detected {nm}: {path}"
+                text = _("Detected {nm}: {path}").format(nm=nm, path=path)
             try:
                 lbl.SetLabel(text)
             except Exception:
@@ -2723,10 +2725,10 @@ class FeedPropertiesDialog(wx.Dialog):
         sizer.Add(wx.StaticText(self, label=_("When I delete an article from this feed:")), 0, wx.ALL, 5)
         del_row = wx.BoxSizer(wx.HORIZONTAL)
         self._feed_delete_choices = [
-            (None, "Use global setting"),
-            ("deleted", "Move it to Deleted Articles"),
-            ("purge", "Remove it permanently"),
-            ("category", "Move it to a category"),
+            (None, _("Use global setting")),
+            ("deleted", _("Move it to Deleted Articles")),
+            ("purge", _("Remove it permanently")),
+            ("category", _("Move it to a category")),
         ]
         self.feed_delete_ctrl = wx.Choice(self, choices=[lbl for _k, lbl in self._feed_delete_choices])
         self.feed_delete_ctrl.SetName("Delete behavior for this feed")

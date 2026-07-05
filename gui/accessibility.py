@@ -774,7 +774,7 @@ class AccessibleBrowserFrame(wx.Frame):
         filtered = self.mainframe._filter_articles(self._base_articles, query)
         self._current_articles = self.mainframe._sort_articles_for_display(filtered)
         if not self._current_articles:
-            self.article_list.Set(["No articles found."])
+            self.article_list.Set([_("No articles found.")])
             self.content_ctrl.SetValue("")
             self._update_download_button(None)
             return

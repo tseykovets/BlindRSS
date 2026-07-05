@@ -823,7 +823,7 @@ class MainFrame(wx.Frame):
 
         return focused_article_id, top_article_id, selected_article_id, (focused_on_load_more or selected_on_load_more)
 
-    def _render_articles_list(self, articles, empty_label: str = "No articles found.") -> None:
+    def _render_articles_list(self, articles, empty_label: str = _("No articles found.")) -> None:
         # Bump the render generation FIRST so any batch still queued from a
         # previous render detects that it is stale and stops (see
         # _render_articles_batch). This also supersedes prior batches when the
@@ -1099,7 +1099,7 @@ class MainFrame(wx.Frame):
             display_articles = self._filter_articles(base_articles, self._search_query)
         self.current_articles = self._sort_articles_for_display(display_articles)
         self._remove_loading_more_placeholder()
-        empty_label = "No matches." if (self._is_search_active() and base_articles) else "No articles found."
+        empty_label = "No matches." if (self._is_search_active() and base_articles) else _("No articles found.")
         self._render_articles_list(self.current_articles, empty_label=empty_label)
 
         show_more = self._should_show_load_more_placeholder(len(base_articles))
@@ -1142,7 +1142,7 @@ class MainFrame(wx.Frame):
         self.current_articles = self._sort_articles_for_display(filtered)
 
         self._remove_loading_more_placeholder()
-        empty_label = "No matches." if base_articles else "No articles found."
+        empty_label = "No matches." if base_articles else _("No articles found.")
         self._render_articles_list(self.current_articles, empty_label=empty_label)
 
         show_more = self._should_show_load_more_placeholder(len(base_articles))
@@ -1201,7 +1201,7 @@ class MainFrame(wx.Frame):
 
         self.current_articles = self._sort_articles_for_display(list(base_articles or []))
         self._remove_loading_more_placeholder()
-        self._render_articles_list(self.current_articles, empty_label="No articles found.")
+        self._render_articles_list(self.current_articles, empty_label=_("No articles found."))
         show_more = self._should_show_load_more_placeholder(len(base_articles))
         if show_more:
             self._add_loading_more_placeholder()
@@ -1380,7 +1380,7 @@ class MainFrame(wx.Frame):
 
             self.current_articles = self._sort_articles_for_display(display_articles)
             self._remove_loading_more_placeholder()
-            empty_label = "No matches." if (self._is_search_active() and base_articles) else "No articles found."
+            empty_label = "No matches." if (self._is_search_active() and base_articles) else _("No articles found.")
             self._render_articles_list(self.current_articles, empty_label=empty_label)
             if self._is_search_active():
                 try:
@@ -1413,7 +1413,7 @@ class MainFrame(wx.Frame):
             self.current_articles = []
             self.list_ctrl.DeleteAllItems()
             self._remove_loading_more_placeholder()
-            self.list_ctrl.InsertItem(0, "No articles found.")
+            self.list_ctrl.InsertItem(0, _("No articles found."))
             try:
                 self._reset_fulltext_prefetch([])
             except Exception:
@@ -4014,7 +4014,7 @@ class MainFrame(wx.Frame):
         row.Add(text, 2, wx.EXPAND | wx.ALL, 8)
         sizer.Add(row, 1, wx.EXPAND)
 
-        close_btn = wx.Button(dlg, wx.ID_CLOSE, "Close")
+        close_btn = wx.Button(dlg, wx.ID_CLOSE, _("Close"))
         close_btn.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CLOSE))
         sizer.Add(close_btn, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
 
@@ -4485,7 +4485,7 @@ class MainFrame(wx.Frame):
         try:
             self._remove_loading_more_placeholder()
             self.list_ctrl.DeleteAllItems()
-            label = "No matches." if (self._is_search_active() and getattr(self, "_base_articles", None)) else "No articles found."
+            label = "No matches." if (self._is_search_active() and getattr(self, "_base_articles", None)) else _("No articles found.")
             self.list_ctrl.InsertItem(0, label)
             self.content_ctrl.Clear()
             self.selected_article_id = None
@@ -4578,7 +4578,7 @@ class MainFrame(wx.Frame):
         parent_ctrl = None
         if supports_sub:
             cats = self.provider.get_categories()
-            choices = ["(None - Top Level)"] + sorted(cats, key=lambda s: s.lower())
+            choices = [_("(None - Top Level)")] + sorted(cats, key=lambda s: s.lower())
             sizer.Add(wx.StaticText(dlg, label=_("Parent category:")), 0, wx.ALL, 5)
             parent_ctrl = wx.ComboBox(dlg, choices=choices, style=wx.CB_READONLY)
             parent_ctrl.SetSelection(0)
@@ -5727,7 +5727,7 @@ class MainFrame(wx.Frame):
         if not base_articles:
             self.current_articles = []
             self.list_ctrl.DeleteAllItems()
-            self.list_ctrl.InsertItem(0, 'No articles found.')
+            self.list_ctrl.InsertItem(0, _("No articles found."))
             # Cache empty state
             if fid:
                 st = self._ensure_view_state(fid)
@@ -5750,7 +5750,7 @@ class MainFrame(wx.Frame):
 
         self.current_articles = self._sort_articles_for_display(display_articles)
         self.list_ctrl.DeleteAllItems()
-        empty_label = "No matches." if (self._is_search_active() and base_articles) else "No articles found."
+        empty_label = "No matches." if (self._is_search_active() and base_articles) else _("No articles found.")
         self._render_articles_list(self.current_articles, empty_label=empty_label)
         if self._is_search_active():
             try:
@@ -5875,7 +5875,7 @@ class MainFrame(wx.Frame):
             display_articles = self._filter_articles(combined, self._search_query)
         self.current_articles = self._sort_articles_for_display(display_articles)
 
-        empty_label = "No matches." if (self._is_search_active() and combined) else "No articles found."
+        empty_label = "No matches." if (self._is_search_active() and combined) else _("No articles found.")
         self._render_articles_list(self.current_articles, empty_label=empty_label)
         if self._is_search_active():
             try:
@@ -6233,7 +6233,7 @@ class MainFrame(wx.Frame):
             # Reset placeholder state since we are doing a full rebuild
             self._remove_loading_more_placeholder()
 
-            empty_label = "No matches." if (self._is_search_active() and combined) else "No articles found."
+            empty_label = "No matches." if (self._is_search_active() and combined) else _("No articles found.")
             self._render_articles_list(self.current_articles, empty_label=empty_label)
             if self._is_search_active():
                 try:
@@ -9109,7 +9109,7 @@ class MainFrame(wx.Frame):
         wx.MessageBox(msg, _("Error"), wx.ICON_ERROR)
 
     def on_import_opml(self, event, target_category=None):
-        dlg = wx.FileDialog(self, "Import OPML", wildcard="OPML files (*.opml)|*.opml", style=wx.FD_OPEN)
+        dlg = wx.FileDialog(self, _("Import OPML"), wildcard=f'{_("OPML files")} (*.opml)|*.opml', style=wx.FD_OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
             self.SetTitle("BlindRSS - Importing OPML...")
@@ -9297,7 +9297,7 @@ class MainFrame(wx.Frame):
             wx.MessageBox(_("Import failed. Please check the latest opml_debug_*.log in the temporary directory."))
 
     def on_export_opml(self, event):
-        dlg = wx.FileDialog(self, "Export OPML", wildcard="OPML files (*.opml)|*.opml", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        dlg = wx.FileDialog(self, _("Export OPML"), wildcard=f'{_("OPML files")} (*.opml)|*.opml', style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
             wx.BeginBusyCursor()
@@ -9346,7 +9346,7 @@ class MainFrame(wx.Frame):
         dlg = wx.FileDialog(
             self,
             f'Export "{target_cat}" Category OPML',
-            wildcard="OPML files (*.opml)|*.opml",
+            wildcard=f'{_("OPML files")} (*.opml)|*.opml',
             style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
             defaultFile=default_name,
         )

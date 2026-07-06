@@ -1707,14 +1707,17 @@ class MainFrame(wx.Frame):
     def init_shortcuts(self):
         # Add accelerator for Ctrl+R (F5 is handled by menu item text usually, but being explicit helps)
         self._toggle_favorite_id = wx.NewIdRef()
+        self._refresh_single_feed_id = wx.NewIdRef()
         entries = [
             wx.AcceleratorEntry(wx.ACCEL_CTRL, ord('R'), wx.ID_REFRESH),
             wx.AcceleratorEntry(wx.ACCEL_NORMAL, wx.WXK_F5, wx.ID_REFRESH),
+            wx.AcceleratorEntry(wx.ACCEL_CTRL, wx.WXK_F5, int(self._refresh_single_feed_id)),
             wx.AcceleratorEntry(wx.ACCEL_CTRL, ord('D'), int(self._toggle_favorite_id)),
         ]
         accel = wx.AcceleratorTable(entries)
         self.SetAcceleratorTable(accel)
         self.Bind(wx.EVT_MENU, self.on_toggle_favorite, id=int(self._toggle_favorite_id))
+        self.Bind(wx.EVT_MENU, self.on_refresh_single_feed, id=int(self._refresh_single_feed_id))
 
     def _get_focused_window(self) -> "wx.Window | None":
         try:
@@ -1854,6 +1857,20 @@ class MainFrame(wx.Frame):
                     return
                 except Exception:
                     log.exception("Error toggling article read status on Backspace")
+
+        if (
+            key == wx.WXK_SPACE
+            and event.ControlDown()
+            and not event.ShiftDown()
+            and not event.AltDown()
+            and not event.MetaDown()
+            and not self._is_text_input_focused(focus)
+        ):
+            try:
+                self.on_player_play_pause(None)
+                return
+            except Exception:
+                log.exception("Error toggling play/pause on Ctrl+Space")
 
         if focus == self.content_ctrl:
             if (
@@ -2839,8 +2856,9 @@ class MainFrame(wx.Frame):
                 )
             # We don't need to call refresh_feeds() (full tree rebuild) if we just updated one feed.
             # The progress callback updates the tree item label.
-            if new_items_total > 0:
-                self._play_sound("sound_refresh_complete")
+            # Always play the completion sound (even with no new items) so a
+            # targeted refresh gives audible feedback that it finished.
+            self._play_sound("sound_refresh_complete")
         except Exception as e:
             print(f"Single feed refresh error: {e}")
             self._play_sound("sound_refresh_error")
@@ -3124,7 +3142,7 @@ class MainFrame(wx.Frame):
             
         elif data["type"] == "feed":
             feed_id = str(data.get("id") or "").strip()
-            refresh_feed_item = menu.Append(wx.ID_ANY, _("Refresh Feed"))
+            refresh_feed_item = menu.Append(wx.ID_ANY, _("Refresh Feed") + "\tCtrl+F5")
             self.Bind(wx.EVT_MENU, self.on_refresh_single_feed, refresh_feed_item)
 
             feed_title = str(getattr((getattr(self, "feed_map", {}) or {}).get(feed_id), "title", "") or "").strip()
@@ -7941,6 +7959,14 @@ class MainFrame(wx.Frame):
 
     def on_article_activate(self, event):
         # Double click or Enter
+        # wxMSW also synthesizes ITEM_ACTIVATED for plain Space in a
+        # wx.ListCtrl; ignore it so Space stays the native selection toggle
+        # instead of playing audio / opening the article in the browser.
+        try:
+            if wx.GetKeyState(wx.WXK_SPACE):
+                return
+        except Exception:
+            pass
         idx = event.GetIndex()
         if self._is_load_more_row(idx):
             self._load_more_articles()

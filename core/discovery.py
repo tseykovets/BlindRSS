@@ -3492,10 +3492,50 @@ def discover_feed(url: str, request_timeout: float = 10.0, probe_timeout: float 
                     return candidate
             except Exception:
                 pass
-                
+
     except Exception:
         pass
-        
+
+    # 3. Last resort: OpenRSS generates feeds for many sites with no native RSS.
+    try:
+        openrss = openrss_feed_url(url, timeout=request_timeout)
+        if openrss:
+            return openrss
+    except Exception:
+        pass
+
+    return None
+
+
+def openrss_feed_url(url: str, timeout: float = 10.0) -> str | None:
+    """Return an OpenRSS proxy feed URL for `url` if openrss.org supports it.
+
+    OpenRSS serves the raw feed at https://openrss.org/feed/<host><path> and
+    answers 404 for unsupported sites, so the candidate is only returned after
+    a successful, feed-shaped response.
+    """
+    try:
+        parsed = urlparse(str(url or "").strip())
+    except Exception:
+        return None
+    scheme = (parsed.scheme or "").lower()
+    host = str(parsed.netloc or "").strip()
+    if scheme not in ("http", "https") or not host:
+        return None
+    # Never proxy openrss.org through itself.
+    if _host_matches(host.split("@")[-1].split(":")[0], "openrss.org"):
+        return None
+    candidate = f"https://openrss.org/feed/{host}{parsed.path or ''}"
+    if parsed.query:
+        candidate += f"?{parsed.query}"
+    try:
+        resp = utils.safe_requests_get(candidate, timeout=max(1.0, float(timeout or 10.0)))
+        if resp.status_code == 200 and _body_looks_like_feed(
+            resp.text or "", str(resp.headers.get("Content-Type", "") or "")
+        ):
+            return candidate
+    except Exception:
+        pass
     return None
 
 
@@ -3579,6 +3619,15 @@ def discover_feeds(url: str) -> list[str]:
 
     except Exception:
         pass
+
+    # Last resort: OpenRSS generates feeds for many sites with no native RSS.
+    if not feeds:
+        try:
+            openrss = openrss_feed_url(url)
+            if openrss:
+                _add(openrss)
+        except Exception:
+            pass
 
     # Normalize/uniq while preserving order.
     out: list[str] = []

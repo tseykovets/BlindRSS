@@ -200,6 +200,63 @@ class DiscoverFeedsTests(unittest.TestCase):
                 mock_get.assert_called_once()
 
 
+class OpenRssFallbackTests(unittest.TestCase):
+    _RSS_BODY = "<?xml version='1.0'?><rss version='2.0'><channel><title>T</title></channel></rss>"
+
+    def _feed_resp(self, url: str) -> _DummyResp:
+        resp = _DummyResp(self._RSS_BODY, url=url)
+        resp.headers = {"Content-Type": "application/xml; charset=utf-8"}
+        return resp
+
+    def test_openrss_feed_url_builds_and_validates_candidate(self) -> None:
+        captured = {}
+
+        def get_side_effect(url: str, **_kwargs):
+            captured["url"] = url
+            return self._feed_resp(url)
+
+        with patch("core.discovery.utils.safe_requests_get", side_effect=get_side_effect):
+            out = discovery.openrss_feed_url("https://www.anthropic.com/news?page=2")
+
+        self.assertEqual(out, "https://openrss.org/feed/www.anthropic.com/news?page=2")
+        self.assertEqual(captured["url"], out)
+
+    def test_openrss_feed_url_rejects_non_feed_response(self) -> None:
+        resp = _DummyResp("<html>not supported</html>")
+        resp.status_code = 404
+        with patch("core.discovery.utils.safe_requests_get", return_value=resp):
+            self.assertIsNone(discovery.openrss_feed_url("https://example.com/blog"))
+
+    def test_openrss_feed_url_never_proxies_openrss_itself(self) -> None:
+        with patch("core.discovery.utils.safe_requests_get") as mock_get:
+            self.assertIsNone(discovery.openrss_feed_url("https://openrss.org/feed/example.com"))
+        mock_get.assert_not_called()
+
+    def test_discover_feed_falls_back_to_openrss_when_nothing_resolves(self) -> None:
+        def get_side_effect(url: str, **_kwargs):
+            if url.startswith("https://openrss.org/feed/"):
+                return self._feed_resp(url)
+            return _DummyResp("<html><head></head><body>no feeds here</body></html>", url=url)
+
+        with patch("core.discovery.utils.safe_requests_get", side_effect=get_side_effect):
+            with patch("core.discovery.utils.safe_requests_head", return_value=_DummyHeadResp(404, "text/html")):
+                out = discovery.discover_feed("https://example.com/blog")
+
+        self.assertEqual(out, "https://openrss.org/feed/example.com/blog")
+
+    def test_discover_feeds_falls_back_to_openrss_when_nothing_resolves(self) -> None:
+        def get_side_effect(url: str, **_kwargs):
+            if url.startswith("https://openrss.org/feed/"):
+                return self._feed_resp(url)
+            return _DummyResp("<html><head></head><body>no feeds here</body></html>", url=url)
+
+        with patch("core.discovery.utils.safe_requests_get", side_effect=get_side_effect):
+            with patch("core.discovery.utils.safe_requests_head", return_value=_DummyHeadResp(404, "text/html")):
+                feeds = discovery.discover_feeds("https://example.com/blog")
+
+        self.assertEqual(feeds, ["https://openrss.org/feed/example.com/blog"])
+
+
 if __name__ == "__main__":
     unittest.main()
 

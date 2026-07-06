@@ -8,6 +8,10 @@ import gui.dialogs as dialogs
 
 class _Host:
     _SOURCE_ALL = dialogs.FeedSearchDialog._SOURCE_ALL
+    _SOURCE_ALL_PODCAST = dialogs.FeedSearchDialog._SOURCE_ALL_PODCAST
+    _SOURCE_ALL_RSS = dialogs.FeedSearchDialog._SOURCE_ALL_RSS
+    _PODCAST_SOURCE_KEYS = dialogs.FeedSearchDialog._PODCAST_SOURCE_KEYS
+    _RSS_SOURCE_KEYS = dialogs.FeedSearchDialog._RSS_SOURCE_KEYS
     _build_search_targets = dialogs.FeedSearchDialog._build_search_targets
     _is_url_like_term = staticmethod(dialogs.FeedSearchDialog._is_url_like_term)
 
@@ -87,6 +91,41 @@ def test_feed_search_all_sources_includes_url_only_targets_for_url_like_terms():
         "gPodder",
         "fyyd",
         "Podverse",
+        "Feedly",
+        "YouTube",
+        "NewsBlur",
+        "Reddit",
+        "Fediverse",
+        "Feedsearch",
+        "BlindRSS",
+    ]
+
+
+def test_feed_search_all_podcast_sources_group():
+    host = _Host()
+    targets = host._build_search_targets("history", host._SOURCE_ALL_PODCAST)
+
+    assert _target_names(targets) == ["iTunes", "gPodder", "fyyd", "Podverse"]
+
+
+def test_feed_search_all_rss_sources_group_excludes_url_only_targets_for_keyword():
+    host = _Host()
+    targets = host._build_search_targets("tech news", host._SOURCE_ALL_RSS)
+
+    assert _target_names(targets) == [
+        "Feedly",
+        "YouTube",
+        "NewsBlur",
+        "Reddit",
+        "Fediverse",
+    ]
+
+
+def test_feed_search_all_rss_sources_group_includes_url_only_targets_for_url_like_terms():
+    host = _Host()
+    targets = host._build_search_targets("example.com", host._SOURCE_ALL_RSS)
+
+    assert _target_names(targets) == [
         "Feedly",
         "YouTube",
         "NewsBlur",

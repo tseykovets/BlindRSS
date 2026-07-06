@@ -3218,8 +3218,14 @@ class FeedSearchDialog(wx.Dialog):
     _SEARCH_TOTAL_TIMEOUT_ALL_SOURCES_S = 60.0
     _SEARCH_TOTAL_TIMEOUT_SINGLE_SOURCE_S = 60.0
     _SOURCE_ALL = "__all__"
+    _SOURCE_ALL_PODCAST = "__all_podcast__"
+    _SOURCE_ALL_RSS = "__all_rss__"
+    _PODCAST_SOURCE_KEYS = ["itunes", "gpodder", "fyyd", "podverse"]
+    _RSS_SOURCE_KEYS = ["feedly", "youtube", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
     _SOURCE_CHOICES = [
         ("All sources", _SOURCE_ALL),
+        ("All podcast sources", _SOURCE_ALL_PODCAST),
+        ("All RSS feed sources", _SOURCE_ALL_RSS),
         ("iTunes", "itunes"),
         ("gPodder", "gpodder"),
         ("fyyd", "fyyd"),
@@ -3360,6 +3366,10 @@ class FeedSearchDialog(wx.Dialog):
 
         if source_key == self._SOURCE_ALL:
             target_keys = [key for _, key, _ in all_targets]
+        elif source_key == self._SOURCE_ALL_PODCAST:
+            target_keys = [key for _, key, _ in all_targets if key in self._PODCAST_SOURCE_KEYS]
+        elif source_key == self._SOURCE_ALL_RSS:
+            target_keys = [key for _, key, _ in all_targets if key in self._RSS_SOURCE_KEYS]
         elif source_key in by_key:
             target_keys = [source_key]
         else:

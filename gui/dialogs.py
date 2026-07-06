@@ -3221,7 +3221,7 @@ class FeedSearchDialog(wx.Dialog):
     _SOURCE_ALL_PODCAST = "__all_podcast__"
     _SOURCE_ALL_RSS = "__all_rss__"
     _PODCAST_SOURCE_KEYS = ["itunes", "gpodder", "fyyd", "podverse"]
-    _RSS_SOURCE_KEYS = ["feedly", "feedspot", "youtube", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
+    _RSS_SOURCE_KEYS = ["feedly", "feedspot", "googlenews", "bingnews", "youtube", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
     _SOURCE_CHOICES = [
         ("All sources", _SOURCE_ALL),
         ("All podcast sources", _SOURCE_ALL_PODCAST),
@@ -3232,6 +3232,8 @@ class FeedSearchDialog(wx.Dialog):
         ("Podverse", "podverse"),
         ("Feedly", "feedly"),
         ("Feedspot", "feedspot"),
+        ("Google News", "googlenews"),
+        ("Bing News", "bingnews"),
         ("YouTube", "youtube"),
         ("NewsBlur", "newsblur"),
         ("Reddit", "reddit"),
@@ -3292,7 +3294,7 @@ class FeedSearchDialog(wx.Dialog):
 
         # Attribution / Help
         help_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedspot, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
+        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedspot, Google News, Bing News, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
         sizer.Add(help_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
         
         # Buttons
@@ -3349,6 +3351,8 @@ class FeedSearchDialog(wx.Dialog):
             ("Podverse", "podverse", self._search_podverse),
             ("Feedly", "feedly", self._search_feedly),
             ("Feedspot", "feedspot", self._search_feedspot),
+            ("Google News", "googlenews", self._search_googlenews),
+            ("Bing News", "bingnews", self._search_bingnews),
             ("YouTube", "youtube", self._search_youtube_channels),
             ("NewsBlur", "newsblur", self._search_newsblur),
             ("Reddit", "reddit", self._search_reddit),
@@ -3604,24 +3608,21 @@ class FeedSearchDialog(wx.Dialog):
             results = []
             seen = set()
             pending_title = ""
-            # Entries appear in document order as a title anchor (inside a
-            # .feed_heading element) followed by an anchor whose href is the
-            # actual feed URL; pair them as they stream past.
+            # Each entry is a title anchor inside a .feed_heading element
+            # followed by the feed-URL anchor (class "ext" without
+            # "extdomain"); pair them in document order. Every entry sits in
+            # the initial HTML (even 200+ item pages), though some only show
+            # their feed URL to logged-in users and are skipped.
             for a in soup.find_all("a", href=True):
-                href = str(a.get("href") or "").strip()
                 if a.find_parent(class_="feed_heading") is not None:
                     pending_title = a.get_text(strip=True)
                     continue
+                classes = a.get("class") or []
+                if "ext" not in classes or "extdomain" in classes:
+                    continue
+                href = str(a.get("href") or "").strip()
                 host = str(_urlparse(href).netloc or "").lower()
-                if not host or host.endswith("feedspot.com"):
-                    continue
-                if not _re.search(
-                    r"(\.xml|\.rss|\.atom|/feed/?$|/rss/?$|/feeds?/|[?&](?:feed|format)=)",
-                    href,
-                    _re.I,
-                ):
-                    continue
-                if href in seen:
+                if not host or host.endswith("feedspot.com") or href in seen:
                     continue
                 seen.add(href)
                 results.append({
@@ -3630,10 +3631,66 @@ class FeedSearchDialog(wx.Dialog):
                     "url": href,
                 })
                 pending_title = ""
-                if len(results) >= 25:
+                if len(results) >= 150:
                     break
             if results:
                 queue.put(("Feedspot", results))
+        except Exception:
+            pass
+
+    _GOOGLE_NEWS_TOPICS = {
+        "world": "WORLD",
+        "nation": "NATION",
+        "national": "NATION",
+        "business": "BUSINESS",
+        "technology": "TECHNOLOGY",
+        "tech": "TECHNOLOGY",
+        "entertainment": "ENTERTAINMENT",
+        "science": "SCIENCE",
+        "sports": "SPORTS",
+        "sport": "SPORTS",
+        "health": "HEALTH",
+    }
+
+    def _search_googlenews(self, term, queue):
+        # Google News serves keyless RSS feeds for any query (and for its
+        # topic sections), so offer them as subscribable results directly.
+        try:
+            import urllib.parse
+            t = str(term or "").strip()
+            if not t:
+                return
+            results = [{
+                "title": f"Google News: {t}",
+                "detail": _("News search feed"),
+                "url": "https://news.google.com/rss/search?q="
+                       + urllib.parse.quote(t) + "&hl=en-US&gl=US&ceid=US:en",
+            }]
+            topic = self._GOOGLE_NEWS_TOPICS.get(t.lower())
+            if topic:
+                results.append({
+                    "title": f"Google News: {topic.capitalize()} headlines",
+                    "detail": _("News topic feed"),
+                    "url": f"https://news.google.com/rss/headlines/section/topic/{topic}"
+                           "?hl=en-US&gl=US&ceid=US:en",
+                })
+            queue.put(("Google News", results))
+        except Exception:
+            pass
+
+    def _search_bingnews(self, term, queue):
+        # Bing News serves a keyless RSS feed for any query via format=rss.
+        try:
+            import urllib.parse
+            t = str(term or "").strip()
+            if not t:
+                return
+            queue.put(("Bing News", [{
+                "title": f"Bing News: {t}",
+                "detail": _("News search feed"),
+                "url": "https://www.bing.com/news/search?q="
+                       + urllib.parse.quote(t) + "&format=rss",
+            }]))
         except Exception:
             pass
 

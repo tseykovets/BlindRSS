@@ -16,6 +16,7 @@ from core.discovery import (
     resolve_quick_url_title,
     resolve_ytdlp_url_enrichment,
     search_ytdlp_site,
+    supports_quick_url_title,
     search_youtube_feeds,
     search_mastodon_feeds,
     search_bluesky_feeds,
@@ -3221,6 +3222,8 @@ class FeedSearchDialog(wx.Dialog):
         ("All sources", _SOURCE_ALL),
         ("iTunes", "itunes"),
         ("gPodder", "gpodder"),
+        ("fyyd", "fyyd"),
+        ("Podverse", "podverse"),
         ("Feedly", "feedly"),
         ("YouTube", "youtube"),
         ("NewsBlur", "newsblur"),
@@ -3282,7 +3285,7 @@ class FeedSearchDialog(wx.Dialog):
 
         # Attribution / Help
         help_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, YouTube, Feedly, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
+        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
         sizer.Add(help_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
         
         # Buttons
@@ -3335,6 +3338,8 @@ class FeedSearchDialog(wx.Dialog):
         all_targets = [
             ("iTunes", "itunes", self._search_itunes),
             ("gPodder", "gpodder", self._search_gpodder),
+            ("fyyd", "fyyd", self._search_fyyd),
+            ("Podverse", "podverse", self._search_podverse),
             ("Feedly", "feedly", self._search_feedly),
             ("YouTube", "youtube", self._search_youtube_channels),
             ("NewsBlur", "newsblur", self._search_newsblur),
@@ -3516,6 +3521,54 @@ class FeedSearchDialog(wx.Dialog):
                         "url": it.get("url")
                     })
                 queue.put(("gPodder", results))
+        except Exception:
+            pass
+
+    def _search_fyyd(self, term, queue):
+        try:
+            import urllib.parse
+            url = f"https://api.fyyd.de/0.2/search/podcast?term={urllib.parse.quote(term)}&count=20"
+            resp = utils.safe_requests_get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                results = []
+                for it in data.get("data", []):
+                    if not isinstance(it, dict): continue
+                    feed_url = it.get("xmlURL")
+                    if not feed_url: continue
+                    results.append({
+                        "title": it.get("title") or feed_url,
+                        "detail": it.get("author") or it.get("subtitle") or "",
+                        "url": feed_url
+                    })
+                queue.put(("fyyd", results))
+        except Exception:
+            pass
+
+    def _search_podverse(self, term, queue):
+        try:
+            import urllib.parse
+            url = f"https://api.podverse.fm/api/v1/podcast?searchTitle={urllib.parse.quote(term)}"
+            resp = utils.safe_requests_get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                # Response shape: [ [items...], total_count ]
+                items = data[0] if isinstance(data, list) and data else []
+                results = []
+                for it in items:
+                    if not isinstance(it, dict): continue
+                    feed_url = ""
+                    for fu in (it.get("feedUrls") or []):
+                        if isinstance(fu, dict) and fu.get("url"):
+                            feed_url = fu["url"]
+                            break
+                    if not feed_url: continue
+                    results.append({
+                        "title": it.get("title") or feed_url,
+                        "detail": it.get("subtitle") or it.get("description") or "",
+                        "url": feed_url
+                    })
+                queue.put(("Podverse", results))
         except Exception:
             pass
 
@@ -3851,12 +3904,15 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
     _PER_SITE_TIMEOUT_S = 12
     _TITLE_ENRICH_CONCURRENCY = 2
     _TITLE_ENRICH_TIMEOUT_S = 10
-    _QUICK_TITLE_ENRICH_CONCURRENCY = 4
+    # Quick title lookups are a single lightweight HTTP GET (YouTube oEmbed /
+    # Rokfin public API) — purely network-bound, so a wide pool is cheap and
+    # makes placeholder rows resolve to real titles almost immediately.
+    _QUICK_TITLE_ENRICH_CONCURRENCY = 16
     _QUICK_TITLE_ENRICH_TIMEOUT_S = 4
     _RESULTS_REFRESH_THROTTLE_MS = 200
     _RESULTS_REFRESH_THROTTLE_FOCUSED_MS = 500
     _RESULTS_REFRESH_NAV_COOLDOWN_MS = 1200
-    _TITLE_ENRICH_WORKER_THREADS = 6
+    _TITLE_ENRICH_WORKER_THREADS = 16
     _TITLE_ENRICH_HEAVY_WORKER_THREADS = 2
     _DEFAULT_SORT_COLUMN = None  # None => default (mainstream-first then arrival)
     _DEFAULT_SORT_DESC = False
@@ -3936,6 +3992,16 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         self.filter_choice = wx.Choice(self)
         self.filter_choice.SetName("Filter results by site")
         opts_row.Add(self.filter_choice, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        opts_row.Add(wx.StaticText(self, label=_("Sort by:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        # Maps combo positions to the existing _sort_column machinery:
+        # None = default relevance order (mainstream-first, then arrival).
+        self._sort_choice_columns = [None, 0, 1, 3]
+        self.sort_choice = wx.Choice(self)
+        self.sort_choice.SetName("Sort results")
+        for label in (_("Relevance"), _("Title"), _("Site"), _("Plays")):
+            self.sort_choice.Append(label)
+        self.sort_choice.SetSelection(0)
+        opts_row.Add(self.sort_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         root.Add(opts_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
 
         self.status_lbl = wx.StaticText(
@@ -3985,6 +4051,7 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         self.search_ctrl.Bind(wx.EVT_SEARCHCTRL_SEARCH_BTN, self.on_search)
         self.scope_choice.Bind(wx.EVT_CHOICE, self.on_scope_changed)
         self.filter_choice.Bind(wx.EVT_CHOICE, self.on_filter_changed)
+        self.sort_choice.Bind(wx.EVT_CHOICE, self.on_sort_choice_changed)
         self.results_list.Bind(wx.EVT_LIST_COL_CLICK, self.on_results_col_click)
         self.results_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_result_selected)
         self.results_list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_result_activated)
@@ -4680,6 +4747,39 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         rows.sort(key=lambda it: (_s(it), int(it.get("_arrival_order") or 0)), reverse=desc)
         return rows
 
+    def _sync_sort_choice_to_state(self) -> None:
+        """Reflect the current _sort_column in the Sort by combo when possible."""
+        choice = getattr(self, "sort_choice", None)
+        if choice is None:
+            return
+        col = getattr(self, "_sort_column", self._DEFAULT_SORT_COLUMN)
+        cols = list(getattr(self, "_sort_choice_columns", [None]))
+        try:
+            idx = cols.index(col)
+        except ValueError:
+            idx = 0
+        try:
+            choice.SetSelection(int(idx))
+        except Exception:
+            pass
+
+    def on_sort_choice_changed(self, event):
+        try:
+            idx = int(self.sort_choice.GetSelection())
+        except Exception:
+            idx = 0
+        cols = list(getattr(self, "_sort_choice_columns", [None]))
+        col = cols[idx] if 0 <= idx < len(cols) else None
+        self._sort_column = col
+        # Plays is most useful descending; Title/Site ascending; Relevance uses
+        # the default mainstream-first then arrival order.
+        self._sort_desc = bool(col == 3)
+        self._schedule_results_refresh(immediate=True)
+        try:
+            event.Skip()
+        except Exception:
+            pass
+
     def on_results_col_click(self, event):
         try:
             col = int(event.GetColumn())
@@ -4703,6 +4803,7 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             # Plays is most useful descending by default.
             self._sort_desc = bool(col == 3)
 
+        self._sync_sort_choice_to_state()
         self._schedule_results_refresh(immediate=True)
         try:
             event.Skip()
@@ -4919,6 +5020,14 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             item["_arrival_order"] = int(self._result_arrival_counter or 0)
             self._all_results.append(item)
             new_count += 1
+            # Eagerly queue the quick (oEmbed-style, single HTTP GET) title stage
+            # for URL-only rows so real titles appear fast. Only rows with a cheap
+            # fast path are queued; the heavy yt-dlp stage stays selection-driven.
+            try:
+                if self._title_needs_enrichment(item) and supports_quick_url_title(url):
+                    self._queue_title_enrichment(item, int(getattr(self, "_search_generation", 0) or 0))
+            except Exception:
+                pass
 
         self._schedule_results_refresh()
 

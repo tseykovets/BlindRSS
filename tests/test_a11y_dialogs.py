@@ -150,6 +150,10 @@ def test_ytdlp_global_search_dialog_controls_named(parent):
         assert dlg.search_ctrl.GetName() == "Video search"
         assert dlg.scope_choice.GetName() == "Search sites"
         assert dlg.filter_choice.GetName() == "Filter results by site"
+        assert dlg.sort_choice.GetName() == "Sort results"
+        # Sort combo defaults to Relevance (the default relevance ordering).
+        assert dlg.sort_choice.GetSelection() == 0
+        assert dlg.sort_choice.GetCount() == 4
         # Pre-existing label that must not regress.
         assert dlg.results_list.GetName() == "Search results"
     finally:

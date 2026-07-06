@@ -89,7 +89,7 @@ _URL_FALLBACK_SITE_NAMES = {
 }
 
 _ROKFIN_PUBLIC_API_BASE = "https://prod-api-v2.production.rokfin.com/api/v2/public"
-_QUICK_TITLE_PREFETCH_MAX_WORKERS = 6
+_QUICK_TITLE_PREFETCH_MAX_WORKERS = 16
 _ALTERNATE_FEED_TYPES = {
     "application/rss+xml",
     "application/atom+xml",
@@ -1449,6 +1449,16 @@ def _supports_quick_title_resolution(url: str) -> bool:
     return _is_youtube_host(host) or _host_matches(host, "rokfin.com")
 
 
+def supports_quick_url_title(url: str) -> bool:
+    """True when resolve_quick_url_title() has a cheap HTTP fast path for `url`.
+
+    Lets the GUI queue quick title enrichment only for rows where a single
+    lightweight lookup (YouTube oEmbed / Rokfin public API) can succeed, instead
+    of burning queue slots on unsupported hosts.
+    """
+    return _supports_quick_title_resolution(url)
+
+
 def _prefetch_quick_titles_for_entries(entries, limit: int = 10) -> dict[str, str]:
     """Resolve quick titles concurrently for the first `limit` URL-only entries."""
     try:
@@ -1852,6 +1862,12 @@ def _normalize_ytdlp_search_entries(
         display_site_label = _display_site_label_from_result_url(url, fallback_label=search_site_label) or search_site_label
         kind = _infer_ytdlp_search_result_kind(url, entry, site_id=site_id)
         raw_title = str(entry.get("title") or "").strip()
+        # Some flat-playlist entries carry a junk title equal to the video id or
+        # the URL itself; treat those as missing so real enrichment can run.
+        if raw_title:
+            entry_id = str(entry.get("id") or "").strip()
+            if raw_title == url or (entry_id and raw_title == entry_id):
+                raw_title = ""
         title_is_fallback = False
         if raw_title:
             title = raw_title

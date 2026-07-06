@@ -27,6 +27,7 @@ class _StatusLabel:
 class _SearchResultsHost:
     _on_site_search_results = dialogs.YtdlpGlobalSearchDialog._on_site_search_results
     _result_key_for_item = dialogs.YtdlpGlobalSearchDialog._result_key_for_item
+    _title_needs_enrichment = dialogs.YtdlpGlobalSearchDialog._title_needs_enrichment
 
     def __init__(self):
         self._stop_event = None
@@ -64,7 +65,11 @@ def test_selected_action_availability_when_nothing_is_selected():
     assert host._get_selected_action_availability() == (False, False, False)
 
 
-def test_site_search_results_do_not_auto_queue_title_enrichment():
+def test_site_search_results_auto_queue_quick_title_enrichment_for_supported_fallback_rows():
+    # Rows with placeholder titles and a cheap oEmbed-style fast path (YouTube,
+    # Rokfin) get the quick title stage queued as soon as they arrive; rows with
+    # real titles and rows on unsupported hosts are left alone (no heavy yt-dlp
+    # enrichment is ever auto-queued from arriving results).
     host = _SearchResultsHost()
     items = [
         {
@@ -72,11 +77,25 @@ def test_site_search_results_do_not_auto_queue_title_enrichment():
             "url": "https://www.youtube.com/watch?v=abc123",
             "site_id": "yvsearch",
             "_title_is_fallback": True,
-        }
+        },
+        {
+            "title": "A Real Title",
+            "url": "https://www.youtube.com/watch?v=def456",
+            "site_id": "yvsearch",
+            "_title_is_fallback": False,
+        },
+        {
+            "title": "Facebook reel 42",
+            "url": "https://www.facebook.com/reel/42/",
+            "site_id": "yvsearch",
+            "_title_is_fallback": True,
+        },
     ]
 
     host._on_site_search_results({"id": "yvsearch", "label": "Yahoo Video"}, items, 1, 1)
 
-    assert len(host._all_results) == 1
+    assert len(host._all_results) == 3
     assert host.refresh_scheduled is True
-    assert host.enrichment_requests == []
+    queued_urls = [str(item.get("url") or "") for item, _gen in host.enrichment_requests]
+    assert queued_urls == ["https://www.youtube.com/watch?v=abc123"]
+    assert all(gen == 1 for _item, gen in host.enrichment_requests)

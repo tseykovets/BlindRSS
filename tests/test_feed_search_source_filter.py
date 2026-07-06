@@ -17,6 +17,12 @@ class _Host:
     def _search_gpodder(self, term, queue):
         _ = (term, queue)
 
+    def _search_fyyd(self, term, queue):
+        _ = (term, queue)
+
+    def _search_podverse(self, term, queue):
+        _ = (term, queue)
+
     def _search_feedly(self, term, queue):
         _ = (term, queue)
 
@@ -62,6 +68,8 @@ def test_feed_search_all_sources_excludes_url_only_targets_for_keyword():
     assert _target_names(targets) == [
         "iTunes",
         "gPodder",
+        "fyyd",
+        "Podverse",
         "Feedly",
         "YouTube",
         "NewsBlur",
@@ -77,6 +85,8 @@ def test_feed_search_all_sources_includes_url_only_targets_for_url_like_terms():
     assert _target_names(targets) == [
         "iTunes",
         "gPodder",
+        "fyyd",
+        "Podverse",
         "Feedly",
         "YouTube",
         "NewsBlur",

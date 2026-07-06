@@ -267,6 +267,30 @@ def test_normalize_ytdlp_search_entries_does_not_quick_lookup_by_default():
     assert out[0]["_title_is_fallback"] is True
 
 
+def test_normalize_ytdlp_search_entries_treats_id_or_url_titles_as_missing():
+    site = {"id": "yvsearch", "label": "Yahoo Video", "search_key": "yvsearch"}
+    entries = [
+        {
+            "_type": "url",
+            "id": "gWB-J0EEFac",
+            "title": "gWB-J0EEFac",
+            "url": "https://www.youtube.com/watch?v=gWB-J0EEFac",
+        },
+        {
+            "_type": "url",
+            "title": "https://www.youtube.com/watch?v=C4W_zvyoJu8",
+            "url": "https://www.youtube.com/watch?v=C4W_zvyoJu8",
+        },
+    ]
+
+    out = discovery._normalize_ytdlp_search_entries(entries, site=site, limit=10)
+
+    assert out[0]["title"] == "YouTube video gWB-J0EEFac"
+    assert out[0]["_title_is_fallback"] is True
+    assert out[1]["title"] == "YouTube video C4W_zvyoJu8"
+    assert out[1]["_title_is_fallback"] is True
+
+
 def test_prefetch_quick_titles_for_entries_collects_supported_url_only_rows():
     entries = [
         {"title": "Has title already", "url": "https://www.youtube.com/watch?v=aaa"},

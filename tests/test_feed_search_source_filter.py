@@ -30,6 +30,9 @@ class _Host:
     def _search_feedly(self, term, queue):
         _ = (term, queue)
 
+    def _search_feedspot(self, term, queue):
+        _ = (term, queue)
+
     def _search_youtube_channels(self, term, queue):
         _ = (term, queue)
 
@@ -75,6 +78,7 @@ def test_feed_search_all_sources_excludes_url_only_targets_for_keyword():
         "fyyd",
         "Podverse",
         "Feedly",
+        "Feedspot",
         "YouTube",
         "NewsBlur",
         "Reddit",
@@ -92,6 +96,7 @@ def test_feed_search_all_sources_includes_url_only_targets_for_url_like_terms():
         "fyyd",
         "Podverse",
         "Feedly",
+        "Feedspot",
         "YouTube",
         "NewsBlur",
         "Reddit",
@@ -114,6 +119,7 @@ def test_feed_search_all_rss_sources_group_excludes_url_only_targets_for_keyword
 
     assert _target_names(targets) == [
         "Feedly",
+        "Feedspot",
         "YouTube",
         "NewsBlur",
         "Reddit",
@@ -127,6 +133,7 @@ def test_feed_search_all_rss_sources_group_includes_url_only_targets_for_url_lik
 
     assert _target_names(targets) == [
         "Feedly",
+        "Feedspot",
         "YouTube",
         "NewsBlur",
         "Reddit",

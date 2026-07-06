@@ -3221,7 +3221,7 @@ class FeedSearchDialog(wx.Dialog):
     _SOURCE_ALL_PODCAST = "__all_podcast__"
     _SOURCE_ALL_RSS = "__all_rss__"
     _PODCAST_SOURCE_KEYS = ["itunes", "gpodder", "fyyd", "podverse"]
-    _RSS_SOURCE_KEYS = ["feedly", "youtube", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
+    _RSS_SOURCE_KEYS = ["feedly", "feedspot", "youtube", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
     _SOURCE_CHOICES = [
         ("All sources", _SOURCE_ALL),
         ("All podcast sources", _SOURCE_ALL_PODCAST),
@@ -3231,6 +3231,7 @@ class FeedSearchDialog(wx.Dialog):
         ("fyyd", "fyyd"),
         ("Podverse", "podverse"),
         ("Feedly", "feedly"),
+        ("Feedspot", "feedspot"),
         ("YouTube", "youtube"),
         ("NewsBlur", "newsblur"),
         ("Reddit", "reddit"),
@@ -3291,7 +3292,7 @@ class FeedSearchDialog(wx.Dialog):
 
         # Attribution / Help
         help_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
+        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedspot, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
         sizer.Add(help_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
         
         # Buttons
@@ -3347,6 +3348,7 @@ class FeedSearchDialog(wx.Dialog):
             ("fyyd", "fyyd", self._search_fyyd),
             ("Podverse", "podverse", self._search_podverse),
             ("Feedly", "feedly", self._search_feedly),
+            ("Feedspot", "feedspot", self._search_feedspot),
             ("YouTube", "youtube", self._search_youtube_channels),
             ("NewsBlur", "newsblur", self._search_newsblur),
             ("Reddit", "reddit", self._search_reddit),
@@ -3579,6 +3581,59 @@ class FeedSearchDialog(wx.Dialog):
                         "url": feed_url
                     })
                 queue.put(("Podverse", results))
+        except Exception:
+            pass
+
+    def _search_feedspot(self, term, queue):
+        # Feedspot has no public search API (search requires a logged-in
+        # account), but its curated topic pages are public and list real feed
+        # URLs, so map the search term onto the topic-page URL scheme.
+        try:
+            import re as _re
+            from urllib.parse import urlparse as _urlparse
+            from bs4 import BeautifulSoup
+
+            slug = _re.sub(r"[^a-z0-9]+", "_", str(term or "").strip().lower()).strip("_")
+            if not slug:
+                return
+            url = f"https://rss.feedspot.com/{slug}_rss_feeds/"
+            resp = utils.safe_requests_get(url, timeout=12)
+            if resp.status_code != 200:
+                return
+            soup = BeautifulSoup(resp.text or "", "html.parser")
+            results = []
+            seen = set()
+            pending_title = ""
+            # Entries appear in document order as a title anchor (inside a
+            # .feed_heading element) followed by an anchor whose href is the
+            # actual feed URL; pair them as they stream past.
+            for a in soup.find_all("a", href=True):
+                href = str(a.get("href") or "").strip()
+                if a.find_parent(class_="feed_heading") is not None:
+                    pending_title = a.get_text(strip=True)
+                    continue
+                host = str(_urlparse(href).netloc or "").lower()
+                if not host or host.endswith("feedspot.com"):
+                    continue
+                if not _re.search(
+                    r"(\.xml|\.rss|\.atom|/feed/?$|/rss/?$|/feeds?/|[?&](?:feed|format)=)",
+                    href,
+                    _re.I,
+                ):
+                    continue
+                if href in seen:
+                    continue
+                seen.add(href)
+                results.append({
+                    "title": pending_title or host,
+                    "detail": host,
+                    "url": href,
+                })
+                pending_title = ""
+                if len(results) >= 25:
+                    break
+            if results:
+                queue.put(("Feedspot", results))
         except Exception:
             pass
 

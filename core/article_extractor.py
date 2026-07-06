@@ -83,6 +83,13 @@ _META_TITLE_TAG_ATTRS: List[dict] = [
 _JSON_LD_TEXT_FIELDS = ("articleBody", "text")
 _JSON_LD_MIN_TEXT_LEN = 120
 
+# Axios (Next.js) ships the canonical article body inside the __NEXT_DATA__ JSON blob
+# (props.pageProps.data.story.bodyHtml). Some page variants render no body in the DOM at all,
+# so DOM-based extraction only finds related-story cards and the "preferred source on Google"
+# promo. The JSON body is present in every variant, so it is the reliable source.
+_AXIOS_STORY_MIN_TEXT_LEN = 200
+_AXIOS_BODY_HTML_KEYS = ("beforeKeepReading", "afterKeepReading")
+
 # Anti-bot / human-verification interstitials.
 #
 # These are NOT articles: they are access-control gates (Cloudflare challenges, "you're not a
@@ -308,6 +315,85 @@ def _extract_json_ld_text(html: str) -> str:
     return best
 
 
+def _host_matches(url: str, domain: str) -> bool:
+    try:
+        host = (urlsplit(url).hostname or "").lower()
+    except Exception:
+        return False
+    return host == domain or host.endswith("." + domain)
+
+
+def _html_fragment_to_text(fragment_html: str) -> str:
+    """Convert a trusted CMS HTML body fragment into paragraph text."""
+    soup = _parse_html_soup(fragment_html, context="html fragment")
+    if soup is None:
+        return ""
+    blocks = soup.find_all(["p", "li", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"])
+    paras: List[str] = []
+    for tag in blocks:
+        # Skip container blocks (e.g. a blockquote wrapping <p>s); keep the leaf blocks.
+        if tag.find(["p", "li"]) is not None:
+            continue
+        text = _normalize_whitespace(tag.get_text(" ", strip=True))
+        text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+        if text:
+            paras.append(text)
+    if paras:
+        return "\n\n".join(paras)
+    return _normalize_whitespace(soup.get_text("\n", strip=True))
+
+
+def _extract_axios_story_text(html: str) -> str:
+    """Extract the Axios article body from the __NEXT_DATA__ JSON blob (see note at
+    _AXIOS_STORY_MIN_TEXT_LEN). Returns "" when the blob or body is missing/too short."""
+    if not html or "__NEXT_DATA__" not in html:
+        return ""
+    soup = _parse_html_soup(html, context="axios next data")
+    if soup is None:
+        return ""
+    tag = soup.find("script", id="__NEXT_DATA__")
+    if tag is None:
+        return ""
+    raw = tag.string or tag.get_text(strip=True)
+    if not raw:
+        return ""
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+
+    story = data.get("props") or {}
+    for key in ("pageProps", "data", "story"):
+        if not isinstance(story, dict):
+            return ""
+        story = story.get(key) or {}
+    if not isinstance(story, dict):
+        return ""
+
+    body_html = story.get("bodyHtml")
+    if isinstance(body_html, dict):
+        fragments = [body_html.get(k) for k in _AXIOS_BODY_HTML_KEYS]
+    elif isinstance(body_html, str):
+        fragments = [body_html]
+    else:
+        fragments = []
+
+    texts = [_html_fragment_to_text(f) for f in fragments if isinstance(f, str) and f.strip()]
+    text = _normalize_whitespace("\n\n".join(t for t in texts if t))
+    if len(text) < _AXIOS_STORY_MIN_TEXT_LEN:
+        return ""
+    return text
+
+
+def _extract_site_specific_text(html: str, url: str) -> str:
+    """Site-specific structured body extraction that outranks generic heuristics."""
+    if _host_matches(url, "axios.com"):
+        return _extract_axios_story_text(html)
+    return ""
+
+
 def _extract_allowlisted_lead_from_html(soup: BeautifulSoup, url: str) -> str:
     try:
         host = urlsplit(url).hostname
@@ -526,6 +612,20 @@ def _strip_aljazeera_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)share\d+Save", "", t)
     return t
 
+_AXIOS_BOILERPLATE_PATTERNS: List[re.Pattern] = [
+    re.compile(r"(?i)^Add\s+Axios\s+as\s+(?:a|your)\s+preferred\s+source\b.*\bGoogle\.?$"),
+    # Story-card metadata like "17 mins ago - Politics & Policy"
+    re.compile(r"(?i)^(?:\d+\s+(?:mins?|minutes?|hours?|days?)|moments?)\s+ago\s*[-–—]\s*\S"),
+    re.compile(r"(?i)^Go\s+deeper(?:\s*\(\s*\d+\s+min(?:\.|utes)?\s+read\s*\))?$"),
+]
+
+def _strip_axios_boilerplate(text: str) -> str:
+    paras = _split_paragraphs(text)
+    if not paras:
+        return ""
+    kept = [p for p in paras if not any(rx.search(p) for rx in _AXIOS_BOILERPLATE_PATTERNS)]
+    return "\n\n".join(kept).strip()
+
 def _strip_bbc_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)ShareSave", "", text)
     return t
@@ -728,6 +828,8 @@ def _postprocess_extracted_text(text: str, url: str) -> str:
         t = _strip_globalnews_boilerplate(t)
     elif "aljazeera.com" in netloc:
         t = _strip_aljazeera_boilerplate(t)
+    elif "axios.com" in netloc:
+        t = _strip_axios_boilerplate(t)
     elif "bbc.com" in netloc or "bbc.co.uk" in netloc:
         t = _strip_bbc_boilerplate(t)
     elif "o.canada.com" in netloc or "canada.com" in netloc:
@@ -996,6 +1098,14 @@ def _patch_json_ld_missing_lead(json_text: str, *alts: str) -> str:
 
 
 def _extract_text_any(html: str, url: str = "") -> str:
+    # 0. Site-specific structured body (e.g. Axios __NEXT_DATA__). Some Axios page variants
+    # ship no article body in the DOM, so trafilatura only finds related-story cards and the
+    # "Add Axios as your preferred source ... on Google" promo; the CMS JSON always has the
+    # real body, so it wins outright when present.
+    site_txt = _extract_site_specific_text(html, url)
+    if site_txt:
+        return site_txt
+
     # 1. JSON-LD articleBody (often high quality on major sites), but never trusted alone:
     # some CMSes omit paragraphs from articleBody. Wired/Conde Nast drops the entire first
     # paragraph whenever the lede uses styled lead-in markup, so trafilatura always runs

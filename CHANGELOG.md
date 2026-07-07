@@ -4,6 +4,11 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.85.0 - 2026-07-07
+
+- SoundCloud/Mixcloud search + feeds, adult-search gating; fix mid-podcast stop.
+- Adult site scope, 8-way search, and cross-site dedupe in Video Search.
+
 ## v1.84.1 - 2026-07-07
 
 - App no longer freezes while preparing audio playback.

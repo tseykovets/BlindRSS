@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.86.0 - 2026-07-07
+
+- Play queue, playback time display, and play/pause/stop shortcuts.
+
 ## v1.85.0 - 2026-07-07
 
 - SoundCloud/Mixcloud search + feeds, adult-search gating; fix mid-podcast stop.

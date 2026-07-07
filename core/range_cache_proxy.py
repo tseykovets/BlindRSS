@@ -205,7 +205,13 @@ class _Entry:
     last_req_time: float = field(default_factory=time.time)
 
     real_url: Optional[str] = None
-    
+
+    # Re-resolution state for expiring signed URLs (e.g. megaphone/podtrac podcast
+    # links whose token expires mid-playback). Refreshing real_url by re-following
+    # redirects from the original url yields a fresh signed link.
+    _reresolve_lock: threading.Lock = field(default_factory=threading.Lock)
+    _last_reresolve_ts: float = 0.0
+
     # Probe completion event - set once the initial probe finishes
     _probe_done: threading.Event = field(default_factory=threading.Event)
 
@@ -339,6 +345,59 @@ class _Entry:
             except Exception:
                 pass
 
+    def _refresh_real_url(self, min_interval_s: float = 4.0) -> bool:
+        """Refresh an expired signed real_url by re-following redirects from the
+        original url. Throttled + single-flight so concurrent range fetches (on
+        demand + background) don't stampede the origin. Returns True when a usable
+        (possibly refreshed) real_url is available."""
+        base = self.url
+        if not base:
+            return False
+        with self._reresolve_lock:
+            now = time.time()
+            if (now - float(self._last_reresolve_ts or 0.0)) < float(min_interval_s):
+                # Another fetch just refreshed; reuse it rather than hammering origin.
+                return bool(self.real_url)
+            self._last_reresolve_ts = now
+            session = self._make_session()
+            try:
+                hdrs = HEADERS.copy()
+                hdrs.pop("Accept", None)
+                hdrs.update(self.headers or {})
+                hdrs.setdefault("User-Agent", _DEFAULT_UA)
+                hdrs.setdefault("Accept", "*/*")
+                hdrs.setdefault("Accept-Encoding", "identity")
+                hdrs["Range"] = "bytes=0-0"
+                try:
+                    r = session.get(
+                        base,
+                        headers=hdrs,
+                        stream=True,
+                        timeout=(_PROBE_CONNECT_TIMEOUT_S, _PROBE_READ_TIMEOUT_S),
+                        allow_redirects=True,
+                    )
+                except Exception as e:
+                    self._warn("RangeCacheProxy re-resolve failed: %s", e)
+                    return False
+                try:
+                    new_url = r.url or ""
+                    if r.status_code in (200, 206) and new_url:
+                        if new_url != self.real_url:
+                            self._debug("Re-resolved signed URL for %s", base)
+                        self.real_url = new_url
+                        return True
+                    return False
+                finally:
+                    try:
+                        r.close()
+                    except Exception:
+                        pass
+            finally:
+                try:
+                    session.close()
+                except Exception:
+                    pass
+
     def probe(self) -> None:
         # Fast path: if already probed, return immediately
         if self._probe_done.is_set():
@@ -460,10 +519,44 @@ class _Entry:
 
         session = self._make_session()
         try:
-            try:
-                r = session.get(target_url, headers=hdrs, stream=True, timeout=(10, 60), allow_redirects=True)
-            except Exception as e:
-                self._warn("RangeCacheProxy fetch failed: %s", e)
+            r = None
+            for _attempt in range(2):
+                try:
+                    r = session.get(target_url, headers=hdrs, stream=True, timeout=(10, 60), allow_redirects=True)
+                except Exception as e:
+                    self._warn("RangeCacheProxy fetch failed: %s", e)
+                    r = None
+                    # A dropped connection can also mean the signed URL expired.
+                    if _attempt == 0 and self._refresh_real_url():
+                        target_url = self.real_url or self.url
+                        try:
+                            session.close()
+                        except Exception:
+                            pass
+                        session = self._make_session()
+                        continue
+                    return False
+                # A signed URL that expired mid-stream returns 401/403/404/410;
+                # refresh the link from the original url and retry once so long
+                # podcasts (megaphone/podtrac) don't stop partway through.
+                if r.status_code in (401, 403, 404, 410) and _attempt == 0:
+                    try:
+                        r.close()
+                    except Exception:
+                        pass
+                    r = None
+                    if self._refresh_real_url():
+                        target_url = self.real_url or self.url
+                        try:
+                            session.close()
+                        except Exception:
+                            pass
+                        session = self._make_session()
+                        continue
+                    return False
+                break
+
+            if r is None:
                 return False
 
             try:

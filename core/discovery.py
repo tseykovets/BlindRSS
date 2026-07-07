@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 from functools import lru_cache
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse, parse_qs, quote_plus, quote, unquote
+from urllib.parse import urljoin, urlparse, parse_qs, quote_plus, quote, unquote, urlencode
 from core import utils
 
 
@@ -84,6 +84,13 @@ _YTDLP_ADULT_KEYWORDS = (
 # Yahoo/Google "video search" both just return YouTube results (or nothing at
 # all), so the YouTube site (ytsearch) already covers them.
 _REDUNDANT_SEARCH_SITE_IDS = frozenset({"gvsearch", "yvsearch"})
+
+# Extra non-adult search sites that aren't yt-dlp query-search (_SEARCH_KEY)
+# extractors. Backed by their own API (search_provider), dispatched in
+# search_ytdlp_site. Included in normal (non-adult) search.
+_EXTRA_SEARCH_SITES = (
+    {"id": "mixcloud", "label": "Mixcloud", "search_provider": "mixcloud"},
+)
 
 # Adult sites are not exposed through yt-dlp's query-search (_SEARCH_KEY) system,
 # so we search them via their on-site search-results page, which yt-dlp can
@@ -397,6 +404,16 @@ def get_ytdlp_searchable_sites(include_adult: bool = False) -> list[dict]:
         sites_by_id[site_id] = preferred
 
     out = list(sites_by_id.values())
+    # API-backed extra sites (e.g. Mixcloud) that aren't yt-dlp search extractors.
+    existing_ids = {str(r.get("id") or "") for r in out}
+    for extra in _EXTRA_SEARCH_SITES:
+        if str(extra.get("id") or "") in existing_ids:
+            continue
+        row = dict(extra)
+        row.setdefault("search_key", "")
+        row.setdefault("adult", False)
+        row.setdefault("working", True)
+        out.append(row)
     out.sort(key=lambda x: (str(x.get("label", "")).lower(), str(x.get("id", "")).lower()))
     if include_adult:
         out.extend(get_adult_searchable_sites())
@@ -2085,6 +2102,9 @@ def search_ytdlp_site(term: str, site: dict, limit: int = 10, timeout: int = 15)
     """
     if not isinstance(site, dict):
         return []
+    provider = str(site.get("search_provider") or "").strip().lower()
+    if provider == "mixcloud":
+        return search_mixcloud_media(str(term or ""), limit=limit, timeout=timeout)
     url_template = str(site.get("search_url_template") or "").strip()
     if url_template:
         entries = _run_ytdlp_url_search(
@@ -2170,6 +2190,516 @@ def search_result_quality_score(item: dict) -> tuple:
     except Exception:
         play_val = -1
     return (has_real_title, has_subscribe, play_val)
+
+
+# ---------------------------------------------------------------------------
+# Mixcloud (open public API at api.mixcloud.com — no auth required)
+# ---------------------------------------------------------------------------
+
+_MIXCLOUD_API = "https://api.mixcloud.com"
+
+
+@dataclass(frozen=True)
+class MediaListingItem:
+    """A single enumerated entry for a listing feed (SoundCloud/Mixcloud user or
+    playlist), matching the (id/title/url/author/published) contract the local
+    provider's refresh path consumes. These play via yt-dlp on activation."""
+
+    url: str
+    title: str
+    author: str | None = None
+    published: str | None = None
+
+    @property
+    def id(self) -> str:
+        return self.url
+
+
+def is_mixcloud_url(url: str) -> bool:
+    try:
+        host = (urlparse(str(url or "")).hostname or "").lower()
+    except Exception:
+        return False
+    return host == "mixcloud.com" or host.endswith(".mixcloud.com")
+
+
+def _mixcloud_key_from_url(url: str) -> str:
+    """Return the Mixcloud API key (path) for a mixcloud.com URL, e.g. '/user/'."""
+    try:
+        parsed = urlparse(str(url or ""))
+    except Exception:
+        return ""
+    if not is_mixcloud_url(url):
+        return ""
+    path = parsed.path or "/"
+    if not path.startswith("/"):
+        path = "/" + path
+    if not path.endswith("/"):
+        path += "/"
+    return path
+
+
+def mixcloud_listing_kind(url: str) -> str:
+    """Classify a mixcloud.com URL as 'user', 'playlist', 'cloudcast', or ''."""
+    key = _mixcloud_key_from_url(url)
+    if not key:
+        return ""
+    parts = [p for p in key.split("/") if p]
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return "user"
+    if len(parts) >= 3 and parts[1] == "playlists":
+        return "playlist"
+    if len(parts) == 2:
+        return "cloudcast"
+    return ""
+
+
+def _mixcloud_api_get(path: str, params: dict | None = None, timeout: float = 15.0):
+    url = _MIXCLOUD_API + path
+    if params:
+        url = url + ("&" if "?" in url else "?") + urlencode(params)
+    try:
+        resp = utils.safe_requests_get(url, timeout=timeout, headers={"User-Agent": utils.HEADERS.get("User-Agent", "Mozilla/5.0")})
+        if resp is None or getattr(resp, "status_code", 0) != 200:
+            return None
+        return resp.json()
+    except Exception:
+        return None
+
+
+def _mixcloud_pictures_author(obj: dict) -> str:
+    try:
+        u = obj.get("user") or {}
+        return str(u.get("name") or u.get("username") or "").strip()
+    except Exception:
+        return ""
+
+
+def search_mixcloud_media(term: str, limit: int = 30, timeout: int = 15) -> list[dict]:
+    """Search Mixcloud shows (cloudcasts) for Video Search. Returns result dicts
+    matching the normalized yt-dlp search-result schema."""
+    query = str(term or "").strip()
+    if not query:
+        return []
+    try:
+        limit = max(1, min(100, int(limit or 30)))
+    except Exception:
+        limit = 30
+    data = _mixcloud_api_get("/search/", {"q": query, "type": "cloudcast", "limit": limit}, timeout=timeout)
+    rows = (data or {}).get("data") or []
+    out: list[dict] = []
+    seen: set[str] = set()
+    for it in rows:
+        if not isinstance(it, dict):
+            continue
+        url = str(it.get("url") or "").strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        title = str(it.get("name") or "").strip() or url
+        author = _mixcloud_pictures_author(it)
+        detail = "Mixcloud" + (f" • {author}" if author else "")
+        try:
+            play_count = int((it.get("play_count") if it.get("play_count") is not None else it.get("listener_count")) or 0) or None
+        except Exception:
+            play_count = None
+        user_url = ""
+        try:
+            u = it.get("user") or {}
+            user_url = str(u.get("url") or "").strip()
+        except Exception:
+            user_url = ""
+        out.append(
+            {
+                "title": title,
+                "detail": detail,
+                "url": url,
+                "site": "Mixcloud",
+                "site_id": "mixcloud",
+                "kind": "media",
+                "play_count": play_count,
+                "_title_is_fallback": False,
+                "native_subscribe_url": "",
+                "source_subscribe_url": user_url,
+            }
+        )
+        if len(out) >= limit:
+            break
+    return out
+
+
+def search_mixcloud_feeds(term: str, limit: int = 20, timeout: int = 15) -> list[dict]:
+    """Find Mixcloud users (and their playlists) subscribable as feeds.
+
+    Returns feed-dialog result dicts {title, detail, url, kind}. The url is a
+    Mixcloud user or playlist page, enumerated via the Mixcloud API on refresh.
+    """
+    query = str(term or "").strip()
+    if not query:
+        return []
+    try:
+        limit = max(1, min(50, int(limit or 20)))
+    except Exception:
+        limit = 20
+
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    users = ((_mixcloud_api_get("/search/", {"q": query, "type": "user", "limit": limit}, timeout=timeout) or {}).get("data")) or []
+    for u in users:
+        if not isinstance(u, dict):
+            continue
+        url = str(u.get("url") or "").strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        name = str(u.get("name") or u.get("username") or "").strip() or url
+        try:
+            followers = int(u.get("follower_count") or 0)
+        except Exception:
+            followers = 0
+        detail = "Mixcloud user" + (f" • {followers:,} followers" if followers else "")
+        out.append({"title": name, "detail": detail, "url": url, "kind": "user"})
+
+        # Surface a few of this user's playlists too, since Mixcloud playlists are
+        # per-user (there is no global playlist search).
+        key = _mixcloud_key_from_url(url)
+        if key:
+            pls = ((_mixcloud_api_get(f"{key}playlists/", {"limit": 3}, timeout=timeout) or {}).get("data")) or []
+            for pl in pls:
+                if not isinstance(pl, dict):
+                    continue
+                pl_url = str(pl.get("url") or "").strip()
+                if not pl_url or pl_url in seen:
+                    continue
+                seen.add(pl_url)
+                pl_name = str(pl.get("name") or "").strip() or pl_url
+                out.append(
+                    {
+                        "title": f"{pl_name} ({name})",
+                        "detail": "Mixcloud playlist",
+                        "url": pl_url,
+                        "kind": "playlist",
+                    }
+                )
+        if len(out) >= limit:
+            break
+    return out
+
+
+def fetch_mixcloud_listing(url: str, max_items: int = 60, timeout: float = 20.0):
+    """Enumerate a Mixcloud user's shows or a playlist's items for refresh.
+
+    Returns (feed_title, list[MediaListingItem]).
+    """
+    try:
+        max_items = max(1, min(200, int(max_items or 60)))
+    except Exception:
+        max_items = 60
+    kind = mixcloud_listing_kind(url)
+    key = _mixcloud_key_from_url(url)
+    if not key or kind not in ("user", "playlist"):
+        return None, []
+
+    feed_title = None
+    meta = _mixcloud_api_get(key, timeout=timeout)
+    if isinstance(meta, dict):
+        feed_title = str(meta.get("name") or "").strip() or None
+        if kind == "playlist":
+            owner = _mixcloud_pictures_author(meta)
+            if feed_title and owner:
+                feed_title = f"{feed_title} ({owner})"
+
+    list_path = f"{key}cloudcasts/" if kind == "user" else f"{key}cloudcasts/"
+    items: list[MediaListingItem] = []
+    remaining = max_items
+    next_params = {"limit": min(100, remaining)}
+    guard = 0
+    while remaining > 0 and guard < 6:
+        guard += 1
+        data = _mixcloud_api_get(list_path, next_params, timeout=timeout)
+        rows = (data or {}).get("data") or []
+        if not rows:
+            break
+        for it in rows:
+            if not isinstance(it, dict):
+                continue
+            it_url = str(it.get("url") or "").strip()
+            if not it_url:
+                continue
+            title = str(it.get("name") or "").strip() or it_url
+            author = _mixcloud_pictures_author(it) or (feed_title or "Mixcloud")
+            published = str(it.get("created_time") or "").strip()
+            items.append(MediaListingItem(url=it_url, title=title, author=author, published=published))
+            if len(items) >= max_items:
+                break
+        remaining = max_items - len(items)
+        # Follow paging if the API provided a next cursor.
+        paging = (data or {}).get("paging") or {}
+        nxt = str(paging.get("next") or "").strip()
+        if not nxt or len(items) >= max_items:
+            break
+        try:
+            q = parse_qs(urlparse(nxt).query)
+            next_params = {"limit": min(100, remaining)}
+            if q.get("offset"):
+                next_params["offset"] = q["offset"][0]
+        except Exception:
+            break
+    return feed_title, items
+
+
+# ---------------------------------------------------------------------------
+# SoundCloud (internal api-v2 with a client_id fetched from SoundCloud's own JS
+# at runtime — SoundCloud closed public API registration, and this is the same
+# approach yt-dlp uses. Nothing is hardcoded; a rotated id is simply re-fetched.)
+# ---------------------------------------------------------------------------
+
+_SOUNDCLOUD_API_V2 = "https://api-v2.soundcloud.com"
+_SOUNDCLOUD_CLIENT_ID = None
+_SOUNDCLOUD_CLIENT_ID_LOCK = threading.Lock()
+
+
+def is_soundcloud_url(url: str) -> bool:
+    try:
+        host = (urlparse(str(url or "")).hostname or "").lower()
+    except Exception:
+        return False
+    return host == "soundcloud.com" or host.endswith(".soundcloud.com")
+
+
+def soundcloud_listing_kind(url: str) -> str:
+    """Classify a soundcloud.com URL as 'user', 'playlist', 'track', or ''."""
+    if not is_soundcloud_url(url):
+        return ""
+    try:
+        path = (urlparse(str(url or "")).path or "").strip("/").lower()
+    except Exception:
+        return ""
+    if not path:
+        return ""
+    parts = [p for p in path.split("/") if p]
+    if not parts:
+        return ""
+    if "sets" in parts:
+        return "playlist"
+    # Reserved SoundCloud sections that are not user profiles.
+    if parts[0] in ("you", "search", "discover", "stream", "upload", "settings", "pages", "tags"):
+        return ""
+    if len(parts) == 1:
+        return "user"
+    if len(parts) == 2:
+        return "track"
+    return ""
+
+
+def _fetch_soundcloud_client_id(timeout: float = 15.0) -> str:
+    """Scrape a working client_id from SoundCloud's web assets."""
+    headers = {"User-Agent": utils.HEADERS.get("User-Agent", "Mozilla/5.0")}
+    try:
+        resp = utils.safe_requests_get("https://soundcloud.com/", timeout=timeout, headers=headers)
+        if resp is None or getattr(resp, "status_code", 0) != 200:
+            return ""
+        html = resp.text or ""
+    except Exception:
+        return ""
+    js_urls = re.findall(r"https://[a-z0-9\-]+\.sndcdn\.com/assets/[^\"']+\.js", html)
+    # SoundCloud's client_id tends to live in the later-loaded app bundles.
+    for js_url in reversed(js_urls):
+        try:
+            r = utils.safe_requests_get(js_url, timeout=timeout, headers=headers)
+            if r is None or getattr(r, "status_code", 0) != 200:
+                continue
+            m = re.search(r'client_id[:=]"([0-9A-Za-z]{20,})"', r.text or "")
+            if m:
+                return m.group(1)
+        except Exception:
+            continue
+    return ""
+
+
+def _get_soundcloud_client_id(timeout: float = 15.0, force_refresh: bool = False) -> str:
+    global _SOUNDCLOUD_CLIENT_ID
+    with _SOUNDCLOUD_CLIENT_ID_LOCK:
+        if _SOUNDCLOUD_CLIENT_ID and not force_refresh:
+            return _SOUNDCLOUD_CLIENT_ID
+    cid = _fetch_soundcloud_client_id(timeout=timeout)
+    if cid:
+        with _SOUNDCLOUD_CLIENT_ID_LOCK:
+            _SOUNDCLOUD_CLIENT_ID = cid
+    return cid
+
+
+def _soundcloud_api_v2_get(path: str, params: dict, timeout: float = 15.0, _retry: bool = True):
+    cid = _get_soundcloud_client_id(timeout=timeout)
+    if not cid:
+        return None
+    q = dict(params or {})
+    q["client_id"] = cid
+    url = _SOUNDCLOUD_API_V2 + path + "?" + urlencode(q)
+    headers = {"User-Agent": utils.HEADERS.get("User-Agent", "Mozilla/5.0")}
+    try:
+        resp = utils.safe_requests_get(url, timeout=timeout, headers=headers)
+        status = getattr(resp, "status_code", 0) if resp is not None else 0
+        if status == 200:
+            return resp.json()
+        # A 401/403 usually means the cached client_id rotated; refresh once.
+        if status in (401, 403) and _retry:
+            if _get_soundcloud_client_id(timeout=timeout, force_refresh=True):
+                return _soundcloud_api_v2_get(path, params, timeout=timeout, _retry=False)
+        return None
+    except Exception:
+        return None
+
+
+def search_soundcloud_feeds(term: str, limit: int = 20, timeout: int = 15) -> list[dict]:
+    """Find SoundCloud users and playlists subscribable as feeds.
+
+    Returns feed-dialog result dicts {title, detail, url, kind}. The url is a
+    SoundCloud user or playlist page, enumerated via yt-dlp on refresh.
+    """
+    query = str(term or "").strip()
+    if not query:
+        return []
+    try:
+        limit = max(1, min(50, int(limit or 20)))
+    except Exception:
+        limit = 20
+
+    per = max(3, limit // 2)
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    users = ((_soundcloud_api_v2_get("/search/users", {"q": query, "limit": per}, timeout=timeout) or {}).get("collection")) or []
+    for u in users:
+        if not isinstance(u, dict):
+            continue
+        url = str(u.get("permalink_url") or "").strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        name = str(u.get("username") or u.get("permalink") or "").strip() or url
+        try:
+            followers = int(u.get("followers_count") or 0)
+        except Exception:
+            followers = 0
+        detail = "SoundCloud user" + (f" • {followers:,} followers" if followers else "")
+        out.append({"title": name, "detail": detail, "url": url, "kind": "user"})
+
+    playlists = ((_soundcloud_api_v2_get("/search/playlists", {"q": query, "limit": per}, timeout=timeout) or {}).get("collection")) or []
+    for pl in playlists:
+        if not isinstance(pl, dict):
+            continue
+        url = str(pl.get("permalink_url") or "").strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        name = str(pl.get("title") or "").strip() or url
+        owner = ""
+        try:
+            owner = str((pl.get("user") or {}).get("username") or "").strip()
+        except Exception:
+            owner = ""
+        try:
+            count = int(pl.get("track_count") or 0)
+        except Exception:
+            count = 0
+        detail = "SoundCloud playlist"
+        if owner:
+            detail += f" • {owner}"
+        if count:
+            detail += f" • {count} tracks"
+        title = f"{name} ({owner})" if owner else name
+        out.append({"title": title, "detail": detail, "url": url, "kind": "playlist"})
+
+    return out[:limit]
+
+
+def _run_ytdlp_flat_listing(url: str, max_items: int = 60, timeout: float = 30.0):
+    """Enumerate a yt-dlp-supported listing page (e.g. a SoundCloud user/playlist)
+    as a flat playlist. Returns (feed_title, list[MediaListingItem])."""
+    target = str(url or "").strip()
+    if not target:
+        return None, []
+    try:
+        max_items = max(1, min(300, int(max_items or 60)))
+    except Exception:
+        max_items = 60
+    try:
+        timeout = max(10, min(120, float(timeout or 30)))
+    except Exception:
+        timeout = 30
+
+    try:
+        from core.dependency_check import _get_startup_info
+
+        creationflags = 0
+        if platform.system().lower() == "windows":
+            creationflags = 0x08000000
+
+        cmd = [
+            _resolve_ytdlp_cli_path(),
+            "--dump-single-json",
+            "--flat-playlist",
+            "--playlist-end",
+            str(max_items),
+            target,
+        ]
+        res = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=creationflags,
+            startupinfo=_get_startup_info(),
+            timeout=timeout,
+        )
+        rc = getattr(res, "returncode", None)
+        if rc is None or int(rc) != 0 or not getattr(res, "stdout", b""):
+            return None, []
+        data = json.loads(res.stdout)
+    except Exception:
+        return None, []
+
+    if not isinstance(data, dict):
+        return None, []
+    feed_title = str(data.get("title") or data.get("uploader") or "").strip() or None
+    default_author = str(data.get("uploader") or data.get("channel") or feed_title or "").strip()
+    entries = data.get("entries") or []
+    items: list[MediaListingItem] = []
+    seen: set[str] = set()
+    for e in entries:
+        if not isinstance(e, dict):
+            continue
+        it_url = _pick_ytdlp_search_entry_url(e) or str(e.get("url") or "").strip()
+        if not it_url or it_url in seen:
+            continue
+        seen.add(it_url)
+        title = str(e.get("title") or "").strip() or it_url
+        author = str(e.get("uploader") or e.get("channel") or default_author or "").strip() or None
+        ts = e.get("timestamp") or e.get("release_timestamp")
+        published = ""
+        if ts:
+            try:
+                published = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(int(ts)))
+            except Exception:
+                published = ""
+        items.append(MediaListingItem(url=it_url, title=title, author=author, published=published))
+        if len(items) >= max_items:
+            break
+    return feed_title, items
+
+
+def fetch_soundcloud_listing(url: str, max_items: int = 60, timeout: float = 30.0):
+    """Enumerate a SoundCloud user's tracks or a playlist for refresh.
+
+    Returns (feed_title, list[MediaListingItem]).
+    """
+    if soundcloud_listing_kind(url) not in ("user", "playlist"):
+        return None, []
+    return _run_ytdlp_flat_listing(url, max_items=max_items, timeout=timeout)
 
 
 def _youtube_playlist_id_from_url(url: str) -> str:

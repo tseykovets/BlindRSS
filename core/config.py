@@ -149,6 +149,13 @@ DEFAULT_CONFIG = {
     "refresh_on_startup": True,
     # Max recent videos to pull when a YouTube search URL is subscribed as a feed.
     "youtube_search_max_items": 30,
+    # When true, adult sites are added to the Video Search site list (still opt-in
+    # per search — the user must select them). When false, they never appear.
+    "enable_adult_search": False,
+    # Max items to enumerate for SoundCloud/Mixcloud user & playlist feeds (which
+    # have no native RSS and are listed via yt-dlp / the Mixcloud API on refresh).
+    "audio_listing_max_items_initial": 80,
+    "audio_listing_max_items_refresh": 40,
     # Optional Netscape-format cookies.txt for yt-dlp. Needed to use cookies from
     # Chromium browsers (Brave/Chrome/Edge) on Windows, whose App-Bound Encryption
     # (yt-dlp #10927) blocks --cookies-from-browser. Export from the browser, then

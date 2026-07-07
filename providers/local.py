@@ -1342,6 +1342,18 @@ class LocalProvider(RSSProvider):
         except Exception:
             pass
 
+        # SoundCloud/Mixcloud user & playlist pages likewise have no native RSS and
+        # are enumerated on refresh; keep them verbatim so discovery doesn't rewrite
+        # or reject them.
+        try:
+            from core import discovery as _dsc
+            if _dsc.is_soundcloud_url(resolved) and _dsc.soundcloud_listing_kind(resolved) in ("user", "playlist"):
+                return resolved
+            if _dsc.is_mixcloud_url(resolved) and _dsc.mixcloud_listing_kind(resolved) in ("user", "playlist"):
+                return resolved
+        except Exception:
+            pass
+
         if allow_network:
             from core.discovery import get_ytdlp_feed_url
 
@@ -1894,6 +1906,161 @@ class LocalProvider(RSSProvider):
                             continue
                         except Exception as e:
                             log.debug(f"Odysee entry parse/insert failed for {feed_url}: {e}")
+                            continue
+                finally:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+
+                return
+
+            # SoundCloud and Mixcloud user/playlist feeds have no native RSS; we
+            # enumerate their latest items (SoundCloud via yt-dlp, Mixcloud via its
+            # public API) and store them as yt-dlp-playable articles, mirroring the
+            # Odysee/YouTube-search listing paths above.
+            sc_mc_kind = ""
+            sc_mc_source = ""
+            try:
+                from core import discovery as _disc2
+                if _disc2.is_soundcloud_url(feed_url):
+                    k = _disc2.soundcloud_listing_kind(feed_url)
+                    if k in ("user", "playlist"):
+                        sc_mc_kind, sc_mc_source = k, "soundcloud"
+                elif _disc2.is_mixcloud_url(feed_url):
+                    k = _disc2.mixcloud_listing_kind(feed_url)
+                    if k in ("user", "playlist"):
+                        sc_mc_kind, sc_mc_source = k, "mixcloud"
+            except Exception:
+                sc_mc_kind, sc_mc_source = "", ""
+
+            if sc_mc_source:
+                existing_count = 0
+                try:
+                    conn0 = get_connection()
+                    try:
+                        c0 = conn0.cursor()
+                        c0.execute("SELECT COUNT(*) FROM articles WHERE feed_id = ?", (feed_id,))
+                        existing_count = int(c0.fetchone()[0] or 0)
+                    finally:
+                        conn0.close()
+                except Exception:
+                    existing_count = 0
+
+                try:
+                    max_items = int(
+                        self.config.get("audio_listing_max_items_initial", 80)
+                        if existing_count == 0
+                        else self.config.get("audio_listing_max_items_refresh", 40)
+                    )
+                except Exception:
+                    max_items = 80 if existing_count == 0 else 40
+                max_items = max(1, min(300, max_items))
+
+                page_title = None
+                all_items = []
+                with limiter:
+                    last_exc = None
+                    attempts = retries + 1
+                    deadline = _per_feed_attempt_deadline(max(15, feed_timeout))
+                    for attempt in range(1, attempts + 1):
+                        try:
+                            if sc_mc_source == "soundcloud":
+                                page_title, all_items = _disc2.fetch_soundcloud_listing(
+                                    feed_url, max_items=int(max_items), timeout=float(max(20, feed_timeout))
+                                )
+                            else:
+                                page_title, all_items = _disc2.fetch_mixcloud_listing(
+                                    feed_url, max_items=int(max_items), timeout=float(max(15, feed_timeout))
+                                )
+                            break
+                        except Exception as e:
+                            last_exc = e
+                            status = "error"
+                            error_msg = str(e)
+                            if attempt <= retries and time.monotonic() < deadline:
+                                time.sleep(min(4, attempt))
+                                continue
+                            raise last_exc
+
+                if page_title:
+                    final_title = page_title
+
+                conn = get_connection()
+                try:
+                    c = conn.cursor()
+                    c.execute("SELECT 1 FROM feeds WHERE id = ? LIMIT 1", (feed_id,))
+                    if not c.fetchone():
+                        return
+                    title_to_store, custom_to_store = _resolve_feed_title_update(
+                        feed_title, title_is_custom, upstream_title, final_title, feed_url
+                    )
+                    c.execute(
+                        "UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                        (title_to_store, custom_to_store, str(final_title or "").strip(), None, None, feed_id),
+                    )
+                    conn.commit()
+                    deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
+                        feed_id,
+                        cursor=c,
+                    )
+
+                    default_author = final_title or sc_mc_source.capitalize()
+                    total_entries = len(all_items)
+                    entry_count = total_entries
+                    for i, item in enumerate(all_items):
+                        try:
+                            url = item.url or ""
+                            if not url:
+                                continue
+                            title = item.title or "No Title"
+                            article_id = str(
+                                uuid.uuid5(
+                                    uuid.NAMESPACE_URL,
+                                    f"blindrss:{sc_mc_source}-listing:{feed_id}:{url}",
+                                )
+                            )
+                            author = item.author or default_author
+                            date = utils.normalize_date(item.published or "", title, "", url)
+                            if _article_matches_deleted_tombstone(
+                                deleted_article_ids,
+                                deleted_article_urls,
+                                article_id,
+                                url=url,
+                            ):
+                                continue
+
+                            c.execute(
+                                "SELECT id, date FROM articles WHERE feed_id = ? AND (id = ? OR url = ?) LIMIT 1",
+                                (feed_id, article_id, url),
+                            )
+                            row = c.fetchone()
+                            if row:
+                                existing_id, existing_date = row
+                                if (existing_date or "") != date:
+                                    c.execute("UPDATE articles SET title = ?, date = ?, author = ? WHERE id = ?",
+                                              (title, date, author, existing_id))
+                                    if i % 5 == 0 or i == total_entries - 1:
+                                        conn.commit()
+                                continue
+
+                            c.execute(
+                                "INSERT INTO articles (id, feed_id, title, url, content, date, author, is_read, media_url, media_type) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
+                                (article_id, feed_id, title, url, "", date, author, None, None),
+                            )
+                            new_items += 1
+                            _record_new_article(article_id, title, author, url=url)
+
+                            if i % 5 == 0 or i == total_entries - 1:
+                                conn.commit()
+                        except sqlite3.IntegrityError as e:
+                            if _rollback_and_abort_on_foreign_key(conn, e):
+                                return
+                            log.debug(f"{sc_mc_source} listing insert failed for {feed_url}: {e}")
+                            continue
+                        except Exception as e:
+                            log.debug(f"{sc_mc_source} listing insert failed for {feed_url}: {e}")
                             continue
                 finally:
                     try:
@@ -3810,6 +3977,12 @@ class LocalProvider(RSSProvider):
                 title = page_title or real_url
             elif odysee_mod.is_odysee_url(real_url) and not real_url.lower().endswith((".xml", ".rss", ".atom")):
                 page_title, _items = odysee_mod.fetch_listing_items(real_url, max_items=1, timeout_s=10.0)
+                title = page_title or real_url
+            elif _disc.is_soundcloud_url(real_url) and _disc.soundcloud_listing_kind(real_url) in ("user", "playlist"):
+                page_title, _items = _disc.fetch_soundcloud_listing(real_url, max_items=1, timeout=12.0)
+                title = page_title or real_url
+            elif _disc.is_mixcloud_url(real_url) and _disc.mixcloud_listing_kind(real_url) in ("user", "playlist"):
+                page_title, _items = _disc.fetch_mixcloud_listing(real_url, max_items=1, timeout=12.0)
                 title = page_title or real_url
             else:
                 resp = utils.safe_requests_get(real_url, timeout=10)

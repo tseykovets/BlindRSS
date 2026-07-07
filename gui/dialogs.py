@@ -21,6 +21,8 @@ from core.discovery import (
     search_ytdlp_site,
     supports_quick_url_title,
     search_youtube_feeds,
+    search_soundcloud_feeds,
+    search_mixcloud_feeds,
     search_mastodon_feeds,
     search_bluesky_feeds,
     search_piefed_feeds,
@@ -1693,6 +1695,30 @@ class SettingsDialog(wx.Dialog):
         self._initial_storage_location = current_storage
         advanced_sizer.Add(storage_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
+        # Video Search content controls.
+        search_group = wx.StaticBox(advanced_panel, label=_("Video Search"))
+        search_sizer = wx.StaticBoxSizer(search_group, wx.VERTICAL)
+        self.enable_adult_search_chk = wx.CheckBox(
+            advanced_panel,
+            label=_("Enable adult sites in Video Search"),
+        )
+        self.enable_adult_search_chk.SetValue(bool(config.get("enable_adult_search", False)))
+        self.enable_adult_search_chk.SetName("Enable adult sites in Video Search")
+        search_sizer.Add(self.enable_adult_search_chk, 0, wx.ALL, 6)
+        search_sizer.Add(
+            wx.StaticText(
+                advanced_panel,
+                label=_(
+                    "When off, adult sites never appear in the Video Search site list.\n"
+                    "When on, adult sites are added and must still be selected explicitly to search them."
+                ),
+            ),
+            0,
+            wx.LEFT | wx.RIGHT | wx.BOTTOM,
+            6,
+        )
+        advanced_sizer.Add(search_sizer, 0, wx.EXPAND | wx.ALL, 8)
+
         advanced_panel.SetSizer(advanced_sizer)
         notebook.AddPage(advanced_panel, _("Advanced"))
 
@@ -2665,6 +2691,7 @@ class SettingsDialog(wx.Dialog):
             "translation_gemini_api_key": (self.translation_gemini_api_key_ctrl.GetValue() or "").strip(),
             "translation_qwen_model": (self.translation_qwen_model_ctrl.GetValue() or "").strip(),
             "translation_qwen_api_key": (self.translation_qwen_api_key_ctrl.GetValue() or "").strip(),
+            "enable_adult_search": self.enable_adult_search_chk.GetValue(),
             "active_provider": self.provider_choice.GetStringSelection(),
             "providers": providers,
             "data_location": self._storage_location_map.get(
@@ -3223,8 +3250,8 @@ class FeedSearchDialog(wx.Dialog):
     _SOURCE_ALL = "__all__"
     _SOURCE_ALL_PODCAST = "__all_podcast__"
     _SOURCE_ALL_RSS = "__all_rss__"
-    _PODCAST_SOURCE_KEYS = ["itunes", "gpodder", "fyyd", "podverse"]
-    _RSS_SOURCE_KEYS = ["feedly", "feedspot", "googlenews", "bingnews", "youtube", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
+    _PODCAST_SOURCE_KEYS = ["itunes", "gpodder", "fyyd", "podverse", "soundcloud", "mixcloud"]
+    _RSS_SOURCE_KEYS = ["feedly", "feedspot", "googlenews", "bingnews", "youtube", "soundcloud", "mixcloud", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
     _SOURCE_CHOICES = [
         ("All sources", _SOURCE_ALL),
         ("All podcast sources", _SOURCE_ALL_PODCAST),
@@ -3238,6 +3265,8 @@ class FeedSearchDialog(wx.Dialog):
         ("Google News", "googlenews"),
         ("Bing News", "bingnews"),
         ("YouTube", "youtube"),
+        ("SoundCloud", "soundcloud"),
+        ("Mixcloud", "mixcloud"),
         ("NewsBlur", "newsblur"),
         ("Reddit", "reddit"),
         ("Fediverse (all)", "fediverse"),
@@ -3357,6 +3386,8 @@ class FeedSearchDialog(wx.Dialog):
             ("Google News", "googlenews", self._search_googlenews),
             ("Bing News", "bingnews", self._search_bingnews),
             ("YouTube", "youtube", self._search_youtube_channels),
+            ("SoundCloud", "soundcloud", self._search_soundcloud),
+            ("Mixcloud", "mixcloud", self._search_mixcloud),
             ("NewsBlur", "newsblur", self._search_newsblur),
             ("Reddit", "reddit", self._search_reddit),
             ("Fediverse", "fediverse", self._search_fediverse),
@@ -3726,6 +3757,22 @@ class FeedSearchDialog(wx.Dialog):
         except Exception:
             pass
 
+    def _search_soundcloud(self, term, queue):
+        try:
+            results = list(search_soundcloud_feeds(term, limit=30, timeout=15) or [])
+            if results:
+                queue.put(("SoundCloud", results))
+        except Exception:
+            pass
+
+    def _search_mixcloud(self, term, queue):
+        try:
+            results = list(search_mixcloud_feeds(term, limit=30, timeout=15) or [])
+            if results:
+                queue.put(("Mixcloud", results))
+        except Exception:
+            pass
+
     def _search_mastodon(self, term, queue):
         try:
             results = list(search_mastodon_feeds(term, limit=12, timeout=15) or [])
@@ -4058,6 +4105,14 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
 
     def __init__(self, parent):
         super().__init__(parent, title=_("Video Search"), size=(980, 680))
+
+        # Resolve the config manager from the owning frame so adult sites can be
+        # gated behind the "Enable adult sites in Video Search" setting.
+        self._config_manager = None
+        try:
+            self._config_manager = getattr(parent, "config_manager", None)
+        except Exception:
+            self._config_manager = None
 
         self._stop_event = threading.Event()
         self._search_thread = None
@@ -4746,10 +4801,12 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             safe_sites = list(get_ytdlp_searchable_sites(include_adult=False) or [])
         except Exception:
             safe_sites = []
-        try:
-            adult_sites = list(get_adult_searchable_sites() or [])
-        except Exception:
-            adult_sites = []
+        adult_sites = []
+        if self._adult_search_enabled():
+            try:
+                adult_sites = list(get_adult_searchable_sites() or [])
+            except Exception:
+                adult_sites = []
         self._safe_site_rows = safe_sites
         self._adult_site_rows = adult_sites
         # Combined lookup table so a scope/filter id resolves to either kind.
@@ -4804,6 +4861,15 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             choice.SetSelection(idx)
         except Exception:
             pass
+
+    def _adult_search_enabled(self) -> bool:
+        cm = getattr(self, "_config_manager", None)
+        if cm is None:
+            return False
+        try:
+            return bool(cm.get("enable_adult_search", False))
+        except Exception:
+            return False
 
     def _get_scope_sites(self) -> list[dict]:
         selected = self._get_choice_value(self.scope_choice, self._scope_values)
@@ -4860,14 +4926,42 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             int(item.get("_arrival_order") or 0),
         )
 
+    def _interleaved_results(self, rows: list[dict]) -> list[dict]:
+        """Round-robin results across sites so every searched site is represented
+        near the top instead of one site (YouTube) filling the whole first page.
+
+        Within each round we emit sites in mainstream-priority order; within a
+        site we keep arrival order. Rank 0 of every site comes first, then rank 1,
+        and so on.
+        """
+        by_site: dict[str, list[dict]] = {}
+        for it in rows:
+            sid = str(it.get("site_id") or "")
+            by_site.setdefault(sid, []).append(it)
+        for lst in by_site.values():
+            lst.sort(key=lambda it: int(it.get("_arrival_order") or 0))
+
+        ranked: list[tuple] = []
+        for lst in by_site.values():
+            for rank, it in enumerate(lst):
+                ranked.append(
+                    (
+                        int(rank),
+                        int(self._mainstream_priority_for_result(it)),
+                        int(it.get("_arrival_order") or 0),
+                        it,
+                    )
+                )
+        ranked.sort(key=lambda t: (t[0], t[1], t[2]))
+        return [t[3] for t in ranked]
+
     def _sorted_results(self, items: list[dict]) -> list[dict]:
         rows = list(items or [])
         col = getattr(self, "_sort_column", self._DEFAULT_SORT_COLUMN)
         desc = bool(getattr(self, "_sort_desc", self._DEFAULT_SORT_DESC))
 
         if col is None:
-            rows.sort(key=self._default_result_sort_key)
-            return rows
+            return self._interleaved_results(rows)
 
         if int(col) == 3:
             # Numeric plays/views sort; keep unknown counts at the end.

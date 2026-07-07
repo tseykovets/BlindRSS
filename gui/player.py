@@ -2810,7 +2810,26 @@ class PlayerFrame(wx.Frame):
         except Exception:
             pass
 
-    def _maybe_range_cache_url(self, url: str, headers: dict | None = None, url_is_resolved: bool = False) -> str:
+    def _maybe_range_cache_url(self, url: str, headers: dict | None = None, url_is_resolved: bool = False, original_url: str | None = None) -> str:
+        # Register the proxy with the ORIGINAL (pre-redirect) url when we have one,
+        # so the cache key is stable AND the proxy can re-follow redirects to mint a
+        # fresh signed link if the resolved one expires mid-playback (megaphone/
+        # podtrac podcasts). We still range-fetch the real media; the proxy resolves.
+        register_url = url
+        register_skip_resolve = url_is_resolved
+        try:
+            orig = str(original_url or "").strip()
+            low_orig = orig.lower()
+            if (
+                orig
+                and orig != str(url or "").strip()
+                and (low_orig.startswith("http://") or low_orig.startswith("https://"))
+            ):
+                register_url = orig
+                register_skip_resolve = False
+        except Exception:
+            register_url = url
+            register_skip_resolve = url_is_resolved
         try:
             if not url:
                 return url
@@ -2914,8 +2933,8 @@ class PlayerFrame(wx.Frame):
             self._last_range_proxy_initial_burst_kb = initial_burst_kb
             self._last_range_proxy_initial_inline_kb = initial_inline_kb
             
-            proxied = proxy.proxify(url, headers=req_headers, skip_redirect_resolve=url_is_resolved)
-            log.debug("Proxy URL generated: %s (skip_redirect_resolve=%s)", proxied, url_is_resolved)
+            proxied = proxy.proxify(register_url, headers=req_headers, skip_redirect_resolve=register_skip_resolve)
+            log.debug("Proxy URL generated: %s (register=%s skip_redirect_resolve=%s)", proxied, register_url, register_skip_resolve)
             try:
                 if hasattr(proxy, "is_ready") and (proxy.is_ready() is False):
                     log.debug("Proxy not ready yet; proceeding without blocking")
@@ -3566,7 +3585,16 @@ class PlayerFrame(wx.Frame):
             except Exception:
                 pass
             if not vlc_direct:
-                final_url = self._maybe_range_cache_url(final_url, headers=ytdlp_headers, url_is_resolved=url_is_resolved)
+                # For direct (non-yt-dlp) media that we resolved through redirects,
+                # hand the proxy the ORIGINAL url so it can re-resolve an expired
+                # signed link mid-podcast (megaphone/podtrac) instead of stopping.
+                proxy_original = None
+                try:
+                    if (not use_ytdlp) and url_is_resolved and str(input_url or "").strip() and str(input_url or "").strip() != str(final_url or "").strip():
+                        proxy_original = str(input_url or "").strip()
+                except Exception:
+                    proxy_original = None
+                final_url = self._maybe_range_cache_url(final_url, headers=ytdlp_headers, url_is_resolved=url_is_resolved, original_url=proxy_original)
                 try:
                     # Frozen Windows builds can fail on direct HTTPS googlevideo URLs
                     # with certain bundled VLC/libvlc combinations. Route through the

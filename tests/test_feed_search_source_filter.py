@@ -42,6 +42,12 @@ class _Host:
     def _search_youtube_channels(self, term, queue):
         _ = (term, queue)
 
+    def _search_soundcloud(self, term, queue):
+        _ = (term, queue)
+
+    def _search_mixcloud(self, term, queue):
+        _ = (term, queue)
+
     def _search_newsblur(self, term, queue):
         _ = (term, queue)
 
@@ -88,6 +94,8 @@ def test_feed_search_all_sources_excludes_url_only_targets_for_keyword():
         "Google News",
         "Bing News",
         "YouTube",
+        "SoundCloud",
+        "Mixcloud",
         "NewsBlur",
         "Reddit",
         "Fediverse",
@@ -108,6 +116,8 @@ def test_feed_search_all_sources_includes_url_only_targets_for_url_like_terms():
         "Google News",
         "Bing News",
         "YouTube",
+        "SoundCloud",
+        "Mixcloud",
         "NewsBlur",
         "Reddit",
         "Fediverse",
@@ -120,7 +130,7 @@ def test_feed_search_all_podcast_sources_group():
     host = _Host()
     targets = host._build_search_targets("history", host._SOURCE_ALL_PODCAST)
 
-    assert _target_names(targets) == ["iTunes", "gPodder", "fyyd", "Podverse"]
+    assert _target_names(targets) == ["iTunes", "gPodder", "fyyd", "Podverse", "SoundCloud", "Mixcloud"]
 
 
 def test_feed_search_all_rss_sources_group_excludes_url_only_targets_for_keyword():
@@ -133,6 +143,8 @@ def test_feed_search_all_rss_sources_group_excludes_url_only_targets_for_keyword
         "Google News",
         "Bing News",
         "YouTube",
+        "SoundCloud",
+        "Mixcloud",
         "NewsBlur",
         "Reddit",
         "Fediverse",
@@ -149,6 +161,8 @@ def test_feed_search_all_rss_sources_group_includes_url_only_targets_for_url_lik
         "Google News",
         "Bing News",
         "YouTube",
+        "SoundCloud",
+        "Mixcloud",
         "NewsBlur",
         "Reddit",
         "Fediverse",

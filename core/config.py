@@ -227,6 +227,17 @@ DEFAULT_CONFIG = {
     # core.filters.parse_delete_behavior.
     "delete_behavior": "deleted",
     "playback_speed": 1.0,
+    # Media-player 10-band graphic equalizer (see core.equalizer). Disabled/flat
+    # by default so audio is untouched until the user opts in.
+    "equalizer": {
+        "enabled": False,
+        "preamp": 0.0,
+        "bands": [0.0] * 10,
+        "preset": None,
+    },
+    # User overrides for editable keyboard shortcuts (see core.shortcuts):
+    # {command_id: "Ctrl+Shift+X"} or "" to unbind. Empty = all defaults.
+    "keyboard_shortcuts": {},
     "volume": 100,
     "volume_step": 5,
     "seek_back_ms": 10000,

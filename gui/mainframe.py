@@ -40,17 +40,24 @@ from core import windows_integration
 from core import screen_reader_announce
 from core.version import APP_VERSION
 from core import dependency_check
+from core import shortcuts as shortcuts_mod
 from core.i18n import _
 import core.discovery
+from .shortcut_keys import event_to_accel
 
 log = logging.getLogger(__name__)
 
 ARTICLE_COL_TITLE = 0
-ARTICLE_COL_AUTHOR = 1
-ARTICLE_COL_DATE = 2
-ARTICLE_COL_FEED = 3
-ARTICLE_COL_DESCRIPTION = 4
-ARTICLE_COL_STATUS = 5
+ARTICLE_COL_MEDIA = 1
+ARTICLE_COL_AUTHOR = 2
+ARTICLE_COL_DATE = 3
+ARTICLE_COL_FEED = 4
+ARTICLE_COL_DESCRIPTION = 5
+ARTICLE_COL_STATUS = 6
+
+# Labels shown in the media column (feature: "does this article contain media?").
+ARTICLE_MEDIA_YES = "Contains audio"
+ARTICLE_MEDIA_NO = "No audio"
 
 
 def should_show_add_shortcuts(platform=None):
@@ -137,7 +144,13 @@ class MainFrame(wx.Frame):
 
         # Custom hold-to-repeat for media keys (prevents multi-seek on quick tap)
         self._media_hotkeys = HoldRepeatHotkeys(self, hold_delay_s=2.0, repeat_interval_s=0.12, poll_interval_ms=15)
-        
+
+        # Editable keyboard-shortcut registry (play/pause, stop, queue, speed, ...).
+        # accel-string -> command_id is rebuilt whenever bindings change.
+        self._current_queue_index = None
+        self._shortcut_cmd_map = {}
+        self._rebuild_shortcut_map()
+
         self._updating_list = False # Flag to ignore selection events during background updates
         self._updating_tree = False # Flag to ignore tree selection events during rebuilds
         self._tree_selection_debounce_timer = None
@@ -397,6 +410,7 @@ class MainFrame(wx.Frame):
         self.list_ctrl = wx.ListCtrl(right_splitter, style=wx.LC_REPORT)
         self.list_ctrl.SetName(_("Articles"))
         self.list_ctrl.InsertColumn(ARTICLE_COL_TITLE, _("Title"), width=320)
+        self.list_ctrl.InsertColumn(ARTICLE_COL_MEDIA, _("Media"), width=110)
         self.list_ctrl.InsertColumn(ARTICLE_COL_AUTHOR, _("Author"), width=110)
         self.list_ctrl.InsertColumn(ARTICLE_COL_DATE, _("Date"), width=120)
         self.list_ctrl.InsertColumn(ARTICLE_COL_FEED, _("Feed"), width=140)
@@ -883,6 +897,7 @@ class MainFrame(wx.Frame):
             if feed:
                 feed_title = feed.title or ""
 
+        self.list_ctrl.SetItem(idx, ARTICLE_COL_MEDIA, self._article_media_label(article))
         self.list_ctrl.SetItem(idx, ARTICLE_COL_AUTHOR, article.author or "")
         self.list_ctrl.SetItem(idx, ARTICLE_COL_DATE, utils.humanize_article_date(article.date))
         self.list_ctrl.SetItem(idx, ARTICLE_COL_FEED, feed_title)
@@ -1678,16 +1693,67 @@ class MainFrame(wx.Frame):
         view_menu.AppendSubMenu(sort_menu, _("Sort &By"))
 
         # Player menu (media controls)
-        player_menu = wx.Menu()
-        player_toggle_item = player_menu.Append(wx.ID_ANY, _("Show/Hide Player (Ctrl+P)"), _("Show or hide the media player window"))
-        player_menu.AppendSeparator()
         # NOTE: shortcuts are shown in the label text only (not as '\t' menu
-        # accelerators) because Ctrl+Space / Ctrl+Shift+Space are handled in the
+        # accelerators) because the registry-managed shortcuts are handled in the
         # global char-hook so they also work when the player window is focused.
-        player_play_pause_item = player_menu.Append(wx.ID_ANY, _("Play/Pause (Ctrl+Space)"), _("Toggle play/pause"))
-        player_stop_item = player_menu.Append(wx.ID_ANY, _("Stop (Ctrl+Shift+Space)"), _("Stop playback"))
+        # `self._shortcut_menu_items` lets reload_shortcuts() re-render the accel
+        # suffix in each label after the user edits a binding.
+        self._shortcut_menu_items = {}
+
+        def _shortcut_menu_append(menu, command_id, base_label, help_text):
+            item = menu.Append(wx.ID_ANY, self._shortcut_menu_label(base_label, command_id), help_text)
+            self._shortcut_menu_items[command_id] = (item, base_label)
+            return item
+
+        player_menu = wx.Menu()
+        player_toggle_item = _shortcut_menu_append(
+            player_menu, "player.show_hide", _("Show/Hide Player"),
+            _("Show or hide the media player window"),
+        )
         player_menu.AppendSeparator()
-        player_queue_item = player_menu.Append(wx.ID_ANY, _("Play &Queue..."), _("View and manage the media play queue"))
+        player_play_pause_item = _shortcut_menu_append(
+            player_menu, "player.play_pause", _("Play/Pause"), _("Toggle play/pause"),
+        )
+        player_stop_item = _shortcut_menu_append(
+            player_menu, "player.stop", _("Stop"), _("Stop playback"),
+        )
+        player_menu.AppendSeparator()
+        player_queue_item = _shortcut_menu_append(
+            player_menu, "queue.open", _("Play &Queue..."),
+            _("View and manage the media play queue"),
+        )
+        player_queue_next_item = _shortcut_menu_append(
+            player_menu, "queue.next", _("Play Next in Queue"),
+            _("Play the next item in the play queue"),
+        )
+        player_queue_prev_item = _shortcut_menu_append(
+            player_menu, "queue.prev", _("Play Previous in Queue"),
+            _("Play the previous item in the play queue"),
+        )
+        player_menu.AppendSeparator()
+        # Playback speed submenu (feature: speed menu + shortcuts).
+        speed_submenu = wx.Menu()
+        _shortcut_menu_append(
+            speed_submenu, "speed.up", _("Increase Speed"), _("Play faster"),
+        )
+        _shortcut_menu_append(
+            speed_submenu, "speed.down", _("Decrease Speed"), _("Play slower"),
+        )
+        _shortcut_menu_append(
+            speed_submenu, "speed.reset", _("Normal Speed (1x)"), _("Reset to normal speed"),
+        )
+        speed_submenu.AppendSeparator()
+        self._speed_menu_items = {}
+        for s in (0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0):
+            it = speed_submenu.AppendRadioItem(wx.ID_ANY, _("{speed}x").format(speed=("%g" % s)))
+            self._speed_menu_items[float(s)] = it
+            self.Bind(wx.EVT_MENU, lambda e, sp=float(s): self._apply_playback_speed(sp), it)
+        self._speed_submenu = speed_submenu
+        player_menu.AppendSubMenu(speed_submenu, _("Playback &Speed"))
+        # Equalizer (feature: equalizer).
+        player_equalizer_item = player_menu.Append(
+            wx.ID_ANY, _("&Equalizer..."), _("Adjust the audio equalizer"),
+        )
         player_menu.AppendSeparator()
         # NOTE: Do not use '\tCtrl+...' menu accelerators here.
         # We implement Ctrl+Arrow globally via an event filter + hold-to-repeat gate.
@@ -1727,6 +1793,11 @@ class MainFrame(wx.Frame):
             _("Create rules that categorize, label, or delete articles as they arrive"),
         )
         tools_menu.AppendSeparator()
+        keyboard_shortcuts_item = tools_menu.Append(
+            wx.ID_ANY,
+            _("&Keyboard Shortcuts..."),
+            _("View and customize keyboard shortcuts"),
+        )
         settings_item = tools_menu.Append(wx.ID_PREFERENCES, _("&Settings..."), _("Configure application"))
 
         help_menu = wx.Menu()
@@ -1760,6 +1831,9 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_player_play_pause, player_play_pause_item)
         self.Bind(wx.EVT_MENU, self.on_player_stop, player_stop_item)
         self.Bind(wx.EVT_MENU, self.on_open_play_queue, player_queue_item)
+        self.Bind(wx.EVT_MENU, self.on_play_queue_next, player_queue_next_item)
+        self.Bind(wx.EVT_MENU, self.on_play_queue_prev, player_queue_prev_item)
+        self.Bind(wx.EVT_MENU, self.on_open_equalizer, player_equalizer_item)
         self.Bind(wx.EVT_MENU, self.on_player_rewind, player_rewind_item)
         self.Bind(wx.EVT_MENU, self.on_player_forward, player_forward_item)
         self.Bind(wx.EVT_MENU, self.on_player_volume_up, player_vol_up_item)
@@ -1770,6 +1844,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_find_feed, find_feed_item)
         self.Bind(wx.EVT_MENU, self.on_ytdlp_global_search, ytdlp_global_search_item)
         self.Bind(wx.EVT_MENU, self.on_manage_filter_rules, filter_rules_item)
+        self.Bind(wx.EVT_MENU, self.on_open_keyboard_shortcuts, keyboard_shortcuts_item)
         self.Bind(wx.EVT_MENU, self.on_about, about_item)
         self.Bind(wx.EVT_MENU_OPEN, self.on_menu_open)
         self._refresh_player_chapters_submenu()
@@ -1928,33 +2003,14 @@ class MainFrame(wx.Frame):
                 except Exception:
                     log.exception("Error toggling article read status on Backspace")
 
-        if (
-            key == wx.WXK_SPACE
-            and event.ControlDown()
-            and not event.ShiftDown()
-            and not event.AltDown()
-            and not event.MetaDown()
-            and not self._is_text_input_focused(focus)
-        ):
-            try:
-                self.on_player_play_pause(None)
+        # Registry-managed shortcuts (play/pause, stop, show/hide player, play
+        # queue open/next/prev, playback speed). Editable via Tools > Keyboard
+        # Shortcuts; dispatched here so they work window-wide.
+        try:
+            if self.dispatch_shortcut(event, focus):
                 return
-            except Exception:
-                log.exception("Error toggling play/pause on Ctrl+Space")
-
-        if (
-            key == wx.WXK_SPACE
-            and event.ControlDown()
-            and event.ShiftDown()
-            and not event.AltDown()
-            and not event.MetaDown()
-            and not self._is_text_input_focused(focus)
-        ):
-            try:
-                self.on_player_stop(None)
-                return
-            except Exception:
-                log.exception("Error stopping playback on Ctrl+Shift+Space")
+        except Exception:
+            log.exception("Error dispatching registry shortcut")
 
         if focus == self.content_ctrl:
             if (
@@ -2177,6 +2233,242 @@ class MainFrame(wx.Frame):
             except Exception:
                 pass
 
+    # -----------------------------------------------------------------
+    # Play-queue navigation (Play Next / Play Previous in queue)
+    # -----------------------------------------------------------------
+
+    def on_play_queue_next(self, event=None) -> None:
+        self._play_queue_step(+1)
+
+    def on_play_queue_prev(self, event=None) -> None:
+        self._play_queue_step(-1)
+
+    def _play_queue_step(self, delta: int) -> None:
+        """Start playback of the queue item `delta` away from the current one.
+
+        Works even when the queue dialog isn't focused. If nothing is marked as
+        the current queue item yet, the first item (forward) or last item
+        (backward) is used so the shortcut can kick off playback from idle.
+        """
+        queue = self._get_play_queue()
+        if not queue:
+            self._announce(_("Play queue is empty."))
+            return
+        cur = getattr(self, "_current_queue_index", None)
+        if cur is None or not (0 <= int(cur) < len(queue)):
+            target = 0 if delta >= 0 else len(queue) - 1
+        else:
+            target = int(cur) + int(delta)
+        if not (0 <= target < len(queue)):
+            self._announce(
+                _("End of play queue.") if delta >= 0 else _("Start of play queue.")
+            )
+            return
+        if self.play_queue_index(target):
+            try:
+                title = str(queue[target].get("title") or "").strip()
+            except Exception:
+                title = ""
+            self._announce(
+                _("Playing {position} of {total}: {title}").format(
+                    position=target + 1, total=len(queue), title=title
+                )
+                if title
+                else _("Playing {position} of {total}").format(
+                    position=target + 1, total=len(queue)
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # Playback speed (menu + shortcuts)
+    # -----------------------------------------------------------------
+
+    def _player_for_speed(self):
+        pw = getattr(self, "player_window", None)
+        return pw
+
+    def on_player_speed_up(self, event=None) -> None:
+        self._nudge_playback_speed(+1)
+
+    def on_player_speed_down(self, event=None) -> None:
+        self._nudge_playback_speed(-1)
+
+    def on_player_speed_reset(self, event=None) -> None:
+        self._apply_playback_speed(1.0)
+
+    def _nudge_playback_speed(self, direction: int) -> None:
+        speeds = utils.build_playback_speeds()
+        if not speeds:
+            return
+        try:
+            current = float(self.config_manager.get("playback_speed", 1.0))
+        except Exception:
+            current = 1.0
+        # Snap current to the nearest available speed, then step.
+        idx = min(range(len(speeds)), key=lambda i: abs(speeds[i] - current))
+        idx = max(0, min(len(speeds) - 1, idx + int(direction)))
+        self._apply_playback_speed(speeds[idx])
+
+    def _apply_playback_speed(self, speed: float) -> None:
+        speed = float(speed)
+        pw = self._player_for_speed()
+        if pw is not None:
+            try:
+                pw.set_playback_speed(speed)
+            except Exception:
+                log.exception("Failed to set playback speed on player")
+        else:
+            # No player yet: persist so it applies when playback starts.
+            try:
+                self.config_manager.set("playback_speed", speed)
+            except Exception:
+                pass
+        self._announce(_("Playback speed {speed}x").format(speed=("%g" % round(speed, 2))))
+        try:
+            self._sync_speed_menu_check()
+        except Exception:
+            pass
+
+    def _sync_speed_menu_check(self) -> None:
+        """Check the speed radio item nearest to the current playback speed."""
+        items = getattr(self, "_speed_menu_items", None)
+        if not items:
+            return
+        try:
+            current = float(self.config_manager.get("playback_speed", 1.0))
+        except Exception:
+            current = 1.0
+        nearest = min(items.keys(), key=lambda s: abs(s - current))
+        for speed, item in items.items():
+            try:
+                item.Check(speed == nearest)
+            except Exception:
+                pass
+
+    # -----------------------------------------------------------------
+    # Editable keyboard-shortcut registry
+    # -----------------------------------------------------------------
+
+    # Commands suppressed while a text field is focused so they never hijack typing.
+    _SHORTCUT_TEXT_GUARDED = frozenset({
+        "player.play_pause", "player.stop",
+        "queue.next", "queue.prev",
+        "speed.up", "speed.down", "speed.reset",
+    })
+
+    def _shortcut_handlers(self) -> dict:
+        return {
+            "player.play_pause": self.on_player_play_pause,
+            "player.stop": self.on_player_stop,
+            "player.show_hide": self.on_show_player,
+            "queue.open": self.on_open_play_queue,
+            "queue.next": self.on_play_queue_next,
+            "queue.prev": self.on_play_queue_prev,
+            "speed.up": self.on_player_speed_up,
+            "speed.down": self.on_player_speed_down,
+            "speed.reset": self.on_player_speed_reset,
+        }
+
+    def get_shortcut_overrides(self) -> dict:
+        try:
+            raw = self.config_manager.get("keyboard_shortcuts", {})
+        except Exception:
+            raw = {}
+        return raw if isinstance(raw, dict) else {}
+
+    def get_shortcut_bindings(self) -> dict:
+        """Resolved {command_id: accel_string} with user overrides applied."""
+        return shortcuts_mod.resolve_bindings(self.get_shortcut_overrides())
+
+    def save_shortcut_overrides(self, overrides: dict) -> None:
+        try:
+            self.config_manager.set("keyboard_shortcuts", dict(overrides or {}))
+        except Exception:
+            log.exception("Failed to save keyboard shortcut overrides")
+        self.reload_shortcuts()
+
+    def _rebuild_shortcut_map(self) -> None:
+        try:
+            self._shortcut_cmd_map = shortcuts_mod.invert_bindings(self.get_shortcut_bindings())
+        except Exception:
+            log.exception("Failed to rebuild shortcut map")
+            self._shortcut_cmd_map = {}
+
+    def reload_shortcuts(self) -> None:
+        self._rebuild_shortcut_map()
+        try:
+            self._refresh_shortcut_menu_labels()
+        except Exception:
+            log.exception("Failed to refresh shortcut menu labels")
+
+    def binding_label(self, command_id: str) -> str:
+        """Human accel string for a command's current binding, or '' if unbound."""
+        try:
+            return self.get_shortcut_bindings().get(command_id, "") or ""
+        except Exception:
+            return ""
+
+    def dispatch_shortcut(self, event: "wx.KeyEvent", focus=None, apply_text_guard: bool = True) -> bool:
+        """Handle a registry-managed shortcut for a key event. Returns True if handled.
+
+        `apply_text_guard` should be False when dispatching from the player
+        window, which has no editable text fields — its read-only time display
+        must not suppress play/pause, stop, speed, or queue shortcuts.
+        """
+        try:
+            accel = event_to_accel(event)
+        except Exception:
+            accel = None
+        if not accel:
+            return False
+        cmd_id = self._shortcut_cmd_map.get(accel)
+        if not cmd_id:
+            return False
+        if apply_text_guard and cmd_id in self._SHORTCUT_TEXT_GUARDED:
+            try:
+                if self._is_text_input_focused(focus):
+                    return False
+            except Exception:
+                pass
+        handler = self._shortcut_handlers().get(cmd_id)
+        if handler is None:
+            return False
+        try:
+            handler(None)
+        except Exception:
+            log.exception("Error dispatching shortcut %s", cmd_id)
+        return True
+
+    def _shortcut_menu_label(self, base_label: str, command_id: str) -> str:
+        accel = self.binding_label(command_id)
+        return "{base} ({accel})".format(base=base_label, accel=accel) if accel else str(base_label)
+
+    def _refresh_shortcut_menu_labels(self) -> None:
+        for command_id, entry in getattr(self, "_shortcut_menu_items", {}).items():
+            try:
+                item, base_label = entry
+                item.SetItemLabel(self._shortcut_menu_label(base_label, command_id))
+            except Exception:
+                pass
+
+    def on_open_keyboard_shortcuts(self, event=None) -> None:
+        try:
+            from .dialogs import KeyboardShortcutsDialog
+            dlg = KeyboardShortcutsDialog(self, self)
+            dlg.ShowModal()
+            dlg.Destroy()
+        except Exception:
+            log.exception("Failed to open keyboard shortcuts dialog")
+
+    def on_open_equalizer(self, event=None) -> None:
+        pw = self._ensure_player_window()
+        if not pw:
+            return
+        try:
+            pw.open_equalizer_dialog()
+        except Exception:
+            log.exception("Failed to open equalizer dialog")
+
     def on_menu_open(self, event):
         try:
             opened_menu = event.GetMenu()
@@ -2187,6 +2479,12 @@ class MainFrame(wx.Frame):
             chapters_submenu = getattr(self, "_player_chapters_submenu", None)
             if opened_menu is player_menu or opened_menu is chapters_submenu:
                 self._refresh_player_chapters_submenu()
+        except Exception:
+            pass
+        try:
+            speed_submenu = getattr(self, "_speed_submenu", None)
+            if opened_menu is getattr(self, "_player_menu", None) or opened_menu is speed_submenu:
+                self._sync_speed_menu_check()
         except Exception:
             pass
         try:
@@ -6486,6 +6784,7 @@ class MainFrame(wx.Frame):
             return
         label = self._loading_label if loading else self._load_more_label
         idx = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(), label)
+        self.list_ctrl.SetItem(idx, ARTICLE_COL_MEDIA, "")
         self.list_ctrl.SetItem(idx, ARTICLE_COL_AUTHOR, "")
         self.list_ctrl.SetItem(idx, ARTICLE_COL_DATE, "")
         self.list_ctrl.SetItem(idx, ARTICLE_COL_FEED, "")
@@ -6510,6 +6809,7 @@ class MainFrame(wx.Frame):
         label = text or self._load_more_label
         try:
             self.list_ctrl.SetItem(count - 1, ARTICLE_COL_TITLE, label)
+            self.list_ctrl.SetItem(count - 1, ARTICLE_COL_MEDIA, "")
             self.list_ctrl.SetItem(count - 1, ARTICLE_COL_AUTHOR, "")
             self.list_ctrl.SetItem(count - 1, ARTICLE_COL_DATE, "")
             self.list_ctrl.SetItem(count - 1, ARTICLE_COL_FEED, "")
@@ -8560,12 +8860,24 @@ class MainFrame(wx.Frame):
         except Exception:
             pass
 
-    def _should_play_in_player(self, article):
+    def _article_media_label(self, article) -> str:
+        """Column text telling the user at a glance whether an article has media."""
+        try:
+            # Skip the download-index/disk lookup here: it runs once per rendered
+            # row, and any downloadable article already has a media/ytdlp URL that
+            # the cheaper checks below catch.
+            has_media = bool(self._should_play_in_player(article, include_downloads=False))
+        except Exception:
+            has_media = False
+        return _(ARTICLE_MEDIA_YES) if has_media else _(ARTICLE_MEDIA_NO)
+
+    def _should_play_in_player(self, article, include_downloads: bool = True):
         """Only treat bona-fide podcast/media items as playable; everything else opens in browser."""
         try:
-            local_resolver = getattr(self, "_downloaded_media_path_for_article", None)
-            if callable(local_resolver) and local_resolver(article):
-                return True
+            if include_downloads:
+                local_resolver = getattr(self, "_downloaded_media_path_for_article", None)
+                if callable(local_resolver) and local_resolver(article):
+                    return True
         except Exception:
             pass
         

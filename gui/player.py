@@ -13,6 +13,7 @@ import subprocess
 import sys
 from core import utils
 from core import discovery
+from core import equalizer as equalizer_mod
 from core import playback_state
 from core.casting import CastingManager
 from core import vlc_instance as vlc_shared
@@ -658,6 +659,10 @@ class PlayerFrame(wx.Frame):
                 pass
             try:
                 self.apply_preferred_soundcard()
+            except Exception:
+                pass
+            try:
+                self.apply_equalizer()
             except Exception:
                 pass
             self.initialized = True
@@ -4695,6 +4700,96 @@ class PlayerFrame(wx.Frame):
             pass
         self.config_manager.set("playback_speed", speed)
 
+    # ---------------------------------------------------------------------
+    # Equalizer (10-band libVLC graphic EQ)
+    # ---------------------------------------------------------------------
+
+    def get_equalizer_config(self) -> dict:
+        try:
+            raw = self.config_manager.get("equalizer", None)
+        except Exception:
+            raw = None
+        return equalizer_mod.normalize_config(raw)
+
+    def set_equalizer_config(self, cfg: dict, *, persist: bool = True, apply: bool = True) -> None:
+        norm = equalizer_mod.normalize_config(cfg)
+        if persist:
+            try:
+                self.config_manager.set("equalizer", norm)
+            except Exception:
+                log.exception("Failed to persist equalizer config")
+        if apply:
+            self.apply_equalizer(norm)
+
+    def apply_equalizer(self, cfg: dict | None = None) -> None:
+        """Push the equalizer config onto the live media player.
+
+        Disabled/flat config detaches the EQ (set_equalizer(None)). Safe to call
+        before the player exists or if the libVLC EQ API is unavailable.
+        """
+        player = getattr(self, "player", None)
+        if player is None:
+            return
+        norm = equalizer_mod.normalize_config(cfg if cfg is not None else self.get_equalizer_config())
+        try:
+            if not norm.get("enabled"):
+                player.set_equalizer(None)
+                return
+            eq = vlc.AudioEqualizer()
+            try:
+                eq.set_preamp(float(norm.get("preamp", 0.0)))
+            except Exception:
+                pass
+            for i, amp in enumerate(norm.get("bands", [])):
+                try:
+                    eq.set_amp_at_index(float(amp), i)
+                except Exception:
+                    pass
+            player.set_equalizer(eq)
+            # Keep a reference so libVLC doesn't free it out from under us.
+            self._equalizer = eq
+        except Exception:
+            log.exception("Failed to apply equalizer")
+
+    def list_equalizer_presets(self) -> list:
+        """Return [(name, preamp, [bands])] from libVLC's built-in presets.
+
+        Returns [] if the EQ preset API isn't available in this libVLC build.
+        """
+        out = []
+        try:
+            count = int(vlc.libvlc_audio_equalizer_get_preset_count())
+        except Exception:
+            return out
+        for i in range(count):
+            try:
+                raw_name = vlc.libvlc_audio_equalizer_get_preset_name(i)
+                name = raw_name.decode("utf-8") if isinstance(raw_name, bytes) else str(raw_name)
+                # NOTE: vlc.AudioEqualizer(i) returns None in some python-vlc
+                # builds; the module-level constructor is the reliable one.
+                peq = vlc.libvlc_audio_equalizer_new_from_preset(i)
+                if peq is None:
+                    continue
+                preamp = float(peq.get_preamp())
+                bands = [float(peq.get_amp_at_index(b)) for b in range(equalizer_mod.BAND_COUNT)]
+                out.append((name, preamp, bands))
+            except Exception:
+                continue
+        return out
+
+    def open_equalizer_dialog(self) -> None:
+        try:
+            from .dialogs import EqualizerDialog
+        except Exception:
+            log.exception("Equalizer dialog unavailable")
+            return
+        try:
+            dlg = EqualizerDialog(self, self)
+            dlg.ShowModal()
+            dlg.Destroy()
+        except Exception:
+            log.exception("Failed to open equalizer dialog")
+
     def on_chapter_select(self, event):
         # Do not seek on selection change so arrow-key browsing is safe.
         # Selection is committed on Enter (keyboard) or closeup (mouse/dropdown).
@@ -5867,22 +5962,17 @@ class PlayerFrame(wx.Frame):
             except Exception:
                 pass
 
-        # Global play/pause (Ctrl+Space) and stop (Ctrl+Shift+Space) so the keys
-        # work anywhere in the player window, not just when a button has focus.
-        if (
-            key == wx.WXK_SPACE
-            and event.ControlDown()
-            and not event.AltDown()
-            and not event.MetaDown()
-        ):
-            try:
-                if event.ShiftDown():
-                    self.stop()
-                else:
-                    self.toggle_play_pause()
-                return
-            except Exception:
-                log.exception("Error handling player play/pause/stop shortcut")
+        # Registry-managed shortcuts (play/pause, stop, show/hide, queue, speed)
+        # are dispatched by the main frame so they work window-wide, including
+        # here in the player. The player has no editable text fields, so the
+        # text-input guard is disabled for this window.
+        try:
+            mf = self.GetParent()
+            if mf is not None and hasattr(mf, "dispatch_shortcut"):
+                if mf.dispatch_shortcut(event, focus=None, apply_text_guard=False):
+                    return
+        except Exception:
+            log.exception("Error delegating player shortcut to main frame")
 
         if event.ControlDown() and event.ShiftDown() and not event.AltDown() and not event.MetaDown():
             if key in (ord("L"), ord("l")):

@@ -29,6 +29,9 @@ from core.discovery import (
 )
 from core import utils
 from core import config as config_mod
+from core import equalizer as equalizer_mod
+from core import shortcuts as shortcuts_mod
+from .shortcut_keys import event_to_accel
 from core import windows_integration
 from core.casting import CastingManager
 from core import inoreader_oauth
@@ -5896,3 +5899,399 @@ class QueueDialog(wx.Dialog):
             self.on_move(-1 if key == wx.WXK_UP else 1)
             return
         event.Skip()
+
+
+class ShortcutCaptureDialog(wx.Dialog):
+    """Prompt the user to press a keystroke; returns its canonical accel string.
+
+    Only combinations with at least one modifier are accepted so a bound
+    shortcut can never shadow plain typing or list navigation. Escape cancels.
+    """
+
+    def __init__(self, parent, command_label: str):
+        super().__init__(parent, title=_("Press Shortcut"))
+        self.result = None
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+        prompt = wx.StaticText(
+            self,
+            label=_("Press the new shortcut for “{command}”.\n"
+                    "It must include Ctrl, Alt or Shift. Press Escape to cancel.").format(
+                command=command_label
+            ),
+        )
+        outer.Add(prompt, 0, wx.ALL, 12)
+
+        self.captured_lbl = wx.StaticText(self, label=_("Waiting for a key…"))
+        self.captured_lbl.SetName(_("Captured shortcut"))
+        outer.Add(self.captured_lbl, 0, wx.ALL, 12)
+
+        btns = self.CreateButtonSizer(wx.OK | wx.CANCEL)
+        if btns:
+            outer.Add(btns, 0, wx.ALIGN_CENTER | wx.ALL, 8)
+        self.SetSizer(outer)
+        self.Fit()
+        self.Centre()
+
+        self._ok_btn = self.FindWindowById(wx.ID_OK)
+        if self._ok_btn is not None:
+            self._ok_btn.Enable(False)
+        self.Bind(wx.EVT_BUTTON, self._on_ok, id=wx.ID_OK)
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
+
+    def _on_char_hook(self, event: wx.KeyEvent) -> None:
+        try:
+            key = int(event.GetKeyCode())
+        except Exception:
+            key = None
+        # Escape cancels; Enter confirms an existing capture.
+        if key == wx.WXK_ESCAPE and not (event.ControlDown() or event.AltDown() or event.ShiftDown()):
+            self.EndModal(wx.ID_CANCEL)
+            return
+        if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER) and not (
+            event.ControlDown() or event.AltDown() or event.ShiftDown()
+        ):
+            if self.result:
+                self.EndModal(wx.ID_OK)
+            return
+        accel = None
+        try:
+            accel = event_to_accel(event, require_modifier=True)
+        except Exception:
+            accel = None
+        if accel:
+            self.result = accel
+            self.captured_lbl.SetLabel(accel)
+            if self._ok_btn is not None:
+                self._ok_btn.Enable(True)
+            return
+        event.Skip()
+
+    def _on_ok(self, event) -> None:
+        if self.result:
+            self.EndModal(wx.ID_OK)
+
+
+class KeyboardShortcutsDialog(wx.Dialog):
+    """View and customize keyboard shortcuts (NVDA input-gestures style).
+
+    `controller` is the MainFrame; it exposes get_shortcut_overrides(),
+    save_shortcut_overrides(dict). Command metadata + binding resolution come
+    from core.shortcuts. Changes apply immediately.
+    """
+
+    def __init__(self, parent, controller):
+        super().__init__(
+            parent,
+            title=_("Keyboard Shortcuts"),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.controller = controller
+        # Working copy of user overrides; applied to the app on every edit.
+        self._overrides = dict(controller.get_shortcut_overrides() or {})
+        self._row_commands = []  # row index -> command id
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+
+        info = wx.StaticText(
+            self,
+            label=_("Select a command and choose Change to set its shortcut."),
+        )
+        outer.Add(info, 0, wx.ALL, 8)
+
+        self.list_ctrl = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        self.list_ctrl.SetName(_("Keyboard shortcuts"))
+        self.list_ctrl.InsertColumn(0, _("Category"), width=130)
+        self.list_ctrl.InsertColumn(1, _("Command"), width=230)
+        self.list_ctrl.InsertColumn(2, _("Shortcut"), width=150)
+        self.list_ctrl.Bind(wx.EVT_LIST_ITEM_ACTIVATED, lambda e: self.on_change())
+        self.list_ctrl.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda e: self._update_buttons())
+        self.list_ctrl.Bind(wx.EVT_LIST_ITEM_DESELECTED, lambda e: self._update_buttons())
+        outer.Add(self.list_ctrl, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+
+        btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.change_btn = wx.Button(self, label=_("&Change Shortcut..."))
+        self.change_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_change())
+        btn_sizer.Add(self.change_btn, 0, wx.ALL, 4)
+
+        self.remove_btn = wx.Button(self, label=_("&Remove Shortcut"))
+        self.remove_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_remove())
+        btn_sizer.Add(self.remove_btn, 0, wx.ALL, 4)
+
+        self.reset_btn = wx.Button(self, label=_("Reset All to &Defaults"))
+        self.reset_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_reset())
+        btn_sizer.Add(self.reset_btn, 0, wx.ALL, 4)
+
+        outer.Add(btn_sizer, 0, wx.ALIGN_CENTER)
+
+        close_sizer = self.CreateButtonSizer(wx.CLOSE)
+        if close_sizer:
+            outer.Add(close_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 8)
+        self.Bind(wx.EVT_BUTTON, lambda e: self.EndModal(wx.ID_CLOSE), id=wx.ID_CLOSE)
+
+        self.SetSizer(outer)
+        self.SetSize((560, 420))
+        self.Centre()
+
+        self._reload(select=0)
+
+    def _effective(self) -> dict:
+        return shortcuts_mod.resolve_bindings(self._overrides)
+
+    def _reload(self, select: int | None = None) -> None:
+        eff = self._effective()
+        self.list_ctrl.DeleteAllItems()
+        self._row_commands = []
+        for cmd in shortcuts_mod.iter_commands():
+            accel = eff.get(cmd.id, "") or ""
+            row = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(), _(cmd.category))
+            self.list_ctrl.SetItem(row, 1, _(cmd.label))
+            self.list_ctrl.SetItem(row, 2, accel if accel else _("(none)"))
+            self._row_commands.append(cmd.id)
+        if self._row_commands:
+            if select is None:
+                select = 0
+            select = max(0, min(int(select), len(self._row_commands) - 1))
+            self.list_ctrl.Select(select)
+            self.list_ctrl.Focus(select)
+        self._update_buttons()
+
+    def _selected_row(self) -> int:
+        return self.list_ctrl.GetNextItem(-1, wx.LIST_NEXT_ALL, wx.LIST_STATE_SELECTED)
+
+    def _selected_command(self):
+        row = self._selected_row()
+        if 0 <= row < len(self._row_commands):
+            return self._row_commands[row]
+        return None
+
+    def _update_buttons(self) -> None:
+        cmd_id = self._selected_command()
+        has_sel = cmd_id is not None
+        self.change_btn.Enable(has_sel)
+        if has_sel:
+            accel = self._effective().get(cmd_id, "")
+            self.remove_btn.Enable(bool(accel))
+        else:
+            self.remove_btn.Enable(False)
+
+    def _apply(self) -> None:
+        try:
+            self.controller.save_shortcut_overrides(dict(self._overrides))
+        except Exception:
+            log.exception("Failed to apply shortcut overrides")
+
+    def on_change(self) -> None:
+        cmd_id = self._selected_command()
+        if cmd_id is None:
+            return
+        cmd = shortcuts_mod.command_by_id(cmd_id)
+        label = _(cmd.label) if cmd else cmd_id
+        row = self._selected_row()
+        dlg = ShortcutCaptureDialog(self, label)
+        try:
+            if dlg.ShowModal() != wx.ID_OK or not dlg.result:
+                return
+            accel = dlg.result
+        finally:
+            dlg.Destroy()
+
+        # Conflict: the accel is already bound to a different command.
+        eff = self._effective()
+        for other_id, other_accel in eff.items():
+            if other_id != cmd_id and other_accel and other_accel == accel:
+                other_cmd = shortcuts_mod.command_by_id(other_id)
+                other_label = _(other_cmd.label) if other_cmd else other_id
+                if (
+                    wx.MessageBox(
+                        _("{accel} is already assigned to “{other}”.\n"
+                          "Reassign it to “{this}”?").format(
+                            accel=accel, other=other_label, this=label
+                        ),
+                        _("Shortcut Conflict"),
+                        wx.YES_NO | wx.ICON_QUESTION,
+                        self,
+                    )
+                    != wx.YES
+                ):
+                    return
+                self._overrides[other_id] = ""  # unbind the other command
+                break
+
+        self._overrides[cmd_id] = accel
+        self._apply()
+        self._reload(select=row)
+        self.list_ctrl.SetFocus()
+
+    def on_remove(self) -> None:
+        cmd_id = self._selected_command()
+        if cmd_id is None:
+            return
+        row = self._selected_row()
+        self._overrides[cmd_id] = ""  # explicitly unbound
+        self._apply()
+        self._reload(select=row)
+        self.list_ctrl.SetFocus()
+
+    def on_reset(self) -> None:
+        if (
+            wx.MessageBox(
+                _("Reset all keyboard shortcuts to their defaults?"),
+                _("Reset Shortcuts"),
+                wx.YES_NO | wx.ICON_QUESTION,
+                self,
+            )
+            != wx.YES
+        ):
+            return
+        row = self._selected_row()
+        self._overrides = {}
+        self._apply()
+        self._reload(select=row if row >= 0 else 0)
+        self.list_ctrl.SetFocus()
+
+
+class EqualizerDialog(wx.Dialog):
+    """10-band graphic equalizer for the media player.
+
+    `player` is the PlayerFrame; it exposes get_equalizer_config(),
+    set_equalizer_config(cfg, persist, apply), and list_equalizer_presets().
+    Changes apply live so the effect is audible while adjusting.
+    """
+
+    def __init__(self, parent, player):
+        super().__init__(
+            parent,
+            title=_("Equalizer"),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.player = player
+        self._cfg = equalizer_mod.normalize_config(player.get_equalizer_config())
+        self._updating = False
+        try:
+            self._presets = list(player.list_equalizer_presets() or [])
+        except Exception:
+            self._presets = []
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+
+        self.enable_cb = wx.CheckBox(self, label=_("&Enable equalizer"))
+        self.enable_cb.SetValue(bool(self._cfg.get("enabled")))
+        self.enable_cb.Bind(wx.EVT_CHECKBOX, self.on_enable)
+        outer.Add(self.enable_cb, 0, wx.ALL, 8)
+
+        # Preset chooser.
+        preset_row = wx.BoxSizer(wx.HORIZONTAL)
+        preset_row.Add(wx.StaticText(self, label=_("&Preset:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
+        self.preset_choice = wx.Choice(self, choices=[_("Custom")] + [n for (n, _p, _b) in self._presets])
+        self.preset_choice.SetSelection(0)
+        self.preset_choice.Bind(wx.EVT_CHOICE, self.on_preset)
+        preset_row.Add(self.preset_choice, 1, wx.EXPAND)
+        outer.Add(preset_row, 0, wx.EXPAND | wx.ALL, 8)
+
+        grid = wx.FlexGridSizer(cols=2, vgap=4, hgap=8)
+        grid.AddGrowableCol(1, 1)
+
+        # Preamp.
+        self.preamp_slider = self._make_slider(grid, _("Preamp"), self._cfg.get("preamp", 0.0))
+
+        # Bands.
+        self.band_sliders = []
+        for i in range(equalizer_mod.BAND_COUNT):
+            freq = equalizer_mod.BAND_FREQUENCIES[i] if i < len(equalizer_mod.BAND_FREQUENCIES) else (i + 1)
+            label = _("{khz} kHz").format(khz=("%g" % (freq / 1000.0))) if freq >= 1000 else _("{hz} Hz").format(hz=freq)
+            val = self._cfg["bands"][i] if i < len(self._cfg["bands"]) else 0.0
+            slider = self._make_slider(grid, label, val)
+            self.band_sliders.append(slider)
+
+        outer.Add(grid, 1, wx.EXPAND | wx.ALL, 8)
+
+        btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.reset_btn = wx.Button(self, label=_("&Reset (Flat)"))
+        self.reset_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_reset())
+        btn_sizer.Add(self.reset_btn, 0, wx.ALL, 4)
+        outer.Add(btn_sizer, 0, wx.ALIGN_CENTER)
+
+        close_sizer = self.CreateButtonSizer(wx.CLOSE)
+        if close_sizer:
+            outer.Add(close_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 8)
+        self.Bind(wx.EVT_BUTTON, lambda e: self.EndModal(wx.ID_CLOSE), id=wx.ID_CLOSE)
+
+        self.SetSizer(outer)
+        self.SetSize((460, 520))
+        self.Centre()
+        self._sync_enabled_state()
+
+    def _make_slider(self, grid, label_text: str, value: float) -> wx.Slider:
+        lbl = wx.StaticText(self, label=label_text)
+        grid.Add(lbl, 0, wx.ALIGN_CENTER_VERTICAL)
+        slider = wx.Slider(
+            self,
+            value=int(round(float(value))),
+            minValue=int(equalizer_mod.AMP_MIN),
+            maxValue=int(equalizer_mod.AMP_MAX),
+            style=wx.SL_HORIZONTAL | wx.SL_LABELS,
+        )
+        # Screen readers read the accessible name; include units for clarity.
+        slider.SetName(_("{label} decibels").format(label=label_text))
+        slider.Bind(wx.EVT_SLIDER, self.on_slider)
+        grid.Add(slider, 1, wx.EXPAND)
+        return slider
+
+    def _sync_enabled_state(self) -> None:
+        on = self.enable_cb.GetValue()
+        self.preset_choice.Enable(on)
+        self.preamp_slider.Enable(on)
+        for s in self.band_sliders:
+            s.Enable(on)
+        self.reset_btn.Enable(on)
+
+    def _collect_and_apply(self, *, mark_custom: bool = True) -> None:
+        if self._updating:
+            return
+        cfg = {
+            "enabled": bool(self.enable_cb.GetValue()),
+            "preamp": float(self.preamp_slider.GetValue()),
+            "bands": [float(s.GetValue()) for s in self.band_sliders],
+            "preset": None if mark_custom else self._cfg.get("preset"),
+        }
+        self._cfg = equalizer_mod.normalize_config(cfg)
+        try:
+            self.player.set_equalizer_config(self._cfg, persist=True, apply=True)
+        except Exception:
+            log.exception("Failed to apply equalizer config")
+
+    def on_enable(self, event) -> None:
+        self._sync_enabled_state()
+        self._collect_and_apply(mark_custom=False)
+
+    def on_slider(self, event) -> None:
+        if not self._updating:
+            self.preset_choice.SetSelection(0)  # editing => Custom
+        self._collect_and_apply()
+
+    def on_preset(self, event) -> None:
+        sel = self.preset_choice.GetSelection()
+        if sel <= 0 or (sel - 1) >= len(self._presets):
+            return
+        name, preamp, bands = self._presets[sel - 1]
+        self._updating = True
+        try:
+            self.preamp_slider.SetValue(int(round(preamp)))
+            for i, s in enumerate(self.band_sliders):
+                s.SetValue(int(round(bands[i])) if i < len(bands) else 0)
+        finally:
+            self._updating = False
+        self._cfg["preset"] = name
+        self._collect_and_apply(mark_custom=False)
+
+    def on_reset(self) -> None:
+        self._updating = True
+        try:
+            self.preamp_slider.SetValue(0)
+            for s in self.band_sliders:
+                s.SetValue(0)
+            self.preset_choice.SetSelection(0)
+        finally:
+            self._updating = False
+        self._collect_and_apply()

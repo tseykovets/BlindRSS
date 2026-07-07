@@ -75,6 +75,8 @@ class _RenderHost:
     # Methods under test.
     _render_articles_list = mainframe.MainFrame._render_articles_list
     _insert_article_row = mainframe.MainFrame._insert_article_row
+    _article_media_label = mainframe.MainFrame._article_media_label
+    _should_play_in_player = mainframe.MainFrame._should_play_in_player
     _render_articles_batch = mainframe.MainFrame._render_articles_batch
     _reassert_load_more_placeholder_last = mainframe.MainFrame._reassert_load_more_placeholder_last
     _defer_restore_during_render = mainframe.MainFrame._defer_restore_during_render

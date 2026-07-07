@@ -12,7 +12,7 @@ class _ListCtrl:
         self.rows = []
 
     def InsertItem(self, idx, text):
-        row = [""] * 6
+        row = [""] * 7
         row[mainframe.ARTICLE_COL_TITLE] = text
         self.rows.insert(idx, row)
         return idx
@@ -30,6 +30,8 @@ class _ListCtrl:
 class _Host:
     _render_articles_list = mainframe.MainFrame._render_articles_list
     _insert_article_row = mainframe.MainFrame._insert_article_row
+    _article_media_label = mainframe.MainFrame._article_media_label
+    _should_play_in_player = mainframe.MainFrame._should_play_in_player
     _raw_article_description = mainframe.MainFrame._raw_article_description
     _article_description_text = mainframe.MainFrame._article_description_text
     _article_description_preview = mainframe.MainFrame._article_description_preview
@@ -71,6 +73,8 @@ def test_article_list_renders_description_column_without_moving_status():
     row = host.list_ctrl.rows[0]
     assert row[mainframe.ARTICLE_COL_DESCRIPTION] == "Short RSS description."
     assert row[mainframe.ARTICLE_COL_STATUS] == "Unread"
+    # New media column sits right after the title; a plain web article has none.
+    assert row[mainframe.ARTICLE_COL_MEDIA] == mainframe.ARTICLE_MEDIA_NO
 
 
 def test_description_preview_truncates_long_text():

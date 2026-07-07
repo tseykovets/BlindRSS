@@ -15,7 +15,7 @@ from core import utils
 from core import discovery
 from core import playback_state
 from core.casting import CastingManager
-from core.vlc_options import build_vlc_instance_args
+from core import vlc_instance as vlc_shared
 from core.i18n import _
 from urllib.parse import urlparse
 from urllib.request import url2pathname
@@ -440,14 +440,15 @@ class PlayerFrame(wx.Frame):
         self._is_dragging_slider = False
 
         # VLC Instance
-        cache_ms = int(self.config_manager.get("vlc_network_caching_ms", 500))
-        if cache_ms < 0: cache_ms = 0
-        file_cache_ms = max(500, cache_ms)
         self.instance = None
         self.player = None
         self.event_manager = None
         self.initialized = False
-        self._init_vlc()
+        self._vlc_init_failed = False
+        # Never block the UI on libVLC's plugin scan: adopt the shared
+        # instance if it is already warm, otherwise leave init to the
+        # playback path, which waits for it on a worker thread.
+        self._init_vlc(wait_s=0)
         
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_timer, self.timer)
@@ -619,31 +620,27 @@ class PlayerFrame(wx.Frame):
     # Window helpers
     # ---------------------------------------------------------------------
 
-    def _init_vlc(self) -> bool:
-        cache_ms = int(self.config_manager.get("vlc_network_caching_ms", 500))
-        if cache_ms < 0:
-            cache_ms = 0
-        file_cache_ms = max(500, cache_ms)
+    def _init_vlc(self, wait_s: float | None = None, force_new_instance: bool = False) -> bool:
+        """Adopt the shared libVLC instance and create this window's media player.
+
+        The instance itself is created off the main thread (core.vlc_instance)
+        because its plugin scan can take several seconds. wait_s=0 returns
+        False while that warm-up is still running so the UI never blocks on it;
+        wait_s=None waits for it (instant once warm). force_new_instance is for
+        error recovery when the current instance itself may be broken.
+        """
         try:
-            startup_volume = max(0, min(100, int(self.config_manager.get("volume", 100))))
-        except Exception:
-            startup_volume = 100
-        try:
-            self.instance = vlc.Instance(*build_vlc_instance_args(
-                "--no-video",
-                "--input-fast-seek",
-                "--aout=directsound",
-                # libvlc drops audio_set_volume until the audio output exists,
-                # and the output is only created once the stream actually
-                # produces audio. Seed the output modules' startup volume so
-                # the very first audible sample is already at the configured
-                # level instead of VLC's own default.
-                f"--directx-volume={startup_volume / 100.0:.4f}",
-                f"--mmdevice-volume={startup_volume / 100.0:.4f}",
-                f"--network-caching={cache_ms}",
-                f"--file-caching={file_cache_ms}",
-                "--http-reconnect",
-            ))
+            if force_new_instance:
+                instance = vlc_shared.reset(self.config_manager)
+            else:
+                instance = vlc_shared.get_shared(self.config_manager, wait_s=wait_s)
+            if instance is None:
+                if not force_new_instance and wait_s is not None and wait_s <= 0:
+                    # Still warming up in the background; not a failure.
+                    self.initialized = False
+                    return False
+                raise RuntimeError("libVLC instance unavailable (is VLC installed?)")
+            self.instance = instance
             self.player = self.instance.media_player_new()
             self.event_manager = self.player.event_manager()
             try:
@@ -655,6 +652,7 @@ class PlayerFrame(wx.Frame):
             except Exception:
                 pass
             self.initialized = True
+            self._vlc_init_failed = False
             return True
         except Exception as e:
             try:
@@ -664,6 +662,7 @@ class PlayerFrame(wx.Frame):
             except Exception:
                 pass
             self.initialized = False
+            self._vlc_init_failed = True
             wx.CallAfter(
                 wx.MessageBox,
                 f"VLC could not be initialized: {e}\n\n"
@@ -673,13 +672,13 @@ class PlayerFrame(wx.Frame):
             )
             return False
 
-    def _ensure_vlc_ready(self) -> bool:
+    def _ensure_vlc_ready(self, wait_s: float | None = None) -> bool:
         try:
             if self.initialized and self.player is not None and self.instance is not None:
                 return True
         except Exception:
             pass
-        return self._init_vlc()
+        return self._init_vlc(wait_s=wait_s)
 
     def _get_preferred_soundcard_id(self) -> str:
         try:
@@ -1712,7 +1711,7 @@ class PlayerFrame(wx.Frame):
             self.player.set_media(media)
         except OSError:
             log.exception("VLC set_media failed; reinitializing player")
-            if not self._init_vlc():
+            if not self._init_vlc(force_new_instance=True):
                 return
             try:
                 self.player.set_media(media)
@@ -3420,6 +3419,15 @@ class PlayerFrame(wx.Frame):
         except Exception:
             return
 
+        # Make sure the shared libVLC instance exists before handing back to
+        # the UI thread, so _finish_media_load adopts it instantly. This runs
+        # on a worker thread, so a cold plugin scan cannot freeze the UI.
+        try:
+            if not self.is_casting and not bool(getattr(self, "initialized", False)):
+                vlc_shared.get_shared(self.config_manager, wait_s=None)
+        except Exception:
+            pass
+
         try:
             wx.CallAfter(
                 self._finish_media_load,
@@ -3450,6 +3458,17 @@ class PlayerFrame(wx.Frame):
             if int(load_seq) != int(getattr(self, "_active_load_seq", 0) or 0):
                 return
         except Exception:
+            return
+
+        # The resolve worker already waited for the shared instance, so this
+        # either adopts it instantly or fails fast when VLC is unavailable.
+        if not self.is_casting and not self._ensure_vlc_ready():
+            self._set_status("Failed to load media")
+            wx.MessageBox(
+                _("VLC is not initialized. Playback is unavailable."),
+                _("Error"),
+                wx.OK | wx.ICON_ERROR,
+            )
             return
 
         try:
@@ -3585,13 +3604,10 @@ class PlayerFrame(wx.Frame):
 
     def load_media(self, url, use_ytdlp=False, chapters=None, title=None, article_id=None):
         if not self.is_casting:
-            if not self._ensure_vlc_ready():
-                wx.MessageBox(
-                    _("VLC is not initialized. Playback is unavailable."),
-                    _("Error"),
-                    wx.OK | wx.ICON_ERROR,
-                )
-                return
+            # Kick VLC init without blocking; _resolve_media_worker waits for
+            # the shared instance on its worker thread and _finish_media_load
+            # adopts it, so a cold libVLC plugin scan cannot freeze the UI here.
+            self._ensure_vlc_ready(wait_s=0)
         _log(f"load_media: {url} (ytdlp={use_ytdlp})")
         log.debug("load_media url=%s is_casting=%s", url, self.is_casting)
         if not url:
@@ -5605,7 +5621,7 @@ class PlayerFrame(wx.Frame):
                         self.player.pause()
                     except OSError:
                         log.warning("VLC pause failed; reinitializing player")
-                        self._init_vlc()
+                        self._init_vlc(force_new_instance=True)
                         return
                 self.is_playing = False
                 self._set_play_button_label(False)
@@ -5810,15 +5826,13 @@ class PlayerFrame(wx.Frame):
             except Exception:
                 pass
 
-        if getattr(self, "instance", None) is not None:
-            try:
-                self.instance.release()
-            except Exception:
-                log.exception("Error releasing VLC instance during shutdown")
-            try:
-                self.instance = None
-            except Exception:
-                pass
+        # The libVLC instance is shared and stays warm for the process
+        # lifetime (core.vlc_instance); releasing it here would force the
+        # next playback to redo the multi-second plugin scan.
+        try:
+            self.instance = None
+        except Exception:
+            pass
         try:
             self.event_manager = None
             self.initialized = False

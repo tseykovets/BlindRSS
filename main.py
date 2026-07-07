@@ -109,6 +109,7 @@ from gui.mainframe import MainFrame
 from gui import hotkeys as _hotkeys
 from core.stream_proxy import get_proxy
 from core.range_cache_proxy import get_range_cache_proxy
+from core import vlc_instance
 
 def _build_media_actions(pw):
     """Seek/volume callbacks keyed by arrow keycode for HoldRepeatHotkeys."""
@@ -236,6 +237,10 @@ class RSSApp(wx.App):
         self.frame = MainFrame(self.provider, self.config_manager)
         self.frame.Show()
 
+        # Warm the shared libVLC instance on a background thread shortly after
+        # startup so the first playback doesn't wait on the plugin scan.
+        wx.CallLater(1200, lambda: vlc_instance.warm_async(self.config_manager))
+
         # Run dependency check after the UI is visible to reduce startup work.
         wx.CallLater(2000, lambda: threading.Thread(target=check_and_install_dependencies, daemon=True).start())
 
@@ -300,6 +305,11 @@ class RSSApp(wx.App):
             get_range_cache_proxy().stop()
         except Exception as e:
             log.error(f"Error stopping RangeCacheProxy: {e}")
+
+        try:
+            vlc_instance.release_shared()
+        except Exception as e:
+            log.error(f"Error releasing shared VLC instance: {e}")
             
         # Release the lock implicitly by object destruction, but explicit delete is good practice
         try:

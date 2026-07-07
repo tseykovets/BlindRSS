@@ -300,6 +300,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\refresh-speed-fixes.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\release-build-process.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\test-suite-live-stream-hazard.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\vlc-init-ui-freeze.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\volume-jump-root-cause.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\youtube-live-format-selection.md
 <!-- claude-memory:end -->

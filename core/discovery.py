@@ -161,6 +161,14 @@ def _load_ytdlp_extractors():
         extractors = list(gen_extractor_classes())
         with _ytdlp_extractors_lock:
             _ytdlp_extractors = extractors
+        # Pre-compile the extractors' URL regexes here (still on the preload
+        # thread) so the first is_ytdlp_supported() call on the UI thread does
+        # not pay for compiling ~2000 patterns.
+        for extractor_cls in extractors:
+            try:
+                extractor_cls.suitable("https://example.invalid/warmup")
+            except Exception:
+                pass
     except Exception:
         with _ytdlp_extractors_lock:
             _ytdlp_extractors = []

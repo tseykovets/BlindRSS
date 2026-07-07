@@ -1235,7 +1235,10 @@ class MainFrame(wx.Frame):
         pw = getattr(self, "player_window", None)
         if pw:
             try:
-                if getattr(pw, "_shutdown_done", False) or not bool(getattr(pw, "initialized", True)):
+                # "Not initialized yet" is normal while the shared libVLC
+                # instance warms up in the background; only recreate the
+                # window when it was shut down or VLC init actually failed.
+                if getattr(pw, "_shutdown_done", False) or bool(getattr(pw, "_vlc_init_failed", False)):
                     try:
                         pw.Destroy()
                     except Exception:

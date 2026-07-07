@@ -348,6 +348,130 @@ def test_run_ytdlp_query_search_uses_resolved_cli_path():
     assert captured["cmd"][0] == "/Applications/BlindRSS.app/Contents/Frameworks/bin/yt-dlp"
 
 
+def test_get_ytdlp_searchable_sites_drops_redundant_youtube_aliases():
+    class _GoogleVideoSearch(_FakeSearchExtractor):
+        _SEARCH_KEY = "gvsearch"
+        IE_NAME = "video.google:search"
+        IE_DESC = "Google Video search"
+        _IE_KEY = "GoogleSearch"
+
+    class _YahooVideoSearch(_FakeSearchExtractor):
+        _SEARCH_KEY = "yvsearch"
+        IE_NAME = "yahoo:search"
+        IE_DESC = "Yahoo Search"
+        _IE_KEY = "YahooSearch"
+
+    fake_extractors = [_YoutubeSearch, _GoogleVideoSearch, _YahooVideoSearch]
+    with patch("core.discovery._get_ytdlp_extractors", return_value=fake_extractors):
+        sites = discovery.get_ytdlp_searchable_sites(include_adult=False)
+
+    ids = {row["id"] for row in sites}
+    # Yahoo/Google "video search" only duplicate YouTube results, so they are
+    # dropped in favor of the single canonical YouTube site.
+    assert "ytsearch" in ids
+    assert "gvsearch" not in ids
+    assert "yvsearch" not in ids
+
+
+def test_adult_sites_only_returned_when_asked_explicitly():
+    safe = discovery.get_ytdlp_searchable_sites(include_adult=False)
+    assert all(not bool(row.get("adult")) for row in safe)
+
+    adult = discovery.get_adult_searchable_sites()
+    assert adult, "expected at least one curated adult site"
+    assert all(bool(row.get("adult")) for row in adult)
+    # Curated adult sites search via a URL template, not a query-search key.
+    assert all(str(row.get("search_url_template") or "") for row in adult)
+
+    combined = discovery.get_ytdlp_searchable_sites(include_adult=True)
+    combined_ids = {row["id"] for row in combined}
+    assert {row["id"] for row in adult}.issubset(combined_ids)
+
+
+def test_search_ytdlp_site_uses_url_template_for_adult_sites():
+    site = {
+        "id": "pornhub",
+        "label": "Pornhub",
+        "search_url_template": "https://www.pornhub.com/video/search?search={query}",
+        "adult": True,
+    }
+    captured = {}
+
+    def _fake_url_search(url_template, term, limit=10, timeout=15):
+        captured["url_template"] = url_template
+        captured["term"] = term
+        return [{"title": "Result", "url": "https://www.pornhub.com/view_video.php?viewkey=x1"}]
+
+    with patch("core.discovery._run_ytdlp_url_search", side_effect=_fake_url_search), patch(
+        "core.discovery._run_ytdlp_query_search"
+    ) as mock_query:
+        out = discovery.search_ytdlp_site("cats", site, limit=5, timeout=10)
+
+    mock_query.assert_not_called()
+    assert captured["url_template"].endswith("search={query}")
+    assert captured["term"] == "cats"
+    assert len(out) == 1
+
+
+def test_run_ytdlp_url_search_builds_quoted_search_url():
+    captured = {}
+
+    class _FakeProc:
+        returncode = 0
+        stdout = b'{"entries":[{"title":"R","url":"https://site/v/1"}]}'
+        stderr = b""
+
+    def _fake_run(cmd, **_kwargs):
+        captured["cmd"] = list(cmd)
+        return _FakeProc()
+
+    with patch("core.discovery.subprocess.run", side_effect=_fake_run), patch(
+        "core.discovery._resolve_ytdlp_cli_path", return_value="yt-dlp"
+    ), patch("core.discovery.platform.system", return_value="Windows"), patch(
+        "core.dependency_check._get_startup_info", return_value=None
+    ):
+        out = discovery._run_ytdlp_url_search(
+            "https://site/search?q={query}", "two words", limit=3, timeout=10
+        )
+
+    # {query} is URL-quoted, and the built URL is the last CLI argument.
+    assert captured["cmd"][-1] == "https://site/search?q=two%20words"
+    assert "--flat-playlist" in captured["cmd"]
+    assert len(out) == 1
+
+
+def test_canonical_search_result_key_collapses_youtube_variants():
+    watch = discovery.canonical_search_result_key(
+        {"url": "https://www.youtube.com/watch?v=abc123&t=30"}
+    )
+    short = discovery.canonical_search_result_key({"url": "https://youtu.be/abc123"})
+    mobile = discovery.canonical_search_result_key({"url": "https://m.youtube.com/watch?v=abc123"})
+    shorts = discovery.canonical_search_result_key(
+        {"url": "https://www.youtube.com/shorts/abc123"}
+    )
+    assert watch == short == mobile == shorts == "youtube:abc123"
+
+    other = discovery.canonical_search_result_key({"url": "https://youtu.be/zzz999"})
+    assert other != watch
+
+    # Non-YouTube: only exact same normalized URL collapses.
+    a = discovery.canonical_search_result_key({"url": "https://site.com/v/1/"})
+    b = discovery.canonical_search_result_key({"url": "https://site.com/v/1"})
+    assert a == b
+    assert a != discovery.canonical_search_result_key({"url": "https://site.com/v/2"})
+
+
+def test_search_result_quality_score_prefers_richer_result():
+    best = {
+        "title": "Real",
+        "_title_is_fallback": False,
+        "play_count": 500,
+        "native_subscribe_url": "https://x/feed",
+    }
+    worst = {"title": "abc123", "_title_is_fallback": True, "play_count": None}
+    assert discovery.search_result_quality_score(best) > discovery.search_result_quality_score(worst)
+
+
 def test_resolve_ytdlp_url_title_prefers_ytdlp_title():
     class _FakeYDL:
         def __init__(self, _opts):

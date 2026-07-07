@@ -99,3 +99,43 @@ def test_site_search_results_auto_queue_quick_title_enrichment_for_supported_fal
     queued_urls = [str(item.get("url") or "") for item, _gen in host.enrichment_requests]
     assert queued_urls == ["https://www.youtube.com/watch?v=abc123"]
     assert all(gen == 1 for _item, gen in host.enrichment_requests)
+
+
+def test_site_search_results_dedupe_same_video_across_sites_keeps_best():
+    # The same YouTube video arriving from two different search backends must
+    # collapse to one row, keeping the copy with the richer metadata.
+    host = _SearchResultsHost()
+
+    host._on_site_search_results(
+        {"id": "ytsearch", "label": "YouTube"},
+        [
+            {
+                "title": "vid123",
+                "url": "https://www.youtube.com/watch?v=vid123",
+                "_title_is_fallback": True,
+            }
+        ],
+        1,
+        2,
+    )
+    # Duplicate of the same video (different URL form) with a real title + plays.
+    host._on_site_search_results(
+        {"id": "scsearch", "label": "SoundCloud"},
+        [
+            {
+                "title": "A Real Title",
+                "url": "https://youtu.be/vid123",
+                "_title_is_fallback": False,
+                "play_count": 4242,
+            }
+        ],
+        2,
+        2,
+    )
+
+    assert len(host._all_results) == 1
+    kept = host._all_results[0]
+    assert kept["title"] == "A Real Title"
+    assert kept["play_count"] == 4242
+    # Kept its original arrival slot so ordering stays stable.
+    assert kept["_arrival_order"] == 1

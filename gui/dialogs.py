@@ -13,6 +13,9 @@ from core.discovery import (
     discover_feed,
     is_ytdlp_supported,
     get_ytdlp_searchable_sites,
+    get_adult_searchable_sites,
+    canonical_search_result_key,
+    search_result_quality_score,
     resolve_quick_url_title,
     resolve_ytdlp_url_enrichment,
     search_ytdlp_site,
@@ -4020,7 +4023,8 @@ class FeedSearchDialog(wx.Dialog):
 
 class YtdlpGlobalSearchDialog(wx.Dialog):
     _ALL_SITES_TOKEN = "__all__"
-    _SEARCH_CONCURRENCY = 4
+    _ADULT_ALL_TOKEN = "__adult__"
+    _SEARCH_CONCURRENCY = 8
     _PER_SITE_LIMIT = 80
     _LOAD_MORE_STEP = 80
     _PER_SITE_TIMEOUT_S = 12
@@ -4059,11 +4063,15 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         self._search_thread = None
         self._search_running = False
         self._site_rows = []
+        self._safe_site_rows = []
+        self._adult_site_rows = []
         self._scope_values = [self._ALL_SITES_TOKEN]
         self._filter_values = [self._ALL_SITES_TOKEN]
         self._all_results = []
         self._visible_results = []
         self._seen_result_keys = set()
+        # Cross-site dedupe: canonical content key -> the kept (best) result dict.
+        self._result_by_dedupe_key = {}
         self._completed_sites = 0
         self._total_sites = 0
         self._search_generation = 0
@@ -4735,15 +4743,35 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         prev_filter = self._get_choice_value(self.filter_choice, self._filter_values)
 
         try:
-            sites = list(get_ytdlp_searchable_sites(include_adult=False) or [])
+            safe_sites = list(get_ytdlp_searchable_sites(include_adult=False) or [])
         except Exception:
-            sites = []
-        self._site_rows = sites
+            safe_sites = []
+        try:
+            adult_sites = list(get_adult_searchable_sites() or [])
+        except Exception:
+            adult_sites = []
+        self._safe_site_rows = safe_sites
+        self._adult_site_rows = adult_sites
+        # Combined lookup table so a scope/filter id resolves to either kind.
+        self._site_rows = list(safe_sites) + list(adult_sites)
 
-        self._scope_values = [self._ALL_SITES_TOKEN] + [str(s.get("id") or "") for s in sites]
-        self._filter_values = [self._ALL_SITES_TOKEN] + [str(s.get("id") or "") for s in sites]
-        scope_labels = ["All searchable sites"] + [str(s.get("label") or s.get("id") or "") for s in sites]
-        filter_labels = ["All sites"] + [str(s.get("label") or s.get("id") or "") for s in sites]
+        # Scope: "All searchable sites" covers only safe sites — adult sites are
+        # never included implicitly. Adult sites are reachable only by choosing the
+        # explicit "Adult sites (all)" group or an individual adult site.
+        scope_values = [self._ALL_SITES_TOKEN] + [str(s.get("id") or "") for s in safe_sites]
+        scope_labels = ["All searchable sites"] + [str(s.get("label") or s.get("id") or "") for s in safe_sites]
+        if adult_sites:
+            scope_values.append(self._ADULT_ALL_TOKEN)
+            scope_labels.append("Adult sites (all)")
+            for s in adult_sites:
+                scope_values.append(str(s.get("id") or ""))
+                scope_labels.append(f"Adult: {s.get('label') or s.get('id') or ''}")
+        self._scope_values = scope_values
+
+        # Result filter can narrow to any site that produced results, adult included.
+        filter_values = [self._ALL_SITES_TOKEN] + [str(s.get("id") or "") for s in self._site_rows]
+        filter_labels = ["All sites"] + [str(s.get("label") or s.get("id") or "") for s in self._site_rows]
+        self._filter_values = filter_values
 
         self.scope_choice.Clear()
         self.filter_choice.Clear()
@@ -4780,7 +4808,10 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
     def _get_scope_sites(self) -> list[dict]:
         selected = self._get_choice_value(self.scope_choice, self._scope_values)
         if selected == self._ALL_SITES_TOKEN:
-            return list(self._site_rows or [])
+            # Safe sites only; adult sites are never searched implicitly.
+            return list(self._safe_site_rows or [])
+        if selected == self._ADULT_ALL_TOKEN:
+            return list(self._adult_site_rows or [])
         return [s for s in (self._site_rows or []) if str(s.get("id") or "") == selected]
 
     def _get_result_filter_site_id(self) -> str:
@@ -5035,6 +5066,7 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             self._all_results = []
             self._visible_results = []
             self._seen_result_keys = set()
+            self._result_by_dedupe_key = {}
             self._search_generation = int(getattr(self, "_search_generation", 0) or 0) + 1
             self._result_arrival_counter = 0
             try:
@@ -5125,21 +5157,54 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         except Exception:
             self._total_sites = total
 
+        if getattr(self, "_result_by_dedupe_key", None) is None:
+            self._result_by_dedupe_key = {}
+
         new_count = 0
+        upgraded = False
         for item in (items or []):
             if not isinstance(item, dict):
                 continue
             url = str(item.get("url") or "").strip()
-            site_id = str(item.get("site_id") or (site or {}).get("id") or "").strip()
-            key = f"{site_id}|{url}" if site_id else url
-            if not url or key in self._seen_result_keys:
+            if not url:
                 continue
-            self._seen_result_keys.add(key)
+            if not str(item.get("site_id") or "").strip():
+                item["site_id"] = str((site or {}).get("id") or "").strip()
+
+            # Cross-site dedupe: collapse the same underlying video seen from
+            # different search backends, keeping only the best-scoring copy.
+            try:
+                dkey = canonical_search_result_key(item)
+            except Exception:
+                dkey = url.lower()
+
+            existing = self._result_by_dedupe_key.get(dkey) if dkey else None
+            if existing is not None:
+                try:
+                    better = search_result_quality_score(item) > search_result_quality_score(existing)
+                except Exception:
+                    better = False
+                if better:
+                    # Replace content in place so the row keeps its arrival slot.
+                    arrival = existing.get("_arrival_order")
+                    existing.clear()
+                    existing.update(item)
+                    existing["_arrival_order"] = arrival
+                    upgraded = True
+                    try:
+                        if self._title_needs_enrichment(existing) and supports_quick_url_title(url):
+                            self._queue_title_enrichment(existing, int(getattr(self, "_search_generation", 0) or 0))
+                    except Exception:
+                        pass
+                continue
+
             try:
                 self._result_arrival_counter = int(self._result_arrival_counter or 0) + 1
             except Exception:
                 self._result_arrival_counter = 1
             item["_arrival_order"] = int(self._result_arrival_counter or 0)
+            if dkey:
+                self._result_by_dedupe_key[dkey] = item
             self._all_results.append(item)
             new_count += 1
             # Eagerly queue the quick (oEmbed-style, single HTTP GET) title stage
@@ -5151,7 +5216,8 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
             except Exception:
                 pass
 
-        self._schedule_results_refresh()
+        if new_count or upgraded:
+            self._schedule_results_refresh()
 
         site_label = str((site or {}).get("label") or (site or {}).get("id") or "site")
         if error_msg:

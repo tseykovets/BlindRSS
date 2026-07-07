@@ -79,6 +79,26 @@ _YTDLP_ADULT_KEYWORDS = (
     "hentai",
 )
 
+# Search sites that only duplicate a better site's results (or are dead), so we
+# expose a single canonical site instead of several that "make no sense". yt-dlp's
+# Yahoo/Google "video search" both just return YouTube results (or nothing at
+# all), so the YouTube site (ytsearch) already covers them.
+_REDUNDANT_SEARCH_SITE_IDS = frozenset({"gvsearch", "yvsearch"})
+
+# Adult sites are not exposed through yt-dlp's query-search (_SEARCH_KEY) system,
+# so we search them via their on-site search-results page, which yt-dlp can
+# extract as a flat playlist. Curated and verified so results stay sane; extend
+# this as yt-dlp gains reliable adult search-page extractors. "{query}" is
+# URL-quoted at run time. These are never returned unless adult sites are asked
+# for explicitly (see get_ytdlp_searchable_sites / get_adult_searchable_sites).
+_ADULT_SEARCH_SITES = (
+    {
+        "id": "pornhub",
+        "label": "Pornhub",
+        "search_url_template": "https://www.pornhub.com/video/search?search={query}",
+    },
+)
+
 _URL_FALLBACK_SITE_NAMES = {
     "youtube.com": "YouTube",
     "youtu.be": "YouTube",
@@ -323,6 +343,9 @@ def get_ytdlp_searchable_sites(include_adult: bool = False) -> list[dict]:
         site_id = _ytdlp_search_site_id(search_key, ie_name=ie_name)
         if not site_id:
             continue
+        if site_id in _REDUNDANT_SEARCH_SITE_IDS:
+            # Drop sites that only duplicate a canonical site's results.
+            continue
         label = _ytdlp_search_site_label(search_key, ie_key, ie_name, ie_desc)
 
         row = {
@@ -374,6 +397,25 @@ def get_ytdlp_searchable_sites(include_adult: bool = False) -> list[dict]:
         sites_by_id[site_id] = preferred
 
     out = list(sites_by_id.values())
+    out.sort(key=lambda x: (str(x.get("label", "")).lower(), str(x.get("id", "")).lower()))
+    if include_adult:
+        out.extend(get_adult_searchable_sites())
+    return out
+
+
+def get_adult_searchable_sites() -> list[dict]:
+    """Return curated adult search sites (URL-template based, not _SEARCH_KEY).
+
+    Kept separate from the safe list so callers can offer adult search only when
+    the user explicitly asks for it; "all sites" search must never include these.
+    """
+    out: list[dict] = []
+    for site in _ADULT_SEARCH_SITES:
+        row = dict(site)
+        row.setdefault("search_key", "")
+        row["adult"] = True
+        row.setdefault("working", True)
+        out.append(row)
     out.sort(key=lambda x: (str(x.get("label", "")).lower(), str(x.get("id", "")).lower()))
     return out
 
@@ -1972,17 +2014,162 @@ def _run_ytdlp_query_search(search_key: str, term: str, limit: int = 10, timeout
         return []
 
 
+def _run_ytdlp_url_search(url_template: str, term: str, limit: int = 10, timeout: int = 15):
+    """Search a site via its on-site search-results page (flat-playlist extract).
+
+    For sites without a yt-dlp query-search key (e.g. adult sites): build the
+    search-results URL from ``{query}`` and let yt-dlp enumerate it as a playlist.
+    """
+    query = str(term or "").strip()
+    tmpl = str(url_template or "").strip()
+    if not query or not tmpl or "{query}" not in tmpl:
+        return []
+
+    try:
+        limit = max(1, min(500, int(limit or 10)))
+    except Exception:
+        limit = 10
+    try:
+        timeout = max(5, min(90, int(timeout or 15)))
+    except Exception:
+        timeout = 15
+
+    url = tmpl.replace("{query}", quote(query))
+
+    try:
+        from core.dependency_check import _get_startup_info
+
+        creationflags = 0
+        if platform.system().lower() == "windows":
+            creationflags = 0x08000000
+
+        cmd = [
+            _resolve_ytdlp_cli_path(),
+            "--dump-single-json",
+            "--flat-playlist",
+            "--playlist-end",
+            str(limit),
+            url,
+        ]
+        res = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=creationflags,
+            startupinfo=_get_startup_info(),
+            timeout=timeout,
+        )
+        rc = getattr(res, "returncode", None)
+        if rc is None or int(rc) != 0:
+            return []
+        stdout = getattr(res, "stdout", b"") or b""
+        if not stdout:
+            return []
+        data = json.loads(stdout)
+        if isinstance(data, dict):
+            return list(data.get("entries") or [])
+        if isinstance(data, list):
+            return list(data)
+        return []
+    except Exception:
+        return []
+
+
 def search_ytdlp_site(term: str, site: dict, limit: int = 10, timeout: int = 15) -> list[dict]:
-    """Search a single yt-dlp query-search site and normalize results for the GUI."""
+    """Search a single yt-dlp search site and normalize results for the GUI.
+
+    Sites expose either a query-search key (``search_key``, e.g. ``ytsearch``) or,
+    for sites yt-dlp can't query-search, a ``search_url_template`` whose results
+    page is enumerated instead.
+    """
     if not isinstance(site, dict):
         return []
-    entries = _run_ytdlp_query_search(
-        str(site.get("search_key") or ""),
-        str(term or ""),
-        limit=limit,
-        timeout=timeout,
-    )
+    url_template = str(site.get("search_url_template") or "").strip()
+    if url_template:
+        entries = _run_ytdlp_url_search(
+            url_template,
+            str(term or ""),
+            limit=limit,
+            timeout=timeout,
+        )
+    else:
+        entries = _run_ytdlp_query_search(
+            str(site.get("search_key") or ""),
+            str(term or ""),
+            limit=limit,
+            timeout=timeout,
+        )
     return _normalize_ytdlp_search_entries(entries, site=site, limit=limit)
+
+
+def canonical_search_result_key(item: dict) -> str:
+    """Stable identity for a search result, for cross-site dedupe.
+
+    Collapses the same underlying video seen from different search backends
+    (e.g. a YouTube video returned by both YouTube and a wrapper site) so the
+    results list shows each item once. YouTube is keyed by video id regardless
+    of surrounding URL params/host; other sites fall back to their normalized
+    URL, so only genuine exact-URL duplicates collapse there.
+    """
+    url = str((item or {}).get("url") or "").strip()
+    if not url:
+        return ""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return url.lower()
+
+    host = (parsed.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+
+    if host in ("youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"):
+        video_id = ""
+        try:
+            if host == "youtu.be":
+                video_id = (parsed.path or "").strip("/").split("/")[0]
+            else:
+                path = parsed.path or ""
+                if "/shorts/" in path:
+                    video_id = path.split("/shorts/", 1)[1].split("/")[0]
+                elif "/embed/" in path:
+                    video_id = path.split("/embed/", 1)[1].split("/")[0]
+                else:
+                    video_id = (parse_qs(parsed.query).get("v") or [""])[0]
+        except Exception:
+            video_id = ""
+        video_id = str(video_id or "").strip()
+        if video_id:
+            return f"youtube:{video_id}"
+
+    path = (parsed.path or "").rstrip("/").lower()
+    key = f"{host}{path}"
+    query = str(parsed.query or "").strip()
+    if query:
+        key = f"{key}?{query}"
+    return key or url.lower()
+
+
+def search_result_quality_score(item: dict) -> tuple:
+    """Rank duplicate results so the "best" copy is kept.
+
+    Higher is better: a real (non-placeholder) title beats a fallback one, a row
+    we can subscribe to beats one we can't, and higher known play counts win.
+    """
+    it = item or {}
+    has_real_title = 1 if (
+        str(it.get("title") or "").strip() and not bool(it.get("_title_is_fallback"))
+    ) else 0
+    has_subscribe = 1 if (
+        str(it.get("native_subscribe_url") or "").strip()
+        or str(it.get("source_subscribe_url") or "").strip()
+    ) else 0
+    try:
+        play_val = int(it.get("play_count"))
+    except Exception:
+        play_val = -1
+    return (has_real_title, has_subscribe, play_val)
 
 
 def _youtube_playlist_id_from_url(url: str) -> str:

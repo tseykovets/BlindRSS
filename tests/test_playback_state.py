@@ -53,3 +53,28 @@ def test_playback_state_roundtrip_and_updates():
         finally:
             core.db.DB_FILE = orig_db_file
 
+
+def test_get_all_playback_states_returns_every_row():
+    with tempfile.TemporaryDirectory() as tmp:
+        orig_db_file = core.db.DB_FILE
+        core.db.DB_FILE = os.path.join(tmp, "rss.db")
+        try:
+            core.db.init_db()
+
+            assert playback_state.get_all_playback_states() == {}
+
+            playback_state.upsert_playback_state(
+                "article:a1", 5000, duration_ms=60000, title="One"
+            )
+            playback_state.upsert_playback_state(
+                "https://example.com/two.mp3", 0, duration_ms=120000, completed=True, title="Two"
+            )
+
+            states = playback_state.get_all_playback_states()
+            assert set(states.keys()) == {"article:a1", "https://example.com/two.mp3"}
+            assert states["article:a1"].position_ms == 5000
+            assert states["article:a1"].duration_ms == 60000
+            assert states["https://example.com/two.mp3"].completed is True
+        finally:
+            core.db.DB_FILE = orig_db_file
+

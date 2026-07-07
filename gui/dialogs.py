@@ -5736,3 +5736,163 @@ class AboutDialog(wx.Dialog):
 
 # Backwards-compatible name (menu item was historically called "Search Podcast").
 PodcastSearchDialog = FeedSearchDialog
+
+
+class QueueDialog(wx.Dialog):
+    """Manage the media play queue: play, reorder, and remove items.
+
+    `controller` is the MainFrame; it exposes get_play_queue(),
+    play_queue_index(i), remove_queue_indices([i]), move_queue_item(i, delta),
+    and clear_play_queue(). The dialog is keyboard-first and screen-reader
+    friendly: a single list with labeled action buttons, Enter to play, Delete
+    to remove, and Alt+Up/Alt+Down to reorder.
+    """
+
+    def __init__(self, parent, controller):
+        super().__init__(
+            parent,
+            title=_("Play Queue"),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+        self.controller = controller
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+
+        self.info_lbl = wx.StaticText(self, label="")
+        outer.Add(self.info_lbl, 0, wx.ALL, 8)
+
+        self.list_box = wx.ListBox(self, style=wx.LB_SINGLE)
+        self.list_box.SetName(_("Queued media"))
+        self.list_box.Bind(wx.EVT_LISTBOX_DCLICK, self.on_play)
+        self.list_box.Bind(wx.EVT_LISTBOX, lambda e: self._update_buttons())
+        self.list_box.Bind(wx.EVT_KEY_DOWN, self.on_list_key)
+        outer.Add(self.list_box, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+
+        btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.play_btn = wx.Button(self, label=_("&Play"))
+        self.play_btn.Bind(wx.EVT_BUTTON, self.on_play)
+        btn_sizer.Add(self.play_btn, 0, wx.ALL, 4)
+
+        self.up_btn = wx.Button(self, label=_("Move &Up"))
+        self.up_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_move(-1))
+        btn_sizer.Add(self.up_btn, 0, wx.ALL, 4)
+
+        self.down_btn = wx.Button(self, label=_("Move &Down"))
+        self.down_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_move(1))
+        btn_sizer.Add(self.down_btn, 0, wx.ALL, 4)
+
+        self.remove_btn = wx.Button(self, label=_("&Remove"))
+        self.remove_btn.Bind(wx.EVT_BUTTON, self.on_remove)
+        btn_sizer.Add(self.remove_btn, 0, wx.ALL, 4)
+
+        self.clear_btn = wx.Button(self, label=_("&Clear All"))
+        self.clear_btn.Bind(wx.EVT_BUTTON, self.on_clear)
+        btn_sizer.Add(self.clear_btn, 0, wx.ALL, 4)
+
+        outer.Add(btn_sizer, 0, wx.ALIGN_CENTER)
+
+        close_sizer = self.CreateButtonSizer(wx.CLOSE)
+        if close_sizer:
+            outer.Add(close_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 8)
+        self.Bind(wx.EVT_BUTTON, lambda e: self.EndModal(wx.ID_CLOSE), id=wx.ID_CLOSE)
+
+        self.SetSizer(outer)
+        self.SetSize((460, 360))
+        self.Centre()
+
+        self._reload(select=0)
+
+    def _entries(self):
+        try:
+            return list(self.controller.get_play_queue() or [])
+        except Exception:
+            return []
+
+    def _reload(self, select: int | None = None) -> None:
+        entries = self._entries()
+        self.list_box.Clear()
+        for i, entry in enumerate(entries):
+            title = str((entry or {}).get("title") or "").strip() or _("Untitled")
+            self.list_box.Append(_("{index}. {title}").format(index=i + 1, title=title))
+        if entries:
+            self.info_lbl.SetLabel(_("{count} item(s) in queue.").format(count=len(entries)))
+            if select is None:
+                select = 0
+            select = max(0, min(int(select), len(entries) - 1))
+            self.list_box.SetSelection(select)
+        else:
+            self.info_lbl.SetLabel(_("The play queue is empty."))
+        self._update_buttons()
+
+    def _update_buttons(self) -> None:
+        count = self.list_box.GetCount()
+        sel = self.list_box.GetSelection()
+        has_sel = sel != wx.NOT_FOUND
+        self.play_btn.Enable(has_sel)
+        self.remove_btn.Enable(has_sel)
+        self.up_btn.Enable(has_sel and sel > 0)
+        self.down_btn.Enable(has_sel and 0 <= sel < count - 1)
+        self.clear_btn.Enable(count > 0)
+
+    def on_play(self, event) -> None:
+        sel = self.list_box.GetSelection()
+        if sel == wx.NOT_FOUND:
+            return
+        try:
+            self.controller.play_queue_index(int(sel))
+        except Exception:
+            log.exception("Failed to play queue item from dialog")
+
+    def on_remove(self, event) -> None:
+        sel = self.list_box.GetSelection()
+        if sel == wx.NOT_FOUND:
+            return
+        try:
+            self.controller.remove_queue_indices([int(sel)])
+        except Exception:
+            log.exception("Failed to remove queue item")
+        self._reload(select=sel)
+
+    def on_move(self, delta: int) -> None:
+        sel = self.list_box.GetSelection()
+        if sel == wx.NOT_FOUND:
+            return
+        try:
+            new_index = int(self.controller.move_queue_item(int(sel), int(delta)))
+        except Exception:
+            log.exception("Failed to move queue item")
+            new_index = sel
+        self._reload(select=new_index)
+        self.list_box.SetFocus()
+
+    def on_clear(self, event) -> None:
+        if self.list_box.GetCount() == 0:
+            return
+        if (
+            wx.MessageBox(
+                _("Remove all items from the play queue?"),
+                _("Clear Play Queue"),
+                wx.YES_NO | wx.ICON_QUESTION,
+                self,
+            )
+            != wx.YES
+        ):
+            return
+        try:
+            self.controller.clear_play_queue()
+        except Exception:
+            log.exception("Failed to clear queue")
+        self._reload()
+
+    def on_list_key(self, event: wx.KeyEvent) -> None:
+        key = event.GetKeyCode()
+        if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+            self.on_play(event)
+            return
+        if key in (wx.WXK_DELETE, wx.WXK_BACK):
+            self.on_remove(event)
+            return
+        if key in (wx.WXK_UP, wx.WXK_DOWN) and event.AltDown():
+            self.on_move(-1 if key == wx.WXK_UP else 1)
+            return
+        event.Skip()

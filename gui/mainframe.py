@@ -356,8 +356,11 @@ class MainFrame(wx.Frame):
         # ambient background-activity status (feed refresh / downloads) so it
         # never clobbers field 0 while a screen-reader user is mid-search or
         # mid-read (issue: status bar shows nothing while work is happening).
-        self.CreateStatusBar(2)
-        self.SetStatusWidths([-2, -1])
+        # Field 2 is dedicated to live playback status (now-playing title plus
+        # elapsed/remaining time) so it never fights the refresh/filter fields.
+        self.CreateStatusBar(3)
+        self.SetStatusWidths([-2, -1, -1])
+        self._playback_status_field = 2
         # Main Splitter: Tree vs Content Area
         splitter = wx.SplitterWindow(self)
         
@@ -832,6 +835,14 @@ class MainFrame(wx.Frame):
         self._render_generation = generation
         feed_id = getattr(self, "current_feed_id", None)
 
+        # Refresh the played-media time annotations shown after each title.
+        try:
+            refresh_fn = getattr(self, "_refresh_playback_states_cache", None)
+            if callable(refresh_fn):
+                refresh_fn()
+        except Exception:
+            self._playback_states_cache = {}
+
         self.list_ctrl.DeleteAllItems()
         articles = list(articles or [])
         if not articles:
@@ -1248,6 +1259,7 @@ class MainFrame(wx.Frame):
             except Exception:
                 pass
         if pw:
+            self._wire_player_callbacks(pw)
             return pw
         try:
             pw = PlayerFrame(self, self.config_manager)
@@ -1255,7 +1267,56 @@ class MainFrame(wx.Frame):
             log.exception("Failed to create player window")
             return None
         self.player_window = pw
+        self._wire_player_callbacks(pw)
         return pw
+
+    def _wire_player_callbacks(self, pw) -> None:
+        """Attach progress + queue-advance callbacks to the player window."""
+        try:
+            pw.playback_progress_listener = self._on_player_progress
+        except Exception:
+            pass
+        try:
+            pw.on_playback_finished = self._on_player_playback_finished
+        except Exception:
+            pass
+
+    def _on_player_progress(self, info: dict) -> None:
+        """Reflect live playback state on the main status bar (field 2).
+
+        Runs on the wx main thread (called from the player's timer). Uses
+        SetStatusText only, which never moves focus or forces speech, so the
+        text is there for NVDA's "read status bar" command without chatter.
+        """
+        try:
+            field = int(getattr(self, "_playback_status_field", 2))
+            if not info or not info.get("has_media"):
+                self.SetStatusText("", field)
+                return
+            title = str(info.get("title") or "").strip() or _("Media")
+            state = str(info.get("state") or "").strip()
+            pos = int(info.get("position_ms") or 0)
+            dur = int(info.get("duration_ms") or 0)
+            elapsed = self._format_media_time(pos)
+            if dur > 0:
+                remaining = self._format_media_time(max(0, dur - pos))
+                total = self._format_media_time(dur)
+                time_part = _("{elapsed} / {total} ({remaining} left)").format(
+                    elapsed=elapsed, total=total, remaining=remaining
+                )
+            else:
+                time_part = elapsed
+            verb = state or (_("Playing") if info.get("playing") else _("Paused"))
+            self.SetStatusText(f"{verb}: {title} — {time_part}", field)
+        except Exception:
+            log.debug("Failed to update playback status field", exc_info=True)
+
+    def _on_player_playback_finished(self) -> None:
+        """A media item finished naturally: advance the play queue if active."""
+        try:
+            self._advance_play_queue()
+        except Exception:
+            log.exception("Error advancing play queue after playback finished")
 
     def _capture_unread_snapshot(self):
         snapshot = {}
@@ -1620,8 +1681,13 @@ class MainFrame(wx.Frame):
         player_menu = wx.Menu()
         player_toggle_item = player_menu.Append(wx.ID_ANY, _("Show/Hide Player (Ctrl+P)"), _("Show or hide the media player window"))
         player_menu.AppendSeparator()
-        player_play_pause_item = player_menu.Append(wx.ID_ANY, _("Play/Pause"), _("Toggle play/pause"))
-        player_stop_item = player_menu.Append(wx.ID_ANY, _("Stop"), _("Stop playback"))
+        # NOTE: shortcuts are shown in the label text only (not as '\t' menu
+        # accelerators) because Ctrl+Space / Ctrl+Shift+Space are handled in the
+        # global char-hook so they also work when the player window is focused.
+        player_play_pause_item = player_menu.Append(wx.ID_ANY, _("Play/Pause (Ctrl+Space)"), _("Toggle play/pause"))
+        player_stop_item = player_menu.Append(wx.ID_ANY, _("Stop (Ctrl+Shift+Space)"), _("Stop playback"))
+        player_menu.AppendSeparator()
+        player_queue_item = player_menu.Append(wx.ID_ANY, _("Play &Queue..."), _("View and manage the media play queue"))
         player_menu.AppendSeparator()
         # NOTE: Do not use '\tCtrl+...' menu accelerators here.
         # We implement Ctrl+Arrow globally via an event filter + hold-to-repeat gate.
@@ -1693,6 +1759,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_show_player, player_toggle_item)
         self.Bind(wx.EVT_MENU, self.on_player_play_pause, player_play_pause_item)
         self.Bind(wx.EVT_MENU, self.on_player_stop, player_stop_item)
+        self.Bind(wx.EVT_MENU, self.on_open_play_queue, player_queue_item)
         self.Bind(wx.EVT_MENU, self.on_player_rewind, player_rewind_item)
         self.Bind(wx.EVT_MENU, self.on_player_forward, player_forward_item)
         self.Bind(wx.EVT_MENU, self.on_player_volume_up, player_vol_up_item)
@@ -1874,6 +1941,20 @@ class MainFrame(wx.Frame):
                 return
             except Exception:
                 log.exception("Error toggling play/pause on Ctrl+Space")
+
+        if (
+            key == wx.WXK_SPACE
+            and event.ControlDown()
+            and event.ShiftDown()
+            and not event.AltDown()
+            and not event.MetaDown()
+            and not self._is_text_input_focused(focus)
+        ):
+            try:
+                self.on_player_stop(None)
+                return
+            except Exception:
+                log.exception("Error stopping playback on Ctrl+Shift+Space")
 
         if focus == self.content_ctrl:
             if (
@@ -3461,6 +3542,52 @@ class MainFrame(wx.Frame):
             except Exception:
                 pass
 
+            # Play queue: offer add/remove for playable media items.
+            try:
+                playable_targets = [
+                    i for i in menu_indices
+                    if 0 <= i < len(self.current_articles)
+                    and self._should_play_in_player(self.current_articles[i])
+                ]
+            except Exception:
+                playable_targets = []
+            if playable_targets:
+                menu.AppendSeparator()
+                if multi:
+                    add_q_item = menu.Append(
+                        wx.ID_ANY, _("Add {count} to Play Queue").format(count=len(playable_targets))
+                    )
+                    self.Bind(
+                        wx.EVT_MENU,
+                        lambda e, ii=list(playable_targets): self.add_articles_to_queue(ii),
+                        add_q_item,
+                    )
+                    remove_q_item = menu.Append(
+                        wx.ID_ANY, _("Remove {count} from Play Queue").format(count=len(playable_targets))
+                    )
+                    self.Bind(
+                        wx.EVT_MENU,
+                        lambda e, ii=list(playable_targets): self.remove_articles_from_queue(ii),
+                        remove_q_item,
+                    )
+                else:
+                    if self._is_article_in_queue(article_for_menu):
+                        rm_q_item = menu.Append(wx.ID_ANY, _("Remove from Play Queue"))
+                        self.Bind(
+                            wx.EVT_MENU,
+                            lambda e, i=idx: self.remove_articles_from_queue([i]),
+                            rm_q_item,
+                        )
+                    else:
+                        add_q_item = menu.Append(wx.ID_ANY, _("Add to Play Queue"))
+                        self.Bind(
+                            wx.EVT_MENU,
+                            lambda e, i=idx: self.add_articles_to_queue([i]),
+                            add_q_item,
+                        )
+                open_q_item = menu.Append(wx.ID_ANY, _("Open Play Queue..."))
+                self.Bind(wx.EVT_MENU, self.on_open_play_queue, open_q_item)
+
             chapter_links = (
                 self._article_chapter_links(article_for_menu)
                 if getattr(article_for_menu, "chapters", None)
@@ -4065,11 +4192,296 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
     def _get_display_title(self, article) -> str:
-        """Return an accessible article-list title, including chapter availability."""
+        """Return an accessible article-list title, including chapter availability
+        and, for media that has been played before, listened/remaining time so a
+        screen-reader user hears it right after the title without opening the item.
+        """
         title = article.title or ""
+        suffix = ""
+        try:
+            suffix_fn = getattr(self, "_media_time_suffix", None)
+            if callable(suffix_fn):
+                suffix = suffix_fn(article) or ""
+        except Exception:
+            suffix = ""
+        if suffix:
+            title = f"{title}{suffix}"
         if getattr(article, "chapters", None):
             return f"{title}, Chapters available"
         return title
+
+    @staticmethod
+    def _format_media_time(ms) -> str:
+        """Format milliseconds as m:ss or h:mm:ss (screen-reader friendly)."""
+        try:
+            total = int(max(0, int(ms or 0)) // 1000)
+        except (TypeError, ValueError):
+            total = 0
+        hours, rem = divmod(total, 3600)
+        minutes, seconds = divmod(rem, 60)
+        if hours:
+            return f"{hours}:{minutes:02d}:{seconds:02d}"
+        return f"{minutes}:{seconds:02d}"
+
+    def _refresh_playback_states_cache(self) -> None:
+        """Reload the article->playback-state map used to annotate the list.
+
+        One indexed scan of the small local playback_state table; cheap enough to
+        run on each full list render so the annotations stay reasonably fresh.
+        """
+        try:
+            from core import playback_state
+            self._playback_states_cache = playback_state.get_all_playback_states()
+        except Exception:
+            self._playback_states_cache = {}
+
+    def _playback_state_for_article(self, article):
+        states = getattr(self, "_playback_states_cache", None)
+        if not states:
+            return None
+        try:
+            aid = getattr(article, "id", None)
+            if aid is not None:
+                st = states.get(f"article:{aid}")
+                if st is not None:
+                    return st
+            for key in (getattr(article, "media_url", None), getattr(article, "url", None)):
+                if key and key in states:
+                    return states[key]
+        except Exception:
+            return None
+        return None
+
+    def _media_time_suffix(self, article) -> str:
+        """Return a short ', listened/remaining' suffix for a played media item."""
+        st = self._playback_state_for_article(article)
+        if st is None:
+            return ""
+        try:
+            dur = int(st.duration_ms or 0)
+            pos = int(st.position_ms or 0)
+            if getattr(st, "completed", False):
+                if dur > 0:
+                    return _(", played, {total}").format(total=self._format_media_time(dur))
+                return _(", played")
+            if dur > 0 and pos > 0:
+                return _(", {position} of {total}").format(
+                    position=self._format_media_time(pos), total=self._format_media_time(dur)
+                )
+            if dur > 0:
+                return _(", {total}").format(total=self._format_media_time(dur))
+            if pos > 0:
+                return _(", {position} played").format(position=self._format_media_time(pos))
+        except Exception:
+            return ""
+        return ""
+
+    # ------------------------------------------------------------------
+    # Play queue (config-backed ordered list of media items)
+    # ------------------------------------------------------------------
+
+    def _get_play_queue(self) -> list:
+        try:
+            raw = self.config_manager.get("play_queue", [])
+        except Exception:
+            raw = []
+        if not isinstance(raw, list):
+            return []
+        out = []
+        for entry in raw:
+            if isinstance(entry, dict) and (entry.get("media_url") or entry.get("article_id")):
+                out.append(entry)
+        return out
+
+    def _save_play_queue(self, queue: list) -> None:
+        try:
+            self.config_manager.set("play_queue", list(queue or []))
+        except Exception:
+            log.exception("Failed to save play queue")
+
+    @staticmethod
+    def _queue_entry_key(entry) -> str:
+        try:
+            aid = str(entry.get("article_id") or "").strip()
+            if aid:
+                return f"id:{aid}"
+            return "url:" + str(entry.get("media_url") or "").strip()
+        except Exception:
+            return ""
+
+    def _article_queue_entry(self, article) -> dict | None:
+        """Build a serializable queue entry from an article, or None if unplayable."""
+        try:
+            media_url, use_ytdlp = self._playback_target_for_article(article)
+        except Exception:
+            media_url, use_ytdlp = None, False
+        if not media_url:
+            return None
+        aid = getattr(article, "id", None)
+        return {
+            "article_id": (str(aid) if aid is not None else None),
+            "media_url": str(media_url),
+            "use_ytdlp": bool(use_ytdlp),
+            "title": str(getattr(article, "title", "") or "") or str(media_url),
+            "media_type": str(getattr(article, "media_type", "") or ""),
+        }
+
+    def _is_article_in_queue(self, article) -> bool:
+        return self._queue_index_for_article(article) is not None
+
+    def _queue_index_for_article(self, article):
+        if article is None:
+            return None
+        queue = self._get_play_queue()
+        aid = getattr(article, "id", None)
+        aid = str(aid) if aid is not None else None
+        media_url = str(getattr(article, "media_url", "") or "") or None
+        for i, entry in enumerate(queue):
+            try:
+                e_aid = str(entry.get("article_id") or "") or None
+                if aid is not None and e_aid == aid:
+                    return i
+                if media_url and str(entry.get("media_url") or "") == media_url:
+                    return i
+            except Exception:
+                continue
+        return None
+
+    def add_articles_to_queue(self, indices: list) -> None:
+        queue = self._get_play_queue()
+        existing = {self._queue_entry_key(e) for e in queue}
+        added = 0
+        for idx in indices or []:
+            if not (0 <= idx < len(self.current_articles)):
+                continue
+            article = self.current_articles[idx]
+            entry = self._article_queue_entry(article)
+            if not entry:
+                continue
+            key = self._queue_entry_key(entry)
+            if key and key in existing:
+                continue
+            queue.append(entry)
+            existing.add(key)
+            added += 1
+        if added:
+            self._save_play_queue(queue)
+            self._announce(
+                _("Added {count} to play queue ({total} queued).").format(count=added, total=len(queue))
+            )
+        else:
+            self._announce(_("Already in play queue."))
+
+    def remove_articles_from_queue(self, indices: list) -> None:
+        queue = self._get_play_queue()
+        remove_keys = set()
+        for idx in indices or []:
+            if 0 <= idx < len(self.current_articles):
+                entry = self._article_queue_entry(self.current_articles[idx])
+                if entry:
+                    remove_keys.add(self._queue_entry_key(entry))
+        if not remove_keys:
+            return
+        new_queue = [e for e in queue if self._queue_entry_key(e) not in remove_keys]
+        removed = len(queue) - len(new_queue)
+        if removed:
+            self._save_play_queue(new_queue)
+            self._current_queue_index = None
+            self._announce(
+                _("Removed {count} from play queue ({total} queued).").format(count=removed, total=len(new_queue))
+            )
+
+    # --- Queue controller interface (used by QueueDialog) ---
+
+    def get_play_queue(self) -> list:
+        return self._get_play_queue()
+
+    def remove_queue_indices(self, indices: list) -> None:
+        queue = self._get_play_queue()
+        drop = {int(i) for i in indices or [] if 0 <= int(i) < len(queue)}
+        if not drop:
+            return
+        self._save_play_queue([e for i, e in enumerate(queue) if i not in drop])
+        self._current_queue_index = None
+
+    def move_queue_item(self, index: int, delta: int) -> int:
+        queue = self._get_play_queue()
+        n = len(queue)
+        if not (0 <= index < n):
+            return index
+        target = index + int(delta)
+        if not (0 <= target < n):
+            return index
+        queue[index], queue[target] = queue[target], queue[index]
+        self._save_play_queue(queue)
+        return target
+
+    def clear_play_queue(self) -> None:
+        self._save_play_queue([])
+        self._current_queue_index = None
+
+    def play_queue_index(self, index: int) -> bool:
+        queue = self._get_play_queue()
+        if not (0 <= index < len(queue)):
+            return False
+        entry = queue[index]
+        media_url = str(entry.get("media_url") or "").strip()
+        if not media_url:
+            return False
+        pw = self._ensure_player_window()
+        if not pw:
+            return False
+        try:
+            pw.update_chapters([])
+        except Exception:
+            pass
+        try:
+            pw.load_media(
+                media_url,
+                bool(entry.get("use_ytdlp", False)),
+                [],
+                title=entry.get("title"),
+                article_id=entry.get("article_id"),
+            )
+        except Exception:
+            log.exception("Failed to play queue item")
+            return False
+        self._current_queue_index = int(index)
+        try:
+            if bool(self.config_manager.get("show_player_on_play", True)):
+                self.toggle_player_visibility(force_show=True)
+        except Exception:
+            pass
+        # Fetch chapters in the background (mirrors _open_article).
+        try:
+            threading.Thread(
+                target=self._fetch_chapters_for_player,
+                args=(entry.get("article_id"), media_url, entry.get("media_type")),
+                daemon=True,
+            ).start()
+        except Exception:
+            pass
+        return True
+
+    def _advance_play_queue(self) -> None:
+        idx = getattr(self, "_current_queue_index", None)
+        if idx is None:
+            return
+        queue = self._get_play_queue()
+        nxt = int(idx) + 1
+        if 0 <= nxt < len(queue):
+            self.play_queue_index(nxt)
+        else:
+            self._current_queue_index = None
+
+    def on_open_play_queue(self, event=None) -> None:
+        try:
+            from .dialogs import QueueDialog
+            dlg = QueueDialog(self, self)
+            dlg.ShowModal()
+            dlg.Destroy()
+        except Exception:
+            log.exception("Failed to open play queue dialog")
 
     def _article_cache_id(self, article) -> str | None:
         if not article:
@@ -8034,6 +8446,13 @@ class MainFrame(wx.Frame):
                 title=getattr(article, "title", None),
                 article_id=getattr(article, "id", None),
             )
+
+            # If this item is in the play queue, remember its position so that
+            # finishing it auto-advances to the next queued item.
+            try:
+                self._current_queue_index = self._queue_index_for_article(article)
+            except Exception:
+                self._current_queue_index = None
 
             if bool(self.config_manager.get("show_player_on_play", True)):
                 self.toggle_player_visibility(force_show=True)

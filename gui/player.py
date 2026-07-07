@@ -413,7 +413,7 @@ class CastDialog(wx.Dialog):
 
 class PlayerFrame(wx.Frame):
     def __init__(self, parent, config_manager):
-        super().__init__(parent, title=_("Audio Player"), size=(520, 260), style=wx.DEFAULT_FRAME_STYLE | wx.STAY_ON_TOP)
+        super().__init__(parent, title=_("Audio Player"), size=(520, 300), style=wx.DEFAULT_FRAME_STYLE | wx.STAY_ON_TOP)
         self.config_manager = config_manager
         
         # Casting
@@ -470,6 +470,15 @@ class PlayerFrame(wx.Frame):
         self._load_seq = 0
         self._active_load_seq = 0
         self.current_title = "No Track Loaded"
+
+        # Progress reporting to the main window (status bar) and queue
+        # auto-advance. The main frame assigns these; both are optional so the
+        # player works standalone.
+        self.playback_progress_listener = None
+        self.on_playback_finished = None
+        self._finished_fired_seq = None
+        self._last_time_info_text = None
+        self._last_progress_notify_ts = 0.0
 
         # Persistent playback resume (stored locally in SQLite, keyed by the input URL).
         self._resume_id = None
@@ -747,6 +756,13 @@ class PlayerFrame(wx.Frame):
                         cb(new_text)
                     except Exception:
                         pass
+            except Exception:
+                pass
+            # Push an immediate playback snapshot so the main window's status bar
+            # reflects Playing/Paused/Stopped/Buffering without waiting for the
+            # next timer tick.
+            try:
+                self._notify_playback_progress(force=True)
             except Exception:
                 pass
 
@@ -1806,6 +1822,18 @@ class PlayerFrame(wx.Frame):
         time_sizer.AddStretchSpacer()
         time_sizer.Add(self.total_time_lbl, 0, wx.RIGHT, 5)
         sizer.Add(time_sizer, 0, wx.EXPAND | wx.BOTTOM, 5)
+
+        # Tab-able, screen-reader-readable playback time summary. StaticText
+        # labels above are not in the tab order; this read-only field lets a
+        # blind user Tab to a single control that reports elapsed / remaining /
+        # total at once and updates while playing.
+        self.time_info_ctrl = wx.TextCtrl(
+            panel,
+            value=_("No media loaded"),
+            style=wx.TE_READONLY | wx.TE_CENTER,
+        )
+        self.time_info_ctrl.SetName(_("Playback Time"))
+        sizer.Add(self.time_info_ctrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
         
         # Controls
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -3732,6 +3760,13 @@ class PlayerFrame(wx.Frame):
         self.slider.SetValue(0)
         self._set_elapsed_time_label("00:00")
         self._set_total_time_label("00:00")
+        self._finished_fired_seq = None
+        self._last_time_info_text = None
+        try:
+            if getattr(self, "time_info_ctrl", None) is not None:
+                self.time_info_ctrl.ChangeValue(_("Loading media..."))
+        except Exception:
+            pass
         self.chapter_choice.Clear()
         self.chapter_choice.Disable()
         self.current_chapters = []
@@ -4050,6 +4085,11 @@ class PlayerFrame(wx.Frame):
             try:
                 if not getattr(self, '_is_dragging_slider', False):
                     self._set_elapsed_time_label(self._format_time(int(cast_cur)))
+                    self._update_time_info(int(cast_cur))
+            except Exception:
+                pass
+            try:
+                self._notify_playback_progress()
             except Exception:
                 pass
             try:
@@ -4485,6 +4525,16 @@ class PlayerFrame(wx.Frame):
         try:
             if not getattr(self, '_is_dragging_slider', False):
                 self._set_elapsed_time_label(self._format_time(int(ui_cur)))
+                self._update_time_info(int(ui_cur))
+        except Exception:
+            pass
+
+        try:
+            self._notify_playback_progress()
+        except Exception:
+            pass
+        try:
+            self._maybe_fire_playback_finished(state)
         except Exception:
             pass
 
@@ -4780,6 +4830,110 @@ class PlayerFrame(wx.Frame):
 
     def _set_total_time_label(self, value: str) -> None:
         self._set_named_value_label(self.total_time_lbl, "Total Time", value)
+
+    def _remaining_ms(self, position_ms: int) -> int | None:
+        try:
+            dur = int(getattr(self, "duration", 0) or 0)
+        except Exception:
+            dur = 0
+        if dur <= 0:
+            return None
+        try:
+            rem = int(dur) - int(position_ms or 0)
+        except Exception:
+            return None
+        return max(0, rem)
+
+    def _compose_time_info(self, position_ms: int) -> str:
+        """Build the elapsed / remaining / total summary string."""
+        elapsed = self._format_time(int(position_ms or 0))
+        remaining = self._remaining_ms(int(position_ms or 0))
+        if remaining is None:
+            # Live stream / unknown length.
+            return _("Elapsed {elapsed}").format(elapsed=elapsed)
+        total = self._format_time(int(getattr(self, "duration", 0) or 0))
+        return _("Elapsed {elapsed}, Remaining {remaining}, Total {total}").format(
+            elapsed=elapsed, remaining=self._format_time(int(remaining)), total=total
+        )
+
+    def _update_time_info(self, position_ms: int) -> None:
+        """Refresh the tab-able time control (no-op if unchanged)."""
+        try:
+            text = self._compose_time_info(int(position_ms or 0))
+        except Exception:
+            return
+        try:
+            if text == getattr(self, "_last_time_info_text", None):
+                return
+            ctrl = getattr(self, "time_info_ctrl", None)
+            if ctrl is not None:
+                # ChangeValue does not fire EVT_TEXT (avoids feedback loops) and
+                # does not reset the caret the way SetValue can.
+                ctrl.ChangeValue(text)
+            self._last_time_info_text = text
+        except Exception:
+            pass
+
+    def playback_progress_snapshot(self) -> dict:
+        """Return a small dict describing current playback for the main window."""
+        try:
+            pos = int(self._current_position_ms())
+        except Exception:
+            pos = 0
+        try:
+            dur = int(getattr(self, "duration", 0) or 0)
+        except Exception:
+            dur = 0
+        return {
+            "has_media": bool(self.has_media_loaded()),
+            "playing": bool(self.is_audio_playing()),
+            "state": str(getattr(self, "_status_text", "") or ""),
+            "title": str(getattr(self, "current_title", "") or ""),
+            "position_ms": int(pos),
+            "duration_ms": int(dur),
+            "remaining_ms": self._remaining_ms(pos),
+        }
+
+    def _notify_playback_progress(self, *, throttle: bool = True, force: bool = False) -> None:
+        cb = getattr(self, "playback_progress_listener", None)
+        if not callable(cb):
+            return
+        now = time.monotonic()
+        if throttle and not force:
+            try:
+                last = float(getattr(self, "_last_progress_notify_ts", 0.0) or 0.0)
+            except Exception:
+                last = 0.0
+            if (now - last) < 0.9:
+                return
+        self._last_progress_notify_ts = now
+        try:
+            cb(self.playback_progress_snapshot())
+        except Exception:
+            log.debug("playback progress listener failed", exc_info=True)
+
+    def _maybe_fire_playback_finished(self, state) -> None:
+        """Fire the finished callback once when media ends naturally."""
+        try:
+            if bool(getattr(self, "is_casting", False)):
+                return
+            if state != vlc.State.Ended:
+                return
+        except Exception:
+            return
+        seq = int(getattr(self, "_active_load_seq", 0) or 0)
+        if getattr(self, "_finished_fired_seq", None) == seq:
+            return
+        # Don't treat an end while an auto-resume seek is pending as completion.
+        if getattr(self, "_pending_resume_seek_ms", None) is not None:
+            return
+        self._finished_fired_seq = seq
+        cb = getattr(self, "on_playback_finished", None)
+        if callable(cb):
+            try:
+                wx.CallAfter(cb)
+            except Exception:
+                log.debug("on_playback_finished dispatch failed", exc_info=True)
 
     # ---------------------------------------------------------------------
     # Media control helpers
@@ -5694,6 +5848,7 @@ class PlayerFrame(wx.Frame):
             self.slider.SetValue(0)
             self._set_elapsed_time_label("00:00")
             self._set_total_time_label(self._format_time(self.duration) if self.duration else "00:00")
+            self._update_time_info(0)
         except Exception:
             pass
         self._stopped_needs_resume = True
@@ -5711,6 +5866,23 @@ class PlayerFrame(wx.Frame):
                     return
             except Exception:
                 pass
+
+        # Global play/pause (Ctrl+Space) and stop (Ctrl+Shift+Space) so the keys
+        # work anywhere in the player window, not just when a button has focus.
+        if (
+            key == wx.WXK_SPACE
+            and event.ControlDown()
+            and not event.AltDown()
+            and not event.MetaDown()
+        ):
+            try:
+                if event.ShiftDown():
+                    self.stop()
+                else:
+                    self.toggle_play_pause()
+                return
+            except Exception:
+                log.exception("Error handling player play/pause/stop shortcut")
 
         if event.ControlDown() and event.ShiftDown() and not event.AltDown() and not event.MetaDown():
             if key in (ord("L"), ord("l")):

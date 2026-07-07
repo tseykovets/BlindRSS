@@ -99,6 +99,45 @@ def get_playback_state(playback_id: str) -> Optional[PlaybackState]:
         conn.close()
 
 
+def get_all_playback_states() -> dict[str, PlaybackState]:
+    """Return every stored playback state keyed by id.
+
+    Used to annotate the article list with listened/remaining time without a
+    per-row query. The table is local and small (one row per played item), so a
+    single scan is cheap. Returns an empty dict if the table is locked/missing.
+    """
+    conn = get_connection()
+    try:
+        _configure_conn(conn)
+        c = conn.cursor()
+        c.execute(
+            "SELECT id, position_ms, duration_ms, updated_at, completed, seek_supported, title "
+            "FROM playback_state"
+        )
+        out: dict[str, PlaybackState] = {}
+        for row in c.fetchall():
+            try:
+                duration_ms = row[2]
+                seek_supported = row[5]
+                out[str(row[0])] = PlaybackState(
+                    id=str(row[0]),
+                    position_ms=int(row[1] or 0),
+                    duration_ms=(int(duration_ms) if duration_ms is not None else None),
+                    updated_at=int(row[3] or 0),
+                    completed=bool(row[4] or 0),
+                    seek_supported=(None if seek_supported is None else bool(int(seek_supported))),
+                    title=(str(row[6]) if row[6] is not None else None),
+                )
+            except Exception:
+                continue
+        return out
+    except sqlite3.Error as e:
+        LOG.debug("Could not read all playback_state rows: %s", e)
+        return {}
+    finally:
+        conn.close()
+
+
 def upsert_playback_state(
     playback_id: str,
     position_ms: int,

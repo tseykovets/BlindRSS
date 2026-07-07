@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.84.1 - 2026-07-07
+
+- App no longer freezes while preparing audio playback.
+
 ## v1.84.0 - 2026-07-06
 
 - Full Feedspot topic pages, Google News and Bing News feed search sources.

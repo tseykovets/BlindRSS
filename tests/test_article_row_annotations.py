@@ -68,6 +68,38 @@ def test_render_path_uses_memo_without_recompute():
     assert h._article_media_label(a) == label
 
 
+def test_preview_cache_survives_article_object_rebuilds():
+    """Refresh reload storms build NEW Article objects each cycle; the
+    second-level LRU (keyed by article id + content hash) must serve them
+    without re-parsing, or every refresh cycle costs ~1.5s of loader-thread
+    CPU and starves the UI via the GIL."""
+    h = _Host()
+    h._article_cache_id = lambda a: "id-1"
+
+    parses = []
+    orig_strip = _Host._strip_html
+    def counting_strip(self, html, include_images=None):
+        parses.append(1)
+        return orig_strip(self, html, include_images=include_images)
+    h._strip_html = counting_strip.__get__(h)
+
+    first = _Article()
+    h._precompute_article_row_annotations([first])
+    assert len(parses) == 1
+
+    # Same article id + identical content, but a brand-new object (as built by
+    # the next refresh cycle): must be a cache hit, not a re-parse.
+    rebuilt = _Article()
+    h._precompute_article_row_annotations([rebuilt])
+    assert len(parses) == 1
+    assert rebuilt._desc_preview_240 == first._desc_preview_240
+
+    # Changed content -> re-parse (cache key includes the content hash).
+    changed = _Article(description="<p>Different</p>")
+    h._precompute_article_row_annotations([changed])
+    assert len(parses) == 2
+
+
 def test_precompute_survives_broken_articles():
     h = _Host()
     class _Broken:

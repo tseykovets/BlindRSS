@@ -9,7 +9,7 @@ import os
 import re
 import logging
 import hashlib
-from collections import deque
+from collections import OrderedDict, deque
 from urllib.parse import urljoin, urlsplit
 from urllib.request import url2pathname
 from bs4 import BeautifulSoup
@@ -274,10 +274,34 @@ class MainFrame(wx.Frame):
                 self._critical_workers.discard(t)
 
     def _check_media_dependencies(self):
+        """Startup dependency check. The status scan MUST stay off the UI
+        thread: it walks PATH/Scoop/Chocolatey/portable layouts and may shell
+        out to winget — measured ~0.8s warm and multiple seconds on a cold
+        first launch, which froze the UI right when the user started
+        navigating (this fires via CallLater 4s after startup)."""
         try:
             if not bool(self.config_manager.get("prompt_missing_dependencies_on_startup", True)):
                 return
+            threading.Thread(
+                target=self._check_media_dependencies_worker,
+                daemon=True,
+                name="MediaDependencyCheck",
+            ).start()
+        except Exception as e:
+            log.error(f"Dependency check failed: {e}")
+
+    def _check_media_dependencies_worker(self):
+        try:
             missing_vlc, missing_ffmpeg, missing_ytdlp = dependency_check.check_media_tools_status()
+            if missing_vlc or missing_ffmpeg or missing_ytdlp:
+                wx.CallAfter(
+                    self._prompt_missing_dependencies, missing_vlc, missing_ffmpeg, missing_ytdlp
+                )
+        except Exception as e:
+            log.error(f"Dependency check failed: {e}")
+
+    def _prompt_missing_dependencies(self, missing_vlc, missing_ffmpeg, missing_ytdlp):
+        try:
             if missing_vlc or missing_ffmpeg or missing_ytdlp:
                 msg = "Missing recommended tools:\n"
                 if missing_vlc:
@@ -694,10 +718,36 @@ class MainFrame(wx.Frame):
         # 4000) and must NOT receive a 240-char truncation, so they bypass the
         # cache and compute their own length.
         cache_on_article = (article is not None and max_len == 240)
+        lru_key = None
         if cache_on_article:
             cached = getattr(article, "_desc_preview_240", None)
             if cached is not None:
                 return cached
+            # Second-level cache across Article object generations: every
+            # refresh/reload builds NEW Article objects, so during a refresh
+            # storm (each completing feed schedules a reload of the selected
+            # view) the per-object memo misses every cycle and the loader
+            # thread re-parses the whole page (~1.5s CPU per cycle — enough
+            # sustained GIL pressure to make the whole app feel frozen right
+            # after startup). Keyed by (article id, content hash) so identical
+            # content is never parsed twice; bounded LRU so evicted views
+            # don't pin memory.
+            try:
+                lru = self._desc_preview_lru
+            except AttributeError:
+                lru = self._desc_preview_lru = OrderedDict()
+            try:
+                lru_key = (self._article_cache_id(article), hash(self._raw_article_description(article)))
+                cached = lru.get(lru_key)
+                if cached is not None:
+                    lru.move_to_end(lru_key)
+                    try:
+                        article._desc_preview_240 = cached
+                    except Exception:
+                        pass
+                    return cached
+            except Exception:
+                lru_key = None
         try:
             text = self._article_description_text(article, include_images=False)
         except Exception:
@@ -713,6 +763,15 @@ class MainFrame(wx.Frame):
                 article._desc_preview_240 = result
             except Exception:
                 pass
+            if lru_key is not None:
+                try:
+                    lru = self._desc_preview_lru
+                    lru[lru_key] = result
+                    lru.move_to_end(lru_key)
+                    while len(lru) > 4096:
+                        lru.popitem(last=False)
+                except Exception:
+                    pass
         return result
 
     def _article_description_for_sort(self, article) -> str:

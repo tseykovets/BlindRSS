@@ -1776,15 +1776,21 @@ class MainFrame(wx.Frame):
         player_menu.AppendSeparator()
         # Playback speed submenu (feature: speed menu + shortcuts).
         speed_submenu = wx.Menu()
-        _shortcut_menu_append(
+        speed_up_item = _shortcut_menu_append(
             speed_submenu, "speed.up", _("Increase Speed"), _("Play faster"),
         )
-        _shortcut_menu_append(
+        speed_down_item = _shortcut_menu_append(
             speed_submenu, "speed.down", _("Decrease Speed"), _("Play slower"),
         )
-        _shortcut_menu_append(
+        speed_reset_item = _shortcut_menu_append(
             speed_submenu, "speed.reset", _("Normal Speed (1x)"), _("Reset to normal speed"),
         )
+        # These action items were never bound, so choosing Increase/Decrease/
+        # Normal Speed from the menu did nothing (the radio items below WERE
+        # bound). Bind them to the same handlers the keyboard shortcuts use.
+        self.Bind(wx.EVT_MENU, self.on_player_speed_up, speed_up_item)
+        self.Bind(wx.EVT_MENU, self.on_player_speed_down, speed_down_item)
+        self.Bind(wx.EVT_MENU, self.on_player_speed_reset, speed_reset_item)
         speed_submenu.AppendSeparator()
         self._speed_menu_items = {}
         for s in (0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0):
@@ -2393,11 +2399,14 @@ class MainFrame(wx.Frame):
     # Editable keyboard-shortcut registry
     # -----------------------------------------------------------------
 
-    # Commands suppressed while a text field is focused so they never hijack typing.
+    # Commands suppressed while a text field is focused so they never hijack
+    # typing. Speed up/down/reset are intentionally NOT here: their combos
+    # (e.g. Ctrl+Shift+brackets or comma/period) are not text-editing keys, and
+    # a user reading an article (`content_ctrl`) while listening needs to adjust
+    # speed — guarding them there made the speed shortcuts appear dead.
     _SHORTCUT_TEXT_GUARDED = frozenset({
         "player.play_pause", "player.stop",
         "queue.next", "queue.prev",
-        "speed.up", "speed.down", "speed.reset",
     })
 
     def _shortcut_handlers(self) -> dict:

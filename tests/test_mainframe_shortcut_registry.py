@@ -70,19 +70,30 @@ def test_default_binding_labels_and_map():
     assert h._shortcut_cmd_map["Ctrl+Shift+E"] == "player.equalizer"
 
 
+class _AnyAttr:
+    # Any handler-method lookup resolves to a placeholder so we can read the
+    # dispatch map's keys without a real MainFrame.
+    def __getattr__(self, name):
+        return lambda *a, **k: None
+
+
 def test_every_command_has_a_dispatch_handler():
     """Guard against adding a registry command without wiring its handler."""
     from core import shortcuts as sc
 
-    class _AnyAttr:
-        # Any handler-method lookup resolves to a placeholder so we can read
-        # the dispatch map's keys without a real MainFrame.
-        def __getattr__(self, name):
-            return lambda *a, **k: None
-
     mapped = set(mainframe.MainFrame._shortcut_handlers(_AnyAttr()).keys())
     for cmd in sc.iter_commands():
         assert cmd.id in mapped, f"no handler wired for {cmd.id}"
+
+
+def test_speed_shortcuts_dispatch_but_are_not_text_guarded():
+    """Speed keys must work even while a text control is focused (e.g. reading
+    an article while listening) — their combos can't hijack typing."""
+    guarded = mainframe.MainFrame._SHORTCUT_TEXT_GUARDED
+    mapped = mainframe.MainFrame._shortcut_handlers(_AnyAttr())
+    for cmd_id in ("speed.up", "speed.down", "speed.reset"):
+        assert cmd_id in mapped, f"{cmd_id} has no handler"
+        assert cmd_id not in guarded, f"{cmd_id} should not be text-guarded"
 
 
 def test_save_override_rebuilds_map_and_label():

@@ -6575,6 +6575,9 @@ class MainFrame(wx.Frame):
             # Ensure stable order (newest first)
             page = page or []
             page.sort(key=lambda a: (a.timestamp, self._article_cache_id(a)), reverse=True)
+            # Warm expensive per-row annotations here (loader thread), not in
+            # the UI render loop.
+            self._precompute_article_row_annotations(page)
 
             if not full_load:
                 wx.CallAfter(self._quick_merge_articles, page, request_id, feed_id)
@@ -7010,6 +7013,9 @@ class MainFrame(wx.Frame):
             page, total = self.provider.get_articles_page(feed_id, offset=offset, limit=page_size)
             page = page or []
             page.sort(key=lambda a: (a.timestamp, self._article_cache_id(a)), reverse=True)
+            # Warm expensive per-row annotations off the UI thread (see
+            # _precompute_article_row_annotations).
+            self._precompute_article_row_annotations(page)
             wx.CallAfter(self._after_load_more, page, total, request_id, page_size)
         except Exception as e:
             wx.CallAfter(self._load_more_failed, request_id, str(e))
@@ -9007,7 +9013,16 @@ class MainFrame(wx.Frame):
             pass
 
     def _article_media_label(self, article) -> str:
-        """Column text telling the user at a glance whether an article has media."""
+        """Column text telling the user at a glance whether an article has media.
+
+        Memoized on the Article object (same rationale/lifetime as
+        _article_description_preview's cache): the first computation may run
+        yt-dlp's extractor URL matching, which is too slow for the list-render
+        loop, so _precompute_article_row_annotations warms it off the UI thread.
+        """
+        cached = getattr(article, "_media_label_cached", None)
+        if cached is not None:
+            return cached
         try:
             # Skip the download-index/disk lookup here: it runs once per rendered
             # row, and any downloadable article already has a media/ytdlp URL that
@@ -9015,7 +9030,32 @@ class MainFrame(wx.Frame):
             has_media = bool(self._should_play_in_player(article, include_downloads=False))
         except Exception:
             has_media = False
-        return _(ARTICLE_MEDIA_YES) if has_media else _(ARTICLE_MEDIA_NO)
+        label = _(ARTICLE_MEDIA_YES) if has_media else _(ARTICLE_MEDIA_NO)
+        try:
+            article._media_label_cached = label
+        except Exception:
+            pass
+        return label
+
+    def _precompute_article_row_annotations(self, articles) -> None:
+        """Warm per-article row annotations OFF the UI thread.
+
+        First-time computation of the description preview (full HTML->text
+        parse) and the media label (yt-dlp extractor URL matching) measured
+        ~2.6ms/article on real data — over 1s of UI-thread time for a 400-row
+        page, spread across the wx.CallAfter render batches. That stall is
+        exactly the lag felt when arrowing onto a large category or tabbing
+        into the list while rows are still appending. Both helpers memoize on
+        the Article object, so after this runs on the loader thread the render
+        loop only reads precomputed strings. Safe off-thread: both paths are
+        pure string/URL work (no wx, no DB writes).
+        """
+        for article in list(articles or []):
+            try:
+                self._article_description_preview(article)
+                self._article_media_label(article)
+            except Exception:
+                continue
 
     def _should_play_in_player(self, article, include_downloads: bool = True):
         """Only treat bona-fide podcast/media items as playable; everything else opens in browser."""

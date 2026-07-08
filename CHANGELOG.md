@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.90.7 - 2026-07-08
+
+- Maintenance update.
+
 ## v1.90.6 - 2026-07-08
 
 - Startup hang (Not Responding) â€” deferred list restore livelocked the event loop.

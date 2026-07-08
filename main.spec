@@ -74,12 +74,20 @@ version_info = VSVersionInfo(
 vlc_path = r'C:\Program Files\VideoLAN\VLC'
 bin_path = os.path.join(os.getcwd(), 'bin')
 
-# Exhaustive collection of dependencies as mentioned in agents.md
+# Packages whose data files / dynamic imports PyInstaller's analysis can miss.
+# Audited 2026-07-08: every entry is either imported directly by the app
+# (casting: pyatv/pychromecast/async_upnp_client; extraction: trafilatura,
+# yt_dlp; transport: curl_cffi) or an installed transitive dependency of one
+# (aiohttp/zeroconf/pydantic <- casting stack; lxml/soupsieve <- parsers;
+# sgmllib <- feedparser; six <- html5lib; defusedxml/didl_lite/ifaddr <-
+# async_upnp_client/zeroconf; certifi <- TLS in frozen builds). Dropped dead
+# entries that were never installed and never imported: readability,
+# xmltodict, langcodes, language_data.
 packages_to_collect = [
-    'pyatv', 'pychromecast', 'async_upnp_client', 'trafilatura', 
-    'yt_dlp', 'aiohttp', 'zeroconf', 'pydantic', 'lxml', 
-    'readability', 'sgmllib', 'six', 'soupsieve', 'xmltodict', 
-    'defusedxml', 'didl_lite', 'ifaddr', 'langcodes', 'language_data',
+    'pyatv', 'pychromecast', 'async_upnp_client', 'trafilatura',
+    'yt_dlp', 'aiohttp', 'zeroconf', 'pydantic', 'lxml',
+    'sgmllib', 'six', 'soupsieve',
+    'defusedxml', 'didl_lite', 'ifaddr',
     'certifi', 'curl_cffi'
 ]
 

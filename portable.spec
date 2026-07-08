@@ -13,6 +13,9 @@ ROOT = Path(os.getcwd())
 BIN_DIR = ROOT / "bin"
 PLATFORM = sys.platform
 
+# Keep in sync with main.spec (see the audit note there): direct imports plus
+# installed transitive deps whose data files collect_all protects. Dead
+# entries removed 2026-07-08: readability, xmltodict, langcodes, language_data.
 packages_to_collect = [
     "pyatv",
     "pychromecast",
@@ -23,16 +26,12 @@ packages_to_collect = [
     "zeroconf",
     "pydantic",
     "lxml",
-    "readability",
     "sgmllib",
     "six",
     "soupsieve",
-    "xmltodict",
     "defusedxml",
     "didl_lite",
     "ifaddr",
-    "langcodes",
-    "language_data",
     "certifi",
     "curl_cffi",
 ]

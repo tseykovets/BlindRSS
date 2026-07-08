@@ -31,6 +31,7 @@ COMMANDS: List[Command] = [
     Command("player.play_pause", "Player", "Play/Pause", "Ctrl+P"),
     Command("player.stop", "Player", "Stop", "Ctrl+S"),
     Command("player.show_hide", "Player", "Show/Hide Player", "Ctrl+Shift+P"),
+    Command("player.equalizer", "Player", "Open Equalizer", "Ctrl+Shift+E"),
 
     Command("queue.open", "Play Queue", "Open Play Queue", "Ctrl+Shift+C"),
     Command("queue.next", "Play Queue", "Play Next in Queue", "Ctrl+Shift+T"),

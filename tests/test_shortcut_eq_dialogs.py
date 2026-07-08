@@ -100,3 +100,29 @@ def test_equalizer_dialog_enable_and_adjust(app):
             dlg.Destroy()
     finally:
         parent.Destroy()
+
+
+def test_equalizer_sliders_are_labeled_for_screen_readers(app):
+    """Each slider must carry a meaningful accessible name (not a value)."""
+    parent = wx.Frame(None)
+    try:
+        player = _EqPlayer()
+        dlg = EqualizerDialog(parent, player)
+        try:
+            # Preamp + the first band read as their labels, never a bare number.
+            assert dlg.preamp_slider.GetName() == "Preamp"
+            for s in dlg.band_sliders:
+                name = s.GetName()
+                assert name and not name.strip().lstrip("+-").isdigit()
+
+            # The custom accessible reports the value in dB, signed.
+            acc = getattr(dlg.band_sliders[0], "_acc", None)
+            if acc is not None:
+                dlg.band_sliders[0].SetValue(3)
+                assert acc.GetValue(wx.ACC_SELF)[1] == "+3 dB"
+                dlg.band_sliders[0].SetValue(0)
+                assert acc.GetValue(wx.ACC_SELF)[1] == "0 dB"
+        finally:
+            dlg.Destroy()
+    finally:
+        parent.Destroy()

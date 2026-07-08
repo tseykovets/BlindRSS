@@ -1751,8 +1751,9 @@ class MainFrame(wx.Frame):
         self._speed_submenu = speed_submenu
         player_menu.AppendSubMenu(speed_submenu, _("Playback &Speed"))
         # Equalizer (feature: equalizer).
-        player_equalizer_item = player_menu.Append(
-            wx.ID_ANY, _("&Equalizer..."), _("Adjust the audio equalizer"),
+        player_equalizer_item = _shortcut_menu_append(
+            player_menu, "player.equalizer", _("&Equalizer..."),
+            _("Adjust the audio equalizer"),
         )
         player_menu.AppendSeparator()
         # NOTE: Do not use '\tCtrl+...' menu accelerators here.
@@ -2361,6 +2362,7 @@ class MainFrame(wx.Frame):
             "player.play_pause": self.on_player_play_pause,
             "player.stop": self.on_player_stop,
             "player.show_hide": self.on_show_player,
+            "player.equalizer": self.on_open_equalizer,
             "queue.open": self.on_open_play_queue,
             "queue.next": self.on_play_queue_next,
             "queue.prev": self.on_play_queue_prev,

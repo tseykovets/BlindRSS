@@ -64,8 +64,25 @@ def test_default_binding_labels_and_map():
     h = _Host()
     assert h.binding_label("player.play_pause") == "Ctrl+P"
     assert h.binding_label("player.stop") == "Ctrl+S"
+    assert h.binding_label("player.equalizer") == "Ctrl+Shift+E"
     assert h._shortcut_cmd_map["Ctrl+P"] == "player.play_pause"
     assert h._shortcut_cmd_map["Ctrl+Shift+C"] == "queue.open"
+    assert h._shortcut_cmd_map["Ctrl+Shift+E"] == "player.equalizer"
+
+
+def test_every_command_has_a_dispatch_handler():
+    """Guard against adding a registry command without wiring its handler."""
+    from core import shortcuts as sc
+
+    class _AnyAttr:
+        # Any handler-method lookup resolves to a placeholder so we can read
+        # the dispatch map's keys without a real MainFrame.
+        def __getattr__(self, name):
+            return lambda *a, **k: None
+
+    mapped = set(mainframe.MainFrame._shortcut_handlers(_AnyAttr()).keys())
+    for cmd in sc.iter_commands():
+        assert cmd.id in mapped, f"no handler wired for {cmd.id}"
 
 
 def test_save_override_rebuilds_map_and_label():

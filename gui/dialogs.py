@@ -6151,6 +6151,34 @@ class KeyboardShortcutsDialog(wx.Dialog):
         self.list_ctrl.SetFocus()
 
 
+class _EqSliderAccessible(wx.Accessible):
+    """Accessible object for an equalizer slider.
+
+    Reports a stable, meaningful name (e.g. "60 Hz") and a value in the
+    control's real units ("+3 dB") instead of NVDA's default percentage of
+    the -20..20 range (which reads 0 dB as a confusing "50").
+    """
+
+    def __init__(self, slider: "wx.Slider", label_text: str):
+        super().__init__(slider)
+        self._slider = slider
+        self._label = label_text
+
+    def GetName(self, childId):
+        return (wx.ACC_OK, self._label)
+
+    def GetRole(self, childId):
+        return (wx.ACC_OK, wx.ROLE_SYSTEM_SLIDER)
+
+    def GetValue(self, childId):
+        try:
+            v = int(round(self._slider.GetValue()))
+        except Exception:
+            return (wx.ACC_NOT_IMPLEMENTED, "")
+        sign = "+" if v > 0 else ""
+        return (wx.ACC_OK, _("{sign}{v} dB").format(sign=sign, v=v))
+
+
 class EqualizerDialog(wx.Dialog):
     """10-band graphic equalizer for the media player.
 
@@ -6225,15 +6253,24 @@ class EqualizerDialog(wx.Dialog):
     def _make_slider(self, grid, label_text: str, value: float) -> wx.Slider:
         lbl = wx.StaticText(self, label=label_text)
         grid.Add(lbl, 0, wx.ALIGN_CENTER_VERTICAL)
+        # NOTE: no wx.SL_LABELS. On Windows that style builds a composite
+        # control with value-label children, and NVDA reads a child "0" label
+        # as the slider's name instead of the name set below.
         slider = wx.Slider(
             self,
             value=int(round(float(value))),
             minValue=int(equalizer_mod.AMP_MIN),
             maxValue=int(equalizer_mod.AMP_MAX),
-            style=wx.SL_HORIZONTAL | wx.SL_LABELS,
+            style=wx.SL_HORIZONTAL,
         )
-        # Screen readers read the accessible name; include units for clarity.
-        slider.SetName(_("{label} decibels").format(label=label_text))
+        # Fallback accessible name (used if SetAccessible is unavailable).
+        slider.SetName(label_text)
+        # Preferred: report a real name and a dB value to screen readers.
+        try:
+            slider._acc = _EqSliderAccessible(slider, label_text)
+            slider.SetAccessible(slider._acc)
+        except Exception:
+            log.debug("SetAccessible unavailable for equalizer slider", exc_info=True)
         slider.Bind(wx.EVT_SLIDER, self.on_slider)
         grid.Add(slider, 1, wx.EXPAND)
         return slider

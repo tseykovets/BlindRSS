@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.89.0 - 2026-07-08
+
+- EQ presets + correct band labels, media filter, queue play/pause, Ctrl+P fix.
+
 ## v1.88.0 - 2026-07-08
 
 - Editable Equalizer shortcut and NVDA-labeled equalizer sliders.

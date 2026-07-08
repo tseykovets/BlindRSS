@@ -4,6 +4,12 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.90.5 - 2026-07-08
+
+- Zero warnings in the test run and the release build.
+- MacRumors full text merged the next article into the current one.
+- Startup freeze/lag â€” dependency scan off the UI thread, preview cache across refresh reloads.
+
 ## v1.90.4 - 2026-07-08
 
 - Tree expand/collapse felt laggy during large-category loads; keep the UI thread responsive.

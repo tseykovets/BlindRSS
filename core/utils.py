@@ -378,10 +378,11 @@ TZINFOS = {
 }
 
 
-def build_playback_speeds(start: float = 0.5, stop: float = 4.0, step: float = 0.12):
+def build_playback_speeds(start: float = 0.5, stop: float = 4.0, step: float = 0.1):
     """
     Generate a list of playback speeds rounded to 2 decimals, inclusive of bounds.
-    Default range: 0.50x .. 4.00x in 0.12 increments (VLC-safe window).
+    Default range: 0.50x .. 4.00x in even 0.1 increments, so stepping reads
+    smoothly (1.1x, 1.2x, ...) instead of the old 0.12 grid (1.1x, 1.22x, 1.34x).
     """
     speeds = []
     val = round(start, 2)

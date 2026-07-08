@@ -137,6 +137,16 @@ def test_queue_step_empty_announces():
     assert h.announcements  # announced empty
 
 
+def test_playback_speeds_are_uniform_tenths():
+    """Speed stepping must feel smooth: even 0.1 increments, exact 1.0, no
+    oddball values like 1.22 (the old 0.12 grid)."""
+    speeds = utils.build_playback_speeds()
+    assert 1.0 in speeds
+    assert speeds[0] == 0.5 and speeds[-1] == 4.0
+    diffs = {round(b - a, 2) for a, b in zip(speeds, speeds[1:])}
+    assert diffs == {0.1}
+
+
 def test_nudge_playback_speed_persists_when_no_player():
     h = _Host({"playback_speed": 1.0})
     speeds = utils.build_playback_speeds()

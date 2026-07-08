@@ -43,7 +43,12 @@ def _build_args(config_manager) -> tuple:
     return build_vlc_instance_args(
         "--no-video",
         "--input-fast-seek",
-        "--aout=directsound",
+        # WASAPI, not directsound: with --aout=directsound every set_rate()
+        # (playback-speed change) drained/rebuilt the output, silencing audio
+        # for 0.2-3s per step (measured via session-peak metering; mmdevice
+        # measured gapless). mmdevice is also what apply_preferred_soundcard()
+        # already switches to for endpoint selection.
+        "--aout=mmdevice",
         # libvlc drops audio_set_volume until the audio output exists,
         # and the output is only created once the stream actually
         # produces audio. Seed the output modules' startup volume so

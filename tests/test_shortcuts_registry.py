@@ -35,6 +35,11 @@ def test_default_bindings_present():
     assert d["queue.open"] == "Ctrl+Shift+C"
     assert d["queue.next"] == "Ctrl+Shift+T"
     assert d["queue.prev"] == "Ctrl+Shift+V"
+    # Letters on purpose: Ctrl+Shift+./,/0 get eaten system-wide by NVDA
+    # add-on gestures and Windows input-language hotkeys (see core.shortcuts).
+    assert d["speed.up"] == "Ctrl+Shift+U"
+    assert d["speed.down"] == "Ctrl+Shift+D"
+    assert d["speed.reset"] == "Ctrl+Shift+N"
     # every command resolves to a non-empty default
     assert all(v for v in d.values())
 

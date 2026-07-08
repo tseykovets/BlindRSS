@@ -37,9 +37,15 @@ COMMANDS: List[Command] = [
     Command("queue.next", "Play Queue", "Play Next in Queue", "Ctrl+Shift+T"),
     Command("queue.prev", "Play Queue", "Play Previous in Queue", "Ctrl+Shift+V"),
 
-    Command("speed.up", "Playback Speed", "Increase Playback Speed", "Ctrl+Shift+."),
-    Command("speed.down", "Playback Speed", "Decrease Playback Speed", "Ctrl+Shift+,"),
-    Command("speed.reset", "Playback Speed", "Reset Playback Speed (1x)", "Ctrl+Shift+0"),
+    # Speed defaults are letters, not punctuation/digits: Ctrl+Shift+. is a
+    # popular NVDA add-on gesture (e.g. windowsOfProcess "switch process") and
+    # Windows registers Ctrl+Shift+<digit> as input-language direct-switch
+    # hotkeys ("Ctrl+Shift+0 does nothing" is a classic) — both are consumed
+    # system-wide before any app sees the key, so those combos can be dead on a
+    # user's machine while the same handlers work fine from the menu.
+    Command("speed.up", "Playback Speed", "Increase Playback Speed", "Ctrl+Shift+U"),
+    Command("speed.down", "Playback Speed", "Decrease Playback Speed", "Ctrl+Shift+D"),
+    Command("speed.reset", "Playback Speed", "Reset Playback Speed (1x)", "Ctrl+Shift+N"),
 ]
 
 _COMMANDS_BY_ID: "OrderedDict[str, Command]" = OrderedDict((c.id, c) for c in COMMANDS)

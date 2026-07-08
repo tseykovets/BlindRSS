@@ -68,6 +68,9 @@ def test_default_binding_labels_and_map():
     assert h._shortcut_cmd_map["Ctrl+P"] == "player.play_pause"
     assert h._shortcut_cmd_map["Ctrl+Shift+C"] == "queue.open"
     assert h._shortcut_cmd_map["Ctrl+Shift+E"] == "player.equalizer"
+    assert h._shortcut_cmd_map["Ctrl+Shift+U"] == "speed.up"
+    assert h._shortcut_cmd_map["Ctrl+Shift+D"] == "speed.down"
+    assert h._shortcut_cmd_map["Ctrl+Shift+N"] == "speed.reset"
 
 
 class _AnyAttr:

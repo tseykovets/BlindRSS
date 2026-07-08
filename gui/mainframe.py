@@ -1085,11 +1085,20 @@ class MainFrame(wx.Frame):
         must run only after every row exists. While _render_articles_batch is still
         appending rows (inflight), re-queue the restore so it runs once the list is
         complete instead of acting on a partially rendered list.
+
+        MUST re-queue via wx.CallLater, never wx.CallAfter: the render batches
+        advance on wx.CallLater timers, and on wxMSW a CallAfter that re-posts
+        itself keeps the posted-event queue permanently non-empty, which starves
+        timer dispatch entirely. The result was a livelock — the batch timer
+        never fired, _article_render_inflight never cleared, and this restore
+        re-posted itself at 100% duty cycle until Windows flagged the app as
+        Not Responding (the v1.90.4/5 startup freeze, caught live by py-spy:
+        main thread forever inside _restore_list_view -> CallAfter).
         """
         if not getattr(self, "_article_render_inflight", False):
             return False
         try:
-            wx.CallAfter(fn)
+            wx.CallLater(15, fn)
         except Exception:
             return False
         return True

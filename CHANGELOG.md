@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.90.2 - 2026-07-08
+
+- Speed shortcuts never fired â€” default combos are eaten system-wide; use Ctrl+Shift+U/D/N.
+
 ## v1.90.1 - 2026-07-08
 
 - Playback-speed menu items did nothing; speed keys blocked while reading.

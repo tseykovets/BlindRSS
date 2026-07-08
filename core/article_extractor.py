@@ -1138,6 +1138,18 @@ def _extract_text_any(html: str, url: str = "") -> str:
     return _normalize_whitespace(txt)
 
 
+# Next-STORY navigation (a different article, not page 2 of this one). News sites mark these
+# in anchor text ("Next Story"), classes, aria-labels, or data-* attributes — e.g. MacRumors
+# uses data-track="next-article" on its next-article teaser.
+_NEXT_STORY_NAV_RE = re.compile(r"next[\s_-]*(?:stor(?:y|ies)|articles?|posts?|read|up)\b")
+
+# A genuine pagination control is a SHORT label ("Next", "Next Page", "Older", "Next »"...),
+# never a full headline. Matching "next" as a substring anywhere in the anchor text made any
+# next-story teaser whose headline contains "Next" (e.g. "Next Year's iPhone Air 2 to Feature
+# Four Key Upgrades") look like pagination, merging an unrelated article into this one.
+_PAGINATION_LABEL_RE = re.compile(r"(?:next|older)(?:\s+(?:page|pages|entries))?\s*(?:[›»>]+)?")
+
+
 def _find_next_page(html: str, base_url: str) -> Optional[str]:
     """Return absolute next-page URL if present, else None."""
     if not html:
@@ -1182,13 +1194,20 @@ def _find_next_page(html: str, base_url: str) -> Optional[str]:
             text = (tag.get_text(" ", strip=True) or "").lower()
             cls = " ".join(tag.get("class") or []).lower()
             aria = (tag.get("aria-label") or "").lower()
-            
-            # Avoid "Next Story", "Next Article" which are common on news sites
-            if "next story" in text or "next article" in text:
+
+            # Avoid "Next Story"/"Next Article"/"Next Post" navigation, common on news
+            # sites: the target is a DIFFERENT article. The marker can live in the text,
+            # class, aria-label, or a data-* attribute (MacRumors: data-track="next-article").
+            data_attrs = " ".join(
+                " ".join(v) if isinstance(v, (list, tuple)) else str(v)
+                for k, v in (tag.attrs or {}).items()
+                if isinstance(k, str) and k.startswith("data-")
+            ).lower()
+            if _NEXT_STORY_NAV_RE.search(" ".join((text, cls, aria, data_attrs))):
                 continue
-                
+
             if (
-                any(k in text for k in ("next", "older", "next page"))
+                _PAGINATION_LABEL_RE.fullmatch(text)
                 or text in (">", ">>", "›", "»")
                 or "next" in cls
                 or aria.startswith("next")

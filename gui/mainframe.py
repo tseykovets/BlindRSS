@@ -4688,12 +4688,25 @@ class MainFrame(wx.Frame):
         if not media_url:
             return None
         aid = getattr(article, "id", None)
+        # Remember the source feed so a long queue stays readable — otherwise
+        # only the item title shows and it's easy to forget which feed it's from.
+        feed_id = getattr(article, "feed_id", None)
+        feed_title = ""
+        try:
+            if feed_id:
+                feed = self.feed_map.get(feed_id)
+                if feed:
+                    feed_title = feed.title or ""
+        except Exception:
+            feed_title = ""
         return {
             "article_id": (str(aid) if aid is not None else None),
             "media_url": str(media_url),
             "use_ytdlp": bool(use_ytdlp),
             "title": str(getattr(article, "title", "") or "") or str(media_url),
             "media_type": str(getattr(article, "media_type", "") or ""),
+            "feed_id": (str(feed_id) if feed_id else ""),
+            "feed_title": str(feed_title or ""),
         }
 
     def _is_article_in_queue(self, article) -> bool:
@@ -4832,6 +4845,23 @@ class MainFrame(wx.Frame):
         except Exception:
             pass
         return True
+
+    def queue_entry_source(self, entry) -> str:
+        """Human-readable source feed for a queue entry, or '' if unknown."""
+        if not isinstance(entry, dict):
+            return ""
+        title = str(entry.get("feed_title") or "").strip()
+        if title:
+            return title
+        fid = str(entry.get("feed_id") or "").strip()
+        if fid:
+            try:
+                feed = self.feed_map.get(fid)
+                if feed:
+                    return str(feed.title or "").strip()
+            except Exception:
+                pass
+        return ""
 
     def queue_entry_is_current(self, index: int) -> bool:
         """True when the queue item at `index` is the media loaded in the player."""

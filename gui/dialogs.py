@@ -5833,12 +5833,28 @@ class QueueDialog(wx.Dialog):
         except Exception:
             return []
 
+    def _entry_source(self, entry) -> str:
+        try:
+            fn = getattr(self.controller, "queue_entry_source", None)
+            if callable(fn):
+                return str(fn(entry) or "").strip()
+        except Exception:
+            pass
+        return str((entry or {}).get("feed_title") or "").strip()
+
     def _reload(self, select: int | None = None) -> None:
         entries = self._entries()
         self.list_box.Clear()
         for i, entry in enumerate(entries):
             title = str((entry or {}).get("title") or "").strip() or _("Untitled")
-            self.list_box.Append(_("{index}. {title}").format(index=i + 1, title=title))
+            source = self._entry_source(entry)
+            if source:
+                label = _("{index}. {title}, from {source}").format(
+                    index=i + 1, title=title, source=source
+                )
+            else:
+                label = _("{index}. {title}").format(index=i + 1, title=title)
+            self.list_box.Append(label)
         if entries:
             self.info_lbl.SetLabel(_("{count} item(s) in queue.").format(count=len(entries)))
             if select is None:

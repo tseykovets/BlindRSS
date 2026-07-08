@@ -128,3 +128,33 @@ def test_no_player_means_not_current():
     host = _QHost(_QUEUE, None)
     assert host.queue_entry_is_current(0) is False
     assert host.queue_entry_is_playing(0) is False
+
+
+# --------------------------------------------------------------------------
+# Queue entry source (feed) resolution
+# --------------------------------------------------------------------------
+
+class _Feed:
+    def __init__(self, title):
+        self.title = title
+
+
+class _SourceHost:
+    queue_entry_source = mainframe.MainFrame.queue_entry_source
+
+    def __init__(self, feed_map):
+        self.feed_map = feed_map
+
+
+def test_queue_entry_source_prefers_stored_feed_title():
+    h = _SourceHost({})
+    assert h.queue_entry_source({"feed_title": "The Daily"}) == "The Daily"
+
+
+def test_queue_entry_source_resolves_from_feed_id():
+    h = _SourceHost({"f1": _Feed("Radiolab")})
+    # Falls back to feed_id lookup when no stored title (older queue entries).
+    assert h.queue_entry_source({"feed_id": "f1"}) == "Radiolab"
+    assert h.queue_entry_source({"feed_id": "missing"}) == ""
+    assert h.queue_entry_source({}) == ""
+    assert h.queue_entry_source("not-a-dict") == ""

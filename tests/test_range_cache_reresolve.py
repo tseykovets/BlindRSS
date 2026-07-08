@@ -128,6 +128,7 @@ def test_fetch_range_reresolves_expired_signed_url():
             assert data == _BODY[1_000_000:1_000_011]
     finally:
         server.shutdown()
+        server.server_close()  # shutdown() alone leaks the listening socket
 
 
 def test_refresh_real_url_updates_from_original():
@@ -147,3 +148,4 @@ def test_refresh_real_url_updates_from_original():
             assert ent.real_url and ent.real_url != first
     finally:
         server.shutdown()
+        server.server_close()  # shutdown() alone leaks the listening socket

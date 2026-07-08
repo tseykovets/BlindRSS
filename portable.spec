@@ -4,9 +4,27 @@ import glob
 import importlib.util
 import os
 import sys
+import warnings
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all
+
+# Build-time warning hygiene (keep in sync with the audit note in main.spec):
+# pydantic's V1 shim warns on Python >= 3.14 (pyatv still needs it) and
+# webrtcvad imports the deprecated pkg_resources API. Both fire while
+# PyInstaller imports packages to scan them and are not fixable here.
+_BUILD_WARNING_IGNORES = (
+    "Core Pydantic V1 functionality",
+    "pkg_resources is deprecated as an API",
+)
+for _msg in _BUILD_WARNING_IGNORES:
+    warnings.filterwarnings("ignore", message=_msg, category=UserWarning)
+# Isolated hook-scan subprocesses only see env-level filters (literal prefix
+# matches). Build-time env only; nothing leaks into the frozen app.
+_pythonwarnings = [f"ignore:{_msg}:UserWarning" for _msg in _BUILD_WARNING_IGNORES]
+if os.environ.get("PYTHONWARNINGS"):
+    _pythonwarnings.insert(0, os.environ["PYTHONWARNINGS"])
+os.environ["PYTHONWARNINGS"] = ",".join(_pythonwarnings)
 
 
 ROOT = Path(os.getcwd())

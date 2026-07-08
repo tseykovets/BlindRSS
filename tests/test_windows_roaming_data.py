@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import sqlite3
@@ -141,7 +142,9 @@ def test_database_migration_uses_sqlite_backup_and_preserves_legacy_source(
     assert os.path.abspath(migrated_path) == os.path.abspath(
         user_dir / "rss.db"
     )
-    with sqlite3.connect(target) as conn:
+    # closing(): "with sqlite3.connect(...)" alone only ends the transaction
+    # and leaks the connection (ResourceWarning: unclosed database).
+    with contextlib.closing(sqlite3.connect(target)) as conn:
         assert conn.execute("SELECT value FROM migrated").fetchone()[0] == "from-wal"
     assert source.is_file()
 
@@ -260,7 +263,9 @@ def test_backup_database_copies_committed_rows(tmp_path):
 
     db_mod._backup_database(str(source), str(target))
 
-    with sqlite3.connect(target) as conn:
+    # closing(): "with sqlite3.connect(...)" alone only ends the transaction
+    # and leaks the connection (ResourceWarning: unclosed database).
+    with contextlib.closing(sqlite3.connect(target)) as conn:
         assert conn.execute("SELECT v FROM t").fetchone()[0] == "hello"
     # The temp staging file is renamed into place, never left behind.
     assert not list((tmp_path / "nested").glob("*.migrating-*"))

@@ -352,18 +352,21 @@ def scan_audio_for_silence(
             except Exception:
                 preexec_fn = None
 
+    use_vad = (detection_mode == "vad")
+    if use_vad and webrtcvad is None:
+        # Check before spawning ffmpeg: raising after Popen leaked a running
+        # child process (ResourceWarning: subprocess ... is still running).
+        raise RuntimeError("webrtcvad not available; install the webrtcvad package")
+
     proc = subprocess.Popen(
-        cmd, 
-        stdout=subprocess.PIPE, 
+        cmd,
+        stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         stdin=subprocess.DEVNULL,
         creationflags=creationflags,
         startupinfo=startupinfo,
         preexec_fn=preexec_fn,
     )
-    use_vad = (detection_mode == "vad")
-    if use_vad and webrtcvad is None:
-        raise RuntimeError("webrtcvad not available; install the webrtcvad package")
 
     detector = None
     if not use_vad:
@@ -423,6 +426,17 @@ def scan_audio_for_silence(
             proc.kill()
             proc.wait()
     finally:
+        # Always reap the child: an exception above (decode error, VAD
+        # failure, ...) previously left ffmpeg running and its Popen
+        # unwaited, which surfaces as "ResourceWarning: subprocess ... is
+        # still running" at garbage collection. No-op on the normal path
+        # (proc.wait already ran).
+        try:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=5)
+        except Exception:
+            pass
         try:
             if proc.stdout:
                 proc.stdout.close()

@@ -6,6 +6,14 @@ import pytest
 from core import db
 from core import metadata_enrich as me
 
+# mf2py (pulled in by extruct) calls codecs.open(), deprecated by Python 3.14.
+# Third-party, not fixable here. pytest.ini already ignores it, but a plain
+# "-W default" on the command line outranks ini filters -- this mark outranks
+# the command line, keeping ad-hoc "-W default" runs warning-free too.
+pytestmark = pytest.mark.filterwarnings(
+    r"ignore:codecs\.open\(\) is deprecated:DeprecationWarning:mf2py\.backcompat"
+)
+
 
 JSONLD_HTML = """
 <html><head>

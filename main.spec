@@ -3,8 +3,34 @@
 import os
 import re
 import sys
+import warnings
 import importlib.util
 from PyInstaller.utils.hooks import collect_all
+
+# Build-time warning hygiene (keep in sync with portable.spec). These
+# UserWarnings fire while PyInstaller imports third-party packages to scan
+# them; neither is fixable in this repo and neither affects the app at
+# runtime:
+# - pydantic (transitive dep of the pyatv casting stack) warns that its
+#   bundled V1 compat shim is unsupported on Python >= 3.14. pyatv still uses
+#   the V1 API, so pydantic.v1 must stay in the bundle.
+# - webrtcvad imports the deprecated pkg_resources API (already filtered for
+#   the test suite in pytest.ini).
+_BUILD_WARNING_IGNORES = (
+    "Core Pydantic V1 functionality",
+    "pkg_resources is deprecated as an API",
+)
+for _msg in _BUILD_WARNING_IGNORES:
+    # Filter this (spec/Analysis) process; `message` is a regex matched at the
+    # start of the warning text -- these literals contain no regex chars.
+    warnings.filterwarnings("ignore", message=_msg, category=UserWarning)
+# PyInstaller also imports packages in isolated subprocesses (hook scans),
+# which only see env-level filters. PYTHONWARNINGS message fields are literal
+# prefix matches. Build-time env only; nothing leaks into the frozen app.
+_pythonwarnings = [f"ignore:{_msg}:UserWarning" for _msg in _BUILD_WARNING_IGNORES]
+if os.environ.get("PYTHONWARNINGS"):
+    _pythonwarnings.insert(0, os.environ["PYTHONWARNINGS"])
+os.environ["PYTHONWARNINGS"] = ",".join(_pythonwarnings)
 from PyInstaller.utils.win32.versioninfo import (
     VSVersionInfo,
     FixedFileInfo,

@@ -55,8 +55,12 @@ def _system_languages() -> list:
         try:
             import ctypes
 
-            windll = ctypes.windll.kernel32
-            lcid = windll.GetUserDefaultUILanguage()
+            # Note: do not name this local "windll" -- PyInstaller's ctypes
+            # bytecode scanner treats `windll.X` as loading "X.dll" and warns
+            # "Library GetUserDefaultUILanguage.dll required via ctypes not
+            # found" at build time.
+            kernel32 = ctypes.windll.kernel32
+            lcid = kernel32.GetUserDefaultUILanguage()
             name = locale.windows_locale.get(lcid)
             if name:
                 languages.append(name)

@@ -4751,6 +4751,65 @@ class PlayerFrame(wx.Frame):
         except Exception:
             log.exception("Failed to apply equalizer")
 
+    def get_equalizer_band_frequencies(self) -> list:
+        """Actual libVLC band center frequencies (Hz), for accurate slider labels.
+
+        Queries libVLC so the labels match what the engine really filters; falls
+        back to the documented constants if the API is unavailable.
+        """
+        try:
+            n = int(vlc.libvlc_audio_equalizer_get_band_count())
+            freqs = [float(vlc.libvlc_audio_equalizer_get_band_frequency(i)) for i in range(n)]
+            if freqs:
+                return freqs
+        except Exception:
+            log.debug("libVLC band-frequency API unavailable", exc_info=True)
+        return list(equalizer_mod.BAND_FREQUENCIES)
+
+    def list_user_equalizer_presets(self) -> list:
+        """Return [(name, preamp, [bands])] of the user's saved presets."""
+        try:
+            raw = self.config_manager.get("equalizer_user_presets", []) or []
+        except Exception:
+            raw = []
+        return [
+            (p["name"], p["preamp"], list(p["bands"]))
+            for p in equalizer_mod.normalize_user_presets(raw)
+        ]
+
+    def save_user_equalizer_preset(self, name: str, preamp: float, bands) -> bool:
+        """Create or overwrite a named user preset. Returns True on success."""
+        if not str(name or "").strip():
+            return False
+        try:
+            raw = self.config_manager.get("equalizer_user_presets", []) or []
+        except Exception:
+            raw = []
+        presets = equalizer_mod.upsert_user_preset(raw, name, preamp, bands)
+        try:
+            self.config_manager.set("equalizer_user_presets", presets)
+            return True
+        except Exception:
+            log.exception("Failed to save equalizer user preset")
+            return False
+
+    def delete_user_equalizer_preset(self, name: str) -> bool:
+        """Delete a named user preset. Returns True if one was removed."""
+        try:
+            raw = self.config_manager.get("equalizer_user_presets", []) or []
+        except Exception:
+            raw = []
+        before = equalizer_mod.normalize_user_presets(raw)
+        remaining = equalizer_mod.remove_user_preset(raw, name)
+        if len(remaining) == len(before):
+            return False
+        try:
+            self.config_manager.set("equalizer_user_presets", remaining)
+            return True
+        except Exception:
+            log.exception("Failed to delete equalizer user preset")
+            return False
+
     def list_equalizer_presets(self) -> list:
         """Return [(name, preamp, [bands])] from libVLC's built-in presets.
 

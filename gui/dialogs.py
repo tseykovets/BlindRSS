@@ -5805,6 +5805,28 @@ class QueueDialog(wx.Dialog):
 
         self._reload(select=0)
 
+        # Keep the Play/Pause label live while the dialog is open: playback can
+        # start, pause, or finish from elsewhere. The label is only rewritten
+        # when it actually changes, so screen readers don't re-announce it.
+        self._state_timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, lambda e: self._update_buttons(), self._state_timer)
+        self._state_timer.Start(750)
+        self.Bind(wx.EVT_CLOSE, self._on_close)
+
+    def _on_close(self, event) -> None:
+        try:
+            self._state_timer.Stop()
+        except Exception:
+            pass
+        event.Skip()
+
+    def _entry_is_playing(self, index: int) -> bool:
+        try:
+            fn = getattr(self.controller, "queue_entry_is_playing", None)
+            return bool(fn(int(index))) if callable(fn) else False
+        except Exception:
+            return False
+
     def _entries(self):
         try:
             return list(self.controller.get_play_queue() or [])
@@ -5836,15 +5858,27 @@ class QueueDialog(wx.Dialog):
         self.up_btn.Enable(has_sel and sel > 0)
         self.down_btn.Enable(has_sel and 0 <= sel < count - 1)
         self.clear_btn.Enable(count > 0)
+        # The Play button pauses the item that is currently playing.
+        desired = _("&Pause") if (has_sel and self._entry_is_playing(sel)) else _("&Play")
+        try:
+            if self.play_btn.GetLabel() != desired:
+                self.play_btn.SetLabel(desired)
+        except Exception:
+            pass
 
     def on_play(self, event) -> None:
         sel = self.list_box.GetSelection()
         if sel == wx.NOT_FOUND:
             return
         try:
-            self.controller.play_queue_index(int(sel))
+            toggle = getattr(self.controller, "toggle_queue_entry_play_pause", None)
+            if callable(toggle):
+                toggle(int(sel))
+            else:
+                self.controller.play_queue_index(int(sel))
         except Exception:
-            log.exception("Failed to play queue item from dialog")
+            log.exception("Failed to play/pause queue item from dialog")
+        self._update_buttons()
 
     def on_remove(self, event) -> None:
         sel = self.list_box.GetSelection()
@@ -6197,9 +6231,21 @@ class EqualizerDialog(wx.Dialog):
         self._cfg = equalizer_mod.normalize_config(player.get_equalizer_config())
         self._updating = False
         try:
-            self._presets = list(player.list_equalizer_presets() or [])
+            self._builtin_presets = list(player.list_equalizer_presets() or [])
         except Exception:
-            self._presets = []
+            self._builtin_presets = []
+        # Real libVLC band center frequencies so the sliders are labeled with
+        # what the engine actually filters (falls back to the constants).
+        try:
+            freq_fn = getattr(player, "get_equalizer_band_frequencies", None)
+            self._band_freqs = list(freq_fn() or []) if callable(freq_fn) else []
+        except Exception:
+            self._band_freqs = []
+        if not self._band_freqs:
+            self._band_freqs = list(equalizer_mod.BAND_FREQUENCIES)
+        # Combined preset entries aligned to choice indices 1..N (0 == Custom):
+        # each is (kind, name, preamp, bands) with kind in {"builtin", "user"}.
+        self._preset_entries = []
 
         outer = wx.BoxSizer(wx.VERTICAL)
 
@@ -6211,8 +6257,8 @@ class EqualizerDialog(wx.Dialog):
         # Preset chooser.
         preset_row = wx.BoxSizer(wx.HORIZONTAL)
         preset_row.Add(wx.StaticText(self, label=_("&Preset:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
-        self.preset_choice = wx.Choice(self, choices=[_("Custom")] + [n for (n, _p, _b) in self._presets])
-        self.preset_choice.SetSelection(0)
+        self.preset_choice = wx.Choice(self)
+        self.preset_choice.SetName(_("Preset"))
         self.preset_choice.Bind(wx.EVT_CHOICE, self.on_preset)
         preset_row.Add(self.preset_choice, 1, wx.EXPAND)
         outer.Add(preset_row, 0, wx.EXPAND | wx.ALL, 8)
@@ -6223,11 +6269,16 @@ class EqualizerDialog(wx.Dialog):
         # Preamp.
         self.preamp_slider = self._make_slider(grid, _("Preamp"), self._cfg.get("preamp", 0.0))
 
-        # Bands.
+        # Bands. Labels come from the real libVLC band frequencies.
         self.band_sliders = []
         for i in range(equalizer_mod.BAND_COUNT):
-            freq = equalizer_mod.BAND_FREQUENCIES[i] if i < len(equalizer_mod.BAND_FREQUENCIES) else (i + 1)
-            label = _("{khz} kHz").format(khz=("%g" % (freq / 1000.0))) if freq >= 1000 else _("{hz} Hz").format(hz=freq)
+            if i < len(self._band_freqs):
+                freq = self._band_freqs[i]
+            elif i < len(equalizer_mod.BAND_FREQUENCIES):
+                freq = equalizer_mod.BAND_FREQUENCIES[i]
+            else:
+                freq = i + 1
+            label = equalizer_mod.format_band_label(freq)
             val = self._cfg["bands"][i] if i < len(self._cfg["bands"]) else 0.0
             slider = self._make_slider(grid, label, val)
             self.band_sliders.append(slider)
@@ -6235,10 +6286,20 @@ class EqualizerDialog(wx.Dialog):
         outer.Add(grid, 1, wx.EXPAND | wx.ALL, 8)
 
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.save_preset_btn = wx.Button(self, label=_("&Save as Preset..."))
+        self.save_preset_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_save_preset())
+        btn_sizer.Add(self.save_preset_btn, 0, wx.ALL, 4)
+        self.delete_preset_btn = wx.Button(self, label=_("&Delete Preset"))
+        self.delete_preset_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_delete_preset())
+        btn_sizer.Add(self.delete_preset_btn, 0, wx.ALL, 4)
         self.reset_btn = wx.Button(self, label=_("&Reset (Flat)"))
         self.reset_btn.Bind(wx.EVT_BUTTON, lambda e: self.on_reset())
         btn_sizer.Add(self.reset_btn, 0, wx.ALL, 4)
         outer.Add(btn_sizer, 0, wx.ALIGN_CENTER)
+
+        # Populate the preset dropdown (built-in + user presets) and select the
+        # last-applied preset if the persisted config named one.
+        self._rebuild_preset_choice(select_name=self._cfg.get("preset"))
 
         close_sizer = self.CreateButtonSizer(wx.CLOSE)
         if close_sizer:
@@ -6275,6 +6336,55 @@ class EqualizerDialog(wx.Dialog):
         grid.Add(slider, 1, wx.EXPAND)
         return slider
 
+    def _rebuild_preset_choice(self, select_name=None, select_kind=None) -> None:
+        """Repopulate the preset dropdown from built-in + user presets.
+
+        Builds self._preset_entries as (kind, name, preamp, bands) aligned to
+        choice indices 1..N (index 0 is "Custom"). User presets are suffixed so
+        the user can tell which ones they can delete.
+        """
+        try:
+            user_fn = getattr(self.player, "list_user_equalizer_presets", None)
+            user_presets = list(user_fn() or []) if callable(user_fn) else []
+        except Exception:
+            user_presets = []
+
+        entries = []
+        labels = [_("Custom")]
+        for (name, preamp, bands) in self._builtin_presets:
+            entries.append(("builtin", name, preamp, list(bands)))
+            labels.append(str(name))
+        for (name, preamp, bands) in user_presets:
+            entries.append(("user", name, preamp, list(bands)))
+            labels.append(_("{name} (my preset)").format(name=name))
+        self._preset_entries = entries
+
+        self.preset_choice.Set(labels)
+        target = 0
+        if select_name:
+            for i, (kind, name, _p, _b) in enumerate(entries, start=1):
+                if name == select_name and (select_kind is None or kind == select_kind):
+                    target = i
+                    break
+        self.preset_choice.SetSelection(target)
+        self._update_preset_buttons()
+
+    def _selected_preset_entry(self):
+        sel = self.preset_choice.GetSelection()
+        if sel <= 0 or (sel - 1) >= len(self._preset_entries):
+            return None
+        return self._preset_entries[sel - 1]
+
+    def _update_preset_buttons(self) -> None:
+        on = bool(self.enable_cb.GetValue())
+        entry = self._selected_preset_entry()
+        is_user = bool(entry and entry[0] == "user")
+        try:
+            self.save_preset_btn.Enable(on)
+            self.delete_preset_btn.Enable(on and is_user)
+        except Exception:
+            pass
+
     def _sync_enabled_state(self) -> None:
         on = self.enable_cb.GetValue()
         self.preset_choice.Enable(on)
@@ -6282,6 +6392,7 @@ class EqualizerDialog(wx.Dialog):
         for s in self.band_sliders:
             s.Enable(on)
         self.reset_btn.Enable(on)
+        self._update_preset_buttons()
 
     def _collect_and_apply(self, *, mark_custom: bool = True) -> None:
         if self._updating:
@@ -6305,13 +6416,15 @@ class EqualizerDialog(wx.Dialog):
     def on_slider(self, event) -> None:
         if not self._updating:
             self.preset_choice.SetSelection(0)  # editing => Custom
+            self._update_preset_buttons()
         self._collect_and_apply()
 
     def on_preset(self, event) -> None:
-        sel = self.preset_choice.GetSelection()
-        if sel <= 0 or (sel - 1) >= len(self._presets):
+        entry = self._selected_preset_entry()
+        self._update_preset_buttons()
+        if entry is None:
             return
-        name, preamp, bands = self._presets[sel - 1]
+        _kind, name, preamp, bands = entry
         self._updating = True
         try:
             self.preamp_slider.SetValue(int(round(preamp)))
@@ -6322,6 +6435,61 @@ class EqualizerDialog(wx.Dialog):
         self._cfg["preset"] = name
         self._collect_and_apply(mark_custom=False)
 
+    def on_save_preset(self) -> None:
+        name = wx.GetTextFromUser(
+            _("Name for this equalizer preset:"), _("Save Preset"), parent=self
+        )
+        name = (name or "").strip()
+        if not name:
+            return
+        # Warn before overwriting an existing user preset of the same name.
+        existing = {
+            n.lower() for (k, n, _p, _b) in self._preset_entries if k == "user"
+        }
+        if name.lower() in existing:
+            if wx.MessageBox(
+                _("A preset named \"{name}\" already exists. Overwrite it?").format(name=name),
+                _("Save Preset"),
+                wx.YES_NO | wx.ICON_QUESTION,
+                self,
+            ) != wx.YES:
+                return
+        preamp = float(self.preamp_slider.GetValue())
+        bands = [float(s.GetValue()) for s in self.band_sliders]
+        try:
+            save_fn = getattr(self.player, "save_user_equalizer_preset", None)
+            ok = bool(save_fn(name, preamp, bands)) if callable(save_fn) else False
+        except Exception:
+            log.exception("Failed to save equalizer preset")
+            ok = False
+        if not ok:
+            wx.MessageBox(_("Could not save the preset."), _("Save Preset"), wx.ICON_ERROR, self)
+            return
+        self._cfg["preset"] = name
+        self._rebuild_preset_choice(select_name=name, select_kind="user")
+
+    def on_delete_preset(self) -> None:
+        entry = self._selected_preset_entry()
+        if entry is None or entry[0] != "user":
+            return
+        name = entry[1]
+        if wx.MessageBox(
+            _("Delete the preset \"{name}\"?").format(name=name),
+            _("Delete Preset"),
+            wx.YES_NO | wx.ICON_QUESTION,
+            self,
+        ) != wx.YES:
+            return
+        try:
+            del_fn = getattr(self.player, "delete_user_equalizer_preset", None)
+            if callable(del_fn):
+                del_fn(name)
+        except Exception:
+            log.exception("Failed to delete equalizer preset")
+        if self._cfg.get("preset") == name:
+            self._cfg["preset"] = None
+        self._rebuild_preset_choice(select_name=None)
+
     def on_reset(self) -> None:
         self._updating = True
         try:
@@ -6331,4 +6499,5 @@ class EqualizerDialog(wx.Dialog):
             self.preset_choice.SetSelection(0)
         finally:
             self._updating = False
+        self._update_preset_buttons()
         self._collect_and_apply()

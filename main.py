@@ -147,7 +147,14 @@ class GlobalMediaKeyFilter(wx.EventFilter):
 
             key = int(event.GetKeyCode())
 
-            # Ctrl+P: toggle player window (Ctrl-only, all platforms).
+            # Ctrl+P: play/pause via the shortcut registry (player.play_pause).
+            # This used to hard-toggle the player window, which shadowed the
+            # registry's Ctrl+P play/pause binding — pressing Ctrl+P during
+            # playback showed/hid the player instead of pausing. Delegating to
+            # dispatch_shortcut lets the user's binding win, applies the
+            # text-input guard (so it never hijacks Ctrl+P while typing), and
+            # keeps it working while a dialog is focused. Show/hide the player
+            # is Ctrl+Shift+P (player.show_hide).
             if (
                 event.ControlDown()
                 and not event.ShiftDown()
@@ -156,10 +163,12 @@ class GlobalMediaKeyFilter(wx.EventFilter):
                 and key in (ord('P'), ord('p'))
             ):
                 try:
-                    self.frame.toggle_player_visibility()
+                    focus = wx.Window.FindFocus()
+                    if self.frame.dispatch_shortcut(event, focus=focus, apply_text_guard=True):
+                        return wx.EventFilter.Event_Processed
                 except Exception as e:
-                    log.debug(f"Error toggling player visibility: {e}")
-                return wx.EventFilter.Event_Processed
+                    log.debug(f"Error dispatching Ctrl+P play/pause: {e}")
+                return wx.EventFilter.Event_Skip
 
             # Seek/volume arrows: Ctrl+Arrow everywhere, plus Alt(Option)+Arrow
             # on macOS where Ctrl+Left/Right are taken by Mission Control.

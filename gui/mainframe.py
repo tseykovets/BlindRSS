@@ -171,6 +171,11 @@ class MainFrame(wx.Frame):
         # branches when not "all". _unread_filter_enabled is a compatibility
         # property over this.
         self._article_read_filter = "all"
+        # Client-side media filter (independent of read status): "all", "with"
+        # (only articles with playable media), or "without" (only non-media).
+        # Applied at display time in _sort_articles_for_display, so it costs
+        # nothing when "all" and needs no tree rebuild when changed.
+        self._article_media_filter = "all"
         self._is_first_tree_load = True
         # Category-tree expansion memory (issue #33). The tree is fully rebuilt on
         # every refresh, so we track which category nodes the user explicitly
@@ -739,8 +744,30 @@ class MainFrame(wx.Frame):
         except Exception:
             return 0.0
 
+    def _apply_media_filter(self, articles):
+        """Drop articles that don't match the active media filter.
+
+        "with" keeps only articles with playable media; "without" keeps only
+        those without. Uses the same predicate as the Media column so the list
+        and the column always agree. include_downloads=False skips the per-row
+        disk lookup (a downloaded item already has a media/ytdlp URL).
+        """
+        mode = getattr(self, "_article_media_filter", "all")
+        if mode not in ("with", "without"):
+            return list(articles or [])
+        want_media = (mode == "with")
+        out = []
+        for a in (articles or []):
+            try:
+                has = bool(self._should_play_in_player(a, include_downloads=False))
+            except Exception:
+                has = False
+            if has == want_media:
+                out.append(a)
+        return out
+
     def _sort_articles_for_display(self, articles):
-        items = list(articles or [])
+        items = self._apply_media_filter(list(articles or []))
         if len(items) <= 1:
             return items
 
@@ -1655,14 +1682,30 @@ class MainFrame(wx.Frame):
             if mode == getattr(self, "_article_read_filter", "all"):
                 item.Check(True)
             self.Bind(wx.EVT_MENU, lambda e, m=mode: self.on_change_article_filter(m), item)
-        view_menu.AppendSubMenu(filter_menu, _("Article &Filter"), _("Filter all views by read status"))
+        # Second, independent radio group: filter by whether an article has
+        # playable media. The separator breaks the wx radio group so this set is
+        # tracked separately from the read-status set above.
+        filter_menu.AppendSeparator()
+        self._article_media_filter_menu_items = {}
+        for mode, label, help_text in (
+            ("all", _("Media and &Non-media"), _("Show articles whether or not they have media")),
+            ("with", _("With &Media Only"), _("Show only articles that have playable media")),
+            ("without", _("Wit&hout Media Only"), _("Show only articles that have no playable media")),
+        ):
+            item = filter_menu.AppendRadioItem(wx.ID_ANY, label, help_text)
+            self._article_media_filter_menu_items[mode] = item
+            if mode == getattr(self, "_article_media_filter", "all"):
+                item.Check(True)
+            self.Bind(wx.EVT_MENU, lambda e, m=mode: self.on_change_media_filter(m), item)
+        view_menu.AppendSubMenu(filter_menu, _("Article &Filter"), _("Filter all views by read status and media"))
         accessible_browser_item = view_menu.Append(
             wx.ID_ANY,
             _("Open &Accessible Browser"),
             _("Open the VoiceOver-friendly browser window"),
         )
-        # Ctrl+P is handled globally (see main.py GlobalMediaKeyFilter). Do not make it a menu accelerator.
-        player_item = view_menu.Append(wx.ID_ANY, _("Show/Hide &Player (Ctrl+P)"), _("Show or hide the media player window"))
+        # Show/hide is Ctrl+Shift+P (registry player.show_hide); Ctrl+P is play/pause.
+        # These are handled in the global char-hook, not as menu accelerators.
+        player_item = view_menu.Append(wx.ID_ANY, _("Show/Hide &Player (Ctrl+Shift+P)"), _("Show or hide the media player window"))
         view_menu.AppendSeparator()
 
         sort_menu = wx.Menu()
@@ -3631,6 +3674,30 @@ class MainFrame(wx.Frame):
             except Exception:
                 pass
 
+    def on_change_media_filter(self, mode: str):
+        mode = str(mode or "all").lower()
+        if mode not in ("all", "with", "without"):
+            mode = "all"
+        if mode == getattr(self, "_article_media_filter", "all"):
+            return
+        self._article_media_filter = mode
+        self._sync_media_filter_menu_check()
+        # Client-side filter over the already-loaded view: re-render the current
+        # list with the new filter. No provider refetch or tree rebuild needed.
+        try:
+            self._refresh_articles_for_sort_change()
+        except Exception:
+            log.exception("Failed to re-render after media filter change")
+
+    def _sync_media_filter_menu_check(self) -> None:
+        items = getattr(self, "_article_media_filter_menu_items", None) or {}
+        item = items.get(getattr(self, "_article_media_filter", "all"))
+        if item is not None:
+            try:
+                item.Check(True)
+            except Exception:
+                pass
+
     def on_manage_filter_rules(self, event=None):
         if not getattr(self.provider, "supports_filter_rules", lambda: False)():
             wx.MessageBox(
@@ -3851,8 +3918,11 @@ class MainFrame(wx.Frame):
                 ]
             except Exception:
                 playable_targets = []
+            # Add/remove queue actions only make sense for playable media, but
+            # "Open Play Queue..." must be reachable from any article's context
+            # menu (not just media ones) so the queue can be opened from anywhere.
+            menu.AppendSeparator()
             if playable_targets:
-                menu.AppendSeparator()
                 if multi:
                     add_q_item = menu.Append(
                         wx.ID_ANY, _("Add {count} to Play Queue").format(count=len(playable_targets))
@@ -3885,8 +3955,8 @@ class MainFrame(wx.Frame):
                             lambda e, i=idx: self.add_articles_to_queue([i]),
                             add_q_item,
                         )
-                open_q_item = menu.Append(wx.ID_ANY, _("Open Play Queue..."))
-                self.Bind(wx.EVT_MENU, self.on_open_play_queue, open_q_item)
+            open_q_item = menu.Append(wx.ID_ANY, _("Open Play Queue..."))
+            self.Bind(wx.EVT_MENU, self.on_open_play_queue, open_q_item)
 
             chapter_links = (
                 self._article_chapter_links(article_for_menu)
@@ -4762,6 +4832,41 @@ class MainFrame(wx.Frame):
         except Exception:
             pass
         return True
+
+    def queue_entry_is_current(self, index: int) -> bool:
+        """True when the queue item at `index` is the media loaded in the player."""
+        queue = self._get_play_queue()
+        if not (0 <= index < len(queue)):
+            return False
+        pw = getattr(self, "player_window", None)
+        if not pw or not getattr(pw, "has_media_loaded", lambda: False)():
+            return False
+        entry = queue[index]
+        try:
+            return bool(pw.is_current_media(entry.get("article_id"), entry.get("media_url")))
+        except Exception:
+            return False
+
+    def queue_entry_is_playing(self, index: int) -> bool:
+        """True when the queue item at `index` is the current media AND playing."""
+        if not self.queue_entry_is_current(index):
+            return False
+        pw = getattr(self, "player_window", None)
+        try:
+            return bool(pw.is_audio_playing())
+        except Exception:
+            return False
+
+    def toggle_queue_entry_play_pause(self, index: int) -> None:
+        """Play the queue item, or toggle play/pause if it is already current.
+
+        This lets the Play Queue dialog's Play button double as a Pause button
+        for the item that is currently loaded, instead of restarting it.
+        """
+        if self.queue_entry_is_current(index):
+            self.on_player_play_pause(None)
+        else:
+            self.play_queue_index(index)
 
     def _advance_play_queue(self) -> None:
         idx = getattr(self, "_current_queue_index", None)

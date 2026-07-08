@@ -56,6 +56,7 @@ class _EqPlayer:
     def __init__(self):
         self.cfg = eqmod.flat_config()
         self.applied = []
+        self._user_raw = []
 
     def get_equalizer_config(self):
         return dict(self.cfg)
@@ -66,6 +67,24 @@ class _EqPlayer:
 
     def list_equalizer_presets(self):
         return [("Rock", 0.0, [4.0] * eqmod.BAND_COUNT)]
+
+    def get_equalizer_band_frequencies(self):
+        return list(eqmod.BAND_FREQUENCIES)
+
+    def list_user_equalizer_presets(self):
+        return [
+            (p["name"], p["preamp"], list(p["bands"]))
+            for p in eqmod.normalize_user_presets(self._user_raw)
+        ]
+
+    def save_user_equalizer_preset(self, name, preamp, bands):
+        self._user_raw = eqmod.upsert_user_preset(self._user_raw, name, preamp, bands)
+        return True
+
+    def delete_user_equalizer_preset(self, name):
+        before = len(eqmod.normalize_user_presets(self._user_raw))
+        self._user_raw = eqmod.remove_user_preset(self._user_raw, name)
+        return len(eqmod.normalize_user_presets(self._user_raw)) != before
 
 
 def test_equalizer_dialog_enable_and_adjust(app):
@@ -122,6 +141,58 @@ def test_equalizer_sliders_are_labeled_for_screen_readers(app):
                 assert acc.GetValue(wx.ACC_SELF)[1] == "+3 dB"
                 dlg.band_sliders[0].SetValue(0)
                 assert acc.GetValue(wx.ACC_SELF)[1] == "0 dB"
+        finally:
+            dlg.Destroy()
+    finally:
+        parent.Destroy()
+
+
+def test_equalizer_band_labels_use_real_frequencies(app):
+    parent = wx.Frame(None)
+    try:
+        dlg = EqualizerDialog(parent, _EqPlayer())
+        try:
+            names = [s.GetName() for s in dlg.band_sliders]
+            # Matches libVLC's real band centers, not the old 60/170/310 labels.
+            assert names[0] == "31.25 Hz"
+            assert names[-1] == "16 kHz"
+            assert "60 Hz" not in names
+        finally:
+            dlg.Destroy()
+    finally:
+        parent.Destroy()
+
+
+def test_equalizer_user_presets_save_and_delete(app):
+    parent = wx.Frame(None)
+    try:
+        player = _EqPlayer()
+        dlg = EqualizerDialog(parent, player)
+        try:
+            dlg.enable_cb.SetValue(True)
+            dlg.on_enable(None)
+
+            # Dial in a custom curve and save it as a user preset.
+            dlg.band_sliders[0].SetValue(6)
+            dlg.on_slider(None)
+            player.save_user_equalizer_preset("My EQ", 2.0, [6.0] + [0.0] * (eqmod.BAND_COUNT - 1))
+            dlg._rebuild_preset_choice(select_name="My EQ", select_kind="user")
+
+            # The user preset is selectable and Delete is enabled for it.
+            entry = dlg._selected_preset_entry()
+            assert entry is not None and entry[0] == "user" and entry[1] == "My EQ"
+            assert dlg.delete_preset_btn.IsEnabled()
+
+            # Applying it pushes the saved gains onto the player.
+            dlg.on_preset(None)
+            assert player.cfg["bands"][0] == 6.0
+            assert player.cfg["preamp"] == 2.0
+
+            # Deleting removes it from the store and falls back to Custom.
+            assert player.delete_user_equalizer_preset("My EQ") is True
+            dlg._rebuild_preset_choice(select_name=None)
+            assert all(e[1] != "My EQ" for e in dlg._preset_entries)
+            assert not dlg.delete_preset_btn.IsEnabled()
         finally:
             dlg.Destroy()
     finally:

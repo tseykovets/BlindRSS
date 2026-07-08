@@ -262,6 +262,9 @@ class _DummyContextMenuHost:
     def on_open_in_browser(self, idx):
         self.bindings.append(("browser", idx, None))
 
+    def on_open_play_queue(self, event=None):
+        self.bindings.append(("open_queue", event, None))
+
     def on_open_chapter_link(self, href):
         self.bindings.append(("chapter", href, None))
 

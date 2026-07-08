@@ -127,7 +127,13 @@ def _install_capturing_call_after(monkeypatch):
     def _fake_call_after(callback, *args, **kwargs):
         captured.append((callback, args, kwargs))
 
+    def _fake_call_later(_ms, callback, *args, **kwargs):
+        # Render batches chain via wx.CallLater(1, ...) so the real event loop
+        # can interleave input between batches; for tests it drains the same.
+        captured.append((callback, args, kwargs))
+
     monkeypatch.setattr(mainframe.wx, "CallAfter", _fake_call_after)
+    monkeypatch.setattr(mainframe.wx, "CallLater", _fake_call_later)
     return captured
 
 

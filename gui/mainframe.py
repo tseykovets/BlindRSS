@@ -135,8 +135,14 @@ class MainFrame(wx.Frame):
         # content; the rest is appended in bounded wx.CallAfter batches. Bumping
         # _render_generation invalidates any batch still queued from an older render.
         self._render_generation = 0
-        self._render_first_chunk = 60
-        self._render_batch_size = 60
+        # 30 rows fills the visible list area; it is rendered synchronously on
+        # view switch, so keep it lean (60 rows measured ~60ms in one dispatch).
+        self._render_first_chunk = 30
+        # Keep append batches small and yield the event loop between them (see
+        # _render_articles_batch): 60-row batches measured up to ~170ms per
+        # dispatch during a big-category load, which reads as tree/list lag
+        # under a screen reader.
+        self._render_batch_size = 24
         self._article_render_inflight = False
         
         # Create player window lazily to keep startup fast.
@@ -907,7 +913,11 @@ class MainFrame(wx.Frame):
 
         if first_count < len(articles):
             self._article_render_inflight = True
-            wx.CallAfter(self._render_articles_batch, articles, first_count, generation, feed_id)
+            # CallLater (not CallAfter): a CallAfter chain runs batch after
+            # batch with nothing else dispatched in between, so keyboard/NVDA
+            # events queue up behind the whole render. A 1ms timer lets input,
+            # paint, and screen-reader events interleave between batches.
+            wx.CallLater(1, self._render_articles_batch, articles, first_count, generation, feed_id)
         else:
             self._article_render_inflight = False
 
@@ -964,7 +974,9 @@ class MainFrame(wx.Frame):
             self.list_ctrl.Thaw()
 
         if end < total:
-            wx.CallAfter(self._render_articles_batch, articles, end, generation, feed_id)
+            # 1ms timer, not CallAfter — see _render_articles_list: keeps the
+            # event loop responsive between append batches.
+            wx.CallLater(1, self._render_articles_batch, articles, end, generation, feed_id)
         else:
             self._article_render_inflight = False
             self._reassert_load_more_placeholder_last()
@@ -9049,13 +9061,20 @@ class MainFrame(wx.Frame):
         the Article object, so after this runs on the loader thread the render
         loop only reads precomputed strings. Safe off-thread: both paths are
         pure string/URL work (no wx, no DB writes).
+
+        The brief sleep every few articles matters: this loop is seconds of
+        CPU-bound Python, and without explicit yields it starves the wx main
+        thread via the GIL (measured 60ms+ dispatch stalls during a load —
+        felt as tree/list lag under a screen reader).
         """
-        for article in list(articles or []):
+        for i, article in enumerate(list(articles or [])):
             try:
                 self._article_description_preview(article)
                 self._article_media_label(article)
             except Exception:
                 continue
+            if i % 16 == 15:
+                time.sleep(0.001)
 
     def _should_play_in_player(self, article, include_downloads: bool = True):
         """Only treat bona-fide podcast/media items as playable; everything else opens in browser."""

@@ -166,22 +166,66 @@ def _entry_text(entry, *names) -> str:
     return ""
 
 
+def _visible_text(html: str) -> str:
+    """Return approximate visible text of an HTML fragment (tags/scripts/whitespace stripped)."""
+    if not html:
+        return ""
+    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", html)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _visible_text_len(html: str) -> int:
+    return len(_visible_text(html))
+
+
+# Photo-credit / caption markers. A feed's ``content`` sometimes carries only an image caption
+# (e.g. Bloomberg ships "Photographer: ...Bloomberg" or "Photo credit should read ...Getty Images"
+# as the content while the real lede is in ``summary``). Captions are short, so we only treat a
+# short candidate carrying one of these markers as a caption to avoid misjudging a real article
+# that merely mentions Getty Images, etc.
+_PHOTO_CAPTION_MARKER_RE = re.compile(
+    r"(?i)(photographer:|photo\s+credit|photo\s+by\b|image\s+credit|getty\s+images|future\s+publishing)"
+)
+_PHOTO_CAPTION_MAX_LEN = 400
+
+
+def _looks_like_photo_caption(text: str) -> bool:
+    visible = _visible_text(text)
+    if not visible or len(visible) > _PHOTO_CAPTION_MAX_LEN:
+        return False
+    return bool(_PHOTO_CAPTION_MARKER_RE.search(visible))
+
+
 def _entry_content(entry) -> str:
+    """Return the richest feed body text for an entry.
+
+    Some feeds put the real article text in ``content`` (preferred when present and substantive),
+    but others put only a photo caption or stub there while the useful lede lives in
+    ``summary``/``description`` (e.g. Bloomberg's RSS ships an image caption as the content and the
+    actual first paragraph as the summary). So instead of blindly preferring ``content``, pick the
+    candidate with the most visible text, and skip photo captions unless nothing else is available.
+    """
+    candidates: List[str] = []
     try:
         contents = entry.get("content")
         if contents:
             first = contents[0]
             value = first.get("value") if isinstance(first, dict) else getattr(first, "value", None)
             if value:
-                return str(value)
+                candidates.append(str(value))
     except Exception:
         pass
 
-    return (
-        _entry_text(entry, "summary_detail")
-        or _entry_text(entry, "summary")
-        or _entry_text(entry, "description")
-    )
+    for name in ("summary_detail", "summary", "description"):
+        text = _entry_text(entry, name)
+        if text:
+            candidates.append(text)
+
+    if not candidates:
+        return ""
+    non_caption = [c for c in candidates if not _looks_like_photo_caption(c)]
+    return max(non_caption or candidates, key=_visible_text_len)
 
 
 def _entry_description(entry) -> str:

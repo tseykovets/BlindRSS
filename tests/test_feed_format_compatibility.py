@@ -829,3 +829,43 @@ def test_add_feed_uses_json_feed_title(provider, monkeypatch):
     assert len(feeds) == 1
     assert feeds[0].url == "https://example.com/feed.json"
     assert feeds[0].title == "JSON Feed"
+
+
+def test_entry_content_prefers_lede_over_photo_caption():
+    # Bloomberg-style entry: the RSS `content` is only a photo caption, while the useful lede is in
+    # `summary`. _entry_content must return the lede, not the photographer credit.
+    entry = {
+        "content": [
+            {"value": "Hong Kong equity fundraising has been booming this year. "
+                      "Photographer: Yik Yeung-man/Bloomberg"}
+        ],
+        "summary": "Apple Inc. supplier Luxshare Precision Industry Co. fell in Hong Kong trading "
+                   "debut on Thursday after raising HK$24.3 billion in the city's biggest listing.",
+    }
+    out = local_mod._entry_content(entry)
+    assert "Luxshare Precision" in out
+    assert "Photographer" not in out
+
+
+def test_entry_content_skips_longer_photo_caption():
+    # A verbose photo caption can be LONGER than the lede; the caption must still lose.
+    entry = {
+        "content": [
+            {"value": "HEFEI, CHINA - OCTOBER 4, 2024 - (FILE) Changxin Memory Technologies office "
+                      "building in Hefei City, Anhui Province, China. "
+                      "(Photo credit should read CFOTO/Future Publishing via Getty Images)"}
+        ],
+        "summary": "Memory giant CXMT Corp. will open investor subscriptions next week.",
+    }
+    out = local_mod._entry_content(entry)
+    assert "CXMT Corp." in out
+    assert "Getty Images" not in out
+
+
+def test_entry_content_keeps_full_body_content():
+    # For normal feeds the `content` holds the real (longest) article body; keep preferring it.
+    body = "<p>" + ("The full article body continues across many paragraphs. " * 20) + "</p>"
+    entry = {"content": [{"value": body}], "summary": "Short teaser."}
+    out = local_mod._entry_content(entry)
+    assert "full article body continues" in out
+    assert out == body

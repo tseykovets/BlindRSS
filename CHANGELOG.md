@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.92.1 - 2026-07-09
+
+- Prevent podcast playback from stopping.
+
 ## v1.92.0 - 2026-07-09
 
 - Per-feed refresh intervals, Stop Refresh, and faster UI with many feeds.

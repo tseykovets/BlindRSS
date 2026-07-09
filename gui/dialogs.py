@@ -2791,42 +2791,6 @@ class FeedPropertiesDialog(wx.Dialog):
         self.refresh_interval_ctrl.SetSelection(interval_idx)
         sizer.Add(self.refresh_interval_ctrl, 0, wx.EXPAND | wx.ALL, 5)
 
-        # Per-feed delete-behavior override. "Use global setting" leaves
-        # feeds.delete_behavior NULL so the global setting applies.
-        try:
-            from core import db as _db
-            self._feed_delete_behavior = _db.get_feed_delete_behavior(getattr(feed, "id", "") or "")
-        except Exception:
-            self._feed_delete_behavior = None
-        sizer.Add(wx.StaticText(self, label=_("When I delete an article from this feed:")), 0, wx.ALL, 5)
-        del_row = wx.BoxSizer(wx.HORIZONTAL)
-        self._feed_delete_choices = [
-            (None, "Use global setting"),
-            ("deleted", "Move it to Deleted Articles"),
-            ("purge", "Remove it permanently"),
-            ("category", "Move it to a category"),
-        ]
-        self.feed_delete_ctrl = wx.Choice(self, choices=[lbl for _k, lbl in self._feed_delete_choices])
-        self.feed_delete_ctrl.SetName("Delete behavior for this feed")
-        del_row.Add(self.feed_delete_ctrl, 0, wx.ALL, 5)
-        self.feed_delete_category_ctrl = wx.TextCtrl(self)
-        self.feed_delete_category_ctrl.SetName("Delete target category (full path)")
-        self.feed_delete_category_ctrl.SetHint(_("Category / Path"))
-        del_row.Add(self.feed_delete_category_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        sizer.Add(del_row, 0, wx.EXPAND)
-
-        fd_kind, fd_category = filters_mod.parse_delete_behavior(self._feed_delete_behavior)
-        if self._feed_delete_behavior is None:
-            self.feed_delete_ctrl.SetSelection(0)
-        else:
-            self.feed_delete_ctrl.SetSelection(
-                next((i for i, (k, _l) in enumerate(self._feed_delete_choices) if k == fd_kind), 0)
-            )
-        if fd_category:
-            self.feed_delete_category_ctrl.SetValue(fd_category)
-        self.feed_delete_ctrl.Bind(wx.EVT_CHOICE, lambda e: self._sync_feed_delete_category_enabled())
-        self._sync_feed_delete_category_enabled()
-
         # --- Per-feed HTTP fetch overrides (issue #29) ---
         sizer.Add(
             wx.StaticText(self, label=_("Custom request headers (one per line, Name: Value):")),
@@ -2886,13 +2850,50 @@ class FeedPropertiesDialog(wx.Dialog):
         proxy_sizer.Add(self.proxy_ctrl, 1, wx.ALL, 5)
         sizer.Add(proxy_sizer, 0, wx.EXPAND)
 
+        # Per-feed delete-behavior override. "Use global setting" leaves
+        # feeds.delete_behavior NULL so the global setting applies. Kept last so
+        # the dialog opens on Title rather than on this combo box.
+        try:
+            from core import db as _db
+            self._feed_delete_behavior = _db.get_feed_delete_behavior(getattr(feed, "id", "") or "")
+        except Exception:
+            self._feed_delete_behavior = None
+        sizer.Add(wx.StaticText(self, label=_("When I delete an article from this feed:")), 0, wx.ALL, 5)
+        del_row = wx.BoxSizer(wx.HORIZONTAL)
+        self._feed_delete_choices = [
+            (None, "Use global setting"),
+            ("deleted", "Move it to Deleted Articles"),
+            ("purge", "Remove it permanently"),
+            ("category", "Move it to a category"),
+        ]
+        self.feed_delete_ctrl = wx.Choice(self, choices=[lbl for _k, lbl in self._feed_delete_choices])
+        self.feed_delete_ctrl.SetName("Delete behavior for this feed")
+        del_row.Add(self.feed_delete_ctrl, 0, wx.ALL, 5)
+        self.feed_delete_category_ctrl = wx.TextCtrl(self)
+        self.feed_delete_category_ctrl.SetName("Delete target category (full path)")
+        self.feed_delete_category_ctrl.SetHint(_("Category / Path"))
+        del_row.Add(self.feed_delete_category_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        sizer.Add(del_row, 0, wx.EXPAND)
+
+        fd_kind, fd_category = filters_mod.parse_delete_behavior(self._feed_delete_behavior)
+        if self._feed_delete_behavior is None:
+            self.feed_delete_ctrl.SetSelection(0)
+        else:
+            self.feed_delete_ctrl.SetSelection(
+                next((i for i, (k, _l) in enumerate(self._feed_delete_choices) if k == fd_kind), 0)
+            )
+        if fd_category:
+            self.feed_delete_category_ctrl.SetValue(fd_category)
+        self.feed_delete_ctrl.Bind(wx.EVT_CHOICE, lambda e: self._sync_feed_delete_category_enabled())
+        self._sync_feed_delete_category_enabled()
+
         btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
         sizer.Add(btn_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
         self.SetSizer(sizer)
         self.Centre()
 
-        # Fix tab order: Title -> URL -> Category -> Refresh interval -> Headers -> Timeout -> Impersonate -> Proxy -> OK -> Cancel
+        # Fix tab order: Title -> URL -> Category -> Refresh interval -> Headers -> Timeout -> Impersonate -> Proxy -> Delete behavior -> Delete category -> OK -> Cancel
         self.title_ctrl.SetFocus()
         if self.url_ctrl.AcceptsFocus():
             self.url_ctrl.MoveAfterInTabOrder(self.title_ctrl)
@@ -2903,12 +2904,14 @@ class FeedPropertiesDialog(wx.Dialog):
         self.timeout_ctrl.MoveAfterInTabOrder(self.headers_ctrl)
         self.impersonate_ctrl.MoveAfterInTabOrder(self.timeout_ctrl)
         self.proxy_ctrl.MoveAfterInTabOrder(self.impersonate_ctrl)
+        self.feed_delete_ctrl.MoveAfterInTabOrder(self.proxy_ctrl)
+        self.feed_delete_category_ctrl.MoveAfterInTabOrder(self.feed_delete_ctrl)
 
         ok_btn = self.FindWindow(wx.ID_OK)
         cancel_btn = self.FindWindow(wx.ID_CANCEL)
 
         if ok_btn:
-            ok_btn.MoveAfterInTabOrder(self.proxy_ctrl)
+            ok_btn.MoveAfterInTabOrder(self.feed_delete_category_ctrl)
             ok_btn.Bind(wx.EVT_BUTTON, self.on_ok)
         if cancel_btn and ok_btn:
             cancel_btn.MoveAfterInTabOrder(ok_btn)

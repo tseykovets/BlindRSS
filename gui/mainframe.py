@@ -1958,6 +1958,10 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_remove_feed, remove_feed_item)
         self.Bind(wx.EVT_MENU, self.on_refresh_feeds, refresh_item)
         self.Bind(wx.EVT_MENU, self.on_stop_refresh, stop_refresh_item)
+        # Only one of Refresh Feeds / Stop Refresh is ever actionable, so grey
+        # out the other one (this also disables its F5 / Shift+F5 accelerator).
+        self.Bind(wx.EVT_UPDATE_UI, self.on_update_refresh_feeds_ui, refresh_item)
+        self.Bind(wx.EVT_UPDATE_UI, self.on_update_stop_refresh_ui, stop_refresh_item)
         self.Bind(wx.EVT_MENU, self.on_mark_all_read, mark_all_read_item)
         self.Bind(wx.EVT_MENU, self.on_view_feed_errors, view_errors_item)
         self.Bind(wx.EVT_MENU, self.on_add_category, add_cat_item)
@@ -2796,6 +2800,12 @@ class MainFrame(wx.Frame):
         # self.SetTitle("RSS Reader - Refreshing...")
         log.info("Manual full refresh requested")
         threading.Thread(target=self._manual_refresh_thread, daemon=True).start()
+
+    def on_update_refresh_feeds_ui(self, event):
+        event.Enable(not self._is_feed_refresh_active())
+
+    def on_update_stop_refresh_ui(self, event):
+        event.Enable(self._is_feed_refresh_active())
 
     def on_stop_refresh(self, event=None):
         """Stop the batch feed refresh currently in flight (cooperative:

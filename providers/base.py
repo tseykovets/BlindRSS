@@ -14,13 +14,38 @@ class RSSProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def refresh(self, progress_cb=None, force: bool = False) -> bool:
+    def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
         """
         Triggers a sync/refresh of feeds.
         progress_cb: optional callable accepting a feed-state dict per completed feed.
         force: if True, providers should ignore cache headers (ETag/Last-Modified) and force fetch.
+        scheduled: True when invoked by the periodic refresh loop. Providers with
+            per-feed refresh intervals (the local provider) then skip feeds that
+            are not yet due; other providers ignore it.
         """
         pass
+
+    def cancel_refresh(self) -> bool:
+        """Request cancellation of the refresh currently in flight.
+
+        Returns True if a running refresh was told to stop, False when there is
+        nothing to cancel (or the provider's refresh is a quick server-side
+        trigger that cannot be cancelled). Cancellation is cooperative: feeds
+        already being fetched finish, the rest are skipped.
+        """
+        return False
+
+    def scheduled_refresh_tick(self, global_interval_s: int) -> int:
+        """Seconds the periodic refresh loop should sleep between scheduled refreshes.
+
+        Defaults to the global refresh_interval. Providers with per-feed refresh
+        intervals override this so the loop wakes often enough to service the
+        fastest feed. 0 or less disables scheduled refreshes.
+        """
+        try:
+            return int(global_interval_s)
+        except (TypeError, ValueError):
+            return 300
 
     def should_force_startup_refresh(self) -> bool:
         """Whether the first refresh after launch should bypass conditional caching.

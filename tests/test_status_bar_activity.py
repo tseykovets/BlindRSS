@@ -66,6 +66,8 @@ class _StatusBarHost:
     _end_refresh_activity = mainframe.MainFrame._end_refresh_activity
     _set_feed_activity_status = mainframe.MainFrame._set_feed_activity_status
     _apply_feed_refresh_progress = mainframe.MainFrame._apply_feed_refresh_progress
+    _on_feed_refresh_progress = mainframe.MainFrame._on_feed_refresh_progress
+    _flush_feed_refresh_progress = mainframe.MainFrame._flush_feed_refresh_progress
     _set_tray_activity_label = mainframe.MainFrame._set_tray_activity_label
     _update_tray_status_label = mainframe.MainFrame._update_tray_status_label
     _total_unread_count_for_tray = mainframe.MainFrame._total_unread_count_for_tray
@@ -78,6 +80,9 @@ class _StatusBarHost:
         self.tray_icon = _FakeTray()
         self._tray_activity_label = ""
         self.tree = _FakeTree()
+        self._refresh_progress_pending = {}
+        self._refresh_progress_lock = threading.Lock()
+        self._refresh_progress_flush_scheduled = False
 
     def SetStatusText(self, text, number=0):
         number = int(number)
@@ -210,7 +215,9 @@ def test_refresh_activity_updates_and_clears_tray_label(monkeypatch):
     host._begin_refresh_activity()
     assert host.tray_icon.label == "Unread: 5, Refreshing feeds..."
 
-    host._apply_feed_refresh_progress(
+    # Route through the real progress pipeline: the tray/unread total is
+    # updated once per flush chunk (not per feed) to stay linear in feed count.
+    host._on_feed_refresh_progress(
         {"id": "feed-1", "title": "Example Feed", "unread_count": 4, "category": "News", "status": "ok"}
     )
     assert host.tray_icon.label == "Unread: 6, Checked: Example Feed"

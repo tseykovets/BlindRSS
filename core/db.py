@@ -1763,7 +1763,12 @@ def get_feed_settings(feed_id) -> dict:
             "custom_headers": {"Header-Name": "value", ...},
             "timeout_seconds": <int> or None,
             "impersonate": "auto" | "always" | "never",
+            "refresh_interval_seconds": <int> or None,
         }
+
+    ``refresh_interval_seconds`` is the per-feed auto-refresh interval:
+    None/absent follows the global ``refresh_interval`` setting, 0 means the
+    feed is only refreshed manually.
 
     Always returns a dict; returns {} for an unknown feed, a NULL value, or
     malformed JSON.
@@ -1812,6 +1817,40 @@ def set_feed_settings(feed_id, settings: dict) -> bool:
             conn.close()
         except Exception:
             pass
+
+
+def get_feed_refresh_interval_overrides() -> dict:
+    """Return {feed_id: seconds} for every feed with a per-feed refresh interval.
+
+    Seconds is a non-negative int; 0 means the feed is only refreshed manually
+    (see get_feed_settings). Feeds without an override, or with malformed
+    settings, are omitted.
+    """
+    conn = get_connection()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT id, feed_settings FROM feeds WHERE feed_settings IS NOT NULL")
+        rows = c.fetchall()
+    except sqlite3.Error:
+        return {}
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    overrides = {}
+    for feed_id, payload in rows:
+        try:
+            data = json.loads(payload)
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        value = data.get("refresh_interval_seconds")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        overrides[str(feed_id)] = max(0, int(value))
+    return overrides
 
 
 # ── Per-feed update error tracking (issue #32) ───────────────────────────────

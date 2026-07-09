@@ -102,11 +102,52 @@ def test_refresh_http_403_does_not_retry(monkeypatch):
 
             monkeypatch.setattr(local_mod.utils, "safe_requests_get", _fake_get)
             monkeypatch.setattr(local_mod.time, "sleep", lambda seconds: sleeps.append(seconds))
+            # Pin the plain-transport policy: without curl_cffi there is no
+            # impersonation escalation, so an HTTP 403 must not burn the retry
+            # budget at all. The escalation path has its own test below.
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", False)
 
             assert provider.refresh_feed(feed_id, progress_cb=states.append) is True
 
             assert len(calls) == 1
             assert sleeps == []
+            assert states[-1]["status"] == "error"
+            assert "HTTP 403" in str(states[-1]["error"])
+        finally:
+            core.db.DB_FILE = orig_db_file
+
+
+def test_refresh_http_403_escalates_to_impersonation_exactly_once(monkeypatch):
+    """A blocked 403 gets ONE extra browser-impersonation attempt (issue #29 WAF
+    fallback), never a retry storm."""
+    with tempfile.TemporaryDirectory() as tmp:
+        orig_db_file = core.db.DB_FILE
+        core.db.DB_FILE = os.path.join(tmp, "rss.db")
+        try:
+            provider = LocalProvider(
+                {
+                    "providers": {"local": {}},
+                    "feed_timeout_seconds": 2,
+                    "feed_retry_attempts": 5,
+                }
+            )
+            feed_id = _insert_feed("https://example.com/feed.xml")
+            calls = []
+            states = []
+
+            def _fake_get(url, **kwargs):
+                calls.append((url, dict(kwargs or {})))
+                return _DummyResp("forbidden", status_code=403, content_type="text/html; charset=utf-8")
+
+            monkeypatch.setattr(local_mod.utils, "safe_requests_get", _fake_get)
+            monkeypatch.setattr(local_mod.time, "sleep", lambda seconds: None)
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", True)
+
+            assert provider.refresh_feed(feed_id, progress_cb=states.append) is True
+
+            assert len(calls) == 2
+            assert calls[0][1].get("impersonate") is False
+            assert calls[1][1].get("impersonate") is True
             assert states[-1]["status"] == "error"
             assert "HTTP 403" in str(states[-1]["error"])
         finally:
@@ -407,6 +448,9 @@ def test_forced_full_refresh_bypasses_recent_failure_cooldown(monkeypatch):
                 return _DummyResp("forbidden", status_code=403, content_type="text/html; charset=utf-8")
 
             monkeypatch.setattr(local_mod.utils, "safe_requests_get", _fake_get)
+            # Pin the plain-transport (no impersonation escalation) policy so
+            # the call counts below are deterministic on machines with curl_cffi.
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", False)
 
             assert provider.refresh_feed(feed_id) is True
             assert len(calls) == 1

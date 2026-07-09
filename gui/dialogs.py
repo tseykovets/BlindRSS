@@ -2747,6 +2747,50 @@ class FeedPropertiesDialog(wx.Dialog):
         self.cat_ctrl.SetValue(feed.category or "Uncategorized")
         sizer.Add(self.cat_ctrl, 0, wx.EXPAND | wx.ALL, 5)
 
+        # Per-feed refresh interval override. "Use global setting" (None) follows
+        # the Settings dialog interval; 0 means the feed only refreshes manually.
+        sizer.Add(wx.StaticText(self, label=_("Refresh interval for this feed:")), 0, wx.ALL, 5)
+        self._refresh_interval_choices = [
+            (None, _("Use global setting")),
+            (0, _("Never (manual refresh only)")),
+            (30, _("30 seconds")),
+            (60, _("1 minute")),
+            (120, _("2 minutes")),
+            (180, _("3 minutes")),
+            (240, _("4 minutes")),
+            (300, _("5 minutes")),
+            (600, _("10 minutes")),
+            (900, _("15 minutes")),
+            (1800, _("30 minutes")),
+            (3600, _("60 minutes")),
+            (7200, _("2 hours")),
+            (10800, _("3 hours")),
+            (14400, _("4 hours")),
+        ]
+        self.refresh_interval_ctrl = wx.Choice(self, choices=[lbl for _v, lbl in self._refresh_interval_choices])
+        self.refresh_interval_ctrl.SetName("Refresh interval for this feed")
+        try:
+            current_interval = self._feed_settings.get("refresh_interval_seconds")
+        except Exception:
+            current_interval = None
+        interval_idx = 0
+        if isinstance(current_interval, (int, float)) and not isinstance(current_interval, bool):
+            current_interval = max(0, int(current_interval))
+            best_diff = None
+            for i, (value, _label) in enumerate(self._refresh_interval_choices):
+                if value is None:
+                    continue
+                if value == current_interval:
+                    interval_idx = i
+                    break
+                if current_interval > 0 and value > 0:
+                    diff = abs(value - current_interval)
+                    if best_diff is None or diff < best_diff:
+                        best_diff = diff
+                        interval_idx = i
+        self.refresh_interval_ctrl.SetSelection(interval_idx)
+        sizer.Add(self.refresh_interval_ctrl, 0, wx.EXPAND | wx.ALL, 5)
+
         # Per-feed delete-behavior override. "Use global setting" leaves
         # feeds.delete_behavior NULL so the global setting applies.
         try:
@@ -2848,13 +2892,14 @@ class FeedPropertiesDialog(wx.Dialog):
         self.SetSizer(sizer)
         self.Centre()
 
-        # Fix tab order: Title -> URL -> Category -> Headers -> Timeout -> Impersonate -> Proxy -> OK -> Cancel
+        # Fix tab order: Title -> URL -> Category -> Refresh interval -> Headers -> Timeout -> Impersonate -> Proxy -> OK -> Cancel
         self.title_ctrl.SetFocus()
         if self.url_ctrl.AcceptsFocus():
             self.url_ctrl.MoveAfterInTabOrder(self.title_ctrl)
 
         self.cat_ctrl.MoveAfterInTabOrder(self.url_ctrl)
-        self.headers_ctrl.MoveAfterInTabOrder(self.cat_ctrl)
+        self.refresh_interval_ctrl.MoveAfterInTabOrder(self.cat_ctrl)
+        self.headers_ctrl.MoveAfterInTabOrder(self.refresh_interval_ctrl)
         self.timeout_ctrl.MoveAfterInTabOrder(self.headers_ctrl)
         self.impersonate_ctrl.MoveAfterInTabOrder(self.timeout_ctrl)
         self.proxy_ctrl.MoveAfterInTabOrder(self.impersonate_ctrl)
@@ -2929,6 +2974,16 @@ class FeedPropertiesDialog(wx.Dialog):
             settings["proxy"] = (self.proxy_ctrl.GetValue() or "").strip()
         except Exception:
             settings["proxy"] = ""
+
+        try:
+            sel = self.refresh_interval_ctrl.GetSelection()
+            settings["refresh_interval_seconds"] = (
+                self._refresh_interval_choices[sel][0]
+                if 0 <= sel < len(self._refresh_interval_choices)
+                else None
+            )
+        except Exception:
+            settings["refresh_interval_seconds"] = None
 
         try:
             from core import db as _db

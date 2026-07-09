@@ -183,6 +183,17 @@ class MainFrame(wx.Frame):
         # nothing when "all" and needs no tree rebuild when changed.
         self._article_media_filter = "all"
         self._is_first_tree_load = True
+        # Signatures of the last-applied tree content. A refresh tick that
+        # changed nothing (the common case with many feeds) skips the full
+        # rebuild entirely, and one that only changed unread counts patches
+        # labels in place. Full rebuilds destroy and recreate every node, which
+        # stalls the UI thread and yanks screen-reader focus, so with large
+        # subscription lists they must only happen on structural changes.
+        self._tree_structural_sig = None
+        self._tree_counts_sig = None
+        # Set by Stop Refresh so the end-of-refresh announcement says
+        # "Refresh stopped" instead of "Refresh complete".
+        self._refresh_stop_requested = False
         # Category-tree expansion memory (issue #33). The tree is fully rebuilt on
         # every refresh, so we track which category nodes the user explicitly
         # expanded/collapsed (keyed by category id/path) and re-apply that across
@@ -1716,6 +1727,7 @@ class MainFrame(wx.Frame):
         add_feed_item = file_menu.Append(wx.ID_ANY, _("&Add Feed") + "\tCtrl+N", _("Add a new RSS feed"))
         remove_feed_item = file_menu.Append(wx.ID_ANY, _("&Remove Feed"), _("Remove selected feed"))
         refresh_item = file_menu.Append(wx.ID_REFRESH, _("&Refresh Feeds") + "\tF5", _("Refresh all feeds"))
+        stop_refresh_item = file_menu.Append(wx.ID_ANY, _("S&top Refresh") + "\tShift+F5", _("Stop the feed refresh currently in progress"))
         mark_all_read_item = file_menu.Append(wx.ID_ANY, _("Mark All Items as &Read"), _("Mark all items in all feeds as read"))
         view_errors_item = file_menu.Append(wx.ID_ANY, _("View Feed &Errors..."), _("View feeds that failed to update"))
         file_menu.AppendSeparator()
@@ -1945,6 +1957,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_add_feed, add_feed_item)
         self.Bind(wx.EVT_MENU, self.on_remove_feed, remove_feed_item)
         self.Bind(wx.EVT_MENU, self.on_refresh_feeds, refresh_item)
+        self.Bind(wx.EVT_MENU, self.on_stop_refresh, stop_refresh_item)
         self.Bind(wx.EVT_MENU, self.on_mark_all_read, mark_all_read_item)
         self.Bind(wx.EVT_MENU, self.on_view_feed_errors, view_errors_item)
         self.Bind(wx.EVT_MENU, self.on_add_category, add_cat_item)
@@ -2780,9 +2793,24 @@ class MainFrame(wx.Frame):
 
     def on_refresh_feeds(self, event=None):
         # Visual feedback usually good, but console for now or title?
-        # self.SetTitle("RSS Reader - Refreshing...") 
+        # self.SetTitle("RSS Reader - Refreshing...")
         log.info("Manual full refresh requested")
         threading.Thread(target=self._manual_refresh_thread, daemon=True).start()
+
+    def on_stop_refresh(self, event=None):
+        """Stop the batch feed refresh currently in flight (cooperative:
+        feeds already being fetched finish, queued ones are skipped)."""
+        try:
+            requested = bool(self.provider.cancel_refresh())
+        except Exception:
+            log.exception("Failed to request refresh cancellation")
+            requested = False
+        if requested:
+            log.info("User requested refresh stop")
+            self._refresh_stop_requested = True
+            self._post_activity_status("Stopping refresh...")
+        else:
+            self._post_activity_status("No refresh in progress")
 
     def on_refresh_single_feed(self, event):
         item = self.tree.GetSelection()
@@ -3412,7 +3440,7 @@ class MainFrame(wx.Frame):
         except Exception as e:
             log.error(f"Hosted chapter cache cleanup failed: {e}")
 
-    def _run_refresh(self, block: bool, force: bool = False) -> bool:
+    def _run_refresh(self, block: bool, force: bool = False, scheduled: bool = False) -> bool:
         """Run provider.refresh with optional blocking guard to avoid overlap.
         
         Performs retention cleanup BEFORE the refresh to avoid the following bug:
@@ -3477,7 +3505,7 @@ class MainFrame(wx.Frame):
                     )
                 self._on_feed_refresh_progress(state)
 
-            provider_result = self.provider.refresh(progress_cb, force=force)
+            provider_result = self.provider.refresh(progress_cb, force=force, scheduled=scheduled)
             log.info(
                 "Provider refresh returned provider=%s result=%s force=%s duration_s=%.2f new_items=%s",
                 provider_name,
@@ -5723,17 +5751,29 @@ class MainFrame(wx.Frame):
         if warnings:
             wx.MessageBox("\n\n".join(warnings), _("Warning"), wx.ICON_WARNING)
 
+    def _scheduled_refresh_tick_seconds(self) -> int:
+        """Seconds between refresh-loop ticks: the global interval, shortened by
+        any per-feed refresh interval overrides (local provider only)."""
+        try:
+            global_interval = int(self.config_manager.get("refresh_interval", 300))
+        except (TypeError, ValueError):
+            global_interval = 300
+        try:
+            return int(self.provider.scheduled_refresh_tick(global_interval))
+        except Exception:
+            return global_interval
+
     def refresh_loop(self):
         # If auto-refresh on startup is disabled, wait for one interval before the first check.
         startup_refresh_pending = bool(self.config_manager.get("refresh_on_startup", True))
         if not startup_refresh_pending:
-             interval = int(self.config_manager.get("refresh_interval", 300))
+             interval = self._scheduled_refresh_tick_seconds()
              log.info("Refresh loop startup refresh disabled; waiting interval_s=%s before first refresh", interval)
              if self.stop_event.wait(interval):
                  return
 
         while not self.stop_event.is_set():
-            interval = int(self.config_manager.get("refresh_interval", 300))
+            interval = self._scheduled_refresh_tick_seconds()
             if interval <= 0:
                 # "Never" setting: wait 5s then check config/stop event again
                 if self.stop_event.wait(5):
@@ -5759,7 +5799,9 @@ class MainFrame(wx.Frame):
                     "Refresh loop tick interval_s=%s force=%s startup=%s",
                     interval, force_refresh, is_startup_tick,
                 )
-                ran = self._run_refresh(block=False, force=force_refresh)
+                # Periodic (non-startup) ticks are "scheduled": the provider may
+                # skip feeds whose per-feed refresh interval has not elapsed yet.
+                ran = self._run_refresh(block=False, force=force_refresh, scheduled=not is_startup_tick)
                 log.info("Refresh loop tick complete ran=%s interval_s=%s force=%s", ran, interval, force_refresh)
             except Exception as e:
                 print(f"Refresh error: {e}")
@@ -5918,7 +5960,12 @@ class MainFrame(wx.Frame):
         self._post_activity_status(message)
 
     def _end_refresh_activity(self) -> None:
-        """Announce that a feed-refresh batch has finished (success or error)."""
+        """Announce that a feed-refresh batch has finished (success, error, or
+        stopped by the user via Stop Refresh)."""
+        if getattr(self, "_refresh_stop_requested", False):
+            self._refresh_stop_requested = False
+            self._post_activity_status("Refresh stopped")
+            return
         self._post_activity_status("Refresh complete")
 
     def _set_feed_activity_status(self, state: dict) -> None:
@@ -5959,16 +6006,42 @@ class MainFrame(wx.Frame):
             log.debug("Failed to schedule feed refresh progress flush, likely during shutdown.", exc_info=True)
 
     def _flush_feed_refresh_progress(self):
+        # Drain in bounded chunks: with many feeds a refresh can complete
+        # hundreds of feeds between flushes, and applying them all in one UI
+        # callback stalls input and screen-reader events. A 1ms CallLater
+        # between chunks lets keyboard/NVDA/paint events interleave (same
+        # pattern as the article-list render batches).
+        batch_limit = 40
         with self._refresh_progress_lock:
-            pending = list(self._refresh_progress_pending.values())
-            self._refresh_progress_pending.clear()
-            self._refresh_progress_flush_scheduled = False
+            keys = list(self._refresh_progress_pending.keys())[:batch_limit]
+            pending = [self._refresh_progress_pending.pop(k) for k in keys]
+            more = bool(self._refresh_progress_pending)
+            self._refresh_progress_flush_scheduled = more
 
         for st in pending:
             try:
                 self._apply_feed_refresh_progress(st)
             except Exception:
                 log.debug("Failed to apply feed refresh progress update", exc_info=True)
+
+        # One tray/unread-total update per chunk, not per feed: the total walks
+        # every feed, so doing it per progress state is quadratic in feed count.
+        if pending:
+            update_tray = getattr(self, "_update_tray_status_label", None)
+            if callable(update_tray):
+                try:
+                    update_tray()
+                except Exception:
+                    log.debug("Failed to update tray status label", exc_info=True)
+
+        if more:
+            try:
+                wx.CallLater(1, self._flush_feed_refresh_progress)
+            except Exception:
+                with self._refresh_progress_lock:
+                    self._refresh_progress_pending.clear()
+                    self._refresh_progress_flush_scheduled = False
+                log.debug("Failed to reschedule feed refresh progress flush", exc_info=True)
 
     def _apply_feed_refresh_progress(self, state):
         if not state:
@@ -6001,9 +6074,8 @@ class MainFrame(wx.Frame):
                 self._update_category_unread_chain_ui(old_category, -old_unread)
             if category and unread:
                 self._update_category_unread_chain_ui(category, unread)
-            update_tray = getattr(self, "_update_tray_status_label", None)
-            if callable(update_tray):
-                update_tray()
+            # Tray/unread-total update happens once per flush chunk in
+            # _flush_feed_refresh_progress; per-feed it is quadratic.
 
         # Update tree label if present
         node = self.feed_nodes.get(feed_id)
@@ -6138,7 +6210,127 @@ class MainFrame(wx.Frame):
             except Exception:
                 log.debug("Failed to set expansion for category %r", cat, exc_info=True)
 
+    def _tree_content_signatures(self, feeds, all_cats, hierarchy):
+        """(structural, counts) signatures of what the tree would display.
+
+        ``structural`` covers everything that changes the node set: feed
+        ids/titles/categories, the category list and hierarchy, smart folders,
+        and the read-status filter. ``counts`` covers per-feed unread counts,
+        which only affect labels while the filter is "all".
+        """
+        smart_folders = ()
+        try:
+            if getattr(self.provider, "supports_smart_folders", lambda: False)():
+                smart_folders = tuple(
+                    (f.get("id"), f.get("name") or "")
+                    for f in (self.provider.get_smart_folders() or [])
+                )
+        except Exception:
+            smart_folders = ()
+        # Provider identity/features decide the special nodes (Favorites,
+        # Deleted Articles, Smart Folders), so a provider switch that happens
+        # to expose an identical feed set still rebuilds.
+        try:
+            provider_features = (
+                type(self.provider).__name__,
+                bool(getattr(self.provider, "supports_favorites", lambda: False)()),
+                bool(getattr(self.provider, "supports_restore_deleted", lambda: False)()),
+            )
+        except Exception:
+            provider_features = ("?", False, False)
+        structural = (
+            provider_features,
+            getattr(self, "_article_read_filter", "all"),
+            tuple(sorted((str(f.id), f.title or "", f.category or "") for f in feeds)),
+            tuple(sorted(str(c) for c in (all_cats or []))),
+            tuple(sorted((str(k), str(v)) for k, v in (hierarchy or {}).items())),
+            smart_folders,
+        )
+        counts = tuple(
+            sorted((str(f.id), int(getattr(f, "unread_count", 0) or 0)) for f in feeds)
+        )
+        return structural, counts
+
+    def _patch_tree_unread_labels(self, feeds, all_cats, hierarchy):
+        """Update unread counts on the existing tree without rebuilding it.
+
+        Only valid when the node set is unchanged (same structural signature)
+        and the read filter is "all", where counts are purely cosmetic.
+        """
+        self.feed_map = {f.id: f for f in feeds}
+
+        for feed in feeds:
+            node = self.feed_nodes.get(feed.id)
+            if not node or not node.IsOk():
+                continue
+            unread = int(getattr(feed, "unread_count", 0) or 0)
+            label = f"{feed.title} ({unread})" if unread > 0 else (feed.title or "")
+            try:
+                if self.tree.GetItemText(node) != label:
+                    self.tree.SetItemText(node, label)
+            except Exception:
+                log.debug("Failed to patch feed node label", exc_info=True)
+
+        # Recompute category totals the same way the full rebuild does.
+        cat_feeds_map = {c: [] for c in (all_cats or [])}
+        for feed in feeds:
+            cat_feeds_map.setdefault(feed.category or "Uncategorized", []).append(feed)
+        children_of = {}
+        all_cat_set = set(cat_feeds_map.keys())
+        for cat in all_cat_set:
+            parent = (hierarchy or {}).get(cat)
+            if parent and parent in all_cat_set:
+                children_of.setdefault(parent, []).append(cat)
+        totals = self._compute_category_unread_totals(cat_feeds_map, children_of)
+        self.category_unread_totals = totals
+
+        base_labels = getattr(self, "category_base_labels", {}) or {}
+        for cat, node in (getattr(self, "cat_nodes", {}) or {}).items():
+            if not node or not node.IsOk():
+                continue
+            base = base_labels.get(cat, cat)
+            total = totals.get(cat, 0)
+            label = f"{base} ({total})" if total > 0 else base
+            try:
+                if self.tree.GetItemText(node) != label:
+                    self.tree.SetItemText(node, label)
+            except Exception:
+                log.debug("Failed to patch category node label", exc_info=True)
+
+        update_tray = getattr(self, "_update_tray_status_label", None)
+        if callable(update_tray):
+            update_tray()
+
     def _update_tree(self, feeds, all_cats, hierarchy=None):
+        # Fast paths for periodic refreshes: a full rebuild recreates every node,
+        # stalling the UI thread and disturbing screen-reader focus in the tree,
+        # so skip it when nothing (or only unread counts) changed. Structural
+        # changes, the first load, pending selection hints, and non-"all" read
+        # filters (where counts decide node visibility) always rebuild.
+        structural_sig, counts_sig = self._tree_content_signatures(feeds, all_cats, hierarchy)
+        if (
+            not self._is_first_tree_load
+            and not getattr(self, "_selection_hint", None)
+            and getattr(self, "_article_read_filter", "all") == "all"
+            and structural_sig == self._tree_structural_sig
+        ):
+            if counts_sig == self._tree_counts_sig:
+                log.info("Feed tree unchanged; skipping rebuild feeds=%s", len(feeds or []))
+                return
+            log.info("Feed tree counts-only change; patching labels feeds=%s", len(feeds or []))
+            try:
+                self._patch_tree_unread_labels(feeds, all_cats, hierarchy)
+                self._tree_counts_sig = counts_sig
+                # New/removed unread articles may affect the open view; merge
+                # them in without touching the tree.
+                self._reload_selected_articles()
+                return
+            except Exception:
+                log.exception("Tree label patch failed; falling back to full rebuild")
+
+        self._tree_structural_sig = structural_sig
+        self._tree_counts_sig = counts_sig
+
         # Save selection to restore it later
         selected_item = self.tree.GetSelection()
         selected_data = None

@@ -193,7 +193,7 @@ class TheOldReaderProvider(RSSProvider):
                 ok = False
         return ok
 
-    def refresh(self, progress_cb=None, force: bool = False) -> bool:
+    def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
         if not self._login():
             log.warning("TheOldReader: Refresh skipped due to login failure.")
             return False

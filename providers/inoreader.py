@@ -621,7 +621,7 @@ class InoreaderProvider(RSSProvider):
                 ok = False
         return ok
 
-    def refresh(self, progress_cb=None, force: bool = False) -> bool:
+    def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
         log.info("Inoreader refresh start force=%s", force)
         if force:
             self._mark_cache_dirty()

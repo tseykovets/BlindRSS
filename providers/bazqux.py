@@ -188,7 +188,7 @@ class BazQuxProvider(RSSProvider):
                 ok = False
         return ok
 
-    def refresh(self, progress_cb=None, force: bool = False) -> bool:
+    def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
         if not self.email or not self.password:
             log.warning("BazQux credentials missing.")
             return False

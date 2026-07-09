@@ -970,7 +970,7 @@ class MinifluxProvider(RSSProvider):
         except Exception:
             return None
 
-    def refresh(self, progress_cb=None, force: bool = False) -> bool:
+    def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
         started_at = datetime.now(timezone.utc)
         log.info("Miniflux refresh start force=%s", force)
         # Kick off a global refresh on the Miniflux server.

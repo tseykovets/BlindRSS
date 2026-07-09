@@ -18,6 +18,7 @@ from core.db import (
     get_connection,
     init_db,
     get_feed_settings,
+    get_feed_refresh_interval_overrides,
     record_feed_error,
     clear_feed_error,
     get_feed_errors,
@@ -1314,6 +1315,15 @@ class LocalProvider(RSSProvider):
         self._discovery_cache_lock = threading.Lock()
         self._refresh_failure_cooldowns: Dict[str, Tuple[float, Optional[str]]] = {}
         self._refresh_failure_cooldowns_lock = threading.Lock()
+        # Last refresh-attempt time per feed (monotonic), used to honor per-feed
+        # refresh_interval_seconds overrides on scheduled refreshes. In-memory
+        # only: after a restart every feed is due, which matches startup refresh.
+        self._scheduled_refresh_last_attempt: Dict[str, float] = {}
+        self._scheduled_refresh_last_attempt_lock = threading.Lock()
+        # Cancel event of the batch refresh currently in flight (None when
+        # idle). Set via cancel_refresh(); each _refresh_feed_rows run installs
+        # its own event so a stray stop can never cancel a future run.
+        self._active_refresh_cancel: Optional[threading.Event] = None
 
     def get_name(self) -> str:
         return "Local RSS"
@@ -1531,7 +1541,15 @@ class LocalProvider(RSSProvider):
         retries = max(0, int(self.config.get("feed_retry_attempts", 1) or 0))
         host_limits = defaultdict(lambda: threading.Semaphore(per_host_limit))
 
+        # Cooperative stop (user's "Stop Refresh"): feeds already being fetched
+        # finish; queued ones are skipped. The event is per-run so a stop
+        # request can never leak into a later refresh.
+        cancel_event = threading.Event()
+        self._active_refresh_cancel = cancel_event
+
         def task(feed_row):
+            if cancel_event.is_set():
+                return None
             return self._refresh_single_feed(
                 feed_row,
                 host_limits,
@@ -1543,16 +1561,29 @@ class LocalProvider(RSSProvider):
             )
 
         ordered_feed_rows = _interleave_feed_rows_by_host(feed_rows)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(task, feed_row): feed_row for feed_row in ordered_feed_rows}
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    log.error(f"Refresh worker error: {e}")
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(task, feed_row): feed_row for feed_row in ordered_feed_rows}
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        log.error(f"Refresh worker error: {e}")
+            if cancel_event.is_set():
+                log.info("Local refresh stopped by user; remaining feeds skipped")
+        finally:
+            if self._active_refresh_cancel is cancel_event:
+                self._active_refresh_cancel = None
         return True
 
-    def refresh(self, progress_cb=None, force: bool = False) -> bool:
+    def cancel_refresh(self) -> bool:
+        event = self._active_refresh_cancel
+        if event is None:
+            return False
+        event.set()
+        return True
+
+    def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
         conn = get_connection()
         try:
             c = conn.cursor()
@@ -1564,10 +1595,71 @@ class LocalProvider(RSSProvider):
         finally:
             conn.close()
 
+        if scheduled:
+            feeds = self._filter_scheduled_due_rows(feeds)
+            if not feeds:
+                return True
+
         # When the user opts to ignore feed caching, treat every full refresh as
         # forced so periodic/background refreshes also bypass spurious 304s.
         effective_force = bool(force) or self._cache_ignore_enabled()
         return self._refresh_feed_rows(feeds, progress_cb=progress_cb, force=effective_force)
+
+    def scheduled_refresh_tick(self, global_interval_s: int) -> int:
+        # Per-feed overrides can be shorter than the global interval, so the
+        # refresh loop must wake often enough to service the fastest feed.
+        try:
+            global_interval = int(global_interval_s)
+        except (TypeError, ValueError):
+            global_interval = 300
+        try:
+            overrides = get_feed_refresh_interval_overrides()
+        except Exception:
+            overrides = {}
+        candidates = [v for v in overrides.values() if v > 0]
+        if global_interval > 0:
+            candidates.append(global_interval)
+        return min(candidates) if candidates else global_interval
+
+    def _filter_scheduled_due_rows(self, feed_rows):
+        """Keep only the feeds due for a scheduled (periodic) refresh.
+
+        Each feed's effective interval is its refresh_interval_seconds override
+        when set, else the global refresh_interval. An interval of 0 means never
+        auto-refresh. A feed not yet attempted this session is always due.
+        """
+        try:
+            overrides = get_feed_refresh_interval_overrides()
+        except Exception:
+            overrides = {}
+        if not overrides:
+            return feed_rows
+        try:
+            global_interval = int(self.config.get("refresh_interval", 300) or 0)
+        except (TypeError, ValueError):
+            global_interval = 300
+        now = time.monotonic()
+        with self._scheduled_refresh_last_attempt_lock:
+            last_attempts = dict(self._scheduled_refresh_last_attempt)
+        due = []
+        for row in feed_rows:
+            feed_id = str(row[0])
+            interval = overrides.get(feed_id, global_interval)
+            if interval <= 0:
+                continue
+            last = last_attempts.get(feed_id)
+            # 1s tolerance so a feed whose interval equals the loop tick is not
+            # pushed a whole extra tick by scheduling jitter.
+            if last is None or (now - last) >= (interval - 1.0):
+                due.append(row)
+        return due
+
+    def _note_scheduled_refresh_attempt(self, feed_id) -> None:
+        key = str(feed_id or "").strip()
+        if not key:
+            return
+        with self._scheduled_refresh_last_attempt_lock:
+            self._scheduled_refresh_last_attempt[key] = time.monotonic()
 
     def refresh_feeds_by_ids(self, feed_ids, progress_cb=None, force: bool = True) -> bool:
         ordered_ids = []
@@ -1647,6 +1739,10 @@ class LocalProvider(RSSProvider):
                 )
                 self._emit_progress(progress_cb, state)
                 return
+
+        # Real attempt begins: restart this feed's per-feed refresh-interval
+        # clock. Cooldown skips above intentionally don't count as attempts.
+        self._note_scheduled_refresh_attempt(feed_id)
 
         def _preview_for_notification(raw_text):
             return _plain_text_preview(raw_text, limit=180)

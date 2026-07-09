@@ -32,6 +32,8 @@ def wx_app():
 
 class _TreeHost(wx.Frame):
     _update_tree = mainframe.MainFrame._update_tree
+    _tree_content_signatures = mainframe.MainFrame._tree_content_signatures
+    _patch_tree_unread_labels = mainframe.MainFrame._patch_tree_unread_labels
     _apply_tree_expansion = mainframe.MainFrame._apply_tree_expansion
     _resolve_category_expanded = staticmethod(mainframe.MainFrame._resolve_category_expanded)
     _compute_category_unread_totals = staticmethod(mainframe.MainFrame._compute_category_unread_totals)
@@ -46,6 +48,8 @@ class _TreeHost(wx.Frame):
         self.root = self.tree.AddRoot("Root")
         self.all_feeds_node = self.tree.AppendItem(self.root, "All Articles")
         self._is_first_tree_load = True
+        self._tree_structural_sig = None
+        self._tree_counts_sig = None
         self._expanded_categories = set()
         self._collapsed_categories = set()
         self._selection_hint = None

@@ -218,6 +218,64 @@ def test_response_text_tolerates_curl_cffi_read_once_encoding():
     assert article_extractor._response_text(r) == "<html>body</html>"
 
 
+def test_techradar_trailing_boilerplate_stripped():
+    # Trailing block: promo -> author bio -> two-line comment gate. All must go; body stays.
+    body = (
+        "The G6 is my pick for bright rooms this year.\n\n"
+        "There is always a trade-off between reflection reduction and image accuracy.\n\n"
+        "Follow TechRadar on Google News and add us as a preferred source to get our expert "
+        "news, reviews, and opinion in your feeds.\n\n"
+        "James is the TV Hardware Staff Writer at TechRadar. When not writing about TV tech, "
+        "James can be found gaming, reading, or watching rugby.\n\n"
+        "You must confirm your public display name before commenting\n\n"
+        "Please logout and then login again, you will then be prompted to enter your display name."
+    )
+    out = article_extractor._postprocess_extracted_text(body, "https://www.techradar.com/televisions/x")
+    assert "bright rooms this year" in out
+    assert "trade-off between reflection" in out
+    assert "Follow TechRadar" not in out
+    assert "TV Hardware Staff Writer" not in out  # author bio
+    assert "You must confirm" not in out
+    assert "Please logout" not in out
+
+
+def test_techradar_signup_promo_variant_stripped():
+    # Some articles use "Sign up for breaking news ..." as the trailing promo instead of "Follow".
+    body = (
+        "The AirPods Max remain expensive but sound superb.\n\n"
+        "Sign up for breaking news, reviews, opinion, top tech deals, and more.\n\n"
+        "Max is a senior staff writer for TechRadar who covers home entertainment and audio.\n\n"
+        "You must confirm your public display name before commenting\n\n"
+        "Please logout and then login again, you will then be prompted to enter your display name."
+    )
+    out = article_extractor._postprocess_extracted_text(body, "https://www.techradar.com/audio/x")
+    assert "sound superb" in out
+    assert "Sign up for breaking news" not in out
+    assert "senior staff writer for TechRadar" not in out  # author bio
+    assert "You must confirm" not in out
+
+
+def test_techradar_inline_signup_widget_removed_without_cutting_body():
+    # The "Sign up ..." newsletter widget also appears INLINE mid-article; removing it must not
+    # truncate the real paragraphs that follow it.
+    body = (
+        "Intro paragraph about the OLED comparison test.\n\n"
+        "Sign up for breaking news, reviews, opinion, top tech deals, and more.\n\n"
+        "On the G6, the shape of the light was still legible after the test.\n\n"
+        "Even on a blank screen you could see reflected objects.\n\n"
+        "James is the TV Hardware Staff Writer at TechRadar and can be found watching rugby.\n\n"
+        "You must confirm your public display name before commenting\n\n"
+        "Please logout and then login again, you will then be prompted to enter your display name."
+    )
+    out = article_extractor._postprocess_extracted_text(body, "https://www.techradar.com/televisions/x")
+    assert "Intro paragraph about the OLED" in out
+    assert "shape of the light was still legible" in out  # content AFTER the inline widget survives
+    assert "Even on a blank screen" in out
+    assert "Sign up for breaking news" not in out
+    assert "TV Hardware Staff Writer" not in out  # author bio still stripped
+    assert "You must confirm" not in out
+
+
 def test_wsj_boilerplate_stripped():
     body = (
         "Jeff Bezos' space company is raising capital.\n\n"

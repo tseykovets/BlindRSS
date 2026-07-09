@@ -51,6 +51,24 @@ Real Content.
         self.assertNotIn("share2Save", cleaned)
         self.assertIn("Real Content", cleaned)
 
+    def test_aljazeera_recommended_stories_list_removed(self):
+        # Al Jazeera embeds an inline "Recommended Stories" related-articles widget mid-article.
+        text = (
+            "First real paragraph before the widget.\n"
+            "Recommended Stories\n"
+            "list of 3 items- list 1 of 3‘False narrative’: Families challenge Trump’s visa suspension\n"
+            "- list 2 of 3Pope Leo, Mamdani send pro-immigrant message\n"
+            "- list 3 of 3At 250, America is still deciding who belongs\n"
+            "Second real paragraph after the widget."
+        )
+        cleaned = article_extractor._postprocess_extracted_text(text, "https://www.aljazeera.com/news/x")
+        self.assertIn("First real paragraph", cleaned)
+        self.assertIn("Second real paragraph", cleaned)
+        self.assertNotIn("list of 3 items", cleaned)
+        self.assertNotIn("- list 1 of 3", cleaned)
+        self.assertNotIn("Recommended Stories", cleaned)
+        self.assertNotIn("America is still deciding who belongs", cleaned)
+
     def test_bbc(self):
         text = """
 ShareSave

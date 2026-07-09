@@ -17,7 +17,9 @@ APP_NAME = "BlindRSS"
 
 SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)(?:\.(\d+))?$")
 MINIMUM_VERSION = (1, 42, 0)
-CONVENTIONAL_PREFIX_RE = re.compile(r"^([a-zA-Z]+)(?:\([^)]*\))?:\s*(.+)$")
+# Matches a conventional-commit prefix: type, optional (scope), optional ! breaking marker, colon.
+# e.g. "feat:", "fix(ui):", "feat!:", "refactor(core)!:". group(1)=type, group(2)=the message.
+CONVENTIONAL_PREFIX_RE = re.compile(r"^([a-zA-Z]+)(?:\([^)]*\))?!?:\s*(.+)$")
 CHANGELOG_OMIT_COMMIT_TYPES = {"chore", "ci", "docs", "test"}
 
 
@@ -183,6 +185,22 @@ def write_version(new_version):
         f.write(updated)
 
 
+def clean_subject(subject):
+    """Strip the conventional-commit prefix and capitalize, for human-readable display.
+
+    e.g. "feat: add dark mode" -> "Add dark mode". Used for the release summary shown in the
+    in-app update prompt. (Release-notes bullets intentionally keep the raw prefix so the CHANGELOG
+    generator can still detect and omit chore/ci/docs/test commits.)
+    """
+    text = str(subject or "").strip()
+    match = CONVENTIONAL_PREFIX_RE.match(text)
+    if match:
+        text = match.group(2).strip()
+    if not text:
+        return ""
+    return text[0].upper() + text[1:]
+
+
 def build_release_notes(tag, commits):
     breaking = []
     features = []
@@ -220,13 +238,15 @@ def build_release_notes(tag, commits):
 
 
 def build_summary(breaking, features, fixes):
+    # Strip the conventional-commit prefix so the summary reads "Feature: Add casting", not the
+    # doubled "Feature: feat: add casting".
     parts = []
     if breaking:
-        parts.append(f"Breaking: {breaking[0]}")
+        parts.append(f"Breaking: {clean_subject(breaking[0])}")
     if features:
-        parts.append(f"Feature: {features[0]}")
+        parts.append(f"Feature: {clean_subject(features[0])}")
     if fixes:
-        parts.append(f"Fix: {fixes[0]}")
+        parts.append(f"Fix: {clean_subject(fixes[0])}")
     if not parts:
         return "Maintenance update."
     summary = " | ".join(parts)

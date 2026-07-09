@@ -662,10 +662,23 @@ def _strip_globalnews_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)Hide\s+message\s+barDescrease\s+article\s+font\s+size\s*Increase\s+article\s+font\s+size", "", t)
     return t
 
+# Al Jazeera embeds a "Recommended Stories" related-articles widget INLINE in the article body,
+# which extracts as a "list of N items- list 1 of N<headline>" block followed by newline-separated
+# "- list K of N<headline>" lines. It sits mid-article, so it is removed in place (not truncated).
+_AJ_RELATED_LIST_RE = re.compile(
+    r"(?im)^(?:Recommended\s+Stories\s*\n)?"      # optional widget header on its own line
+    r"list\s+of\s+\d+\s+items"                     # "list of N items"
+    r"-\s*list\s+\d+\s+of\s+\d+[^\n]*"             # first item, glued to "items" (no newline)
+    r"(?:\n-\s*list\s+\d+\s+of\s+\d+[^\n]*)*"      # subsequent "- list K of N ..." items
+    r"\n?"
+)
+
+
 def _strip_aljazeera_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)Published\s+On\s+\d+\s+\w+\s+\d+.*?(?:20\d\d)", "", text)
     t = re.sub(r"(?i)Click\s+here\s+to\s+share\s+on\s+social\s+media", "", t)
     t = re.sub(r"(?i)share\d+Save", "", t)
+    t = _AJ_RELATED_LIST_RE.sub("\n", t)
     return t
 
 _AXIOS_BOILERPLATE_PATTERNS: List[re.Pattern] = [
@@ -695,6 +708,52 @@ def _strip_wsj_boilerplate(text: str) -> str:
         text,
     )
     return t.strip()
+
+# TechRadar (and other Future sites) append a fixed trailing block after the article body:
+# a "Follow ... on Google News" / "Sign up for breaking news ..." promo, then the author's bio
+# paragraph, then a two-line comment-gate notice ("You must confirm your public display name
+# before commenting" / "Please logout and then login again ...").
+#
+# The comment-gate notice is the only DEFINITIVE end-of-article marker: it is always present and
+# always trailing. The "Sign up for breaking news ..." line is NOT a safe truncation anchor because
+# TechRadar also drops it inline as a newsletter widget mid-article (verified: one article had it at
+# ~29% of the body). So we anchor on the comment gate, drop the author bio paragraph directly above
+# it, and drop a promo/sign-up line directly above the bio; separately we remove promo/newsletter
+# widget lines (exact boilerplate sentences) wherever they appear in the kept body.
+_TECHRADAR_GATE_RE = re.compile(r"(?i)^You\s+must\s+confirm\s+your\s+public\s+display\s+name\s+before\s+commenting\b")
+_TECHRADAR_FOLLOW_RE = re.compile(r"(?i)^Follow\s+TechRadar\b.*\b(?:Google\s+News|preferred\s+source)\b")
+_TECHRADAR_SIGNUP_RE = re.compile(r"(?i)^Sign\s+up\s+for\s+breaking\s+news\b.*\btop\s+tech\s+deals\b")
+
+
+def _strip_techradar_boilerplate(text: str) -> str:
+    paras = _split_paragraphs(text)
+    if not paras:
+        return ""
+
+    def _is_promo(p: str) -> bool:
+        return bool(_TECHRADAR_FOLLOW_RE.search(p) or _TECHRADAR_SIGNUP_RE.search(p))
+
+    cut = len(paras)
+    for i, p in enumerate(paras):
+        if _TECHRADAR_GATE_RE.search(p):
+            cut = i
+            # The author bio sits directly above the comment gate; drop it.
+            if cut - 1 >= 0:
+                cut -= 1
+            # A promo / sign-up line sits directly above the bio; drop it too.
+            if cut - 1 >= 0 and _is_promo(paras[cut - 1]):
+                cut -= 1
+            break
+    else:
+        # No comment gate: fall back to the always-trailing "Follow ... Google News" promo, which
+        # (unlike the sign-up line) never appears inline.
+        for i, p in enumerate(paras):
+            if _TECHRADAR_FOLLOW_RE.search(p):
+                cut = i
+                break
+
+    kept = [p for p in paras[:cut] if not _is_promo(p)]
+    return "\n\n".join(kept).strip()
 
 def _strip_canada_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)Advertisement\s+\d+", "", text)
@@ -900,6 +959,8 @@ def _postprocess_extracted_text(text: str, url: str) -> str:
         t = _strip_bbc_boilerplate(t)
     elif "wsj.com" in netloc:
         t = _strip_wsj_boilerplate(t)
+    elif "techradar.com" in netloc:
+        t = _strip_techradar_boilerplate(t)
     elif "o.canada.com" in netloc or "canada.com" in netloc:
         t = _strip_canada_boilerplate(t)
     elif "castanet.net" in netloc:

@@ -203,9 +203,15 @@ def test_write_version_without_app_version_marker_raises(tmp_path, monkeypatch):
 
 
 def test_build_summary_orders_sections_and_handles_empty():
+    # The conventional-commit prefix is stripped and the message capitalized for readability.
     summary = release.build_summary(["api!: x"], ["feat: y"], ["fix: z"])
-    assert summary == "Breaking: api!: x | Feature: feat: y | Fix: fix: z"
+    assert summary == "Breaking: X | Feature: Y | Fix: Z"
     assert release.build_summary([], [], []) == "Maintenance update."
+
+
+def test_build_summary_strips_prefix_for_readability():
+    summary = release.build_summary([], ["feat: add casting support"], [])
+    assert summary == "Feature: Add casting support"
 
 
 def test_build_summary_truncates_long_text():
@@ -227,7 +233,7 @@ def test_build_release_notes_sections_and_placeholders():
     assert "- feat: add casting" in notes
     assert "- fix: crash" in notes
     assert "- docs: tidy readme" in notes  # falls into the Other bucket
-    assert summary == "Feature: feat: add casting | Fix: fix: crash"
+    assert summary == "Feature: Add casting | Fix: Crash"
 
 
 def test_changelog_items_from_notes_strips_sections_and_prefixes():

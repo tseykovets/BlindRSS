@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.91.1 - 2026-07-09
+
+- Strip TechRadar and Al Jazeera boilerplate; readable release summary.
+
 ## v1.91.0 - 2026-07-09
 
 - Full-text extraction fallbacks and article-list column reorder.

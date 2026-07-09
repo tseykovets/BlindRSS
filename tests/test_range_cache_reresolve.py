@@ -10,6 +10,7 @@ import os
 import sys
 import tempfile
 import threading
+from io import BytesIO
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -125,6 +126,38 @@ def test_fetch_range_reresolves_expired_signed_url():
 
             # The recovered bytes must be correct.
             served_end, data = ent._read_from_cache(1_000_000, 1_000_010)
+            assert data == _BODY[1_000_000:1_000_011]
+    finally:
+        server.shutdown()
+        server.server_close()  # shutdown() alone leaks the listening socket
+
+
+def test_stream_origin_range_reresolves_expired_signed_url():
+    server, state = _make_server()
+    port = server.server_address[1]
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    try:
+        with tempfile.TemporaryDirectory() as cache_dir:
+            base = f"http://127.0.0.1:{port}/original"
+            ent = _new_entry(base, cache_dir)
+
+            ent.probe()
+            assert ent.range_supported is True
+            assert "token=tok1" in (ent.real_url or "")
+
+            state.valid_token = "expired"
+
+            out = BytesIO()
+            served_end = ent.stream_origin_range_to_and_cache(1_000_000, 1_000_010, out)
+
+            assert served_end == 1_000_010
+            assert state.reresolved is True
+            assert "token=tok1" not in (ent.real_url or "")
+            assert out.getvalue() == _BODY[1_000_000:1_000_011]
+
+            cached_end, data = ent._read_from_cache(1_000_000, 1_000_010)
+            assert cached_end == 1_000_010
             assert data == _BODY[1_000_000:1_000_011]
     finally:
         server.shutdown()

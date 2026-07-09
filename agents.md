@@ -321,6 +321,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\soundcloud-mixcloud-feeds.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\speed-shortcut-interception.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\test-suite-live-stream-hazard.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\tree-rebuild-fastpath.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\video-search-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\vlc-init-ui-freeze.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\volume-jump-root-cause.md

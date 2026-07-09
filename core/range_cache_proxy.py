@@ -811,10 +811,40 @@ class _Entry:
 
         session = self._make_session()
         try:
-            try:
-                r = session.get(target_url, headers=hdrs, stream=True, timeout=(10, 60), allow_redirects=True)
-            except Exception as e:
-                self._warn("RangeCacheProxy origin stream failed: %s", e)
+            r = None
+            for _attempt in range(2):
+                try:
+                    r = session.get(target_url, headers=hdrs, stream=True, timeout=(10, 60), allow_redirects=True)
+                except Exception as e:
+                    self._warn("RangeCacheProxy origin stream failed: %s", e)
+                    r = None
+                    if _attempt == 0 and self._refresh_real_url():
+                        target_url = self.real_url or self.url
+                        try:
+                            session.close()
+                        except Exception:
+                            pass
+                        session = self._make_session()
+                        continue
+                    return req_start - 1
+                if r.status_code in (401, 403, 404, 410) and _attempt == 0:
+                    try:
+                        r.close()
+                    except Exception:
+                        pass
+                    r = None
+                    if self._refresh_real_url():
+                        target_url = self.real_url or self.url
+                        try:
+                            session.close()
+                        except Exception:
+                            pass
+                        session = self._make_session()
+                        continue
+                    return req_start - 1
+                break
+
+            if r is None:
                 return req_start - 1
 
             tmp_path = None

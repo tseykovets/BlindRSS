@@ -541,6 +541,7 @@ class PlayerFrame(wx.Frame):
         self._pos_last_timer_ts = 0.0
 
         # Seek guard
+        self._seek_resume_seq = 0
         self._seek_guard_target_ms = None
         self._seek_guard_attempts_left = 0
         self._seek_guard_reapply_left = 0
@@ -3753,6 +3754,7 @@ class PlayerFrame(wx.Frame):
             self._seek_guard_target_ms = None
             self._seek_guard_attempts_left = 0
             self._seek_guard_reapply_left = 0
+            self._seek_resume_seq = int(getattr(self, "_seek_resume_seq", 0) or 0) + 1
             if getattr(self, '_seek_guard_calllater', None) is not None:
                 try:
                     self._seek_guard_calllater.Stop()
@@ -5581,8 +5583,18 @@ class PlayerFrame(wx.Frame):
             except Exception:
                 pass
 
+        was_playing = False
+        try:
+            was_playing = bool(self.player.is_playing())
+        except Exception:
+            was_playing = bool(getattr(self, "is_playing", False))
+
         try:
             self.player.set_time(target_i)
+        except Exception:
+            pass
+        try:
+            self._schedule_seek_playback_resume(int(target_i), bool(was_playing))
         except Exception:
             pass
 
@@ -5600,6 +5612,68 @@ class PlayerFrame(wx.Frame):
                 self._set_elapsed_time_label(self._format_time(target_i))
         except Exception:
             pass
+
+    def _schedule_seek_playback_resume(self, target_ms: int, was_playing: bool) -> None:
+        if self.is_casting or not bool(was_playing):
+            return
+        try:
+            target_i = int(target_ms)
+        except Exception:
+            return
+        try:
+            seq = int(getattr(self, "_seek_resume_seq", 0) or 0) + 1
+            self._seek_resume_seq = int(seq)
+        except Exception:
+            seq = 0
+
+        def _resume_if_stopped() -> None:
+            try:
+                if seq and int(getattr(self, "_seek_resume_seq", 0) or 0) != int(seq):
+                    return
+            except Exception:
+                return
+            try:
+                if self.is_casting:
+                    return
+            except Exception:
+                return
+            try:
+                active_target = getattr(self, "_seek_target_ms", None)
+                if active_target is not None and abs(int(active_target) - int(target_i)) > 1500:
+                    return
+            except Exception:
+                return
+            try:
+                if bool(self.player.is_playing()):
+                    return
+            except Exception:
+                pass
+            try:
+                state = self.player.get_state()
+            except Exception:
+                state = None
+            try:
+                if state in (vlc.State.Ended, vlc.State.Error, vlc.State.Paused):
+                    return
+            except Exception:
+                pass
+            try:
+                self.player.set_pause(0)
+            except Exception:
+                pass
+            try:
+                self.player.play()
+                self.is_playing = True
+                self._set_play_button_label(True)
+                self._set_status("Playing")
+                self._apply_volume_when_ready()
+            except Exception:
+                pass
+
+        try:
+            wx.CallLater(150, _resume_if_stopped)
+        except Exception:
+            _resume_if_stopped()
 
     def _apply_debounced_seek(self) -> None:
 
@@ -5841,7 +5915,13 @@ class PlayerFrame(wx.Frame):
 
         try:
             if self.duration and self.duration > 0:
-                target = max(0, min(int(target), int(self.duration)))
+                duration_i = int(self.duration)
+                upper = duration_i
+                if int(delta) > 0:
+                    upper = duration_i - 1000 if duration_i > 1000 else max(0, duration_i - 1)
+                    if int(base) >= int(upper):
+                        return
+                target = max(0, min(int(target), int(upper)))
             else:
                 target = max(0, int(target))
         except Exception:
@@ -5936,6 +6016,10 @@ class PlayerFrame(wx.Frame):
         if not self.is_casting and not self._ensure_vlc_ready():
             return
         try:
+            self._seek_resume_seq = int(getattr(self, "_seek_resume_seq", 0) or 0) + 1
+        except Exception:
+            pass
+        try:
             self._persist_playback_position(force=True)
         except Exception:
             log.exception("Failed to persist playback position on pause")
@@ -5968,6 +6052,10 @@ class PlayerFrame(wx.Frame):
     def stop(self) -> None:
         if not self.is_casting and not self._ensure_vlc_ready():
             return
+        try:
+            self._seek_resume_seq = int(getattr(self, "_seek_resume_seq", 0) or 0) + 1
+        except Exception:
+            pass
         try:
             self._persist_playback_position(force=True)
         except Exception:

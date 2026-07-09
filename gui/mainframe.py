@@ -48,8 +48,8 @@ from .shortcut_keys import event_to_accel
 log = logging.getLogger(__name__)
 
 ARTICLE_COL_TITLE = 0
-ARTICLE_COL_MEDIA = 1
-ARTICLE_COL_AUTHOR = 2
+ARTICLE_COL_AUTHOR = 1
+ARTICLE_COL_MEDIA = 2
 ARTICLE_COL_DATE = 3
 ARTICLE_COL_FEED = 4
 ARTICLE_COL_DESCRIPTION = 5
@@ -445,8 +445,8 @@ class MainFrame(wx.Frame):
         self.list_ctrl = wx.ListCtrl(right_splitter, style=wx.LC_REPORT)
         self.list_ctrl.SetName(_("Articles"))
         self.list_ctrl.InsertColumn(ARTICLE_COL_TITLE, _("Title"), width=320)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_MEDIA, _("Media"), width=110)
         self.list_ctrl.InsertColumn(ARTICLE_COL_AUTHOR, _("Author"), width=110)
+        self.list_ctrl.InsertColumn(ARTICLE_COL_MEDIA, _("Media"), width=110)
         self.list_ctrl.InsertColumn(ARTICLE_COL_DATE, _("Date"), width=120)
         self.list_ctrl.InsertColumn(ARTICLE_COL_FEED, _("Feed"), width=140)
         self.list_ctrl.InsertColumn(ARTICLE_COL_DESCRIPTION, _("Description"), width=260)

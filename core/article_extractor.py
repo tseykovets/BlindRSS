@@ -9,13 +9,14 @@ Goal:
 
 from __future__ import annotations
 
+import html
 import json
 import re
 import time
 import logging
 from dataclasses import dataclass
 from typing import Callable, Optional, Tuple, List, Set
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import quote, urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
@@ -121,6 +122,11 @@ _BOT_INTERSTITIAL_MARKERS = (
     "please complete the security check to access",
     "pardon our interruption",
     "as you were browsing, something about your browser made us think you were a bot",
+    # Vercel / generic WAF verification page (seen on Neowin, also relayed through read-proxies
+    # as markdown: "## Performing security verification ...")
+    "performing security verification",
+    "uses a security service to protect against malicious bots",
+    "while the website verifies you are not a bot",
 )
 
 # Block-page bodies are short; a long article that merely mentions one of these phrases should not be
@@ -387,10 +393,60 @@ def _extract_axios_story_text(html: str) -> str:
     return text
 
 
+_THEREGISTER_MIN_TEXT_LEN = 300
+# The Register's article page opens with several teaser/"spotlight" cards (each its own
+# <article>) before the story. The real body is the <article> that carries the standfirst +
+# many paragraphs, so we pick the <article> with the most paragraph text rather than the first.
+_THEREGISTER_DROP_LEADING_LABELS = {
+    "security", "ai + ml", "ai and ml", "software", "systems", "networks", "storage",
+    "devops", "personal tech", "science", "offbeat", "on-prem", "off-prem", "special features",
+    "bootnotes", "emergent tech", "public sector", "legal", "cso", "spotlight",
+}
+
+
+def _extract_theregister_text(html: str) -> str:
+    """Extract The Register's story body.
+
+    The generic extractor grabs the "MOST POPULAR" teaser rail instead of the article, so we
+    read the paragraphs straight from the story's own <article> element (the one with the most
+    paragraph text) and drop the leading one-word section kicker (e.g. "Security").
+    """
+    soup = _parse_html_soup(html, context="theregister body")
+    if soup is None:
+        return ""
+    best_node = None
+    best_len = 0
+    for node in soup.find_all("article"):
+        para_len = sum(len(p.get_text(" ", strip=True)) for p in node.find_all("p"))
+        if para_len > best_len:
+            best_len = para_len
+            best_node = node
+    if best_node is None:
+        return ""
+    paras: List[str] = []
+    for p in best_node.find_all(["p", "li"]):
+        if p.find(["p", "li"]) is not None:
+            continue
+        text = _normalize_whitespace(p.get_text(" ", strip=True))
+        text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+        if not text:
+            continue
+        # Drop the leading section kicker ("Security", "AI + ML", ...) that isn't part of the body.
+        if not paras and text.strip().lower() in _THEREGISTER_DROP_LEADING_LABELS:
+            continue
+        paras.append(text)
+    text = _normalize_whitespace("\n\n".join(paras))
+    if len(text) < _THEREGISTER_MIN_TEXT_LEN:
+        return ""
+    return text
+
+
 def _extract_site_specific_text(html: str, url: str) -> str:
     """Site-specific structured body extraction that outranks generic heuristics."""
     if _host_matches(url, "axios.com"):
         return _extract_axios_story_text(html)
+    if _host_matches(url, "theregister.com") or _host_matches(url, "theregister.co.uk"):
+        return _extract_theregister_text(html)
     return ""
 
 
@@ -630,6 +686,16 @@ def _strip_bbc_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)ShareSave", "", text)
     return t
 
+def _strip_wsj_boilerplate(text: str) -> str:
+    # Dow Jones appends a copyright line and an opaque tracking hash to article bodies
+    # (e.g. "Copyright ©2026 Dow Jones & Company, Inc. All Rights Reserved. 87990cbe...").
+    t = re.sub(
+        r"(?is)\s*Copyright\s*©?\s*\d{4}\s*Dow\s+Jones\s*&\s*Company.*?All\s+Rights\s+Reserved\.\s*[0-9a-f]{16,}\s*$",
+        "",
+        text,
+    )
+    return t.strip()
+
 def _strip_canada_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)Advertisement\s+\d+", "", text)
     t = re.sub(r"(?i)This\s+advertisement\s+has\s+not\s+loaded\s+yet.*?(?:continues\s+below\.)", "", t, flags=re.DOTALL)
@@ -832,6 +898,8 @@ def _postprocess_extracted_text(text: str, url: str) -> str:
         t = _strip_axios_boilerplate(t)
     elif "bbc.com" in netloc or "bbc.co.uk" in netloc:
         t = _strip_bbc_boilerplate(t)
+    elif "wsj.com" in netloc:
+        t = _strip_wsj_boilerplate(t)
     elif "o.canada.com" in netloc or "canada.com" in netloc:
         t = _strip_canada_boilerplate(t)
     elif "castanet.net" in netloc:
@@ -878,43 +946,223 @@ def _download_via_jina(target_url: str, timeout: int) -> Optional[str]:
     return None
 
 
+# Fallback fetchers (full-text extraction should survive dead links and hard blocks).
+#
+# Live sources first (impersonated refetch, Jina, Smry) because the user wants the CURRENT page
+# text, not a stale copy; the Wayback Machine is the last resort for dead links and older
+# articles. See _fetch_page for the exact order. Services that were evaluated and DON'T work
+# programmatically (verified 2026-07): Archive.today serves its own CAPTCHA to non-browser
+# clients even with TLS impersonation; Google Cache was discontinued in 2024; 12ft.io is dead.
+# Do not re-add them without re-verifying.
+#
+# Wayback Machine: the availability API returns the closest snapshot; the `id_` timestamp flag
+# requests the raw original HTML without the Wayback toolbar/rewriting, which extracts much
+# cleaner. Smry.ai: the SSE endpoint streams a Readability-style JSON article (its own upstream
+# fetch can be bot-blocked too, so it is best-effort like everything here) — never raise.
+_WAYBACK_SNAPSHOT_RE = re.compile(r"^(https?://web\.archive\.org/web/\d{4,14})(?:id_)?/(.+)$")
+
+_SMRY_STREAM_API = "https://smry.ai/api/article/auto/stream?url={quoted}&uiLocale=en"
+_SMRY_MIN_TEXT_LEN = 300
+_SMRY_DATA_LINE_RE = re.compile(r"^data:\s*(\{.*)$", re.M)
+
+_HTML_ACCEPT_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+
+def _response_text(r) -> str:
+    """Read a response body as text, tolerating curl_cffi's read-once encoding rule.
+
+    curl_cffi raises ``ValueError`` if ``r.encoding`` is set after ``r.text`` has been accessed,
+    so we set the encoding first (best-effort) and never touch it again. Returns "" on any error.
+    """
+    if r is None:
+        return ""
+    try:
+        if not getattr(r, "encoding", None):
+            try:
+                r.encoding = "utf-8"
+            except Exception:
+                pass
+        return r.text or ""
+    except Exception:
+        return ""
+
+
+def _wayback_raw_url(snapshot_url: str) -> str:
+    """Rewrite a Wayback snapshot URL to the raw (`id_`) form that skips the archive toolbar."""
+    m = _WAYBACK_SNAPSHOT_RE.match((snapshot_url or "").strip())
+    if not m:
+        return snapshot_url
+    return f"{m.group(1)}id_/{m.group(2)}"
+
+
+def _download_via_wayback(target_url: str, timeout: int) -> Optional[str]:
+    """Fetch the closest Internet Archive (Wayback Machine) snapshot of `target_url`."""
+    try:
+        api = "https://archive.org/wayback/available?url=" + quote(target_url, safe="")
+        r = utils.safe_requests_get(api, timeout=timeout, allow_redirects=True)
+        api_body = _response_text(r)
+        if not (200 <= r.status_code < 300) or not api_body:
+            return None
+        data = json.loads(api_body)
+        closest = ((data.get("archived_snapshots") or {}).get("closest") or {})
+        snap = (closest.get("url") or "").strip()
+        if not snap or not closest.get("available"):
+            return None
+        if snap.startswith("http://"):
+            snap = "https://" + snap[len("http://"):]
+        for candidate in (_wayback_raw_url(snap), snap):
+            try:
+                r2 = utils.safe_requests_get(
+                    candidate, timeout=timeout, headers=dict(_HTML_ACCEPT_HEADERS), allow_redirects=True
+                )
+            except Exception:
+                continue
+            body = _response_text(r2)
+            if 200 <= r2.status_code < 400 and body and not _looks_like_bot_interstitial(body):
+                return body
+    except Exception:
+        return None
+    return None
+
+
+# Fingerprints for the impersonated live refetch, in order. Chrome first (the known-good
+# target for feed WAFs, issue #29); Safari second because some Cloudflare-managed challenges
+# 403 curl_cffi's Chrome/Firefox TLS hellos but pass its Safari one (verified live on
+# neowin.net 2026-07: every chrome*/firefox* target got the challenge page, safari184 got
+# the full article).
+_IMPERSONATE_TARGETS = (None, "safari184")
+
+
+def _download_via_impersonation(target_url: str, timeout: int) -> Optional[str]:
+    """Refetch the LIVE page with a real-browser TLS/HTTP fingerprint (curl_cffi, issue #29).
+
+    Many WAF gates (Neowin's "Performing security verification", Cloudflare, ...) only trigger on
+    non-browser fingerprints, so this is the cheapest way to get the current page text.
+    Degrades to a plain request when curl_cffi is unavailable (see utils.safe_requests_get).
+    """
+    # Without curl_cffi every target degrades to the same plain request; send it once only.
+    targets = _IMPERSONATE_TARGETS if getattr(utils, "CURL_CFFI_AVAILABLE", False) else (None,)
+    for target in targets:
+        try:
+            r = utils.safe_requests_get(
+                target_url,
+                timeout=timeout,
+                headers=dict(_HTML_ACCEPT_HEADERS),
+                allow_redirects=True,
+                impersonate=True,
+                impersonate_target=target,
+            )
+        except Exception:
+            continue
+        body = _response_text(r)
+        if 200 <= r.status_code < 400 and body and not _looks_like_bot_interstitial(body):
+            return body
+    return None
+
+
+def _download_via_smry(target_url: str, timeout: int) -> Optional[str]:
+    """Fetch article content through Smry.ai's public reader endpoint.
+
+    The endpoint answers with a server-sent-event stream; a successful extraction arrives as an
+    `event: article` whose data line is a JSON object with a Readability-style `article` payload
+    (title / byline / content HTML). Errors arrive as `event: error` — treated as failure.
+    """
+    try:
+        api = _SMRY_STREAM_API.format(quoted=quote(target_url, safe=""))
+        r = utils.safe_requests_get(
+            api,
+            timeout=timeout,
+            headers={"Accept": "text/event-stream, application/json;q=0.9, */*;q=0.8"},
+            allow_redirects=True,
+        )
+        sse = _response_text(r)
+        if not (200 <= r.status_code < 300) or not sse:
+            return None
+        article = None
+        for m in _SMRY_DATA_LINE_RE.finditer(sse):
+            try:
+                payload = json.loads(m.group(1))
+            except Exception:
+                continue
+            if isinstance(payload, dict) and isinstance(payload.get("article"), dict):
+                article = payload["article"]
+                break
+        if not article:
+            return None
+        content = article.get("content")
+        if not isinstance(content, str) or not content.strip():
+            return None
+        text_content = article.get("textContent")
+        plain = text_content if isinstance(text_content, str) else re.sub(r"<[^>]+>", " ", content)
+        if len(_normalize_whitespace(plain)) < _SMRY_MIN_TEXT_LEN:
+            # Too short to be an article: likely a teaser, consent page, or extraction miss.
+            return None
+        title = article.get("title") if isinstance(article.get("title"), str) else ""
+        byline = article.get("byline") if isinstance(article.get("byline"), str) else ""
+        return (
+            "<html><head>"
+            f"<title>{html.escape(title)}</title>"
+            f"<meta name=\"author\" content=\"{html.escape(byline)}\">"
+            f"</head><body><article>{content}</article></body></html>"
+        )
+    except Exception:
+        return None
+    return None
+
+
 def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
     """Fetch a page, treating anti-bot/verification interstitials as a (recoverable) block.
 
     Note: some gates (e.g. Bloomberg's "unusual activity" page) are served with HTTP 200, so the
     response body must be inspected even on a successful status code.
+
+    Fallback chain when the direct fetch fails (live sources first — the user wants the CURRENT
+    page text; the possibly-stale Wayback snapshot is the last resort):
+    1. impersonated refetch of the live page (real-browser TLS fingerprint, beats most WAF gates);
+    2. Jina read-proxy (live; gates only);
+    3. Smry.ai reader (live);
+    4. Wayback Machine snapshot.
     """
     if not url:
         return _FetchResult()
 
-    def _try_unblock_via_proxy() -> _FetchResult:
-        # Existing read-proxy fallback. If it also returns a gate (or nothing), report blocked so the
-        # caller degrades to the feed snippet instead of saving interstitial text as the article.
-        alt = _download_via_jina(url, timeout)
-        if alt and not _looks_like_bot_interstitial(alt):
-            return _FetchResult(html=alt)
-        return _FetchResult(blocked=True)
+    def _try_fallbacks(*, gate_seen: bool) -> _FetchResult:
+        # Every fallback body is re-checked for interstitials so a gate served by the fallback
+        # itself (or archived by it) is never stored as article text.
+        candidates: List[Callable[[], Optional[str]]] = [
+            lambda: _download_via_impersonation(url, timeout),
+        ]
+        if gate_seen:
+            candidates.append(lambda: _download_via_jina(url, timeout))
+        candidates.append(lambda: _download_via_smry(url, timeout))
+        candidates.append(lambda: _download_via_wayback(url, timeout))
+        for fetch in candidates:
+            alt = fetch()
+            if alt and not _looks_like_bot_interstitial(alt):
+                return _FetchResult(html=alt)
+        return _FetchResult(blocked=True) if gate_seen else _FetchResult()
 
     try:
-        headers = {
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-        }
-        r = utils.safe_requests_get(url, timeout=timeout, headers=headers, allow_redirects=True)
+        r = utils.safe_requests_get(
+            url, timeout=timeout, headers=dict(_HTML_ACCEPT_HEADERS), allow_redirects=True
+        )
         if 200 <= r.status_code < 400:
             r.encoding = r.encoding or "utf-8"
             body = r.text or ""
             if _looks_like_bot_interstitial(body):
-                return _try_unblock_via_proxy()
+                return _try_fallbacks(gate_seen=True)
             return _FetchResult(html=body)
         try:
             if r is not None and (r.status_code in (403, 503) or _looks_like_bot_interstitial(r.text or "")):
-                return _try_unblock_via_proxy()
+                return _try_fallbacks(gate_seen=True)
         except Exception:
             pass
-        return _FetchResult()
+        return _try_fallbacks(gate_seen=False)
     except Exception:
-        return _FetchResult()
+        return _try_fallbacks(gate_seen=False)
 
 
 def _download_html(url: str, timeout: int = 20) -> Optional[str]:
@@ -1150,22 +1398,25 @@ _NEXT_STORY_NAV_RE = re.compile(r"next[\s_-]*(?:stor(?:y|ies)|articles?|posts?|r
 _PAGINATION_LABEL_RE = re.compile(r"(?:next|older)(?:\s+(?:page|pages|entries))?\s*(?:[›»>]+)?")
 
 
+# Hosts where a single article is never truly paginated and "next" points at another story.
+_NO_PAGINATION_FOLLOW_HOSTS = ("wired.com", "ning.com", "neowin.net")
+
+
 def _find_next_page(html: str, base_url: str) -> Optional[str]:
     """Return absolute next-page URL if present, else None."""
     if not html:
         return None
 
     try:
-        # Wired.com specific optimization:
-        # Wired articles are typically single-page. "Next" links usually point to the *next story*,
-        # which we definitely do NOT want to append.
+        # Hosts whose articles are single-page and whose "next" controls point at a DIFFERENT
+        # story (not a continuation of this one), so following them merges unrelated text:
+        #   - wired.com: "Next" links usually point to the next story.
+        #   - ning.com: "next/older" controls navigate activity/thread listings.
+        #   - neowin.net: abuses <link rel="next"> to point at the next article (verified: an Xbox
+        #     report's rel=next pointed to an unrelated display-resolution science piece).
         try:
-            host = urlsplit(base_url).hostname
-            if host and (host == "wired.com" or host.endswith(".wired.com")):
-                return None
-            if host and (host == "ning.com" or host.endswith(".ning.com")):
-                # Ning "next/older" controls frequently navigate activity/thread listings
-                # rather than paginated continuation of a single article.
+            host = (urlsplit(base_url).hostname or "").lower()
+            if any(host == d or host.endswith("." + d) for d in _NO_PAGINATION_FOLLOW_HOSTS):
                 return None
         except Exception:
             pass

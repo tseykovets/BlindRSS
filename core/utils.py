@@ -518,20 +518,23 @@ def _request_safe_headers(headers: dict) -> dict:
     return safe_headers
 
 
-def safe_requests_get(url, *, impersonate: bool = False, **kwargs):
+def safe_requests_get(url, *, impersonate: bool = False, impersonate_target: str | None = None, **kwargs):
     """Wrapper for requests.get with default browser headers.
 
     When ``impersonate`` is True and curl_cffi is installed, the request is sent
-    through curl_cffi with a real Chrome TLS/HTTP fingerprint to get past anti-bot
-    WAFs that reset non-browser connections (issue #29). Falls back to plain
-    ``requests`` when curl_cffi is unavailable, so behavior degrades gracefully.
+    through curl_cffi with a real browser TLS/HTTP fingerprint to get past anti-bot
+    WAFs that reset non-browser connections (issue #29). ``impersonate_target``
+    overrides the default Chrome fingerprint (e.g. "safari184": some Cloudflare
+    challenges 403 curl_cffi's Chrome hello but pass its Safari one). Falls back to
+    plain ``requests`` when curl_cffi is unavailable, so behavior degrades gracefully.
     """
     url = encode_non_ascii_url(url)
     headers = kwargs.pop("headers", {})
     if impersonate and CURL_CFFI_AVAILABLE:
+        target = impersonate_target or IMPERSONATE_TARGET
         final_headers = _request_safe_headers(_impersonated_headers(headers))
-        _log_http_request("GET", url, final_headers, f"curl_cffi:{IMPERSONATE_TARGET}")
-        return _get_curl_session().get(url, headers=final_headers, impersonate=IMPERSONATE_TARGET, **kwargs)
+        _log_http_request("GET", url, final_headers, f"curl_cffi:{target}")
+        return _get_curl_session().get(url, headers=final_headers, impersonate=target, **kwargs)
     # Merge with defaults, preserving caller's headers if they exist
     final_headers = HEADERS.copy()
     final_headers.update(headers)

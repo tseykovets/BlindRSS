@@ -119,9 +119,16 @@ class _FakeMenuItem:
     def __init__(self, item_id, label):
         self._id = int(item_id)
         self.label = str(label)
+        self.enabled = True
 
     def GetId(self):
         return int(self._id)
+
+    def Enable(self, enable=True):
+        self.enabled = bool(enable)
+
+    def IsEnabled(self):
+        return self.enabled
 
 
 class _FakeMenu:
@@ -756,6 +763,53 @@ def test_article_context_menu_offers_restore_and_permanent_delete_in_deleted_vie
     assert "Restore Article" in labels
     assert "Delete Article Permanently\tDel" in labels
     assert "Delete Article\tDel" not in labels
+
+
+def test_article_context_menu_disables_article_items_when_list_empty(monkeypatch):
+    # Right-clicking an empty article list must still show the menu, but every
+    # item that needs a target article has to be grayed out so screen readers
+    # announce it as unavailable instead of it silently doing nothing.
+    monkeypatch.setattr(mainframe.wx, "Menu", _FakeMenu)
+    host = _DummyContextMenuHost()
+    host.current_articles = []
+    host.list_ctrl.GetFirstSelected = lambda: mainframe.wx.NOT_FOUND
+    host.list_ctrl.GetFocusedItem = lambda: mainframe.wx.NOT_FOUND
+
+    class _MouseContextEvent:
+        def GetPosition(self):
+            return mainframe.wx.Point(10, 10)
+
+    host.on_list_context_menu(_MouseContextEvent())
+
+    menu = host.list_ctrl.popup_menu
+    assert menu is not None
+    by_label = {item.label: item for item in menu.GetMenuItems()}
+    for label in (
+        "Open Article",
+        "Open in Default Browser",
+        "Mark as &Read",
+        "Mark as &Unread",
+        "Copy Link",
+    ):
+        assert by_label[label].IsEnabled() is False, label
+
+
+def test_article_context_menu_keeps_article_items_enabled_with_selection(monkeypatch):
+    monkeypatch.setattr(mainframe.wx, "Menu", _FakeMenu)
+    host = _DummyContextMenuHost()
+
+    host.on_list_context_menu(_KeyboardContextEvent())
+
+    menu = host.list_ctrl.popup_menu
+    by_label = {item.label: item for item in menu.GetMenuItems()}
+    for label in (
+        "Open Article",
+        "Open in Default Browser",
+        "Mark as &Read",
+        "Mark as &Unread",
+        "Copy Link",
+    ):
+        assert by_label[label].IsEnabled() is True, label
 
 
 def test_article_context_menu_exposes_accessible_chapter_link_commands(monkeypatch):

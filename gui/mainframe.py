@@ -4102,6 +4102,19 @@ class MainFrame(wx.Frame):
             self.Bind(wx.EVT_MENU, lambda e, ii=list(menu_indices): self.on_restore_articles(ii), restore_item)
         self.Bind(wx.EVT_MENU, lambda e, ii=list(mark_targets): self.on_copy_links(ii), copy_item)
 
+        if not valid_article_idx:
+            # No target article (empty list or non-article row): keep the
+            # article actions visible but grayed out so screen readers
+            # announce them as unavailable instead of silently doing nothing.
+            for article_item in (
+                open_item,
+                open_browser_item,
+                mark_read_item,
+                mark_unread_item,
+                copy_item,
+            ):
+                article_item.Enable(False)
+
         self.list_ctrl.PopupMenu(menu, menu_pos)
         menu.Destroy()
 

@@ -93,6 +93,38 @@ def test_fetch_page_proxy_recovers_blocked_page(monkeypatch):
     assert "Hello world recovered content." in (res.html or "")
 
 
+def test_bloomberg_fetch_tries_impersonation_first(monkeypatch):
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append((url, kwargs.get("impersonate")))
+        if kwargs.get("impersonate"):
+            return _resp(200, REAL_ARTICLE)
+        return _resp(403, BLOOMBERG_GATE)
+
+    monkeypatch.setattr(utils, "safe_requests_get", fake_get)
+    res = article_extractor._fetch_page("https://www.bloomberg.com/news/articles/x")
+
+    assert res.blocked is False
+    assert "Anthropic" in (res.html or "")
+    assert calls[0][1] is True
+
+
+def test_bloomberg_video_gate_skips_slow_reader_fallbacks(monkeypatch):
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append(url)
+        return _resp(403, BLOOMBERG_GATE)
+
+    monkeypatch.setattr(utils, "safe_requests_get", fake_get)
+    res = article_extractor._fetch_page("https://www.bloomberg.com/news/videos/2026-07-09/example")
+
+    assert res.blocked is True
+    assert res.html is None
+    assert not any("r.jina.ai" in url or "smry.ai" in url or "archive.org" in url for url in calls)
+
+
 def test_extract_full_article_raises_blocked_message(monkeypatch):
     def fake_get(url, **kwargs):
         if "r.jina.ai" in url:

@@ -1,13 +1,20 @@
 import abc
+import logging
+import threading
+import time
 from typing import List, Dict, Any, Optional, Tuple
 from core import utils
 from core.models import Article, Feed
+
+log = logging.getLogger(__name__)
 
 class RSSProvider(abc.ABC):
     """Abstract base class for RSS providers (Local, Feedly, etc.)"""
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
+        self._active_refresh_cancel: Optional[threading.Event] = None
+        self._active_refresh_cancel_lock = threading.Lock()
 
     @abc.abstractmethod
     def get_name(self) -> str:
@@ -25,6 +32,36 @@ class RSSProvider(abc.ABC):
         """
         pass
 
+    def _begin_refresh_cancel_scope(self) -> threading.Event:
+        cancel_event = threading.Event()
+        with self._active_refresh_cancel_lock:
+            self._active_refresh_cancel = cancel_event
+        return cancel_event
+
+    def _end_refresh_cancel_scope(self, cancel_event: threading.Event) -> None:
+        with self._active_refresh_cancel_lock:
+            if self._active_refresh_cancel is cancel_event:
+                self._active_refresh_cancel = None
+
+    def _current_refresh_cancel_event(self) -> Optional[threading.Event]:
+        with self._active_refresh_cancel_lock:
+            return self._active_refresh_cancel
+
+    def _refresh_cancelled(self, cancel_event: Optional[threading.Event] = None) -> bool:
+        event = cancel_event if cancel_event is not None else self._current_refresh_cancel_event()
+        return bool(event is not None and event.is_set())
+
+    def _sleep_or_cancel_refresh(self, seconds: float, cancel_event: Optional[threading.Event] = None) -> bool:
+        event = cancel_event if cancel_event is not None else self._current_refresh_cancel_event()
+        try:
+            delay = max(0.0, float(seconds or 0.0))
+        except Exception:
+            delay = 0.0
+        if event is None:
+            time.sleep(delay)
+            return False
+        return bool(event.wait(delay))
+
     def cancel_refresh(self) -> bool:
         """Request cancellation of the refresh currently in flight.
 
@@ -33,7 +70,11 @@ class RSSProvider(abc.ABC):
         trigger that cannot be cancelled). Cancellation is cooperative: feeds
         already being fetched finish, the rest are skipped.
         """
-        return False
+        event = self._current_refresh_cancel_event()
+        if event is None:
+            return False
+        event.set()
+        return True
 
     def scheduled_refresh_tick(self, global_interval_s: int) -> int:
         """Seconds the periodic refresh loop should sleep between scheduled refreshes.
@@ -72,16 +113,25 @@ class RSSProvider(abc.ABC):
         Providers with a native/batched endpoint should override this. The default
         uses refresh_feed so targeted UI actions work consistently where possible.
         """
+        existing_cancel_event = self._current_refresh_cancel_event()
+        cancel_event = existing_cancel_event or self._begin_refresh_cancel_scope()
         ok = True
-        seen = set()
-        for raw_id in list(feed_ids or []):
-            feed_id = str(raw_id or "").strip()
-            if not feed_id or feed_id in seen:
-                continue
-            seen.add(feed_id)
-            if not self.refresh_feed(feed_id, progress_cb=progress_cb):
-                ok = False
-        return ok
+        try:
+            seen = set()
+            for raw_id in list(feed_ids or []):
+                if self._refresh_cancelled(cancel_event):
+                    log.info("%s targeted refresh stopped by user", self.__class__.__name__)
+                    break
+                feed_id = str(raw_id or "").strip()
+                if not feed_id or feed_id in seen:
+                    continue
+                seen.add(feed_id)
+                if not self.refresh_feed(feed_id, progress_cb=progress_cb):
+                    ok = False
+            return ok
+        finally:
+            if existing_cancel_event is None:
+                self._end_refresh_cancel_scope(cancel_event)
 
     def _emit_progress(self, progress_cb, state) -> None:
         if progress_cb is None:

@@ -83,6 +83,7 @@ _META_TITLE_TAG_ATTRS: List[dict] = [
 
 _JSON_LD_TEXT_FIELDS = ("articleBody", "text")
 _JSON_LD_MIN_TEXT_LEN = 120
+_BLOOMBERG_VIDEO_DESCRIPTION_MIN_LEN = 80
 
 # Axios (Next.js) ships the canonical article body inside the __NEXT_DATA__ JSON blob
 # (props.pageProps.data.story.bodyHtml). Some page variants render no body in the DOM at all,
@@ -284,6 +285,27 @@ def _collect_json_ld_text(obj, out: List[str]) -> None:
             _collect_json_ld_text(v, out)
 
 
+def _jsonld_types(obj) -> Set[str]:
+    raw = obj.get("@type") if isinstance(obj, dict) else None
+    values = raw if isinstance(raw, list) else [raw]
+    return {str(v or "").strip().lower() for v in values if str(v or "").strip()}
+
+
+def _collect_bloomberg_video_descriptions(obj, out: List[str]) -> None:
+    if isinstance(obj, dict):
+        if "videoobject" in _jsonld_types(obj):
+            for key in ("description", "transcript", "caption"):
+                val = obj.get(key)
+                if isinstance(val, str) and val.strip():
+                    out.append(val)
+        for v in obj.values():
+            _collect_bloomberg_video_descriptions(v, out)
+        return
+    if isinstance(obj, list):
+        for v in obj:
+            _collect_bloomberg_video_descriptions(v, out)
+
+
 def _extract_json_ld_text(html: str) -> str:
     if not html:
         return ""
@@ -321,12 +343,59 @@ def _extract_json_ld_text(html: str) -> str:
     return best
 
 
+def _extract_bloomberg_video_text(html_text: str, url: str) -> str:
+    if not html_text or not _is_bloomberg_video_url(url):
+        return ""
+    soup = _parse_html_soup(html_text, context="bloomberg video")
+    if soup is None:
+        return ""
+
+    candidates: List[str] = []
+    for tag in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        raw = tag.string or tag.get_text(strip=True)
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)
+        except Exception:
+            continue
+        _collect_bloomberg_video_descriptions(data, candidates)
+
+    desc = _extract_meta_description(soup=soup)
+    if desc:
+        candidates.append(desc)
+
+    cleaned: List[str] = []
+    for candidate in candidates:
+        text = _normalize_whitespace(html.unescape(candidate))
+        if len(text) >= _BLOOMBERG_VIDEO_DESCRIPTION_MIN_LEN and not _looks_like_bot_interstitial(text):
+            cleaned.append(text)
+    if not cleaned:
+        return ""
+    cleaned.sort(key=len, reverse=True)
+    return cleaned[0]
+
+
 def _host_matches(url: str, domain: str) -> bool:
     try:
         host = (urlsplit(url).hostname or "").lower()
     except Exception:
         return False
     return host == domain or host.endswith("." + domain)
+
+
+def _is_bloomberg_url(url: str) -> bool:
+    return _host_matches(url, "bloomberg.com")
+
+
+def _is_bloomberg_video_url(url: str) -> bool:
+    if not _is_bloomberg_url(url):
+        return False
+    try:
+        path = (urlsplit(url).path or "").lower()
+    except Exception:
+        return False
+    return "/videos/" in path or "/news/videos/" in path
 
 
 def _html_fragment_to_text(fragment_html: str) -> str:
@@ -443,6 +512,8 @@ def _extract_theregister_text(html: str) -> str:
 
 def _extract_site_specific_text(html: str, url: str) -> str:
     """Site-specific structured body extraction that outranks generic heuristics."""
+    if _is_bloomberg_video_url(url):
+        return _extract_bloomberg_video_text(html, url)
     if _host_matches(url, "axios.com"):
         return _extract_axios_story_text(html)
     if _host_matches(url, "theregister.com") or _host_matches(url, "theregister.co.uk"):
@@ -1190,12 +1261,18 @@ def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
     if not url:
         return _FetchResult()
 
+    is_bloomberg = _is_bloomberg_url(url)
+    is_bloomberg_video = _is_bloomberg_video_url(url)
+    tried_impersonation_first = False
+
     def _try_fallbacks(*, gate_seen: bool) -> _FetchResult:
+        if is_bloomberg_video and gate_seen:
+            return _FetchResult(blocked=True)
         # Every fallback body is re-checked for interstitials so a gate served by the fallback
         # itself (or archived by it) is never stored as article text.
-        candidates: List[Callable[[], Optional[str]]] = [
-            lambda: _download_via_impersonation(url, timeout),
-        ]
+        candidates: List[Callable[[], Optional[str]]] = []
+        if not tried_impersonation_first:
+            candidates.append(lambda: _download_via_impersonation(url, timeout))
         if gate_seen:
             candidates.append(lambda: _download_via_jina(url, timeout))
         candidates.append(lambda: _download_via_smry(url, timeout))
@@ -1207,6 +1284,12 @@ def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
         return _FetchResult(blocked=True) if gate_seen else _FetchResult()
 
     try:
+        if is_bloomberg:
+            tried_impersonation_first = True
+            body = _download_via_impersonation(url, timeout)
+            if body:
+                return _FetchResult(html=body)
+
         r = utils.safe_requests_get(
             url, timeout=timeout, headers=dict(_HTML_ACCEPT_HEADERS), allow_redirects=True
         )
@@ -1460,7 +1543,7 @@ _PAGINATION_LABEL_RE = re.compile(r"(?:next|older)(?:\s+(?:page|pages|entries))?
 
 
 # Hosts where a single article is never truly paginated and "next" points at another story.
-_NO_PAGINATION_FOLLOW_HOSTS = ("wired.com", "ning.com", "neowin.net")
+_NO_PAGINATION_FOLLOW_HOSTS = ("wired.com", "ning.com", "neowin.net", "bloomberg.com")
 
 
 def _find_next_page(html: str, base_url: str) -> Optional[str]:

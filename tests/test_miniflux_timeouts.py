@@ -173,7 +173,7 @@ def test_miniflux_refresh_force_refreshes_each_feed(monkeypatch):
     monkeypatch.setattr(
         p,
         "_request_targeted_refresh",
-        lambda fid: targeted_calls.append(str(fid)) or {
+        lambda fid, cancel_event=None: targeted_calls.append(str(fid)) or {
             "ok": True,
             "status_code": 204,
             "endpoint": f"/v1/feeds/{fid}/refresh",
@@ -219,7 +219,7 @@ def test_miniflux_refresh_feeds_by_ids_refreshes_subset_and_emits_progress(monke
     monkeypatch.setattr(
         p,
         "_request_targeted_refresh",
-        lambda fid: targeted_calls.append(str(fid)) or {
+        lambda fid, cancel_event=None: targeted_calls.append(str(fid)) or {
             "ok": True,
             "status_code": 204,
             "endpoint": f"/v1/feeds/{fid}/refresh",
@@ -281,7 +281,7 @@ def test_miniflux_refresh_non_force_only_retries_stale_or_error(monkeypatch):
     monkeypatch.setattr(
         p,
         "_request_targeted_refresh",
-        lambda fid: targeted_calls.append(str(fid)) or {
+        lambda fid, cancel_event=None: targeted_calls.append(str(fid)) or {
             "ok": True,
             "status_code": 204,
             "endpoint": f"/v1/feeds/{fid}/refresh",
@@ -489,7 +489,7 @@ def test_miniflux_targeted_refresh_uses_bounded_parallel_workers(monkeypatch):
     active = {"count": 0, "max": 0}
     calls = []
 
-    def _fake_targeted_refresh(fid):
+    def _fake_targeted_refresh(fid, cancel_event=None):
         with lock:
             calls.append(str(fid))
             active["count"] += 1
@@ -512,6 +512,37 @@ def test_miniflux_targeted_refresh_uses_bounded_parallel_workers(monkeypatch):
     assert set(results) == {"1", "2", "3", "4", "5"}
     assert active["max"] > 1
     assert active["max"] <= 3
+
+
+def test_miniflux_cancel_refresh_returns_false_when_idle():
+    p = _provider(feed_timeout_seconds=10)
+
+    assert p.cancel_refresh() is False
+
+
+def test_miniflux_cancel_refresh_skips_queued_targeted_feeds(monkeypatch):
+    p = _provider(feed_timeout_seconds=10)
+    p.config["miniflux_targeted_refresh_workers"] = 1
+    calls = []
+
+    def _fake_targeted_refresh(fid, cancel_event=None):
+        calls.append(str(fid))
+        if str(fid) == "1":
+            assert p.cancel_refresh() is True
+        return {
+            "ok": True,
+            "used_cache": False,
+            "status_code": 204,
+            "endpoint": f"/v1/feeds/{fid}/refresh",
+            "method": "PUT",
+        }
+
+    monkeypatch.setattr(p, "_request_targeted_refresh", _fake_targeted_refresh)
+
+    assert p.refresh_feeds_by_ids(["1", "2", "3"], force=True) is True
+
+    assert calls == ["1"]
+    assert p.cancel_refresh() is False
 
 
 def test_miniflux_refresh_backs_off_repeated_targeted_feed_500s(monkeypatch):
@@ -573,7 +604,7 @@ def test_miniflux_refresh_backs_off_repeated_targeted_feed_500s(monkeypatch):
         }
         return None
 
-    def _fake_targeted_refresh(fid):
+    def _fake_targeted_refresh(fid, cancel_event=None):
         targeted_calls.append(str(fid))
         return {
             "ok": False,

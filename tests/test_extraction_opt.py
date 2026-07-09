@@ -72,5 +72,49 @@ class TestExtractionOptimizations(unittest.TestCase):
         )
         self.assertIsNone(next_url)
 
+    def test_bloomberg_pagination_prevention(self):
+        html = """
+        <html>
+        <head><link rel="next" href="/news/articles/next-story"></head>
+        <body>
+            <a href="/news/articles/next-story" class="next">Next</a>
+            <p>Current Bloomberg story.</p>
+        </body>
+        </html>
+        """
+        next_url = article_extractor._find_next_page(
+            html,
+            "https://www.bloomberg.com/news/videos/2026-07-09/exclusive-zuckerberg-on-meta-s-ai-push",
+        )
+        self.assertIsNone(next_url)
+
+    def test_bloomberg_video_description_extracts_as_text(self):
+        description = (
+            "Meta Chief Executive Officer Mark Zuckerberg discusses the company's artificial "
+            "intelligence push, hiring plans, infrastructure spending, and how new models will "
+            "shape products across Facebook, Instagram, WhatsApp, and smart glasses."
+        )
+        html = f"""
+        <html>
+        <head>
+            <title>Exclusive: Zuckerberg on Meta's AI Push - Bloomberg</title>
+            <script type="application/ld+json">
+            {{
+                "@context": "https://schema.org",
+                "@type": "VideoObject",
+                "name": "Exclusive: Zuckerberg on Meta's AI Push",
+                "description": "{description}"
+            }}
+            </script>
+        </head>
+        <body><main><h1>Exclusive: Zuckerberg on Meta's AI Push</h1></main></body>
+        </html>
+        """
+        extracted = article_extractor._extract_text_any(
+            html,
+            "https://www.bloomberg.com/news/videos/2026-07-09/exclusive-zuckerberg-on-meta-s-ai-push",
+        )
+        self.assertEqual(extracted, description)
+
 if __name__ == '__main__':
     unittest.main()

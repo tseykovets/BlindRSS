@@ -8,6 +8,7 @@ if REPO_ROOT not in sys.path:
 from core.models import Feed
 from providers.bazqux import BazQuxProvider
 from providers.base import RSSProvider
+from providers.inoreader import InoreaderProvider
 from providers.theoldreader import TheOldReaderProvider
 
 
@@ -120,3 +121,40 @@ def test_bazqux_targeted_refresh_emits_feed_state(monkeypatch):
             "error": None,
         }
     ]
+
+
+def test_hosted_targeted_refresh_cancel_stops_after_metadata_fetch(monkeypatch):
+    providers = [
+        InoreaderProvider(
+            {
+                "providers": {
+                    "inoreader": {
+                        "app_id": "app",
+                        "app_key": "key",
+                        "token": "token",
+                    }
+                }
+            }
+        ),
+        TheOldReaderProvider({"providers": {"theoldreader": {"email": "user", "password": "pw"}}}),
+        BazQuxProvider({"providers": {"bazqux": {"email": "user", "password": "pw"}}}),
+    ]
+
+    for provider in providers:
+        states = []
+        feed = _feed("feed/https://example.com/rss", title="Feed", category="News", unread=1)
+
+        if isinstance(provider, InoreaderProvider):
+            monkeypatch.setattr(provider, "_has_required_auth", lambda: True)
+        else:
+            monkeypatch.setattr(provider, "_login", lambda: True)
+
+        def _fake_get_feeds(provider=provider, feed=feed):
+            assert provider.cancel_refresh() is True
+            return [feed]
+
+        monkeypatch.setattr(provider, "get_feeds", _fake_get_feeds)
+
+        assert provider.refresh_feeds_by_ids(["feed/https://example.com/rss", "feed/other"], progress_cb=states.append) is True
+        assert states == []
+        assert provider.cancel_refresh() is False

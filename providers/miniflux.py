@@ -379,7 +379,17 @@ class MinifluxProvider(RSSProvider):
                         retries + 1,
                         delay,
                     )
-                    time.sleep(delay)
+                    if self._sleep_or_cancel_refresh(delay):
+                        self._last_request_info = {
+                            "ok": False,
+                            "used_cache": False,
+                            "status_code": last_status_code,
+                            "endpoint": str(endpoint or ""),
+                            "method": method_upper,
+                            "error_body": None,
+                            "cancelled": True,
+                        }
+                        return None
                     continue
 
                 resp.raise_for_status()
@@ -443,7 +453,17 @@ class MinifluxProvider(RSSProvider):
                         retries + 1,
                         delay,
                     )
-                    time.sleep(delay)
+                    if self._sleep_or_cancel_refresh(delay):
+                        self._last_request_info = {
+                            "ok": False,
+                            "used_cache": False,
+                            "status_code": last_status_code,
+                            "endpoint": str(endpoint or ""),
+                            "method": method_upper,
+                            "error_body": None,
+                            "cancelled": True,
+                        }
+                        return None
                     continue
 
                 if self._is_transient_status(status_code):
@@ -490,7 +510,17 @@ class MinifluxProvider(RSSProvider):
                         retries + 1,
                         delay,
                     )
-                    time.sleep(delay)
+                    if self._sleep_or_cancel_refresh(delay):
+                        self._last_request_info = {
+                            "ok": False,
+                            "used_cache": False,
+                            "status_code": last_status_code,
+                            "endpoint": str(endpoint or ""),
+                            "method": method_upper,
+                            "error_body": None,
+                            "cancelled": True,
+                        }
+                        return None
                     continue
                 if is_targeted_refresh:
                     log.debug("Miniflux timeout for %s (timeout=%ss): %s", url, timeout_s, e)
@@ -520,7 +550,17 @@ class MinifluxProvider(RSSProvider):
                         delay,
                         e,
                     )
-                    time.sleep(delay)
+                    if self._sleep_or_cancel_refresh(delay):
+                        self._last_request_info = {
+                            "ok": False,
+                            "used_cache": False,
+                            "status_code": last_status_code,
+                            "endpoint": str(endpoint or ""),
+                            "method": method_upper,
+                            "error_body": None,
+                            "cancelled": True,
+                        }
+                        return None
                     continue
                 log.error(f"Miniflux error for {url}: {e}")
                 self._last_request_info = {
@@ -572,7 +612,11 @@ class MinifluxProvider(RSSProvider):
             log.debug("Miniflux request failed with no fallback for %s %s", method_upper, url, exc_info=True)
         return None
 
-    def _request_targeted_refresh(self, feed_id: str) -> dict[str, Any]:
+    def _request_targeted_refresh(
+        self,
+        feed_id: str,
+        cancel_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
         fid = str(feed_id or "").strip()
         endpoint = f"/v1/feeds/{fid}/refresh"
         info = {
@@ -585,6 +629,9 @@ class MinifluxProvider(RSSProvider):
         }
         if not self.base_url or not fid:
             return info
+        if self._refresh_cancelled(cancel_event):
+            info["cancelled"] = True
+            return info
 
         url = f"{self.base_url}{endpoint}"
         timeout_s = self._request_timeout_seconds(endpoint)
@@ -592,6 +639,9 @@ class MinifluxProvider(RSSProvider):
         req_headers = utils.add_revalidation_headers(self.headers)
 
         for attempt in range(1, retries + 2):
+            if self._refresh_cancelled(cancel_event):
+                info["cancelled"] = True
+                return info
             try:
                 resp = self._session.request(
                     "PUT",
@@ -611,7 +661,9 @@ class MinifluxProvider(RSSProvider):
                         retries + 1,
                         delay,
                     )
-                    time.sleep(delay)
+                    if self._sleep_or_cancel_refresh(delay, cancel_event):
+                        info["cancelled"] = True
+                        return info
                     continue
 
                 resp.raise_for_status()
@@ -636,7 +688,9 @@ class MinifluxProvider(RSSProvider):
                         retries + 1,
                         delay,
                     )
-                    time.sleep(delay)
+                    if self._sleep_or_cancel_refresh(delay, cancel_event):
+                        info["cancelled"] = True
+                        return info
                     continue
                 log.debug("Miniflux transient HTTP %s for PUT %s: %s", status_code, url, e)
                 return info
@@ -652,7 +706,9 @@ class MinifluxProvider(RSSProvider):
                         retries + 1,
                         delay,
                     )
-                    time.sleep(delay)
+                    if self._sleep_or_cancel_refresh(delay, cancel_event):
+                        info["cancelled"] = True
+                        return info
                     continue
                 log.debug("Miniflux timeout for %s (timeout=%ss): %s", url, timeout_s, e)
                 return info
@@ -668,7 +724,9 @@ class MinifluxProvider(RSSProvider):
                         delay,
                         e,
                     )
-                    time.sleep(delay)
+                    if self._sleep_or_cancel_refresh(delay, cancel_event):
+                        info["cancelled"] = True
+                        return info
                     continue
                 log.debug("Miniflux request error for PUT %s: %s", url, e)
                 return info
@@ -686,10 +744,14 @@ class MinifluxProvider(RSSProvider):
         force: bool = False,
         progress_cb=None,
         progress_states: dict[str, dict[str, Any]] | None = None,
+        cancel_event: threading.Event | None = None,
     ) -> dict[str, dict[str, Any]]:
+        cancel_event = cancel_event if cancel_event is not None else self._current_refresh_cancel_event()
         ordered_ids = []
         seen = set()
         for raw_id in list(feed_ids or []):
+            if self._refresh_cancelled(cancel_event):
+                break
             fid = str(raw_id or "").strip()
             if not fid or fid in seen:
                 continue
@@ -705,11 +767,14 @@ class MinifluxProvider(RSSProvider):
         worker_count = self._targeted_refresh_worker_count(len(ordered_ids))
 
         def _store_result(fid: str, info: dict[str, Any]) -> None:
+            info = info or {}
             results[fid] = info
+            if info.get("cancelled"):
+                return
             self._record_targeted_refresh_attempt_result(
                 fid,
-                bool((info or {}).get("ok", False)),
-                (info or {}).get("status_code"),
+                bool(info.get("ok", False)),
+                info.get("status_code"),
             )
             if progress_cb is not None:
                 self._emit_progress(
@@ -719,20 +784,36 @@ class MinifluxProvider(RSSProvider):
 
         if worker_count <= 1 or len(ordered_ids) == 1:
             for fid in ordered_ids:
-                _store_result(fid, self._request_targeted_refresh(fid))
+                if self._refresh_cancelled(cancel_event):
+                    break
+                _store_result(fid, self._request_targeted_refresh(fid, cancel_event=cancel_event))
         else:
             with concurrent.futures.ThreadPoolExecutor(
                 max_workers=worker_count,
                 thread_name_prefix="miniflux-refresh",
             ) as executor:
                 futures = {
-                    executor.submit(self._request_targeted_refresh, fid): fid
+                    executor.submit(self._request_targeted_refresh, fid, cancel_event): fid
                     for fid in ordered_ids
+                    if not self._refresh_cancelled(cancel_event)
                 }
                 for future in concurrent.futures.as_completed(futures):
+                    if self._refresh_cancelled(cancel_event):
+                        for pending in futures:
+                            pending.cancel()
                     fid = futures[future]
                     try:
                         info = future.result()
+                    except concurrent.futures.CancelledError:
+                        info = {
+                            "ok": False,
+                            "used_cache": False,
+                            "status_code": None,
+                            "endpoint": f"/v1/feeds/{fid}/refresh",
+                            "method": "PUT",
+                            "error_body": None,
+                            "cancelled": True,
+                        }
                     except Exception as e:
                         log.debug("Miniflux targeted refresh worker failed for feed %s: %s", fid, e)
                         info = {
@@ -972,170 +1053,220 @@ class MinifluxProvider(RSSProvider):
 
     def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
         started_at = datetime.now(timezone.utc)
-        log.info("Miniflux refresh start force=%s", force)
-        # Kick off a global refresh on the Miniflux server.
-        self._req("PUT", "/v1/feeds/refresh")
-        refresh_info = dict(getattr(self, "_last_request_info", {}) or {})
-        global_refresh_ok = True
-        if (
-            str(refresh_info.get("endpoint", "")) == "/v1/feeds/refresh"
-            and str(refresh_info.get("method", "")).upper() == "PUT"
-        ):
-            global_refresh_ok = bool(refresh_info.get("ok", False))
-        log.info(
-            "Miniflux global refresh request force=%s ok=%s status=%s error=%r",
-            force,
-            global_refresh_ok,
-            refresh_info.get("status_code"),
-            refresh_info.get("error_body"),
-        )
+        cancel_event = self._begin_refresh_cancel_scope()
 
-        # After triggering, fetch feed metadata so we can surface stale/error
-        # feeds in the UI and optionally retry them individually.
-        feeds = self._req("GET", "/v1/feeds") or []
-        feeds_info = dict(getattr(self, "_last_request_info", {}) or {})
-        feeds_from_cache = False
-        if (
-            str(feeds_info.get("endpoint", "")) == "/v1/feeds"
-            and str(feeds_info.get("method", "")).upper() == "GET"
-        ):
-            feeds_from_cache = bool(feeds_info.get("used_cache", False))
-        now = datetime.now(timezone.utc)
-        stale_cutoff = now - timedelta(hours=3)
-        retry_budget = len(feeds) if force else 15
-        per_feed_retry_ids = []
+        def _stopped(feeds_count: int = 0) -> bool:
+            duration_s = (datetime.now(timezone.utc) - started_at).total_seconds()
+            log.info(
+                "Miniflux refresh stopped by user force=%s duration_s=%.2f feeds=%s",
+                force,
+                duration_s,
+                feeds_count,
+            )
+            return True
 
-        for feed in feeds:
-            feed_id = str(feed.get("id"))
-            status = "ok"
-
-            checked_dt = self._parse_checked_at(feed.get("checked_at"))
-
-            if (feed.get("parsing_error_count") or 0) > 0:
-                status = "error"
-            elif checked_dt and checked_dt < stale_cutoff:
-                status = "stale"
-
-            # Manual refresh in BlindRSS sets force=True. Respect it by explicitly
-            # refreshing every feed so CDN-cached feeds (e.g., Simplecast) update
-            # immediately instead of waiting for Miniflux's next scheduled check.
-            if force:
-                per_feed_retry_ids.append(feed_id)
-            elif status in ("error", "stale"):
-                per_feed_retry_ids.append(feed_id)
-
-        allow_targeted_refresh = bool(global_refresh_ok and (not feeds_from_cache))
-        log.info(
-            "Miniflux refresh feed metadata force=%s feeds=%s feeds_from_cache=%s targeted_candidates=%s retry_budget=%s allow_targeted=%s",
-            force,
-            len(feeds or []),
-            feeds_from_cache,
-            len(per_feed_retry_ids),
-            retry_budget,
-            allow_targeted_refresh,
-        )
-        if not allow_targeted_refresh and per_feed_retry_ids:
-            log.warning(
-                "Skipping Miniflux per-feed refresh retries due to upstream instability "
-                "(global refresh failed or feed list came from cache)."
+        try:
+            log.info("Miniflux refresh start force=%s", force)
+            # Kick off a global refresh on the Miniflux server.
+            self._req("PUT", "/v1/feeds/refresh")
+            if self._refresh_cancelled(cancel_event):
+                return _stopped()
+            refresh_info = dict(getattr(self, "_last_request_info", {}) or {})
+            global_refresh_ok = True
+            if (
+                str(refresh_info.get("endpoint", "")) == "/v1/feeds/refresh"
+                and str(refresh_info.get("method", "")).upper() == "PUT"
+            ):
+                global_refresh_ok = bool(refresh_info.get("ok", False))
+            log.info(
+                "Miniflux global refresh request force=%s ok=%s status=%s error=%r",
+                force,
+                global_refresh_ok,
+                refresh_info.get("status_code"),
+                refresh_info.get("error_body"),
             )
 
-        if retry_budget > 0 and allow_targeted_refresh:
-            progress_states = None
-            if progress_cb is not None and per_feed_retry_ids:
-                counters_for_progress = self._req("GET", "/v1/feeds/counters") or {}
-                unread_for_progress = (
-                    counters_for_progress.get("unreads", {})
-                    if isinstance(counters_for_progress, dict)
-                    else {}
+            # After triggering, fetch feed metadata so we can surface stale/error
+            # feeds in the UI and optionally retry them individually.
+            feeds = self._req("GET", "/v1/feeds") or []
+            if self._refresh_cancelled(cancel_event):
+                return _stopped(len(feeds or []))
+            feeds_info = dict(getattr(self, "_last_request_info", {}) or {})
+            feeds_from_cache = False
+            if (
+                str(feeds_info.get("endpoint", "")) == "/v1/feeds"
+                and str(feeds_info.get("method", "")).upper() == "GET"
+            ):
+                feeds_from_cache = bool(feeds_info.get("used_cache", False))
+            now = datetime.now(timezone.utc)
+            stale_cutoff = now - timedelta(hours=3)
+            retry_budget = len(feeds) if force else 15
+            per_feed_retry_ids = []
+
+            for feed in feeds:
+                if self._refresh_cancelled(cancel_event):
+                    return _stopped(len(feeds or []))
+                feed_id = str(feed.get("id"))
+                status = "ok"
+
+                checked_dt = self._parse_checked_at(feed.get("checked_at"))
+
+                if (feed.get("parsing_error_count") or 0) > 0:
+                    status = "error"
+                elif checked_dt and checked_dt < stale_cutoff:
+                    status = "stale"
+
+                # Manual refresh in BlindRSS sets force=True. Respect it by explicitly
+                # refreshing every feed so CDN-cached feeds (e.g., Simplecast) update
+                # immediately instead of waiting for Miniflux's next scheduled check.
+                if force:
+                    per_feed_retry_ids.append(feed_id)
+                elif status in ("error", "stale"):
+                    per_feed_retry_ids.append(feed_id)
+
+            allow_targeted_refresh = bool(global_refresh_ok and (not feeds_from_cache))
+            log.info(
+                "Miniflux refresh feed metadata force=%s feeds=%s feeds_from_cache=%s targeted_candidates=%s retry_budget=%s allow_targeted=%s",
+                force,
+                len(feeds or []),
+                feeds_from_cache,
+                len(per_feed_retry_ids),
+                retry_budget,
+                allow_targeted_refresh,
+            )
+            if not allow_targeted_refresh and per_feed_retry_ids:
+                log.warning(
+                    "Skipping Miniflux per-feed refresh retries due to upstream instability "
+                    "(global refresh failed or feed list came from cache)."
                 )
-                progress_states = {
-                    str(feed.get("id") or ""): self._feed_progress_state_from_metadata(
-                        feed,
-                        unread_for_progress,
-                        stale_cutoff,
+
+            if retry_budget > 0 and allow_targeted_refresh:
+                progress_states = None
+                if progress_cb is not None and per_feed_retry_ids:
+                    counters_for_progress = self._req("GET", "/v1/feeds/counters") or {}
+                    if self._refresh_cancelled(cancel_event):
+                        return _stopped(len(feeds or []))
+                    unread_for_progress = (
+                        counters_for_progress.get("unreads", {})
+                        if isinstance(counters_for_progress, dict)
+                        else {}
                     )
-                    for feed in feeds or []
-                }
-            self._refresh_targeted_feeds(
-                per_feed_retry_ids[:retry_budget],
-                force=force,
-                progress_cb=progress_cb,
-                progress_states=progress_states,
-            )
+                    progress_states = {
+                        str(feed.get("id") or ""): self._feed_progress_state_from_metadata(
+                            feed,
+                            unread_for_progress,
+                            stale_cutoff,
+                        )
+                        for feed in feeds or []
+                    }
+                self._refresh_targeted_feeds(
+                    per_feed_retry_ids[:retry_budget],
+                    force=force,
+                    progress_cb=progress_cb,
+                    progress_states=progress_states,
+                    cancel_event=cancel_event,
+                )
+                if self._refresh_cancelled(cancel_event):
+                    return _stopped(len(feeds or []))
 
-        # Re-read feed/counter metadata after targeted refresh requests.
-        feeds = self._req("GET", "/v1/feeds") or feeds
-        counters_data = self._req("GET", "/v1/feeds/counters") or {}
-        unread_map = counters_data.get("unreads", {}) if isinstance(counters_data, dict) else {}
+            # Re-read feed/counter metadata after targeted refresh requests.
+            feeds = self._req("GET", "/v1/feeds") or feeds
+            if self._refresh_cancelled(cancel_event):
+                return _stopped(len(feeds or []))
+            counters_data = self._req("GET", "/v1/feeds/counters") or {}
+            if self._refresh_cancelled(cancel_event):
+                return _stopped(len(feeds or []))
+            unread_map = counters_data.get("unreads", {}) if isinstance(counters_data, dict) else {}
 
-        for feed in feeds:
-            self._emit_progress(
-                progress_cb,
-                self._feed_progress_state_from_metadata(feed, unread_map, stale_cutoff),
-            )
+            for feed in feeds:
+                if self._refresh_cancelled(cancel_event):
+                    return _stopped(len(feeds or []))
+                self._emit_progress(
+                    progress_cb,
+                    self._feed_progress_state_from_metadata(feed, unread_map, stale_cutoff),
+                )
 
-        duration_s = (datetime.now(timezone.utc) - started_at).total_seconds()
-        log.info("Miniflux refresh finished force=%s duration_s=%.2f feeds=%s", force, duration_s, len(feeds or []))
-        return True
+            duration_s = (datetime.now(timezone.utc) - started_at).total_seconds()
+            log.info("Miniflux refresh finished force=%s duration_s=%.2f feeds=%s", force, duration_s, len(feeds or []))
+            return True
+        finally:
+            self._end_refresh_cancel_scope(cancel_event)
 
     def refresh_feed(self, feed_id: str, progress_cb=None) -> bool:
         """Refresh a single Miniflux feed and emit one progress state for the UI."""
         fid = str(feed_id or "").strip()
         if not fid:
             return False
+        cancel_event = self._begin_refresh_cancel_scope()
         log.info("Miniflux single-feed refresh start feed_id=%s force=True", fid)
+        try:
+            if self._refresh_cancelled(cancel_event):
+                return True
 
-        # Trigger a targeted refresh on the Miniflux server.
-        results = self._refresh_targeted_feeds([fid], force=True)
-        if fid in results:
-            self._last_request_info = dict(results[fid])
+            # Trigger a targeted refresh on the Miniflux server.
+            results = self._refresh_targeted_feeds([fid], force=True, cancel_event=cancel_event)
+            if fid in results:
+                self._last_request_info = dict(results[fid])
+            if self._refresh_cancelled(cancel_event):
+                log.info("Miniflux single-feed refresh stopped by user feed_id=%s", fid)
+                return True
 
-        # Whether the refresh call succeeded or timed out, try to fetch the latest metadata
-        # so the UI can stop showing "Adding feed..." and display current state.
-        feeds = self._req("GET", "/v1/feeds") or []
-        counters_data = self._req("GET", "/v1/feeds/counters") or {}
-        unread_map = counters_data.get("unreads", {}) if isinstance(counters_data, dict) else {}
+            # Whether the refresh call succeeded or timed out, try to fetch the latest metadata
+            # so the UI can stop showing "Adding feed..." and display current state.
+            feeds = self._req("GET", "/v1/feeds") or []
+            if self._refresh_cancelled(cancel_event):
+                log.info("Miniflux single-feed refresh stopped by user feed_id=%s", fid)
+                return True
+            counters_data = self._req("GET", "/v1/feeds/counters") or {}
+            if self._refresh_cancelled(cancel_event):
+                log.info("Miniflux single-feed refresh stopped by user feed_id=%s", fid)
+                return True
+            unread_map = counters_data.get("unreads", {}) if isinstance(counters_data, dict) else {}
 
-        target = None
-        for feed in (feeds or []):
-            if str(feed.get("id") or "") == fid:
-                target = feed
-                break
+            target = None
+            for feed in (feeds or []):
+                if self._refresh_cancelled(cancel_event):
+                    log.info("Miniflux single-feed refresh stopped by user feed_id=%s", fid)
+                    return True
+                if str(feed.get("id") or "") == fid:
+                    target = feed
+                    break
 
-        if target is None:
-            log.info("Miniflux single-feed refresh feed not found feed_id=%s", fid)
-            return False
+            if target is None:
+                log.info("Miniflux single-feed refresh feed not found feed_id=%s", fid)
+                return False
 
-        now = datetime.now(timezone.utc)
-        stale_cutoff = now - timedelta(hours=3)
-        checked_dt = self._parse_checked_at(target.get("checked_at"))
+            now = datetime.now(timezone.utc)
+            stale_cutoff = now - timedelta(hours=3)
+            checked_dt = self._parse_checked_at(target.get("checked_at"))
 
-        status = "ok"
-        error_msg = None
-        if (target.get("parsing_error_count") or 0) > 0:
-            status = "error"
-            error_msg = target.get("parsing_error_message")
-        elif checked_dt and checked_dt < stale_cutoff:
-            status = "stale"
+            status = "ok"
+            error_msg = None
+            if (target.get("parsing_error_count") or 0) > 0:
+                status = "error"
+                error_msg = target.get("parsing_error_message")
+            elif checked_dt and checked_dt < stale_cutoff:
+                status = "stale"
 
-        unread = unread_map.get(fid) or unread_map.get(int(target.get("id", 0) or 0), 0) or 0
-        category = (target.get("category") or {}).get("title", "Uncategorized")
+            unread = unread_map.get(fid) or unread_map.get(int(target.get("id", 0) or 0), 0) or 0
+            category = (target.get("category") or {}).get("title", "Uncategorized")
 
-        self._emit_progress(
-            progress_cb,
-            {
-                "id": fid,
-                "title": target.get("title") or "",
-                "category": category,
-                "unread_count": unread,
-                "status": status,
-                "new_items": None,
-                "error": error_msg,
-            },
-        )
-        log.info("Miniflux single-feed refresh finished feed_id=%s status=%s unread=%s", fid, status, unread)
-        return True
+            self._emit_progress(
+                progress_cb,
+                {
+                    "id": fid,
+                    "title": target.get("title") or "",
+                    "category": category,
+                    "unread_count": unread,
+                    "status": status,
+                    "new_items": None,
+                    "error": error_msg,
+                },
+            )
+            log.info("Miniflux single-feed refresh finished feed_id=%s status=%s unread=%s", fid, status, unread)
+            return True
+        finally:
+            self._end_refresh_cancel_scope(cancel_event)
 
     def refresh_feeds_by_ids(self, feed_ids, progress_cb=None, force: bool = True) -> bool:
         ordered_ids = []
@@ -1149,60 +1280,78 @@ class MinifluxProvider(RSSProvider):
 
         if not ordered_ids:
             return True
+        cancel_event = self._begin_refresh_cancel_scope()
         log.info("Miniflux targeted refresh start feed_count=%s force=%s", len(ordered_ids), force)
+        try:
+            if self._refresh_cancelled(cancel_event):
+                return True
 
-        results = self._refresh_targeted_feeds(ordered_ids, force=force)
-        ok = all(bool(info.get("ok", False)) for info in results.values()) if results else True
+            results = self._refresh_targeted_feeds(ordered_ids, force=force, cancel_event=cancel_event)
+            ok = all(bool(info.get("ok", False)) for info in results.values()) if results else True
+            if self._refresh_cancelled(cancel_event):
+                log.info("Miniflux targeted refresh stopped by user feed_count=%s", len(ordered_ids))
+                return True
 
-        feeds = self._req("GET", "/v1/feeds") or []
-        counters_data = self._req("GET", "/v1/feeds/counters") or {}
-        unread_map = counters_data.get("unreads", {}) if isinstance(counters_data, dict) else {}
+            feeds = self._req("GET", "/v1/feeds") or []
+            if self._refresh_cancelled(cancel_event):
+                log.info("Miniflux targeted refresh stopped by user feed_count=%s", len(ordered_ids))
+                return True
+            counters_data = self._req("GET", "/v1/feeds/counters") or {}
+            if self._refresh_cancelled(cancel_event):
+                log.info("Miniflux targeted refresh stopped by user feed_count=%s", len(ordered_ids))
+                return True
+            unread_map = counters_data.get("unreads", {}) if isinstance(counters_data, dict) else {}
 
-        feeds_by_id = {str(feed.get("id") or ""): feed for feed in feeds or []}
-        stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=3)
-        for fid in ordered_ids:
-            feed = feeds_by_id.get(fid)
-            if feed is None:
+            feeds_by_id = {str(feed.get("id") or ""): feed for feed in feeds or []}
+            stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=3)
+            for fid in ordered_ids:
+                if self._refresh_cancelled(cancel_event):
+                    log.info("Miniflux targeted refresh stopped by user feed_count=%s", len(ordered_ids))
+                    return True
+                feed = feeds_by_id.get(fid)
+                if feed is None:
+                    self._emit_progress(
+                        progress_cb,
+                        {
+                            "id": fid,
+                            "title": fid,
+                            "category": "Uncategorized",
+                            "unread_count": 0,
+                            "status": "error",
+                            "new_items": None,
+                            "error": "Feed not found after refresh.",
+                        },
+                    )
+                    ok = False
+                    continue
+
+                checked_dt = self._parse_checked_at(feed.get("checked_at"))
+                status = "ok"
+                error_msg = None
+                if (feed.get("parsing_error_count") or 0) > 0:
+                    status = "error"
+                    error_msg = feed.get("parsing_error_message")
+                elif checked_dt and checked_dt < stale_cutoff:
+                    status = "stale"
+
+                unread = unread_map.get(fid) or unread_map.get(int(feed.get("id", 0) or 0), 0) or 0
+                category = (feed.get("category") or {}).get("title", "Uncategorized")
                 self._emit_progress(
                     progress_cb,
                     {
                         "id": fid,
-                        "title": fid,
-                        "category": "Uncategorized",
-                        "unread_count": 0,
-                        "status": "error",
+                        "title": feed.get("title") or "",
+                        "category": category,
+                        "unread_count": unread,
+                        "status": status,
                         "new_items": None,
-                        "error": "Feed not found after refresh.",
+                        "error": error_msg,
                     },
                 )
-                ok = False
-                continue
-
-            checked_dt = self._parse_checked_at(feed.get("checked_at"))
-            status = "ok"
-            error_msg = None
-            if (feed.get("parsing_error_count") or 0) > 0:
-                status = "error"
-                error_msg = feed.get("parsing_error_message")
-            elif checked_dt and checked_dt < stale_cutoff:
-                status = "stale"
-
-            unread = unread_map.get(fid) or unread_map.get(int(feed.get("id", 0) or 0), 0) or 0
-            category = (feed.get("category") or {}).get("title", "Uncategorized")
-            self._emit_progress(
-                progress_cb,
-                {
-                    "id": fid,
-                    "title": feed.get("title") or "",
-                    "category": category,
-                    "unread_count": unread,
-                    "status": status,
-                    "new_items": None,
-                    "error": error_msg,
-                },
-            )
-        log.info("Miniflux targeted refresh finished feed_count=%s force=%s ok=%s", len(ordered_ids), force, ok)
-        return ok
+            log.info("Miniflux targeted refresh finished feed_count=%s force=%s ok=%s", len(ordered_ids), force, ok)
+            return ok
+        finally:
+            self._end_refresh_cancel_scope(cancel_event)
 
     def get_feeds(self) -> List[Feed]:
         data = self._req("GET", "/v1/feeds")

@@ -1320,11 +1320,6 @@ class LocalProvider(RSSProvider):
         # only: after a restart every feed is due, which matches startup refresh.
         self._scheduled_refresh_last_attempt: Dict[str, float] = {}
         self._scheduled_refresh_last_attempt_lock = threading.Lock()
-        # Cancel event of the batch refresh currently in flight (None when
-        # idle). Set via cancel_refresh(); each _refresh_feed_rows run installs
-        # its own event so a stray stop can never cancel a future run.
-        self._active_refresh_cancel: Optional[threading.Event] = None
-
     def get_name(self) -> str:
         return "Local RSS"
 
@@ -1481,27 +1476,20 @@ class LocalProvider(RSSProvider):
         if not row:
             return False
 
-        # For single feed refresh, use a simple semaphore since we aren't competing with other threads here.
-        host_limits = defaultdict(lambda: threading.Semaphore(1))
-        feed_timeout = max(1, int(self.config.get("feed_timeout_seconds", 15) or 15))
-        retries = max(0, int(self.config.get("feed_retry_attempts", 1) or 0))
+        return self._refresh_feed_rows(
+            [row],
+            progress_cb=progress_cb,
+            force=True,
+            respect_failure_cooldown=False,
+        )
 
-        try:
-            self._refresh_single_feed(
-                row,
-                host_limits,
-                feed_timeout,
-                retries,
-                progress_cb,
-                force=True,
-                respect_failure_cooldown=False,
-            )
-            return True
-        except Exception as e:
-            log.error(f"Single feed refresh failed: {e}")
-            return False
-
-    def _refresh_feed_rows(self, feed_rows, progress_cb=None, force: bool = False) -> bool:
+    def _refresh_feed_rows(
+        self,
+        feed_rows,
+        progress_cb=None,
+        force: bool = False,
+        respect_failure_cooldown: bool = True,
+    ) -> bool:
         if not feed_rows:
             return True
 
@@ -1544,8 +1532,7 @@ class LocalProvider(RSSProvider):
         # Cooperative stop (user's "Stop Refresh"): feeds already being fetched
         # finish; queued ones are skipped. The event is per-run so a stop
         # request can never leak into a later refresh.
-        cancel_event = threading.Event()
-        self._active_refresh_cancel = cancel_event
+        cancel_event = self._begin_refresh_cancel_scope()
 
         def task(feed_row):
             if cancel_event.is_set():
@@ -1557,7 +1544,8 @@ class LocalProvider(RSSProvider):
                 retries,
                 progress_cb,
                 force,
-                respect_failure_cooldown=True,
+                respect_failure_cooldown=respect_failure_cooldown,
+                cancel_event=cancel_event,
             )
 
         ordered_feed_rows = _interleave_feed_rows_by_host(feed_rows)
@@ -1572,15 +1560,7 @@ class LocalProvider(RSSProvider):
             if cancel_event.is_set():
                 log.info("Local refresh stopped by user; remaining feeds skipped")
         finally:
-            if self._active_refresh_cancel is cancel_event:
-                self._active_refresh_cancel = None
-        return True
-
-    def cancel_refresh(self) -> bool:
-        event = self._active_refresh_cancel
-        if event is None:
-            return False
-        event.set()
+            self._end_refresh_cancel_scope(cancel_event)
         return True
 
     def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
@@ -1703,7 +1683,10 @@ class LocalProvider(RSSProvider):
         progress_cb,
         force=False,
         respect_failure_cooldown: bool = False,
+        cancel_event: Optional[threading.Event] = None,
     ):
+        if self._refresh_cancelled(cancel_event):
+            return
         # Each thread gets its own connection
         feed_id, feed_url, feed_title, feed_category, etag, last_modified, title_is_custom, upstream_title = feed_row
         status = "ok"
@@ -1977,7 +1960,8 @@ class LocalProvider(RSSProvider):
                             error_msg = str(e)
                             if attempt <= retries and time.monotonic() < deadline:
                                 backoff = min(4, attempt)
-                                time.sleep(backoff)
+                                if self._sleep_or_cancel_refresh(backoff, cancel_event):
+                                    return
                                 continue
                             raise last_exc
 
@@ -2006,6 +1990,8 @@ class LocalProvider(RSSProvider):
                     total_entries = len(all_items)
                     entry_count = total_entries
                     for i, item in enumerate(all_items):
+                        if self._refresh_cancelled(cancel_event):
+                            return
                         try:
                             article_id = item.id
                             title = item.title or "No Title"
@@ -2121,7 +2107,8 @@ class LocalProvider(RSSProvider):
                             status = "error"
                             error_msg = str(e)
                             if attempt <= retries and time.monotonic() < deadline:
-                                time.sleep(min(4, attempt))
+                                if self._sleep_or_cancel_refresh(min(4, attempt), cancel_event):
+                                    return
                                 continue
                             raise last_exc
 
@@ -2151,6 +2138,8 @@ class LocalProvider(RSSProvider):
                     total_entries = len(all_items)
                     entry_count = total_entries
                     for i, item in enumerate(all_items):
+                        if self._refresh_cancelled(cancel_event):
+                            return
                         try:
                             url = item.url or ""
                             if not url:
@@ -2250,7 +2239,8 @@ class LocalProvider(RSSProvider):
                             status = "error"
                             error_msg = str(e)
                             if attempt <= retries and time.monotonic() < deadline:
-                                time.sleep(min(4, attempt))
+                                if self._sleep_or_cancel_refresh(min(4, attempt), cancel_event):
+                                    return
                                 continue
                             raise last_exc
 
@@ -2279,6 +2269,8 @@ class LocalProvider(RSSProvider):
                     total_entries = len(all_items)
                     entry_count = total_entries
                     for i, item in enumerate(all_items):
+                        if self._refresh_cancelled(cancel_event):
+                            return
                         try:
                             legacy_article_id = item.id
                             title = item.title or "No Title"
@@ -2425,7 +2417,8 @@ class LocalProvider(RSSProvider):
                             error_msg = str(e)
                             if attempt <= retries and time.monotonic() < deadline:
                                 backoff = min(4, attempt)
-                                time.sleep(backoff)
+                                if self._sleep_or_cancel_refresh(backoff, cancel_event):
+                                    return
                                 continue
                             raise last_exc
 
@@ -2455,6 +2448,8 @@ class LocalProvider(RSSProvider):
                     total_entries = len(all_items)
                     entry_count = total_entries
                     for i, item in enumerate(all_items):
+                        if self._refresh_cancelled(cancel_event):
+                            return
                         try:
                             article_id = item.id
                             title = item.title or "No Title"
@@ -2666,7 +2661,8 @@ class LocalProvider(RSSProvider):
                                 getattr(resp, "status_code", None),
                                 feed_url,
                             )
-                            time.sleep(0.01)
+                            if self._sleep_or_cancel_refresh(0.01, cancel_event):
+                                return
                             continue
                         if effective_feed_url != feed_url:
                             log.info("Resolved challenged local feed URL during refresh: %s -> %s", feed_url, effective_feed_url)
@@ -2758,7 +2754,8 @@ class LocalProvider(RSSProvider):
                                 error_msg,
                                 feed_url,
                             )
-                            time.sleep(backoff)
+                            if self._sleep_or_cancel_refresh(backoff, cancel_event):
+                                return
                             continue
                         # Plain retries are exhausted. If a WAF-style reset closed the
                         # connection, spend the one reserved last-resort attempt on a
@@ -2781,7 +2778,8 @@ class LocalProvider(RSSProvider):
                                 attempts_total,
                                 feed_url,
                             )
-                            time.sleep(0.01)
+                            if self._sleep_or_cancel_refresh(0.01, cancel_event):
+                                return
                             continue
                         raise last_exc
 
@@ -2876,6 +2874,8 @@ class LocalProvider(RSSProvider):
 
                 entry_ids = []
                 for entry in d.entries:
+                    if self._refresh_cancelled(cancel_event):
+                        return
                     content = _entry_content(entry)
                     base_id = _entry_base_id(entry, feed_id, feed_url, content)
                     if not base_id:
@@ -2901,6 +2901,8 @@ class LocalProvider(RSSProvider):
                 
                 total_entries = len(d.entries)
                 for i, entry in enumerate(d.entries):
+                    if self._refresh_cancelled(cancel_event):
+                        return
                     # Shared extension filters for enclosure/media tags
                     image_exts = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
                     audio_exts = (".mp3", ".m4a", ".m4b", ".aac", ".ogg", ".opus", ".wav", ".flac")

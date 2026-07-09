@@ -622,19 +622,25 @@ class InoreaderProvider(RSSProvider):
         return ok
 
     def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
-        log.info("Inoreader refresh start force=%s", force)
-        if force:
-            self._mark_cache_dirty()
-            self._clear_article_cache()
-            log.info("Inoreader refresh forced cache invalidation")
+        cancel_event = self._begin_refresh_cancel_scope()
+        try:
+            log.info("Inoreader refresh start force=%s", force)
+            if self._refresh_cancelled(cancel_event):
+                return True
+            if force:
+                self._mark_cache_dirty()
+                self._clear_article_cache()
+                log.info("Inoreader refresh forced cache invalidation")
+                return True
+            # Inoreader is already server-synced; avoid triggering subscription/category fetches on
+            # every client refresh tick when metadata is still cached.
+            if self._get_cached_feeds(allow_stale=False) is not None:
+                log.info("Inoreader refresh skipped because feed metadata cache is fresh")
+                return False
+            log.info("Inoreader refresh allowed because feed metadata cache is stale")
             return True
-        # Inoreader is already server-synced; avoid triggering subscription/category fetches on
-        # every client refresh tick when metadata is still cached.
-        if self._get_cached_feeds(allow_stale=False) is not None:
-            log.info("Inoreader refresh skipped because feed metadata cache is fresh")
-            return False
-        log.info("Inoreader refresh allowed because feed metadata cache is stale")
-        return True
+        finally:
+            self._end_refresh_cancel_scope(cancel_event)
 
     def refresh_feed(self, feed_id: str, progress_cb=None) -> bool:
         return self.refresh_feeds_by_ids([feed_id], progress_cb=progress_cb, force=True)
@@ -651,56 +657,71 @@ class InoreaderProvider(RSSProvider):
 
         if not ordered_ids:
             return True
-        if not self._has_required_auth():
-            log.info("Inoreader targeted refresh skipped because auth is incomplete feed_count=%s", len(ordered_ids))
-            return False
-
-        # Inoreader is server-backed, so the client-side refresh action means:
-        # invalidate metadata/article caches and force the next article load to
-        # hit the API for the selected feeds/views.
-        log.info("Inoreader targeted refresh cache invalidation feed_count=%s force=%s", len(ordered_ids), force)
-        self._mark_cache_dirty()
-        self._clear_article_cache()
-
+        cancel_event = self._begin_refresh_cancel_scope()
         try:
-            feeds = self.get_feeds() or []
-        except Exception as e:
-            log.error(f"Inoreader targeted refresh metadata fetch failed: {e}")
-            feeds = []
+            if self._refresh_cancelled(cancel_event):
+                return True
+            if not self._has_required_auth():
+                log.info("Inoreader targeted refresh skipped because auth is incomplete feed_count=%s", len(ordered_ids))
+                return False
+            if self._refresh_cancelled(cancel_event):
+                log.info("Inoreader targeted refresh stopped by user feed_count=%s", len(ordered_ids))
+                return True
 
-        feeds_by_id = {str(getattr(feed, "id", "") or ""): feed for feed in feeds}
-        ok = True
-        for fid in ordered_ids:
-            feed = feeds_by_id.get(fid)
-            if feed is None:
+            # Inoreader is server-backed, so the client-side refresh action means:
+            # invalidate metadata/article caches and force the next article load to
+            # hit the API for the selected feeds/views.
+            log.info("Inoreader targeted refresh cache invalidation feed_count=%s force=%s", len(ordered_ids), force)
+            self._mark_cache_dirty()
+            self._clear_article_cache()
+
+            try:
+                feeds = self.get_feeds() or []
+            except Exception as e:
+                log.error(f"Inoreader targeted refresh metadata fetch failed: {e}")
+                feeds = []
+            if self._refresh_cancelled(cancel_event):
+                log.info("Inoreader targeted refresh stopped by user feed_count=%s", len(ordered_ids))
+                return True
+
+            feeds_by_id = {str(getattr(feed, "id", "") or ""): feed for feed in feeds}
+            ok = True
+            for fid in ordered_ids:
+                if self._refresh_cancelled(cancel_event):
+                    log.info("Inoreader targeted refresh stopped by user feed_count=%s", len(ordered_ids))
+                    return True
+                feed = feeds_by_id.get(fid)
+                if feed is None:
+                    self._emit_progress(
+                        progress_cb,
+                        {
+                            "id": fid,
+                            "title": fid,
+                            "category": "Uncategorized",
+                            "unread_count": 0,
+                            "status": "error",
+                            "new_items": None,
+                            "error": "Feed not found after refresh.",
+                        },
+                    )
+                    ok = False
+                    continue
+
                 self._emit_progress(
                     progress_cb,
                     {
                         "id": fid,
-                        "title": fid,
-                        "category": "Uncategorized",
-                        "unread_count": 0,
-                        "status": "error",
+                        "title": getattr(feed, "title", "") or "",
+                        "category": getattr(feed, "category", "") or "Uncategorized",
+                        "unread_count": int(getattr(feed, "unread_count", 0) or 0),
+                        "status": "ok",
                         "new_items": None,
-                        "error": "Feed not found after refresh.",
+                        "error": None,
                     },
                 )
-                ok = False
-                continue
-
-            self._emit_progress(
-                progress_cb,
-                {
-                    "id": fid,
-                    "title": getattr(feed, "title", "") or "",
-                    "category": getattr(feed, "category", "") or "Uncategorized",
-                    "unread_count": int(getattr(feed, "unread_count", 0) or 0),
-                    "status": "ok",
-                    "new_items": None,
-                    "error": None,
-                },
-            )
-        return ok
+            return ok
+        finally:
+            self._end_refresh_cancel_scope(cancel_event)
 
     def get_feeds(self) -> List[Feed]:
         if not self._has_required_auth():

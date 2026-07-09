@@ -272,7 +272,11 @@ def test_refresh_timeout_retries_once_then_succeeds(monkeypatch):
                 return _DummyResp(_RSS_XML)
 
             monkeypatch.setattr(local_mod.utils, "safe_requests_get", _fake_get)
-            monkeypatch.setattr(local_mod.time, "sleep", lambda seconds: sleeps.append(seconds))
+            monkeypatch.setattr(
+                provider,
+                "_sleep_or_cancel_refresh",
+                lambda seconds, cancel_event=None: sleeps.append(seconds) or False,
+            )
 
             assert provider.refresh_feed(feed_id) is True
 

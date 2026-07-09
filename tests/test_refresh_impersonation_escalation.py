@@ -217,6 +217,86 @@ def test_block_response_escalates_to_impersonation(monkeypatch):
             core.db.DB_FILE = orig
 
 
+def test_waf_403_html_block_escalates_to_impersonation(monkeypatch):
+    # Akamai-style WAF wall: 403 + HTML "Access Denied" for the plain client,
+    # the real feed for a browser TLS fingerprint (issue #29, radiofarda.com).
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = core.db.DB_FILE
+        core.db.DB_FILE = os.path.join(tmp, "rss.db")
+        try:
+            provider = _provider(retries=1)
+            feed_id = _insert_feed("https://example.com/feed.xml")
+            calls = []
+
+            def _fake_get(url, **kwargs):
+                impersonated = bool(kwargs.get("impersonate"))
+                calls.append(impersonated)
+                if not impersonated:
+                    return _DummyResp(_HTML_BLOCK, status_code=403, content_type="text/html")
+                return _DummyResp(_RSS_XML)
+
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", True)
+            monkeypatch.setattr(local_mod.utils, "safe_requests_get", _fake_get)
+            monkeypatch.setattr(local_mod.time, "sleep", lambda *_a: None)
+
+            assert provider.refresh_feed(feed_id) is True
+            # Plain attempt hit the 403 wall; impersonation got the real feed.
+            assert calls[-1] is True
+            assert calls[:-1] and not any(calls[:-1])
+            assert len(provider.get_articles(feed_id=feed_id)) == 1
+        finally:
+            core.db.DB_FILE = orig
+
+
+def test_probe_escalates_on_403_but_not_on_200_html(monkeypatch):
+    # Discovery probes (non-feed-like URL, discovery found nothing) keep the
+    # fast fail for 200 HTML ("just not a feed") but still escalate to
+    # impersonation on a 403/429 WAF wall (issue #29).
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = core.db.DB_FILE
+        core.db.DB_FILE = os.path.join(tmp, "rss.db")
+        try:
+            # Case 1: 403 wall on a probe -> impersonation rescues the feed.
+            provider = _provider(retries=0)
+            feed_id = _insert_feed("https://example.com/podcast")
+            calls = []
+
+            def _fake_get_403(url, **kwargs):
+                impersonated = bool(kwargs.get("impersonate"))
+                calls.append(impersonated)
+                if not impersonated:
+                    return _DummyResp(_HTML_BLOCK, status_code=403, content_type="text/html")
+                return _DummyResp(_RSS_XML)
+
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", True)
+            monkeypatch.setattr(local_mod.utils, "safe_requests_get", _fake_get_403)
+            monkeypatch.setattr(local_mod.time, "sleep", lambda *_a: None)
+            monkeypatch.setattr(provider, "_resolve_feed_url", lambda *a, **k: None)
+
+            assert provider.refresh_feed(feed_id) is True
+            assert calls == [False, True]
+            assert len(provider.get_articles(feed_id=feed_id)) == 1
+
+            # Case 2: 200 HTML on a probe -> still "not a feed", no impersonation.
+            provider2 = _provider(retries=0)
+            feed_id2 = _insert_feed("https://example.com/podcast")
+            calls2 = []
+            states = []
+
+            def _fake_get_200(url, **kwargs):
+                calls2.append(bool(kwargs.get("impersonate")))
+                return _DummyResp(_HTML_BLOCK, status_code=200, content_type="text/html")
+
+            monkeypatch.setattr(local_mod.utils, "safe_requests_get", _fake_get_200)
+            monkeypatch.setattr(provider2, "_resolve_feed_url", lambda *a, **k: None)
+
+            assert provider2.refresh_feed(feed_id2, progress_cb=states.append) is True
+            assert calls2 == [False]
+            assert states[-1]["status"] == "error"
+        finally:
+            core.db.DB_FILE = orig
+
+
 def test_per_feed_proxy_passed_to_both_transports(monkeypatch):
     with tempfile.TemporaryDirectory() as tmp:
         orig = core.db.DB_FILE
@@ -255,6 +335,18 @@ def test_response_looks_blocked_classification():
     # A real feed -> not blocked.
     feed = _DummyResp(_RSS_XML, status_code=200, content_type="application/rss+xml")
     assert local_mod._response_looks_blocked(feed) is False
-    # A plain 403 (no challenge) -> not treated as a block (avoid needless retries).
+    # A plain non-HTML 403 (no challenge) -> not treated as a block (avoid needless retries).
     forbidden = _DummyResp("forbidden", status_code=403, content_type="text/plain")
     assert local_mod._response_looks_blocked(forbidden) is False
+    # 403/429 HTML block pages -> blocked: classic WAF wall, e.g. Akamai's
+    # "Access Denied" on radiofarda.com (issue #29).
+    waf_403 = _DummyResp(_HTML_BLOCK, status_code=403, content_type="text/html")
+    assert local_mod._response_looks_blocked(waf_403) is True
+    waf_429 = _DummyResp(_HTML_BLOCK, status_code=429, content_type="text/html")
+    assert local_mod._response_looks_blocked(waf_429) is True
+    # Other 4xx stay excluded so genuine errors aren't retried needlessly.
+    missing = _DummyResp(_HTML_BLOCK, status_code=404, content_type="text/html")
+    assert local_mod._response_looks_blocked(missing) is False
+    # A 403 that still delivers a feed body -> not blocked (nothing to escalate).
+    feed_403 = _DummyResp(_RSS_XML, status_code=403, content_type="text/html")
+    assert local_mod._response_looks_blocked(feed_403) is False

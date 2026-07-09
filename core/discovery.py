@@ -4140,6 +4140,24 @@ def get_ytdlp_feed_url(url: str) -> str:
     return None
 
 
+def _impersonated_discovery_retry(url: str, timeout: float):
+    """One browser-impersonated retry for discovery fetches that a WAF blocked.
+
+    Anti-bot walls (e.g. Akamai on radiofarda.com) 403/reset the default client
+    but serve the same feed to a browser TLS fingerprint (issue #29). Returns the
+    successful response, or None when impersonation is unavailable or also fails.
+    """
+    if not getattr(utils, "CURL_CFFI_AVAILABLE", False):
+        return None
+    try:
+        resp = utils.safe_requests_get(url, timeout=timeout, impersonate=True)
+    except Exception:
+        return None
+    if int(getattr(resp, "status_code", 0) or 0) >= 400:
+        return None
+    return resp
+
+
 def discover_feed(url: str, request_timeout: float = 10.0, probe_timeout: float = 5.0) -> str:
     """
     Given a URL, try to find the RSS/Atom feed URL.
@@ -4182,7 +4200,18 @@ def discover_feed(url: str, request_timeout: float = 10.0, probe_timeout: float 
                 if attempt < 9:
                     time.sleep(0.01)
         if resp is None:
-            raise last_get_error
+            # Every plain attempt raised (e.g. an anti-bot WAF resetting the
+            # connection). One browser-impersonated retry before giving up (issue #29).
+            resp = _impersonated_discovery_retry(url, req_timeout)
+            if resp is None:
+                raise last_get_error
+        elif int(getattr(resp, "status_code", 0) or 0) >= 400:
+            # WAF block pages (e.g. Akamai's 403 "Access Denied") often clear for
+            # a browser TLS fingerprint (issue #29). Keep the original response
+            # when impersonation is unavailable or also blocked.
+            retry_resp = _impersonated_discovery_retry(url, req_timeout)
+            if retry_resp is not None:
+                resp = retry_resp
         resp.raise_for_status()
 
         effective_url = str(getattr(resp, "url", "") or url)
@@ -4301,7 +4330,20 @@ def discover_feeds(url: str) -> list[str]:
             feeds.append(candidate)
 
     try:
-        resp = utils.safe_requests_get(url, timeout=10)
+        resp = None
+        plain_get_error = None
+        try:
+            resp = utils.safe_requests_get(url, timeout=10)
+        except Exception as e:
+            plain_get_error = e
+        if resp is None or int(getattr(resp, "status_code", 0) or 0) >= 400:
+            # WAF block/reset on the plain client (e.g. Akamai 403): one
+            # browser-impersonated retry before falling through (issue #29).
+            retry_resp = _impersonated_discovery_retry(url, 10)
+            if retry_resp is not None:
+                resp = retry_resp
+            elif resp is None:
+                raise plain_get_error
         resp.raise_for_status()
         effective_url = str(getattr(resp, "url", "") or url)
         html = resp.text or ""

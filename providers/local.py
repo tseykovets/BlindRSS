@@ -1204,16 +1204,18 @@ def _response_looks_cloudflare_challenge(resp) -> bool:
 
 def _response_looks_blocked(resp) -> bool:
     """True if a response looks like an anti-bot block a real browser fingerprint
-    might get past (issue #29): a Cloudflare/JS challenge, or a 200 OK that returns
-    an HTML interstitial instead of a feed. Plain 4xx/5xx are intentionally excluded
-    so genuine forbidden/error responses are not retried needlessly."""
+    might get past (issue #29): a Cloudflare/JS challenge, a 200 OK that returns
+    an HTML interstitial instead of a feed, or a 403/429 HTML block page instead
+    of a feed (classic WAF wall, e.g. Akamai's "Access Denied" on radiofarda.com).
+    Other 4xx/5xx are intentionally excluded so genuine errors aren't retried
+    needlessly."""
     if _response_looks_cloudflare_challenge(resp):
         return True
     try:
         status_code = int(getattr(resp, "status_code", 0) or 0)
     except Exception:
         status_code = 0
-    if status_code == 200 and not _response_looks_feed_like(resp):
+    if status_code in (200, 403, 429) and not _response_looks_feed_like(resp):
         content_type = str(getattr(resp, "headers", {}).get("Content-Type", "") or "").lower()
         if "html" in content_type:
             return True
@@ -2541,11 +2543,16 @@ class LocalProvider(RSSProvider):
                             proxies=feed_proxies,
                         )
                         # A challenge/interstitial block (not just a reset) also escalates
-                        # the reserved attempt to browser impersonation (issue #29). Skipped
-                        # for discovery probes, where an HTML page just means "not a feed".
+                        # the reserved attempt to browser impersonation (issue #29). For
+                        # discovery probes a 200 HTML page just means "not a feed", so those
+                        # keep the fast fail -- but a non-200 block (403/429 WAF wall, e.g.
+                        # Akamai's Access Denied) still escalates even on a probe.
                         if (
                             impersonation_fallback
-                            and not direct_feed_probe_only
+                            and not (
+                                direct_feed_probe_only
+                                and int(getattr(resp, "status_code", 0) or 0) == 200
+                            )
                             and not do_impersonation_next
                             and not impersonate_now
                             and attempt < attempts_total

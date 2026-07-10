@@ -41,6 +41,9 @@ class _Host:
     _apply_playback_speed = mainframe.MainFrame._apply_playback_speed
     _player_for_speed = mainframe.MainFrame._player_for_speed
 
+    _is_text_input_focused = mainframe.MainFrame._is_text_input_focused
+    _is_editable_text_input_focused = mainframe.MainFrame._is_editable_text_input_focused
+
     def __init__(self, config=None):
         self.config_manager = _FakeConfig(config)
         self._shortcut_cmd_map = {}
@@ -97,6 +100,34 @@ def test_speed_shortcuts_dispatch_but_are_not_text_guarded():
     for cmd_id in ("speed.up", "speed.down", "speed.reset"):
         assert cmd_id in mapped, f"{cmd_id} has no handler"
         assert cmd_id not in guarded, f"{cmd_id} should not be text-guarded"
+
+
+class _FakeTextField:
+    def __init__(self, editable):
+        self._editable = editable
+
+    def IsEditable(self):
+        return self._editable
+
+
+def test_media_shortcuts_not_guarded_in_read_only_article_view():
+    """Play/pause, stop and queue next/prev must keep working while focus is
+    in the read-only full-text article field (it cannot be typed into)."""
+    h = _Host()
+    article_view = _FakeTextField(editable=False)
+    h.content_ctrl = article_view
+    assert h._is_text_input_focused(article_view)
+    assert not h._is_editable_text_input_focused(article_view)
+
+
+def test_media_shortcuts_still_guarded_in_editable_fields():
+    """An editable field (e.g. the search box) still suppresses the guarded
+    media shortcuts so they never hijack typing."""
+    h = _Host()
+    h.content_ctrl = object()
+    search = _FakeTextField(editable=True)
+    h.search_ctrl = search
+    assert h._is_editable_text_input_focused(search)
 
 
 def test_save_override_rebuilds_map_and_label():

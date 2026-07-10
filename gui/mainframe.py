@@ -2096,6 +2096,24 @@ class MainFrame(wx.Frame):
             pass
         return False
 
+    def _is_editable_text_input_focused(self, focus) -> bool:
+        """True when focus is in a text field the user can actually type into.
+
+        The article view (`content_ctrl`) is a read-only TextCtrl, so the
+        text-guarded media shortcuts (play/pause, stop, queue next/prev) must
+        keep working while reading it — only editable fields (e.g. search)
+        suppress them.
+        """
+        if not self._is_text_input_focused(focus):
+            return False
+        try:
+            is_editable = getattr(focus, "IsEditable", None)
+            if callable(is_editable) and not is_editable():
+                return False
+        except Exception:
+            pass
+        return True
+
     def _make_list_activate_event(self, idx: int) -> wx.ListEvent:
         evt = wx.ListEvent(wx.wxEVT_LIST_ITEM_ACTIVATED, self.list_ctrl.GetId())
         try:
@@ -2496,11 +2514,13 @@ class MainFrame(wx.Frame):
     # Editable keyboard-shortcut registry
     # -----------------------------------------------------------------
 
-    # Commands suppressed while a text field is focused so they never hijack
-    # typing. Speed up/down/reset are intentionally NOT here: their combos
-    # (e.g. Ctrl+Shift+brackets or comma/period) are not text-editing keys, and
-    # a user reading an article (`content_ctrl`) while listening needs to adjust
-    # speed — guarding them there made the speed shortcuts appear dead.
+    # Commands suppressed while an *editable* text field is focused so they
+    # never hijack typing. Read-only fields (the article view) do not suppress
+    # them: a user reading an article while listening still needs play/pause,
+    # stop, and queue next/prev. Speed up/down/reset are intentionally NOT
+    # here: their combos (e.g. Ctrl+Shift+brackets or comma/period) are not
+    # text-editing keys — guarding them there made the speed shortcuts appear
+    # dead.
     _SHORTCUT_TEXT_GUARDED = frozenset({
         "player.play_pause", "player.stop",
         "queue.next", "queue.prev",
@@ -2577,7 +2597,7 @@ class MainFrame(wx.Frame):
             return False
         if apply_text_guard and cmd_id in self._SHORTCUT_TEXT_GUARDED:
             try:
-                if self._is_text_input_focused(focus):
+                if self._is_editable_text_input_focused(focus):
                     return False
             except Exception:
                 pass

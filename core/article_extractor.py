@@ -836,6 +836,22 @@ def _strip_canada_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)Trending\s+Latest\s+National\s+Stories", "", t)
     return t
 
+def _strip_slashdot_boilerplate(text: str) -> str:
+    """Truncate at Slashdot's trailing OneTrust privacy-choices footer.
+
+    The footer normally never reaches extraction (it lives on a separate
+    OneTrust page that was only pulled in via the bogus "next story" link,
+    now excluded from pagination-following), but a whole-page markdown
+    fallback (e.g. Jina) can still include it, always as the trailing block.
+    """
+    t = re.sub(
+        r"(?is)\n*#*\s*YOUR\s+PRIVACY\s+CHOICES\s*\(DO\s+NOT\s+SELL/SHARE/TARGET\).*$",
+        "",
+        text or "",
+    )
+    return t.strip()
+
+
 def _strip_castanet_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)-\s+.*?\s+-\s+\d+:\d+\s+[ap]m", "", text)
     return t
@@ -1036,6 +1052,8 @@ def _postprocess_extracted_text(text: str, url: str) -> str:
         t = _strip_canada_boilerplate(t)
     elif "castanet.net" in netloc:
         t = _strip_castanet_boilerplate(t)
+    elif "slashdot.org" in netloc:
+        t = _strip_slashdot_boilerplate(t)
     elif "bloomberg.com" in netloc:
         t = _strip_bloomberg_boilerplate(t)
     elif netloc.endswith(".ning.com") or netloc == "ning.com":
@@ -1543,7 +1561,11 @@ _PAGINATION_LABEL_RE = re.compile(r"(?:next|older)(?:\s+(?:page|pages|entries))?
 
 
 # Hosts where a single article is never truly paginated and "next" points at another story.
-_NO_PAGINATION_FOLLOW_HOSTS = ("wired.com", "ning.com", "neowin.net", "bloomberg.com")
+#   - slashdot.org: every story page has a "next story" button (?sdsrc=nextbtmnext) that points
+#     at a DIFFERENT story — following it appended an unrelated article to every extraction, and
+#     the newest story's button points at a malformed firehose.pl URL whose fallback fetch
+#     returned the site's "YOUR PRIVACY CHOICES" OneTrust page as the final "page".
+_NO_PAGINATION_FOLLOW_HOSTS = ("wired.com", "ning.com", "neowin.net", "bloomberg.com", "slashdot.org")
 
 
 def _find_next_page(html: str, base_url: str) -> Optional[str]:

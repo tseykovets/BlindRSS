@@ -5827,6 +5827,10 @@ class QueueDialog(wx.Dialog):
         self.list_box.Bind(wx.EVT_LISTBOX_DCLICK, self.on_play)
         self.list_box.Bind(wx.EVT_LISTBOX, lambda e: self._update_buttons())
         self.list_box.Bind(wx.EVT_KEY_DOWN, self.on_list_key)
+        # On wxMSW the dialog's default-button navigation consumes Enter before
+        # the ListBox EVT_KEY_DOWN handler ever sees it, so Enter must be
+        # intercepted at the char-hook stage for the Play/Pause action to fire.
+        self.Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
         outer.Add(self.list_box, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
 
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -5900,6 +5904,15 @@ class QueueDialog(wx.Dialog):
             pass
         return str((entry or {}).get("feed_title") or "").strip()
 
+    def _entry_time_label(self, entry) -> str:
+        try:
+            fn = getattr(self.controller, "queue_entry_time_label", None)
+            if callable(fn):
+                return str(fn(entry) or "").strip()
+        except Exception:
+            pass
+        return ""
+
     def _reload(self, select: int | None = None) -> None:
         entries = self._entries()
         self.list_box.Clear()
@@ -5912,6 +5925,9 @@ class QueueDialog(wx.Dialog):
                 )
             else:
                 label = _("{index}. {title}").format(index=i + 1, title=title)
+            time_label = self._entry_time_label(entry)
+            if time_label:
+                label = f"{label}, {time_label}"
             self.list_box.Append(label)
         if entries:
             self.info_lbl.SetLabel(_("{count} item(s) in queue.").format(count=len(entries)))
@@ -5994,6 +6010,13 @@ class QueueDialog(wx.Dialog):
         except Exception:
             log.exception("Failed to clear queue")
         self._reload()
+
+    def _on_char_hook(self, event: wx.KeyEvent) -> None:
+        key = event.GetKeyCode()
+        if key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER) and self.FindFocus() is self.list_box:
+            self.on_play(event)
+            return
+        event.Skip()
 
     def on_list_key(self, event: wx.KeyEvent) -> None:
         key = event.GetKeyCode()

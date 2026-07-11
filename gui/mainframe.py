@@ -4806,6 +4806,32 @@ class MainFrame(wx.Frame):
             return ""
         return ""
 
+    def _playback_time_annotation(self, st) -> str:
+        """Short 'length, played position' text from a PlaybackState (or None).
+
+        Shared by the article list's Media column and the Play Queue dialog so
+        both read the same way under a screen reader: total length first (when
+        known), then how much has been played, or 'not played' for untouched
+        items. Length is only known after an item has been loaded at least
+        once, since feeds do not reliably carry durations.
+        """
+        try:
+            dur = int(getattr(st, "duration_ms", 0) or 0) if st is not None else 0
+            pos = int(getattr(st, "position_ms", 0) or 0) if st is not None else 0
+            completed = bool(getattr(st, "completed", False)) if st is not None else False
+        except Exception:
+            dur, pos, completed = 0, 0, False
+        parts = []
+        if dur > 0:
+            parts.append(self._format_media_time(dur))
+        if completed:
+            parts.append(_("played"))
+        elif pos > 0:
+            parts.append(_("played {position}").format(position=self._format_media_time(pos)))
+        else:
+            parts.append(_("not played"))
+        return ", ".join(parts)
+
     # ------------------------------------------------------------------
     # Play queue (config-backed ordered list of media items)
     # ------------------------------------------------------------------
@@ -5022,6 +5048,29 @@ class MainFrame(wx.Frame):
             except Exception:
                 pass
         return ""
+
+    def queue_entry_time_label(self, entry) -> str:
+        """Length/played annotation for a queue entry (e.g. '4:57, played 4:30').
+
+        Looks the entry up in the playback_state table by article id first and
+        media URL second (the two id forms the player writes). Items that have
+        never been loaded have no stored duration and read as 'not played'.
+        """
+        if not isinstance(entry, dict):
+            return ""
+        st = None
+        try:
+            from core import playback_state
+            aid = str(entry.get("article_id") or "").strip()
+            if aid:
+                st = playback_state.get_playback_state(f"article:{aid}")
+            if st is None:
+                murl = str(entry.get("media_url") or "").strip()
+                if murl:
+                    st = playback_state.get_playback_state(murl)
+        except Exception:
+            st = None
+        return self._playback_time_annotation(st)
 
     def queue_entry_is_current(self, index: int) -> bool:
         """True when the queue item at `index` is the media loaded in the player."""
@@ -9330,27 +9379,40 @@ class MainFrame(wx.Frame):
     def _article_media_label(self, article) -> str:
         """Column text telling the user at a glance whether an article has media.
 
-        Memoized on the Article object (same rationale/lifetime as
-        _article_description_preview's cache): the first computation may run
-        yt-dlp's extractor URL matching, which is too slow for the list-render
-        loop, so _precompute_article_row_annotations warms it off the UI thread.
+        The has-media base label is memoized on the Article object (same
+        rationale/lifetime as _article_description_preview's cache): the first
+        computation may run yt-dlp's extractor URL matching, which is too slow
+        for the list-render loop, so _precompute_article_row_annotations warms
+        it off the UI thread. The length/played annotation appended for media
+        items is a cheap dict lookup and is recomputed each render so it stays
+        fresh as playback progresses.
         """
-        cached = getattr(article, "_media_label_cached", None)
-        if cached is not None:
-            return cached
+        base = getattr(article, "_media_label_cached", None)
+        if base is None:
+            try:
+                # Skip the download-index/disk lookup here: it runs once per rendered
+                # row, and any downloadable article already has a media/ytdlp URL that
+                # the cheaper checks below catch.
+                has_media = bool(self._should_play_in_player(article, include_downloads=False))
+            except Exception:
+                has_media = False
+            base = _(ARTICLE_MEDIA_YES) if has_media else _(ARTICLE_MEDIA_NO)
+            try:
+                article._media_label_cached = base
+                article._has_media_cached = has_media
+            except Exception:
+                pass
+        else:
+            has_media = bool(getattr(article, "_has_media_cached", base != _(ARTICLE_MEDIA_NO)))
+        if not has_media:
+            return base
+        annotation = ""
         try:
-            # Skip the download-index/disk lookup here: it runs once per rendered
-            # row, and any downloadable article already has a media/ytdlp URL that
-            # the cheaper checks below catch.
-            has_media = bool(self._should_play_in_player(article, include_downloads=False))
+            st = self._playback_state_for_article(article)
+            annotation = self._playback_time_annotation(st)
         except Exception:
-            has_media = False
-        label = _(ARTICLE_MEDIA_YES) if has_media else _(ARTICLE_MEDIA_NO)
-        try:
-            article._media_label_cached = label
-        except Exception:
-            pass
-        return label
+            annotation = ""
+        return f"{base}, {annotation}" if annotation else base
 
     def _precompute_article_row_annotations(self, articles) -> None:
         """Warm per-article row annotations OFF the UI thread.

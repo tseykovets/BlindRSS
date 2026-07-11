@@ -39,6 +39,9 @@ class _Host:
     _playback_time_annotation = mainframe.MainFrame._playback_time_annotation
     _format_media_time = staticmethod(mainframe.MainFrame._format_media_time)
     _update_live_media_annotation = mainframe.MainFrame._update_live_media_annotation
+    _invalidate_article_media_label = staticmethod(mainframe.MainFrame._invalidate_article_media_label)
+    _refresh_article_in_list = mainframe.MainFrame._refresh_article_in_list
+    _update_cached_views_for_article = mainframe.MainFrame._update_cached_views_for_article
 
 
 def test_precompute_fills_both_memos():
@@ -143,3 +146,75 @@ def test_live_player_duration_refreshes_visible_media_column():
     })
 
     assert h.list_ctrl.value == "Contains audio, 2:05, played 0:02"
+
+
+class _MediaColList:
+    """Minimal list_ctrl capturing writes to the Media column."""
+
+    def __init__(self, initial):
+        self.value = initial
+
+    def GetItemText(self, _row, _col):
+        return self.value
+
+    def SetItem(self, _row, col, value):
+        if col == mainframe.ARTICLE_COL_MEDIA:
+            self.value = value
+
+
+def test_detect_audio_refresh_updates_stuck_no_audio_column():
+    """Issue: article gains audio via Detect Audio (NPR pattern), but the
+    memoized Media label kept the row stuck on 'No audio'. The refresh path
+    must drop the memo and repaint the visible cell."""
+    import threading
+
+    h = _Host()
+    article = _Article(id=7, url="https://www.npr.org/2026/07/11/story")
+    h.current_articles = [article]
+    h.list_ctrl = _MediaColList(mainframe.ARTICLE_MEDIA_NO)
+    h._playback_states_cache = {}
+    h._article_cache_id = lambda a: getattr(a, "id", None)
+    h._view_cache_lock = threading.Lock()
+
+    # Cached-view copy of the same article (user navigated away and back).
+    cached_copy = _Article(id=7, url=article.url)
+    h.view_cache = {"feed:f1": {"articles": [cached_copy]}}
+
+    # Row rendered before audio existed: memo says "No audio".
+    h._precompute_article_row_annotations([article, cached_copy])
+    assert article._media_label_cached == mainframe.ARTICLE_MEDIA_NO
+
+    # Detect Audio attaches the enclosure, then refreshes the row.
+    article.media_url = "https://ondemand.npr.org/story.mp3"
+    article.media_type = "audio/mpeg"
+    h._invalidate_article_media_label(article)
+    h._refresh_article_in_list(7)
+
+    assert h.list_ctrl.value.startswith(mainframe.ARTICLE_MEDIA_YES)
+    assert article._has_media_cached is True
+    # The cached view got the media and lost its stale memo too.
+    assert cached_copy.media_url == article.media_url
+    assert getattr(cached_copy, "_media_label_cached", None) is None
+
+
+def test_playing_article_corrects_stale_no_audio_label():
+    """If the player is actively playing media for an article whose memoized
+    label still says 'No audio', the live annotation pass must correct it."""
+    h = _Host()
+    article = _Article(id=9, url="https://www.npr.org/2026/07/11/other-story")
+    h.current_articles = [article]
+    h.list_ctrl = _MediaColList(mainframe.ARTICLE_MEDIA_NO)
+    h._playback_states_cache = {}
+    h._precompute_article_row_annotations([article])
+    assert article._has_media_cached is False
+
+    h._update_live_media_annotation({
+        "has_media": True,
+        "article_id": 9,
+        "media_url": "https://ondemand.npr.org/other.mp3",
+        "position_ms": 3_000,
+        "duration_ms": 60_000,
+    })
+
+    assert article._has_media_cached is True
+    assert h.list_ctrl.value.startswith(mainframe.ARTICLE_MEDIA_YES)

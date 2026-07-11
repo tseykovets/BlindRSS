@@ -1485,6 +1485,13 @@ class MainFrame(wx.Frame):
             )
             if not (same_id or same_url):
                 continue
+            # The player is playing media for this exact article, so a cached
+            # "No audio" label is provably stale (e.g. audio attached after the
+            # row was first rendered, as NPR does). Correct it directly instead
+            # of recomputing so this stays O(1) on the player-timer path.
+            if not bool(getattr(article, "_has_media_cached", True)):
+                article._media_label_cached = _(ARTICLE_MEDIA_YES)
+                article._has_media_cached = True
             label = self._article_media_label(article)
             try:
                 if self.list_ctrl.GetItemText(index, ARTICLE_COL_MEDIA) != label:
@@ -4511,7 +4518,8 @@ class MainFrame(wx.Frame):
                         self.provider.update_article_media(article.id, murl, mtype)
                         article.media_url = murl
                         article.media_type = mtype
-                        
+                        self._invalidate_article_media_label(article)
+
                         # Refresh UI for this item
                         wx.CallAfter(self._refresh_article_in_list, self._article_cache_id(article))
                         wx.CallAfter(wx.MessageBox, "Audio detected and added!", "Success", wx.ICON_INFORMATION)
@@ -4524,6 +4532,21 @@ class MainFrame(wx.Frame):
                 
         threading.Thread(target=_worker, daemon=True).start()
 
+    @staticmethod
+    def _invalidate_article_media_label(article) -> None:
+        """Drop the memoized Media-column label so it recomputes from current data.
+
+        Must be called whenever an article gains (or loses) media after the
+        label was first rendered — e.g. Detect Audio attaching an enclosure —
+        otherwise the column stays stuck on the stale "No audio" text.
+        """
+        try:
+            for attr in ("_media_label_cached", "_has_media_cached"):
+                if hasattr(article, attr):
+                    delattr(article, attr)
+        except Exception:
+            pass
+
     def _refresh_article_in_list(self, article_id):
         # Find item index
         idx = -1
@@ -4531,17 +4554,17 @@ class MainFrame(wx.Frame):
             if self._article_cache_id(a) == article_id:
                 idx = i
                 break
-        
+
         if idx != -1:
-            # We don't have a column for 'Has Audio', but if we did we'd update it.
-            # However, we should update the cached view so if the user navigates away and back, it's there.
-            self._update_cached_views_for_article(self.current_articles[idx])
-            
-            # If this is the selected article, update the content view (though content view doesn't show audio controls directly, 
-            # the player logic might need to know).
-            if self.selected_article_id == article_id:
-                 # maybe refresh content?
-                 pass
+            article = self.current_articles[idx]
+            # Recompute and repaint the Media column for this row.
+            self._invalidate_article_media_label(article)
+            try:
+                self.list_ctrl.SetItem(idx, ARTICLE_COL_MEDIA, self._article_media_label(article))
+            except Exception:
+                pass
+            # Update the cached view so if the user navigates away and back, it's there.
+            self._update_cached_views_for_article(article)
 
     def _update_cached_views_for_article(self, article):
         try:
@@ -4551,6 +4574,7 @@ class MainFrame(wx.Frame):
                         if self._article_cache_id(a) == self._article_cache_id(article):
                             a.media_url = article.media_url
                             a.media_type = article.media_type
+                            self._invalidate_article_media_label(a)
         except Exception:
             pass
 

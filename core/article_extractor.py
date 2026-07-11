@@ -146,6 +146,8 @@ def _looks_like_bot_interstitial(content: str) -> bool:
     if not content:
         return False
     low = content.replace("’", "'").lower()
+    if len(low) < 2000 and "powered and protected by" in low and "akamai" in low:
+        return True
     return any(marker in low for marker in _BOT_INTERSTITIAL_MARKERS)
 
 
@@ -510,6 +512,21 @@ def _extract_theregister_text(html: str) -> str:
     return text
 
 
+def _extract_without_dom_boilerplate(html: str, url: str, selectors: Tuple[str, ...]) -> str:
+    """Run normal extraction after removing known non-article DOM sections."""
+    soup = _parse_html_soup(html, context="site boilerplate removal")
+    if soup is None:
+        return ""
+    removed = False
+    for selector in selectors:
+        for node in soup.select(selector):
+            node.decompose()
+            removed = True
+    if not removed:
+        return ""
+    return _trafilatura_extract_text(str(soup), url=url)
+
+
 def _extract_site_specific_text(html: str, url: str) -> str:
     """Site-specific structured body extraction that outranks generic heuristics."""
     if _is_bloomberg_video_url(url):
@@ -518,6 +535,10 @@ def _extract_site_specific_text(html: str, url: str) -> str:
         return _extract_axios_story_text(html)
     if _host_matches(url, "theregister.com") or _host_matches(url, "theregister.co.uk"):
         return _extract_theregister_text(html)
+    if _host_matches(url, "thepostmillennial.com"):
+        return _extract_without_dom_boilerplate(html, url, ("section.contributions-container",))
+    if _host_matches(url, "rebelnews.com"):
+        return _extract_without_dom_boilerplate(html, url, ("section.posts-profile",))
     return ""
 
 
@@ -721,9 +742,23 @@ def _strip_thetyee_boilerplate(text: str) -> str:
 
 def _strip_9to5mac_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)FTC:\s*We\s+use\s+income\s+earning\s+auto\s+affiliate\s+links\..*?More\.", "", text)
-    t = re.sub(r"(?i)You’re\s+reading\s+9to5Mac\s*—\s*experts\s+who\s+break\s+news.*?(?:loop\.|channel)", "", t, flags=re.DOTALL)
+    t = re.sub(r"(?i)You(?:’|')re\s+reading\s+9to5Mac\s*(?:—|-).*?(?:loop\.|channel)", "", t, flags=re.DOTALL)
     t = re.sub(r"(?i)Check\s+out\s+our\s+exclusive\s+stories,.*?(?:channel|loop\.)", "", t, flags=re.DOTALL)
+    t = re.sub(r"(?is)\nWorth\s+checking\s+out\s+on\s+Amazon\b.*$", "", t)
+    t = re.sub(r"(?is)\nFollow\s+[A-Z][^:\n]{0,60}:\s*(?:Threads|Bluesky|Instagram|Mastodon)\b.*$", "", t)
     return t
+
+
+def _strip_9to5google_boilerplate(text: str) -> str:
+    return re.sub(r"(?is)\nJoin\s+9to5Google\s+Pro\s+to\s+get\s+more\b.*$", "", text)
+
+
+def _strip_9to5toys_boilerplate(text: str) -> str:
+    return re.sub(r"(?is)\nYou(?:’|')re\s+reading\s+9to5Toys\s*(?:—|-).*$", "", text)
+
+
+def _strip_postmillennial_boilerplate(text: str) -> str:
+    return re.sub(r"(?is)\nJoin\s+and\s+support\s+independent\s+free\s+thinkers!.*$", "", text)
 
 def _strip_globalnews_boilerplate(text: str) -> str:
     t = re.sub(r"(?i)^By\s+Staff\s+The\s+Canadian\s+Press", "", text, flags=re.MULTILINE)
@@ -1036,6 +1071,12 @@ def _postprocess_extracted_text(text: str, url: str) -> str:
         t = _strip_thetyee_boilerplate(t)
     elif "9to5mac.com" in netloc:
         t = _strip_9to5mac_boilerplate(t)
+    elif "9to5google.com" in netloc:
+        t = _strip_9to5google_boilerplate(t)
+    elif "9to5toys.com" in netloc:
+        t = _strip_9to5toys_boilerplate(t)
+    elif "thepostmillennial.com" in netloc:
+        t = _strip_postmillennial_boilerplate(t)
     elif "globalnews.ca" in netloc:
         t = _strip_globalnews_boilerplate(t)
     elif "aljazeera.com" in netloc:
@@ -1901,6 +1942,12 @@ def _should_prefer_feed_content(url: str, html: str) -> bool:
                 # Wired feeds are usually decent summaries or full text
                 if len(html) > 300:
                     return True
+            # These publishers expose a shortened webpage body while placing the
+            # complete syndicated story/newsletter in RSS.
+            if host == "fraservalleytoday.ca" or host.endswith(".fraservalleytoday.ca"):
+                return len(html) > 500
+            if host == "fvcurrent.com" or host.endswith(".fvcurrent.com"):
+                return len(html) > 500
     except Exception:
         pass
 

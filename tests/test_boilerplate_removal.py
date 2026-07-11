@@ -19,6 +19,40 @@ Real Content Here.
         self.assertIn("Real Content Here", cleaned)
         # "Ryan got his start..." might remain as it was appended to the boilerplate in the user example without newline.
         # My regex handles "subscribe to our YouTube channel" which precedes "Ryan".
+
+    def test_current_9to5_promos(self):
+        mac = "Real article.\nWorth checking out on Amazon\n- AirTag\n- AirPods"
+        google = "Real article.\nJoin 9to5Google Pro to get more from your favorite site\n- Discord"
+        toys = "Real deal.\nYou’re reading 9to5Toys — experts digging up all the latest deals."
+        self.assertEqual(
+            article_extractor._postprocess_extracted_text(mac, "https://9to5mac.com/story"),
+            "Real article.",
+        )
+        self.assertEqual(
+            article_extractor._postprocess_extracted_text(google, "https://9to5google.com/story"),
+            "Real article.",
+        )
+        self.assertEqual(
+            article_extractor._postprocess_extracted_text(toys, "https://9to5toys.com/story"),
+            "Real deal.",
+        )
+
+    def test_postmillennial_support_pitch_removed(self):
+        text = "Real final paragraph.\nJoin and support independent free thinkers!\nWe’re independent."
+        cleaned = article_extractor._postprocess_extracted_text(
+            text, "https://thepostmillennial.com/story"
+        )
+        self.assertEqual(cleaned, "Real final paragraph.")
+
+    def test_rebel_author_profile_dom_removed(self):
+        html = """
+        <html><body><article><p>Real article paragraph with enough readable content to extract.</p></article>
+        <section class="posts-profile"><p>Reporter biography should not be in the article.</p></section>
+        </body></html>
+        """
+        text = article_extractor._extract_site_specific_text(html, "https://www.rebelnews.com/story")
+        self.assertIn("Real article paragraph", text)
+        self.assertNotIn("Reporter biography", text)
         
     def test_globalnews(self):
         text = """

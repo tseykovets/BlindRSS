@@ -24,6 +24,7 @@ class _Article:
         self.description = kw.get("description", "<p>Hello   <b>world</b></p>")
         self.content = kw.get("content", "")
         self.feed_id = kw.get("feed_id", "f1")
+        self.id = kw.get("id", 1)
 
 
 class _Host:
@@ -34,6 +35,10 @@ class _Host:
     _strip_html = mainframe.MainFrame._strip_html
     _article_media_label = mainframe.MainFrame._article_media_label
     _should_play_in_player = mainframe.MainFrame._should_play_in_player
+    _playback_state_for_article = mainframe.MainFrame._playback_state_for_article
+    _playback_time_annotation = mainframe.MainFrame._playback_time_annotation
+    _format_media_time = staticmethod(mainframe.MainFrame._format_media_time)
+    _update_live_media_annotation = mainframe.MainFrame._update_live_media_annotation
 
 
 def test_precompute_fills_both_memos():
@@ -109,3 +114,32 @@ def test_precompute_survives_broken_articles():
     ok = _Article()
     h._precompute_article_row_annotations([_Broken(), ok])
     assert getattr(ok, "_media_label_cached", None) is not None
+
+
+def test_live_player_duration_refreshes_visible_media_column():
+    class _List:
+        def __init__(self):
+            self.value = mainframe.ARTICLE_MEDIA_YES + ", not played"
+
+        def GetItemText(self, _row, _col):
+            return self.value
+
+        def SetItem(self, _row, _col, value):
+            self.value = value
+
+    h = _Host()
+    article = _Article(id=42, media_url="https://cdn.example.com/show.mp3", media_type="audio/mpeg")
+    h.current_articles = [article]
+    h.list_ctrl = _List()
+    h._playback_states_cache = {}
+    h._precompute_article_row_annotations([article])
+
+    h._update_live_media_annotation({
+        "has_media": True,
+        "article_id": 42,
+        "media_url": article.media_url,
+        "position_ms": 2_000,
+        "duration_ms": 125_000,
+    })
+
+    assert h.list_ctrl.value == "Contains audio, 2:05, played 0:02"

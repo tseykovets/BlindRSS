@@ -9,6 +9,7 @@ import os
 import re
 import logging
 import hashlib
+from types import SimpleNamespace
 from collections import OrderedDict, deque
 from urllib.parse import urljoin, urlsplit
 from urllib.request import url2pathname
@@ -1422,6 +1423,7 @@ class MainFrame(wx.Frame):
         text is there for NVDA's "read status bar" command without chatter.
         """
         try:
+            self._update_live_media_annotation(info)
             field = int(getattr(self, "_playback_status_field", 2))
             if not info or not info.get("has_media"):
                 self.SetStatusText("", field)
@@ -1443,6 +1445,53 @@ class MainFrame(wx.Frame):
             self.SetStatusText(f"{verb}: {title} — {time_part}", field)
         except Exception:
             log.debug("Failed to update playback status field", exc_info=True)
+
+    def _update_live_media_annotation(self, info: dict) -> None:
+        """Refresh the visible Media cell as soon as the player learns its length."""
+        if not info or not info.get("has_media"):
+            return
+        article_id = info.get("article_id")
+        media_url = str(info.get("media_url") or "")
+        position_ms = int(info.get("position_ms") or 0)
+        duration_ms = int(info.get("duration_ms") or 0)
+        if article_id is None and not media_url:
+            return
+
+        states = getattr(self, "_playback_states_cache", None)
+        if states is None:
+            states = {}
+            self._playback_states_cache = states
+
+        matching_keys = []
+        if article_id is not None:
+            matching_keys.append(f"article:{article_id}")
+        if media_url:
+            matching_keys.append(media_url)
+        existing = next((states.get(key) for key in matching_keys if states.get(key) is not None), None)
+        completed = bool(getattr(existing, "completed", False)) if existing is not None else False
+        state = SimpleNamespace(
+            position_ms=position_ms,
+            duration_ms=duration_ms or getattr(existing, "duration_ms", None),
+            completed=completed,
+        )
+        for key in matching_keys:
+            states[key] = state
+
+        for index, article in enumerate(getattr(self, "current_articles", []) or []):
+            same_id = article_id is not None and str(getattr(article, "id", "")) == str(article_id)
+            same_url = bool(media_url) and media_url in (
+                str(getattr(article, "media_url", "") or ""),
+                str(getattr(article, "url", "") or ""),
+            )
+            if not (same_id or same_url):
+                continue
+            label = self._article_media_label(article)
+            try:
+                if self.list_ctrl.GetItemText(index, ARTICLE_COL_MEDIA) != label:
+                    self.list_ctrl.SetItem(index, ARTICLE_COL_MEDIA, label)
+            except Exception:
+                pass
+            break
 
     def _on_player_playback_finished(self) -> None:
         """A media item finished naturally: advance the play queue if active."""

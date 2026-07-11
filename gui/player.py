@@ -5045,6 +5045,8 @@ class PlayerFrame(wx.Frame):
             "playing": bool(self.is_audio_playing()),
             "state": str(getattr(self, "_status_text", "") or ""),
             "title": str(getattr(self, "current_title", "") or ""),
+            "article_id": getattr(self, "current_article_id", None),
+            "media_url": str(getattr(self, "current_url", "") or ""),
             "position_ms": int(pos),
             "duration_ms": int(dur),
             "remaining_ms": self._remaining_ms(pos),

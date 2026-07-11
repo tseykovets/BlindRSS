@@ -46,6 +46,11 @@ def test_detects_cloudflare_challenge():
     assert article_extractor._looks_like_bot_interstitial(CLOUDFLARE_GATE) is True
 
 
+def test_detects_sky_news_bare_akamai_gate():
+    body = "Powered and protected by Akamai Privacy"
+    assert article_extractor._looks_like_bot_interstitial(body) is True
+
+
 def test_detects_gate_with_curly_apostrophe():
     # Bloomberg renders the smart apostrophe in "you're"; detection must normalize it.
     body = "To continue, please click the box below to let us know you’re not a robot."

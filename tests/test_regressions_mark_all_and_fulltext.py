@@ -134,6 +134,16 @@ def test_should_prefer_feed_content_skips_placeholder():
     assert article_extractor._should_prefer_feed_content("https://www.techrepublic.com/article/test/", html) is False
 
 
+def test_full_rss_wins_for_shortened_fraser_valley_pages():
+    full_feed = "<p>" + ("Complete syndicated report. " * 40) + "</p>"
+    assert article_extractor._should_prefer_feed_content(
+        "https://fraservalleytoday.ca/2026/07/10/story/", full_feed
+    ) is True
+    assert article_extractor._should_prefer_feed_content(
+        "https://fvcurrent.com/p/newsletter", full_feed
+    ) is True
+
+
 def test_miniflux_placeholder_entries_skipped():
     provider = MinifluxProvider({"providers": {"miniflux": {"url": "https://example.com", "api_key": "t"}}})
     entries = [

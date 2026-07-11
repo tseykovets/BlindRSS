@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.93.0 - 2026-07-11
+
+- Play queue Enter-to-play, item lengths, and Media column play times.
+
 ## v1.92.4 - 2026-07-10
 
 - Media shortcuts work while the article text field has focus.

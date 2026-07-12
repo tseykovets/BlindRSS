@@ -1722,6 +1722,18 @@ class SettingsDialog(wx.Dialog):
         self._initial_storage_location = current_storage
         advanced_sizer.Add(storage_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
+        updates_group = wx.StaticBox(advanced_panel, label=_("Updates"))
+        updates_sizer = wx.StaticBoxSizer(updates_group, wx.VERTICAL)
+        self.install_updates_automatically_chk = wx.CheckBox(
+            advanced_panel,
+            label=_("Automatically install updates without confirmation"),
+        )
+        self.install_updates_automatically_chk.SetValue(
+            bool(config.get("install_updates_automatically", False))
+        )
+        updates_sizer.Add(self.install_updates_automatically_chk, 0, wx.ALL, 6)
+        advanced_sizer.Add(updates_sizer, 0, wx.EXPAND | wx.ALL, 8)
+
         # Video Search content controls.
         search_group = wx.StaticBox(advanced_panel, label=_("Video Search"))
         search_sizer = wx.StaticBoxSizer(search_group, wx.VERTICAL)
@@ -2696,6 +2708,7 @@ class SettingsDialog(wx.Dialog):
             "remember_last_feed": self.remember_last_feed_chk.GetValue(),
             "language": self.language_choices[max(0, self.language_choice.GetSelection())],
             "auto_check_updates": self.auto_update_chk.GetValue(),
+            "install_updates_automatically": self.install_updates_automatically_chk.GetValue(),
             "sounds_enabled": self.sounds_enabled_chk.GetValue(),
             "sound_refresh_complete": self.sound_complete_ctrl.GetValue(),
             "sound_refresh_error": self.sound_error_ctrl.GetValue(),

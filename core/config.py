@@ -194,6 +194,7 @@ DEFAULT_CONFIG = {
     "ignore_feed_cache": False,
     "prompt_missing_dependencies_on_startup": True,
     "auto_check_updates": True,
+    "install_updates_automatically": False,
     "start_on_windows_login": False,
     "start_in_system_tray": False,
     "sounds_enabled": True,

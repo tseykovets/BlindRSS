@@ -195,6 +195,13 @@ def test_settings_dialog_field_names(parent):
         assert dlg.dl_path_ctrl.GetParent() is dlg.notebook.GetPage(2)
         assert dlg.start_in_tray_chk.GetParent() is dlg.notebook.GetPage(3)
         assert dlg.ytdlp_cookies_ctrl.GetParent() is dlg.notebook.GetPage(4)
+        assert dlg.install_updates_automatically_chk.GetParent() is dlg.notebook.GetPage(
+            page_labels.index("Advanced")
+        )
+        assert (
+            dlg.install_updates_automatically_chk.GetLabel()
+            == "Automatically install updates without confirmation"
+        )
 
         # Media tools overrides (pre-existing names that must not regress).
         assert (

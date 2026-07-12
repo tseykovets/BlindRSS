@@ -11039,6 +11039,16 @@ class MainFrame(wx.Frame):
             return
 
         info = result.info
+        try:
+            install_without_confirmation = bool(
+                self.config_manager.get("install_updates_automatically", False)
+            )
+        except Exception:
+            install_without_confirmation = False
+        if install_without_confirmation:
+            self._start_update_install(info)
+            return
+
         summary = info.notes_summary or "Release notes are available on GitHub."
         prompt = (
             f"A new version of BlindRSS is available ({info.tag}).\n\n"

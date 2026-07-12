@@ -162,6 +162,28 @@ except ImportError:
     APP_MEDIA_RECEIVER = "CC1AD845"
 
 
+class _ChromecastConnListener:
+    """pychromecast connection-status listener that flags dropped sessions.
+
+    Mirrors the AirPlay DeviceListener: gives push-based notice that the socket
+    was lost instead of relying only on polling ``get_status``.
+    """
+
+    def __init__(self, on_status):
+        self._on_status = on_status
+
+    def new_connection_status(self, status) -> None:  # pychromecast callback
+        try:
+            self._on_status(getattr(status, "status", None))
+        except Exception:
+            pass
+
+
+# Connection-status strings that mean the session is no longer usable. A
+# deliberate DISCONNECTED (from our own disconnect) is not treated as a drop.
+_CHROMECAST_LOST_STATUSES = frozenset({"LOST", "FAILED", "FAILED_RESOLVE"})
+
+
 class ChromecastCaster(BaseCaster):
     """Chromecast protocol implementation."""
 
@@ -174,13 +196,27 @@ class ChromecastCaster(BaseCaster):
     _RECEIVER_CONFIRM_TIMEOUT = 8.0
     _RECEIVER_STATUS_WAIT = 1.0
     _RECEIVER_STOP_TIMEOUT = 8.0
-    
+    # Bounded wait for media control commands so an unresponsive receiver can
+    # never stall a casting-loop worker (or the wx thread) for pychromecast's
+    # default 10 seconds per command.
+    _CONTROL_TIMEOUT = 2.0
+
     def __init__(self):
         if not _HAS_CHROMECAST:
             raise CastError("pychromecast is not installed. Run: pip install pychromecast")
         self._cast = None
         self._browser = None
+        self._connection_lost = False
+        self._conn_listener = None
         # StreamProxy starts lazily when needed.
+
+    def _on_conn_status(self, status_str) -> None:
+        s = str(status_str or "").upper()
+        if s == "CONNECTED":
+            self._connection_lost = False
+        elif s in _CHROMECAST_LOST_STATUSES:
+            LOG.info("Chromecast connection %s", s)
+            self._connection_lost = True
     
     async def discover(self, timeout: float = 5.0) -> List[CastDevice]:
         """Discover Chromecast devices."""
@@ -241,7 +277,9 @@ class ChromecastCaster(BaseCaster):
     async def connect(self, device: CastDevice) -> None:
         """Connect to a Chromecast device."""
         loop = asyncio.get_event_loop()
-        
+        self._connection_lost = False
+        self._conn_listener = _ChromecastConnListener(self._on_conn_status)
+
         def do_connect():
             cast = None
             browser = None
@@ -298,8 +336,14 @@ class ChromecastCaster(BaseCaster):
                     )
 
                 cast = chromecasts[0]
-                
+
                 cast.wait(timeout=self._READY_TIMEOUT)
+                try:
+                    socket_client = getattr(cast, "socket_client", None)
+                    if socket_client is not None and self._conn_listener is not None:
+                        socket_client.register_connection_listener(self._conn_listener)
+                except Exception as e:
+                    LOG.debug("Chromecast connection listener registration failed: %s", e)
                 return cast, browser
             except Exception as e:
                 disconnect_cast(cast)
@@ -642,6 +686,26 @@ class ChromecastCaster(BaseCaster):
         
         await loop.run_in_executor(None, do_play)
     
+    @staticmethod
+    def _call_bounded(func, *args, timeout=None, what="command"):
+        """Invoke a pychromecast control that accepts an optional ``timeout=``.
+
+        Falls back to the no-timeout form only on a TypeError (unexpected older
+        API) — never to the library's unbounded 10s default on other errors.
+        """
+        try:
+            if timeout is not None:
+                func(*args, timeout=timeout)
+            else:
+                func(*args)
+        except TypeError:
+            try:
+                func(*args)
+            except Exception as e:
+                LOG.debug("Chromecast %s error: %s", what, e)
+        except Exception as e:
+            LOG.debug("Chromecast %s error: %s", what, e)
+
     async def stop(self) -> None:
         cast = self._cast
         if cast:
@@ -656,54 +720,54 @@ class ChromecastCaster(BaseCaster):
                 status = getattr(mc, "status", None)
                 if status is not None and getattr(status, "media_session_id", None) is None:
                     return
-                mc.stop()
+                self._call_bounded(mc.stop, timeout=self._CONTROL_TIMEOUT, what="stop")
 
             await loop.run_in_executor(None, do_stop)
-    
+
     async def pause(self) -> None:
-        if self._cast:
+        cast = self._cast
+        if cast:
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, self._cast.media_controller.pause)
-    
+
+            def do_pause():
+                self._call_bounded(cast.media_controller.pause,
+                                   timeout=self._CONTROL_TIMEOUT, what="pause")
+
+            await loop.run_in_executor(None, do_pause)
+
     async def resume(self) -> None:
-        if self._cast:
+        cast = self._cast
+        if cast:
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, self._cast.media_controller.play)
-    
+
+            def do_resume():
+                self._call_bounded(cast.media_controller.play,
+                                   timeout=self._CONTROL_TIMEOUT, what="resume")
+
+            await loop.run_in_executor(None, do_resume)
+
     async def seek(self, position_seconds: float) -> None:
-        """Seek to a position in seconds on Chromecast (best-effort)."""
-        if not self._cast:
+        """Seek to a position in seconds on Chromecast (best-effort, bounded).
+
+        Must never use pychromecast's default 10s per-command wait or an
+        unbounded block/poll loop — rapid scrubbing otherwise ties up casting
+        workers for tens of seconds each (the bug ``play`` already fixed).
+        """
+        cast = self._cast
+        if cast is None:
             return
         loop = asyncio.get_event_loop()
 
         def do_seek():
-            import time as _time
+            mc = cast.media_controller
+            # Bounded wait for an active media session; still attempt the seek
+            # afterward either way.
             try:
-                mc = self._cast.media_controller
-                # Ensure media session is active before seeking.
-                try:
-                    if hasattr(mc, 'block_until_active'):
-                        mc.block_until_active(timeout=10)
-                except Exception:
-                    pass
-
-                start = _time.time()
-                while _time.time() - start < 10:
-                    try:
-                        mc.update_status()
-                    except Exception:
-                        pass
-                    st = getattr(mc, 'status', None)
-                    if st is not None and getattr(st, 'media_session_id', None) is not None:
-                        break
-                    _time.sleep(0.2)
-
-                try:
-                    mc.seek(float(position_seconds))
-                except Exception:
-                    pass
+                mc.block_until_active(timeout=self._CONTROL_TIMEOUT)
             except Exception:
                 pass
+            self._call_bounded(mc.seek, float(position_seconds),
+                               timeout=self._CONTROL_TIMEOUT, what="seek")
 
         await loop.run_in_executor(None, do_seek)
 
@@ -749,13 +813,17 @@ class ChromecastCaster(BaseCaster):
                 def status_callback(_sent, _response):
                     refreshed.set()
 
+                sent = True
                 try:
                     mc.update_status(callback_function=status_callback)
                 except TypeError:
                     mc.update_status()
                 except Exception:
-                    pass
-                refreshed.wait(1.0)
+                    # Socket is likely down; don't burn the full second waiting
+                    # for an acknowledgement that will never arrive.
+                    sent = False
+                if sent:
+                    refreshed.wait(1.0)
                 st = getattr(mc, 'status', None)
                 if st is not None:
                     snapshot["media_session_id"] = getattr(st, "media_session_id", None)
@@ -779,15 +847,24 @@ class ChromecastCaster(BaseCaster):
         return await loop.run_in_executor(None, do_get)
 
     async def set_volume(self, level: float) -> None:
-        if self._cast:
+        cast = self._cast
+        if cast:
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, self._cast.set_volume, max(0.0, min(1.0, level)))
+            clamped = max(0.0, min(1.0, level))
+
+            def do_volume():
+                self._call_bounded(cast.set_volume, clamped,
+                                   timeout=self._CONTROL_TIMEOUT, what="set_volume")
+
+            await loop.run_in_executor(None, do_volume)
     
     async def disconnect(self) -> None:
         cast = self._cast
         browser = self._browser
         self._cast = None
         self._browser = None
+        self._conn_listener = None
+        self._connection_lost = False
 
         if cast is None and browser is None:
             return
@@ -808,7 +885,7 @@ class ChromecastCaster(BaseCaster):
         await loop.run_in_executor(None, do_disconnect)
     
     def is_connected(self) -> bool:
-        if self._cast is None:
+        if self._cast is None or self._connection_lost:
             return False
         try:
             socket_client = getattr(self._cast, "socket_client", None)
@@ -1780,6 +1857,25 @@ class CastingManager:
     def resume(self) -> None:
         if self.active_caster:
             self.dispatch(self.active_caster.resume())
+
+    def resume_async(self, callback=None):
+        caster = self.active_caster
+        if caster:
+            return self.dispatch_async(caster.resume(), callback=callback)
+        return None
+
+    def stop_async(self, callback=None):
+        caster = self.active_caster
+        if caster:
+            return self.dispatch_async(caster.stop(), callback=callback)
+        return None
+
+    def disconnect_async(self, callback=None):
+        """Tear down the active session without blocking the caller (wx) thread."""
+        try:
+            return self.dispatch_async(self._disconnect_async(), callback=callback)
+        except Exception:
+            return None
 
     def set_volume_async(self, level: float, callback=None):
         """Set the cast device volume without blocking the caller (wx) thread."""

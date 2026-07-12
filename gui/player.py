@@ -561,6 +561,7 @@ class PlayerFrame(wx.Frame):
         self._cast_status_poll_inflight = False
         self._cast_session_token = 0
         self._cast_missing_status_count = 0
+        self._cast_disconnect_count = 0
         self._cast_recovery_attempted = False
         self._cast_recovery_inflight = False
         self._cast_started_ts = 0.0
@@ -2321,7 +2322,10 @@ class PlayerFrame(wx.Frame):
             self._cast_recovery_inflight = False
 
             try:
-                self.casting_manager.disconnect()
+                # Tear the remote session down in the background; local
+                # playback is restored below and does not depend on it, so this
+                # must not block the wx thread on a slow/dead receiver.
+                self.casting_manager.disconnect_async()
             except Exception:
                 pass
 
@@ -2331,32 +2335,7 @@ class PlayerFrame(wx.Frame):
                 self.title_lbl.SetLabel(f"{self.current_title} (Local)")
             except Exception:
                 pass
-            if self.current_url:
-                same_media = False
-                try:
-                    same_media = (getattr(self, '_cast_handoff_source_url', None) == self.current_url)
-                except Exception:
-                    same_media = False
-
-                if same_media:
-                    try:
-                        if self._resume_local_from_cast(int(cast_pos_ms), bool(cast_was_playing)):
-                            self._cast_handoff_source_url = None
-                            return
-                    except Exception:
-                        pass
-
-                self._pending_resume_seek_ms = max(0, int(cast_pos_ms))
-                self._pending_resume_seek_attempts = 0
-                self._pending_resume_paused = (not cast_was_playing)
-                self.load_media(
-                    self.current_url,
-                    use_ytdlp=False,
-                    chapters=self.current_chapters,
-                    title=self.current_title,
-                    article_id=getattr(self, "current_article_id", None),
-                )
-                self._cast_handoff_source_url = None
+            self._restore_local_after_cast(int(cast_pos_ms), bool(cast_was_playing))
             return
 
         local_was_playing = False
@@ -2392,6 +2371,7 @@ class PlayerFrame(wx.Frame):
                 self.is_casting = True
                 self._cast_session_token = int(getattr(self, "_cast_session_token", 0) or 0) + 1
                 self._cast_missing_status_count = 0
+                self._cast_disconnect_count = 0
                 self._cast_recovery_attempted = False
                 self._cast_recovery_inflight = False
                 self._cast_started_ts = time.monotonic()
@@ -2480,9 +2460,12 @@ class PlayerFrame(wx.Frame):
             self._cast_status_poll_inflight = False
 
     def _apply_cast_status(self, token, status):
+        # This poll has completed; release the single-flight guard even if the
+        # session was replaced meanwhile (polls are single-flight, so exactly
+        # one is ever outstanding).
+        self._cast_status_poll_inflight = False
         if token != int(getattr(self, "_cast_session_token", 0) or 0):
             return
-        self._cast_status_poll_inflight = False
         if not bool(getattr(self, "is_casting", False)):
             return
 
@@ -2503,19 +2486,101 @@ class PlayerFrame(wx.Frame):
 
         if not bool(status.get("supports_session_detection", False)):
             return
-        healthy = bool(status.get("connected", False)) and status.get("media_session_id") is not None
-        if healthy:
+
+        try:
+            within_startup_grace = (time.monotonic() - float(getattr(self, "_cast_started_ts", 0.0) or 0.0)) < 10.0
+        except Exception:
+            within_startup_grace = False
+
+        # A dropped socket is authoritative (the Chromecast connection listener
+        # flips `connected` promptly). After two consecutive disconnected polls
+        # outside the startup grace, stop polling a dead session and fall back
+        # to local playback instead of re-casting into the void.
+        if not bool(status.get("connected", False)):
+            self._cast_disconnect_count = int(getattr(self, "_cast_disconnect_count", 0) or 0) + 1
+            if self._cast_disconnect_count >= 2 and not within_startup_grace:
+                self._handle_cast_connection_lost(token)
+            return
+        self._cast_disconnect_count = 0
+
+        # Connected but no active media session: one bounded recovery re-cast.
+        if status.get("media_session_id") is not None:
             self._cast_missing_status_count = 0
             self._cast_recovery_attempted = False
             return
 
         self._cast_missing_status_count = int(getattr(self, "_cast_missing_status_count", 0) or 0) + 1
-        try:
-            within_startup_grace = (time.monotonic() - float(getattr(self, "_cast_started_ts", 0.0) or 0.0)) < 10.0
-        except Exception:
-            within_startup_grace = False
         if self._cast_missing_status_count >= 2 and not within_startup_grace:
             self._start_cast_recovery(token)
+
+    def _handle_cast_connection_lost(self, token):
+        """Confirmed Chromecast drop: retire the session and resume locally."""
+        if token != int(getattr(self, "_cast_session_token", 0) or 0):
+            return
+        if not bool(getattr(self, "is_casting", False)):
+            return
+
+        pos_ms = int(self._current_position_ms())
+        was_playing = bool(getattr(self, "is_playing", False))
+
+        # Retire the session so stale polls/recovery stop firing.
+        self._cast_session_token = int(getattr(self, "_cast_session_token", 0) or 0) + 1
+        self._cast_status_poll_inflight = False
+        self._cast_recovery_inflight = False
+        self._cast_recovery_attempted = False
+        self._cast_missing_status_count = 0
+        self._cast_disconnect_count = 0
+        self.is_casting = False
+
+        try:
+            self.casting_manager.disconnect_async()
+        except Exception:
+            pass
+
+        PlayerFrame._refresh_cast_menu_state(self)
+        try:
+            self._set_status(_("Cast device disconnected; resuming local playback"))
+        except Exception:
+            pass
+        try:
+            self.title_lbl.SetLabel(f"{self.current_title} (Local)")
+        except Exception:
+            pass
+
+        self._restore_local_after_cast(pos_ms, was_playing)
+
+    def _restore_local_after_cast(self, pos_ms: int, was_playing: bool) -> None:
+        """Resume local VLC playback at ``pos_ms`` after leaving a cast session."""
+        if not self.current_url:
+            return
+        same_media = False
+        try:
+            same_media = (getattr(self, '_cast_handoff_source_url', None) == self.current_url)
+        except Exception:
+            same_media = False
+
+        if same_media:
+            try:
+                if self._resume_local_from_cast(int(pos_ms), bool(was_playing)):
+                    self._cast_handoff_source_url = None
+                    return
+            except Exception:
+                pass
+
+        self._pending_resume_seek_ms = max(0, int(pos_ms))
+        self._pending_resume_seek_attempts = 0
+        self._pending_resume_paused = (not was_playing)
+        try:
+            self.load_media(
+                self.current_url,
+                use_ytdlp=False,
+                chapters=self.current_chapters,
+                title=self.current_title,
+                article_id=getattr(self, "current_article_id", None),
+            )
+        except Exception:
+            log.exception("Failed to restore local playback after cast")
+        self._cast_handoff_source_url = None
 
     def _start_cast_recovery(self, token):
         if token != int(getattr(self, "_cast_session_token", 0) or 0):
@@ -2529,6 +2594,14 @@ class PlayerFrame(wx.Frame):
         self._cast_recovery_inflight = True
         should_pause = not bool(getattr(self, "is_playing", False))
         start_sec = max(0.0, float(self._current_position_ms()) / 1000.0)
+        # For a live/unknown-length stream the dead-reckoned position is
+        # meaningless (it grows unbounded); re-cast from the start instead of a
+        # bogus offset.
+        try:
+            if int(getattr(self, "duration", 0) or 0) <= 0:
+                start_sec = None
+        except Exception:
+            start_sec = None
 
         def completed(_result):
             wx.CallAfter(self._finish_cast_recovery, token, should_pause)
@@ -5380,7 +5453,7 @@ class PlayerFrame(wx.Frame):
             return
         if self.is_casting:
             try:
-                self.casting_manager.resume()
+                self.casting_manager.resume_async()
                 self.is_playing = True
                 self._set_play_button_label(True)
             except Exception:
@@ -6178,7 +6251,8 @@ class PlayerFrame(wx.Frame):
             return
         if self.is_casting:
             try:
-                self.casting_manager.resume()
+                # Non-blocking so a slow receiver can't freeze the wx thread.
+                self.casting_manager.resume_async()
             except Exception:
                 pass
             self.is_playing = True
@@ -6236,7 +6310,7 @@ class PlayerFrame(wx.Frame):
             log.exception("Failed to persist playback position on pause")
         if self.is_casting:
             try:
-                self.casting_manager.pause()
+                self.casting_manager.pause_async()
                 self.is_playing = False
                 self._set_play_button_label(False)
                 self._set_status("Paused")
@@ -6278,7 +6352,7 @@ class PlayerFrame(wx.Frame):
         self._stop_calllater("_seek_apply_calllater", "Error handling seek apply calllater on stop")
         if self.is_casting:
             try:
-                self.casting_manager.stop_playback()
+                self.casting_manager.stop_async()
             except Exception:
                 pass
         else:

@@ -255,6 +255,7 @@ def test_missing_chromecast_session_recovers_once_at_last_position(monkeypatch):
     frame._cast_recovery_inflight = False
     frame._cast_started_ts = 0.0
     frame._cast_content_type = "audio/mpeg"
+    frame.duration = 1_800_000  # VOD podcast: known length -> recover at position
     frame._current_position_ms = lambda: 320_000
     frame._apply_cast_status = player_mod.PlayerFrame._apply_cast_status.__get__(frame)
     frame._start_cast_recovery = player_mod.PlayerFrame._start_cast_recovery.__get__(frame)
@@ -276,3 +277,103 @@ def test_missing_chromecast_session_recovers_once_at_last_position(monkeypatch):
     frame.casting_manager.recovery_callback(None)
     frame._apply_cast_status(7, empty)
     assert len(frame.casting_manager.play_calls) == 1
+
+
+def test_disconnected_chromecast_triggers_teardown_after_two_polls(monkeypatch):
+    frame = _Frame(connected=True)
+    frame.is_casting = True
+    frame._cast_session_token = 9
+    frame._cast_started_ts = 0.0  # outside startup grace
+    frame._cast_disconnect_count = 0
+    calls = []
+    frame._handle_cast_connection_lost = lambda token: calls.append(token)
+    frame._apply_cast_status = player_mod.PlayerFrame._apply_cast_status.__get__(frame)
+    down = {"connected": False, "media_session_id": None, "supports_session_detection": True}
+
+    frame._apply_cast_status(9, down)
+    assert calls == []  # one disconnected poll: not yet
+    frame._apply_cast_status(9, down)
+    assert calls == [9]  # two consecutive: fall back to local
+
+
+def test_disconnected_count_resets_on_reconnect(monkeypatch):
+    frame = _Frame(connected=True)
+    frame.is_casting = True
+    frame._cast_session_token = 1
+    frame._cast_started_ts = 0.0
+    frame._cast_disconnect_count = 0
+    calls = []
+    frame._handle_cast_connection_lost = lambda token: calls.append(token)
+    frame._apply_cast_status = player_mod.PlayerFrame._apply_cast_status.__get__(frame)
+    down = {"connected": False, "media_session_id": None, "supports_session_detection": True}
+    up = {"connected": True, "media_session_id": 5, "supports_session_detection": True}
+
+    frame._apply_cast_status(1, down)
+    frame._apply_cast_status(1, up)     # reconnect clears the counter
+    frame._apply_cast_status(1, down)
+    assert calls == []                  # only one disconnected poll since reset
+
+
+def test_handle_cast_connection_lost_restores_local(monkeypatch):
+    monkeypatch.setattr(player_mod.PlayerFrame, "_refresh_cast_menu_state", lambda self: None)
+    frame = _Frame(connected=True)
+    frame.is_casting = True
+    frame._cast_session_token = 3
+    frame.current_url = "https://example.com/episode.mp3"
+    frame.is_playing = True
+    frame._current_position_ms = lambda: 5000
+    frame._set_status = lambda text: None
+    restored = []
+    frame._restore_local_after_cast = lambda pos, playing: restored.append((pos, playing))
+    frame.casting_manager.disconnect_async = lambda callback=None: None
+    frame._handle_cast_connection_lost = player_mod.PlayerFrame._handle_cast_connection_lost.__get__(frame)
+
+    frame._handle_cast_connection_lost(3)
+    assert frame.is_casting is False
+    assert frame._cast_session_token == 4          # session retired
+    assert restored == [(5000, True)]              # local playback restored at position
+
+
+def test_restore_local_after_cast_reloads_when_media_differs():
+    frame = _Frame(connected=True)
+    frame.current_url = "https://example.com/episode.mp3"
+    frame._cast_handoff_source_url = None  # not the same media -> reload
+    frame.current_chapters = []
+    frame.current_article_id = None
+    loaded = []
+    frame.load_media = lambda url, **kw: loaded.append((url, kw))
+    frame._resume_local_from_cast = lambda pos, playing: False
+    frame._restore_local_after_cast = player_mod.PlayerFrame._restore_local_after_cast.__get__(frame)
+
+    frame._restore_local_after_cast(320_000, True)
+    assert loaded and loaded[0][0] == "https://example.com/episode.mp3"
+    assert frame._pending_resume_seek_ms == 320_000
+    assert frame._pending_resume_paused is False
+
+
+def test_live_stream_recovery_recasts_without_start_position(monkeypatch):
+    monkeypatch.setattr(player_mod.wx, "CallAfter", lambda fn, *args: fn(*args))
+    frame = _Frame(connected=True)
+    frame.is_casting = True
+    frame.is_playing = True
+    frame.current_url = "https://example.com/live"
+    frame._cast_session_token = 2
+    frame._cast_started_ts = 0.0
+    frame._cast_missing_status_count = 0
+    frame._cast_recovery_attempted = False
+    frame._cast_recovery_inflight = False
+    frame._cast_content_type = "audio/mpeg"
+    frame.duration = 0  # live/unknown length
+    frame._current_position_ms = lambda: 999_000
+    frame._apply_cast_status = player_mod.PlayerFrame._apply_cast_status.__get__(frame)
+    frame._start_cast_recovery = player_mod.PlayerFrame._start_cast_recovery.__get__(frame)
+    frame._finish_cast_recovery = player_mod.PlayerFrame._finish_cast_recovery.__get__(frame)
+    down = {"connected": True, "media_session_id": None, "supports_session_detection": True}
+
+    frame._apply_cast_status(2, down)
+    frame._apply_cast_status(2, down)
+
+    # A live stream must not be re-cast at a bogus dead-reckoned offset.
+    assert frame.casting_manager.play_calls == [
+        ("https://example.com/live", "Test episode", "audio/mpeg", None)
+    ]

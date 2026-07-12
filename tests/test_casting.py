@@ -1008,3 +1008,156 @@ class _FakeProxy:
 
     def get_file_url(self, path, device_ip=None):
         return f"file-proxied://{device_ip}{path}"
+
+
+# ============================================================================
+# Chromecast bounded-timeout + connection-listener robustness
+# ============================================================================
+
+class _RecordingMediaController:
+    def __init__(self, media_session_id=1):
+        self.status = SimpleNamespace(media_session_id=media_session_id)
+        self.seek_calls = []
+        self.pause_calls = []
+        self.play_calls = []
+        self.stop_calls = []
+        self.block_calls = []
+
+    def block_until_active(self, timeout=None):
+        self.block_calls.append(timeout)
+
+    def update_status(self, callback_function=None):
+        if callback_function:
+            callback_function(True, {})
+
+    def seek(self, position, timeout=None):
+        self.seek_calls.append((position, timeout))
+
+    def pause(self, timeout=None):
+        self.pause_calls.append(timeout)
+
+    def play(self, timeout=None):
+        self.play_calls.append(timeout)
+
+    def stop(self, timeout=None):
+        self.stop_calls.append(timeout)
+
+
+class _RichCast:
+    def __init__(self, connected=True, media_session_id=1):
+        self.media_controller = _RecordingMediaController(media_session_id=media_session_id)
+        self.registered_listeners = []
+        self.socket_client = SimpleNamespace(
+            is_connected=connected,
+            register_connection_listener=self.registered_listeners.append,
+        )
+        self.status = SimpleNamespace(transport_id="t-1")
+        self.volume_calls = []
+
+    def set_volume(self, level, timeout=None):
+        self.volume_calls.append((level, timeout))
+
+
+def _chromecast_caster(cast):
+    caster = casting.ChromecastCaster()
+    caster._cast = cast
+    return caster
+
+
+_CC_T = casting.ChromecastCaster._CONTROL_TIMEOUT
+
+
+def test_chromecast_seek_is_bounded():
+    cast = _RichCast()
+    caster = _chromecast_caster(cast)
+    asyncio.run(caster.seek(42.0))
+    # The fix: a bounded seek + a bounded block, never pychromecast's 10s default
+    # or the old 10s block/poll loop.
+    assert cast.media_controller.seek_calls == [(42.0, _CC_T)]
+    assert cast.media_controller.block_calls == [_CC_T]
+
+
+def test_chromecast_pause_resume_stop_are_bounded():
+    cast = _RichCast()
+    caster = _chromecast_caster(cast)
+    asyncio.run(caster.pause())
+    asyncio.run(caster.resume())
+    asyncio.run(caster.stop())
+    assert cast.media_controller.pause_calls == [_CC_T]
+    assert cast.media_controller.play_calls == [_CC_T]
+    assert cast.media_controller.stop_calls == [_CC_T]
+
+
+def test_chromecast_set_volume_is_bounded():
+    cast = _RichCast()
+    caster = _chromecast_caster(cast)
+    asyncio.run(caster.set_volume(0.5))
+    assert cast.volume_calls == [(0.5, _CC_T)]
+
+
+def test_chromecast_stop_skips_without_media_session():
+    cast = _RichCast(media_session_id=None)
+    caster = _chromecast_caster(cast)
+    asyncio.run(caster.stop())
+    assert cast.media_controller.stop_calls == []
+
+
+def test_chromecast_connection_listener_marks_lost():
+    cast = _RichCast(connected=True)
+    caster = casting.ChromecastCaster()
+    caster._conn_listener = casting._ChromecastConnListener(caster._on_conn_status)
+    caster._cast = cast
+    cast.socket_client.register_connection_listener(caster._conn_listener)
+    assert cast.registered_listeners == [caster._conn_listener]
+    assert caster.is_connected() is True
+
+    # pychromecast reports the socket dropped.
+    caster._conn_listener.new_connection_status(SimpleNamespace(status="LOST"))
+    assert caster.is_connected() is False
+    assert asyncio.run(caster.get_status())["connected"] is False
+
+    # A fresh CONNECTED clears the flag.
+    caster._conn_listener.new_connection_status(SimpleNamespace(status="CONNECTED"))
+    assert caster.is_connected() is True
+
+
+def test_chromecast_deliberate_disconnect_is_not_treated_as_lost():
+    caster = casting.ChromecastCaster()
+    caster._conn_listener = casting._ChromecastConnListener(caster._on_conn_status)
+    caster._cast = _RichCast(connected=True)
+    caster._conn_listener.new_connection_status(SimpleNamespace(status="DISCONNECTED"))
+    # A deliberate DISCONNECTED must not be flagged as an unexpected loss.
+    assert caster._connection_lost is False
+
+
+class _AsyncTransportCaster:
+    def __init__(self):
+        self.calls = []
+
+    async def resume(self):
+        self.calls.append("resume")
+
+    async def stop(self):
+        self.calls.append("stop")
+
+
+def test_manager_async_transport_dispatches():
+    caster = _AsyncTransportCaster()
+    manager = _bare_manager({})
+    manager.active_caster = caster
+    dispatched = []
+
+    def fake_dispatch_async(coro, callback=None):
+        # Drive the coroutine to completion synchronously for the test.
+        try:
+            asyncio.run(coro)
+        finally:
+            dispatched.append(callback)
+        return object()
+
+    manager.dispatch_async = fake_dispatch_async
+    manager.resume_async()
+    manager.stop_async()
+
+    assert caster.calls == ["resume", "stop"]
+    assert len(dispatched) == 2

@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.96.1 - 2026-07-12
+
+- Harden Chromecast to AirPlay-level robustness.
+
 ## v1.96.0 - 2026-07-12
 
 - AirPlay 2 (RAOP) audio streaming, seek, status, and pairing.

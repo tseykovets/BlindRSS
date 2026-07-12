@@ -9,6 +9,7 @@ import os
 import re
 import logging
 import hashlib
+from copy import deepcopy
 from types import SimpleNamespace
 from collections import OrderedDict, deque
 from urllib.parse import urljoin, urlsplit
@@ -71,6 +72,20 @@ def should_show_add_shortcuts(platform=None):
     """
     plat = sys.platform if platform is None else platform
     return not plat.startswith("darwin")
+
+
+def provider_configuration_changed(
+    old_provider, old_provider_configs, new_provider, new_provider_configs
+):
+    """Return whether Settings changed provider identity or credentials.
+
+    Settings always returns the providers mapping, so key presence alone
+    cannot indicate a change. A no-op save must keep the visible articles.
+    """
+    return (
+        new_provider != old_provider
+        or new_provider_configs != old_provider_configs
+    )
 
 
 try:
@@ -10787,6 +10802,10 @@ class MainFrame(wx.Frame):
         except Exception:
             old_provider = "local"
         try:
+            old_provider_configs = deepcopy(self.config_manager.get("providers", {}) or {})
+        except Exception:
+            old_provider_configs = {}
+        try:
             old_cache_full_text = bool(self.config_manager.get("cache_full_text", False))
         except Exception:
             old_cache_full_text = False
@@ -10963,7 +10982,17 @@ class MainFrame(wx.Frame):
             except Exception:
                 new_provider = old_provider or "local"
 
-            if new_provider != old_provider or "providers" in data:
+            try:
+                new_provider_configs = self.config_manager.get("providers", {}) or {}
+            except Exception:
+                new_provider_configs = {}
+
+            if provider_configuration_changed(
+                old_provider,
+                old_provider_configs,
+                new_provider,
+                new_provider_configs,
+            ):
                 try:
                     from core.factory import get_provider
                     self.provider = get_provider(self.config_manager)

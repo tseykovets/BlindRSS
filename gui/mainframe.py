@@ -57,8 +57,8 @@ ARTICLE_COL_DESCRIPTION = 5
 ARTICLE_COL_STATUS = 6
 
 # Labels shown in the media column (feature: "does this article contain media?").
-ARTICLE_MEDIA_YES = "Contains audio"
-ARTICLE_MEDIA_NO = "No audio"
+ARTICLE_MEDIA_YES = _("Contains audio")
+ARTICLE_MEDIA_NO = _("No audio")
 
 
 def should_show_add_shortcuts(platform=None):
@@ -4441,9 +4441,9 @@ class MainFrame(wx.Frame):
         # link header + cleaned feed content).
         include_images = self._show_images_for_feed(getattr(article, "feed_id", None))
         header = f"{getattr(article, 'title', '') or ''}\n"
-        header += f"Date: {utils.humanize_article_date(getattr(article, 'date', ''))}\n"
-        header += f"Author: {getattr(article, 'author', '') or ''}\n"
-        header += f"Link: {getattr(article, 'url', '') or ''}\n"
+        header += _("Date:") + f" {utils.humanize_article_date(getattr(article, 'date', ''))}\n"
+        header += _("Author:") + f" {getattr(article, 'author', '') or ''}\n"
+        header += _("Link:") + f" {getattr(article, 'url', '') or ''}\n"
         header += "-" * 40 + "\n\n"
         body = self._strip_html(getattr(article, "content", ""), include_images=include_images)
         return self._compose_article_reader_text(header + body, article=article)
@@ -7665,9 +7665,9 @@ class MainFrame(wx.Frame):
 
         # Prepare content (Heavy: BeautifulSoup)
         header = f"{article.title}\n"
-        header += f"Date: {utils.humanize_article_date(article.date)}\n"
-        header += f"Author: {article.author}\n"
-        header += f"Link: {article.url}\n"
+        header += _("Date:") + f" {utils.humanize_article_date(article.date)}\n"
+        header += _("Author:") + f" {article.author}\n"
+        header += _("Link:") + f" {article.url}\n"
         header += "-" * 40 + "\n\n"
         
         try:
@@ -9394,9 +9394,11 @@ class MainFrame(wx.Frame):
                     return
                 log.warning("Custom article-open command failed: %s", err)
                 wx.MessageBox(
-                    f"Could not open the article with your custom command:\n\n{err}\n\n"
-                    "Opening in the default browser instead. You can change this in "
-                    "Settings > General > Article opening method.",
+                    _(
+                        "Could not open the article with your custom command:\n\n{err}\n\n"
+                        "Opening in the default browser instead. You can change this in "
+                        "Settings > General > Article opening method."
+                    ).format(err=err),
                     _("Custom command failed"),
                     wx.ICON_WARNING,
                 )
@@ -11051,11 +11053,11 @@ class MainFrame(wx.Frame):
             return
 
         summary = info.notes_summary or "Release notes are available on GitHub."
-        prompt = (
-            f"A new version of BlindRSS is available ({info.tag}).\n\n"
-            f"{summary}\n\n"
+        prompt = (_(
+            "A new version of BlindRSS is available ({version}).\n\n"
+            "{summary}\n\n"
             "Download and install this update now?"
-        )
+        ).format(version=info.tag, summary=summary))
         if wx.MessageBox(prompt, _("Update Available"), wx.YES_NO | wx.ICON_INFORMATION) == wx.YES:
             self._start_update_install(info)
 

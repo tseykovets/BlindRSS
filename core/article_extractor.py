@@ -22,6 +22,8 @@ from bs4 import BeautifulSoup
 
 from core import utils
 
+from core.i18n import _
+
 LOG = logging.getLogger(__name__)
 
 try:
@@ -1874,8 +1876,8 @@ def render_full_article(
 
     def _render(art: FullArticle) -> str:
         parts: List[str] = []
-        parts.append(f"Title: {art.title.strip() or '(unknown)'}")
-        parts.append(f"Author: {art.author.strip() or '(unknown)'}")
+        parts.append(_("Title:") + f" {art.title.strip() or '(unknown)'}")
+        parts.append(_("Author:") + f" {art.author.strip() or '(unknown)'}")
         parts.append("")
         body = _postprocess_extracted_text(art.text or "", url)
         parts.append(body.strip())

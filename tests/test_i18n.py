@@ -7,6 +7,9 @@ and catalog discovery for the Settings language dropdown.
 import os
 import struct
 import sys
+from collections import OrderedDict
+from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -15,6 +18,8 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from core import i18n
+from core import utils
+from tools import compile_translations, extract_strings
 
 
 def _write_mo(path, mapping):
@@ -82,3 +87,47 @@ def test_loads_real_catalog_from_locale_dir(tmp_path, monkeypatch):
 def test_available_languages_empty_when_no_catalogs(tmp_path, monkeypatch):
     monkeypatch.setattr(i18n, "locale_dir", lambda: str(tmp_path))
     assert i18n.available_languages() == []
+
+
+def test_russian_relative_date_plural_forms(tmp_path, monkeypatch):
+    messages = compile_translations.read_po(
+        Path("locale/ru/LC_MESSAGES/blindrss.po")
+    )
+    mo_path = tmp_path / "ru" / "LC_MESSAGES" / "blindrss.mo"
+    compile_translations.write_mo(messages, mo_path)
+    monkeypatch.setattr(i18n, "locale_dir", lambda: str(tmp_path))
+    i18n.setup("ru")
+
+    now = datetime(2026, 7, 12, 12, 0, tzinfo=timezone.utc)
+    assert utils.humanize_article_date("2026-07-12 11:59:00", now) == "1 минуту назад"
+    assert utils.humanize_article_date("2026-07-12 11:58:00", now) == "2 минуты назад"
+    assert utils.humanize_article_date("2026-07-12 11:55:00", now) == "5 минут назад"
+    assert utils.humanize_article_date("2026-07-12 07:00:00", now) == "5 часов назад"
+    assert i18n._("Date:") == "Дата:"
+    assert i18n._("Articles loaded: {count}.").format(count=1) == "Загружено статей: 1."
+
+
+def test_extractor_resolves_deferred_module_string_constants(tmp_path):
+    source = tmp_path / "deferred.py"
+    source.write_text(
+        'MEDIA_LABEL = "Contains audio"\n'
+        "def label():\n"
+        "    return _(MEDIA_LABEL)\n",
+        encoding="utf-8",
+    )
+    messages = OrderedDict()
+
+    extract_strings._collect(str(source), messages)
+
+    assert ("Contains audio", None) in messages
+
+
+def test_repository_pot_matches_current_source(tmp_path, monkeypatch):
+    generated = tmp_path / "blindrss.pot"
+    monkeypatch.setattr(extract_strings, "POT_PATH", str(generated))
+
+    extract_strings.main()
+
+    assert generated.read_text(encoding="utf-8") == Path(
+        "locale/blindrss.pot"
+    ).read_text(encoding="utf-8")

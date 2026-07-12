@@ -197,7 +197,13 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 
 - `tools/`
   - `release.py`: Windows release/version automation; generates release notes, update manifests, and prepends versioned entries to `CHANGELOG.md`.
-  - `compile_translations.py`: build-time gettext compiler; compiles `locale/<lang>/LC_MESSAGES/blindrss.po` to ignored `.mo` catalogs before PyInstaller bundles translations.
+  - `compile_translations.py`: build-time gettext compiler; compiles
+    `locale/<lang>/LC_MESSAGES/blindrss.po` to ignored `.mo` catalogs before
+    PyInstaller bundles translations. Empty or incomplete translations must be
+    omitted from the `.mo` so gettext falls back to English instead of rendering
+    blank UI text. Human translations take priority; do not machine-fill
+    ambiguous catalog entries just to reach 100% completion. Leave them blank
+    for translator review and context.
   - `build_utils.py`: helper utilities used by build flows.
 
 ## Data Model (`rss.db`)

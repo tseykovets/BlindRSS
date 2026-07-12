@@ -36,8 +36,9 @@ locale/
 3. Translate the `msgstr` entries (any PO editor works, e.g. Poedit — which is
    screen-reader accessible — or a plain text editor).
 
-4. Commit only the `.po` file. Generated `.mo` files are build artifacts and
-   are ignored by Git.
+4. Translators commit the `.po` file. Source changes that add or remove
+   messages must also commit the regenerated `locale/blindrss.pot`. Generated
+   `.mo` files are build artifacts and are ignored by Git.
 
 5. Restart BlindRSS. The language is selected in Settings > General >
    "Interface language" ("Automatic" follows the OS locale), or via the
@@ -62,3 +63,16 @@ Notes for translators:
 - An `&` marks the menu access key (e.g. `&File`); place it before whichever
   letter works best in your language.
 - Trailing `...` means the item opens a dialog; keep it.
+
+## Translation quality policy
+
+- Human translations and corrections take priority over machine-generated
+  suggestions.
+- Do not fill every empty entry automatically. Short labels can be ambiguous
+  without UI context; leave them blank until a translator can inspect the
+  source reference or ask for clarification. Blank entries safely fall back
+  to the English msgid when catalogs are compiled.
+- Treat machine translation as a draft only. Do not commit it as final catalog
+  text unless a translator for that language has reviewed it.
+- Prefer complete, self-contained source messages over translating isolated
+  fragments that may need different grammar in different contexts.

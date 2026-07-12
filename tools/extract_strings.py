@@ -40,6 +40,28 @@ def _collect(path, messages):
     except SyntaxError as exc:
         print(f"WARNING: skipping {path}: {exc}", file=sys.stderr)
         return
+    # Deferred gettext is useful for stable constants: keep the English msgid
+    # in the constant, then translate it at the point of display. Resolve
+    # simple module-level string constants so those calls still reach the POT.
+    constants = {}
+    for statement in tree.body:
+        if isinstance(statement, ast.Assign) and isinstance(statement.value, ast.Constant):
+            if isinstance(statement.value.value, str):
+                for target in statement.targets:
+                    if isinstance(target, ast.Name):
+                        constants[target.id] = statement.value.value
+        elif isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+            value = statement.value
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                constants[statement.target.id] = value.value
+
+    def _message_value(node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        if isinstance(node, ast.Name):
+            return constants.get(node.id)
+        return None
+
     rel = os.path.relpath(path, REPO_ROOT).replace(os.sep, "/")
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -47,16 +69,14 @@ def _collect(path, messages):
         func = node.func
         name = getattr(func, "id", None) or getattr(func, "attr", None)
         if name == "_" and node.args:
-            arg = node.args[0]
-            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                messages.setdefault((arg.value, None), []).append(f"{rel}:{node.lineno}")
+            value = _message_value(node.args[0])
+            if value is not None:
+                messages.setdefault((value, None), []).append(f"{rel}:{node.lineno}")
         elif name == "ngettext" and len(node.args) >= 2:
-            one, many = node.args[0], node.args[1]
-            if (
-                isinstance(one, ast.Constant) and isinstance(one.value, str)
-                and isinstance(many, ast.Constant) and isinstance(many.value, str)
-            ):
-                messages.setdefault((one.value, many.value), []).append(f"{rel}:{node.lineno}")
+            one = _message_value(node.args[0])
+            many = _message_value(node.args[1])
+            if one is not None and many is not None:
+                messages.setdefault((one, many), []).append(f"{rel}:{node.lineno}")
 
 
 def _po_escape(text):

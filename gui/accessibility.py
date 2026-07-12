@@ -196,12 +196,12 @@ def voiceover_is_running() -> bool:
 
 def build_accessible_view_entries(feeds, categories=None, hierarchy=None, include_favorites=False):
     entries = [
-        {"label": "All Articles", "view_id": "all", "kind": "special", "parent_cats": []},
-        {"label": "Unread Articles", "view_id": "unread:all", "kind": "special", "parent_cats": []},
-        {"label": "Read Articles", "view_id": "read:all", "kind": "special", "parent_cats": []},
+        {"label": _("All Articles"), "view_id": "all", "kind": "special", "parent_cats": []},
+        {"label": _("Unread Articles"), "view_id": "unread:all", "kind": "special", "parent_cats": []},
+        {"label": _("Read Articles"), "view_id": "read:all", "kind": "special", "parent_cats": []},
     ]
     if include_favorites:
-        entries.append({"label": "Favorites", "view_id": "favorites:all", "kind": "special", "parent_cats": []})
+        entries.append({"label": _("Favorites"), "view_id": "favorites:all", "kind": "special", "parent_cats": []})
 
     feeds = list(feeds or [])
     hierarchy = dict(hierarchy or {})
@@ -238,7 +238,7 @@ def build_accessible_view_entries(feeds, categories=None, hierarchy=None, includ
         cat_id = f"category:{cat}"
         entries.append(
             {
-                "label": f"Category: {path_label}",
+                "label": f'{_("Category:")} {path_label}',
                 "view_id": cat_id,
                 "kind": "category",
                 "parent_cats": list(path),
@@ -257,9 +257,9 @@ def build_accessible_view_entries(feeds, categories=None, hierarchy=None, includ
             except Exception:
                 unread = 0
             title = str(getattr(feed, "title", "") or "").strip() or str(getattr(feed, "id", "") or "")
-            label = f"Feed: {title}"
+            label = f'{_("Feed:")} {title}'
             if unread > 0:
-                label += f", {unread} unread"
+                label += _(", unread: {unread}").format(unread=unread)
             if category_path:
                 label += f" ({path_label})"
             entries.append(
@@ -311,7 +311,7 @@ def format_accessible_view_label(entry, expanded_categories=None):
         return f"{indent}{label}" if indent else label
 
     cat_name = str(entry.get("cat_name", "") or "").strip()
-    state = "expanded" if cat_name and cat_name in expanded else "collapsed"
+    state = _("expanded") if cat_name and cat_name in expanded else _("collapsed")
     return f"{indent}{label}, {state}" if indent else f"{label}, {state}"
 
 
@@ -758,9 +758,14 @@ class AccessibleBrowserFrame(wx.Frame):
 
         loaded = len(self._base_articles)
         if total is None:
-            self.status_lbl.SetLabel(f"Loaded {loaded} article(s).")
+            self.status_lbl.SetLabel(_("Articles loaded: {count}.").format(count=loaded))
         else:
-            self.status_lbl.SetLabel(f"Loaded {loaded} of {int(total)} article(s).")
+            self.status_lbl.SetLabel(
+                _("Articles loaded: {count} of {total}.").format(
+                    count=loaded,
+                    total=int(total),
+                )
+            )
         self._update_load_more_enabled()
 
     def _apply_filter(self):
@@ -834,9 +839,9 @@ class AccessibleBrowserFrame(wx.Frame):
     def _article_header(self, article) -> str:
         header = [
             str(getattr(article, "title", "") or ""),
-            f"Date: {utils.humanize_article_date(getattr(article, 'date', '') or '')}",
-            f"Author: {str(getattr(article, 'author', '') or '')}",
-            f"Link: {str(getattr(article, 'url', '') or '')}",
+            _("Date:") + f" {utils.humanize_article_date(getattr(article, 'date', '') or '')}",
+            _("Author:") + f" {str(getattr(article, 'author', '') or '')}",
+            _("Link:") + f" {str(getattr(article, 'url', '') or '')}",
             "-" * 40,
             "",
         ]

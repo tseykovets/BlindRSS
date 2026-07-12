@@ -23,6 +23,7 @@ import warnings
 import urllib.parse
 import sys
 import shlex
+from core.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
 
@@ -797,12 +798,12 @@ def humanize_article_date(date_str: str, now_utc: datetime = None) -> str:
     if delta <= timedelta(hours=24):
         secs = int(delta.total_seconds())
         if secs < 60:
-            return "Just now"
+            return _("Just now")
         mins = secs // 60
         if mins < 60:
-            return f"{mins} minute{'s' if mins != 1 else ''} ago"
+            return ngettext("{n} minute ago", "{n} minutes ago", mins).format(n=mins)
         hours = mins // 60
-        return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        return ngettext("{n} hour ago", "{n} hours ago", hours).format(n=hours)
 
     # Absolute local time
     local_tz = datetime.now().astimezone().tzinfo or timezone.utc

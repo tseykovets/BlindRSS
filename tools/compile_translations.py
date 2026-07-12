@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import ast
 import os
+import re
 import struct
 from pathlib import Path
 
@@ -32,32 +33,64 @@ def _new_entry() -> dict:
     }
 
 
-def _finish_entry(entry: dict, messages: dict[str, str]) -> None:
+def _finish_entry(
+    entry: dict,
+    messages: dict[str, str],
+    required_plural_forms: int | None,
+) -> int | None:
     msgid = entry.get("msgid")
     if msgid is None or "fuzzy" in entry.get("flags", set()):
-        return
+        return required_plural_forms
 
     plural = entry.get("msgid_plural")
     msgstr = entry.get("msgstr") or {}
     if plural is None:
-        messages[msgid] = msgstr.get(0, "")
-        return
+        value = msgstr.get(0, "")
+        # An empty translation is intentionally untranslated. Omitting it from
+        # the MO lets gettext fall back to the English msgid; storing an empty
+        # value instead makes the corresponding control text disappear.
+        if not value.strip():
+            return required_plural_forms
+        messages[msgid] = value
+        if msgid == "":
+            match = re.search(
+                r"(?:^|\n)Plural-Forms:\s*nplurals\s*=\s*(\d+)",
+                value,
+                flags=re.IGNORECASE,
+            )
+            if match:
+                required_plural_forms = max(1, int(match.group(1)))
+        return required_plural_forms
 
     indexes = sorted(i for i in msgstr if isinstance(i, int))
-    max_index = indexes[-1] if indexes else 1
-    values = [msgstr.get(i, "") for i in range(max_index + 1)]
+    if not indexes:
+        return required_plural_forms
+    expected_count = required_plural_forms or (indexes[-1] + 1)
+    if indexes != list(range(expected_count)):
+        return required_plural_forms
+    values = [msgstr.get(i, "") for i in range(expected_count)]
+    # A partially translated plural entry is just as unsafe as an empty
+    # singular entry: some counts would otherwise render as blank text.
+    if any(not value.strip() for value in values):
+        return required_plural_forms
     messages[f"{msgid}\0{plural}"] = "\0".join(values)
+    return required_plural_forms
 
 
 def read_po(path: Path) -> dict[str, str]:
     messages: dict[str, str] = {}
     entry = _new_entry()
     active: tuple[str, int | None] | None = None
+    required_plural_forms: int | None = None
 
     for raw_line in path.read_text(encoding="utf-8-sig").splitlines():
         line = raw_line.strip()
         if not line:
-            _finish_entry(entry, messages)
+            required_plural_forms = _finish_entry(
+                entry,
+                messages,
+                required_plural_forms,
+            )
             entry = _new_entry()
             active = None
             continue
@@ -89,7 +122,7 @@ def read_po(path: Path) -> dict[str, str]:
             else:
                 entry[field] = (entry.get(field) or "") + value
 
-    _finish_entry(entry, messages)
+    _finish_entry(entry, messages, required_plural_forms)
     return messages
 
 

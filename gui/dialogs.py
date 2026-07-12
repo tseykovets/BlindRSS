@@ -259,7 +259,7 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
         if index < 0 or index >= len(self._feed_base_labels):
             return ""
         checked = self._is_checked(index)
-        check_state = "checked" if checked else "unchecked"
+        check_state = _("checked") if checked else _("unchecked")
         return f"{self._feed_base_labels[index]} - {check_state}"
 
     def _refresh_item_labels(self):
@@ -285,9 +285,11 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
             self._selection_status.SetLabel("")
             return
         checked = self._is_checked(index)
-        check_state = "checked" if checked else "unchecked"
+        check_state = _("checked") if checked else _("unchecked")
         self._selection_status.SetLabel(
-            f"Selected feed: {self._feed_base_labels[index]}. {check_state}."
+            _(
+                "Selected feed: {name}. {state}."
+            ).format(name=self._feed_base_labels[index], state=check_state)
         )
 
     def on_feed_selected(self, event):
@@ -597,8 +599,8 @@ class SettingsDialog(wx.Dialog):
         search_mode_sizer = wx.BoxSizer(wx.HORIZONTAL)
         search_mode_sizer.Add(wx.StaticText(general_panel, label=_("Search Matches:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.search_mode_map = {
-            "Titles only": "title_only",
-            "Titles + article text": "title_content",
+            _("Titles only"): "title_only",
+            _("Titles and article text"): "title_content",
         }
         self.search_mode_choices = list(self.search_mode_map.keys())
         self.search_mode_ctrl = wx.Choice(general_panel, choices=self.search_mode_choices)
@@ -609,7 +611,14 @@ class SettingsDialog(wx.Dialog):
                 selected_label = label
                 break
         if not selected_label:
-            selected_label = "Titles + article text"
+            selected_label = next(
+                (
+                    label
+                    for label, value in self.search_mode_map.items()
+                    if value == "title_content"
+                ),
+                self.search_mode_choices[0] if self.search_mode_choices else "",
+            )
         self.search_mode_ctrl.SetStringSelection(selected_label)
         search_mode_sizer.Add(self.search_mode_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(search_mode_sizer, 0, wx.EXPAND | wx.ALL, 5)
@@ -665,9 +674,9 @@ class SettingsDialog(wx.Dialog):
         del_sizer.Add(wx.StaticText(general_panel, label=_("When I delete an article:")), 0,
                       wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self._delete_behavior_choices = [
-            ("deleted", "Move it to Deleted Articles (restorable)"),
-            ("purge", "Remove it permanently"),
-            ("category", "Move it to a category"),
+            ("deleted", _("Move it to Deleted Articles (restorable)")),
+            ("purge", _("Remove it permanently")),
+            ("category", _("Move it to a category")),
         ]
         self.delete_behavior_ctrl = wx.Choice(
             general_panel, choices=[lbl for _k, lbl in self._delete_behavior_choices]
@@ -868,7 +877,7 @@ class SettingsDialog(wx.Dialog):
         self.language_choices = ["auto", "en"] + [c for c in _lang_codes if c != "en"]
         self.language_choice = wx.Choice(
             general_panel,
-            choices=["Automatic (system language)", "English"] + [c for c in _lang_codes if c != "en"],
+            choices=[_("Automatic (system language)"), "English"] + [c for c in _lang_codes if c != "en"],
         )
         current_language = str(config.get("language", "auto") or "auto")
         try:
@@ -885,15 +894,15 @@ class SettingsDialog(wx.Dialog):
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         self.tree_expand_map = {
-            "All items expanded": True,
-            "All items collapsed": False,
+            _("All items expanded"): True,
+            _("All items collapsed"): False,
         }
         self.tree_expand_choices = list(self.tree_expand_map.keys())
         self.tree_expand_ctrl = wx.Choice(general_panel, choices=self.tree_expand_choices)
         self.tree_expand_ctrl.SetName("Feed category tree default state on startup")
         current_tree_expanded = bool(config.get("category_tree_default_expanded", True))
         self.tree_expand_ctrl.SetStringSelection(
-            "All items expanded" if current_tree_expanded else "All items collapsed"
+            _("All items expanded") if current_tree_expanded else _("All items collapsed")
         )
         tree_state_sizer.Add(self.tree_expand_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(tree_state_sizer, 0, wx.EXPAND | wx.ALL, 5)
@@ -905,15 +914,15 @@ class SettingsDialog(wx.Dialog):
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         self.article_open_method_map = {
-            "Default browser": "default",
-            "Custom command": "custom",
+            _("Default browser"): "default",
+            _("Custom command"): "custom",
         }
         self.article_open_method_choices = list(self.article_open_method_map.keys())
         self.article_open_method_ctrl = wx.Choice(general_panel, choices=self.article_open_method_choices)
         self.article_open_method_ctrl.SetName("Article opening method")
         current_open_method = str(config.get("article_open_method", "default") or "default").lower()
         self.article_open_method_ctrl.SetStringSelection(
-            "Custom command" if current_open_method == "custom" else "Default browser"
+            _("Custom command") if current_open_method == "custom" else _("Default browser")
         )
         article_open_sizer.Add(self.article_open_method_ctrl, 0, wx.ALL, 5)
         general_sizer.Add(article_open_sizer, 0, wx.EXPAND | wx.ALL, 5)
@@ -962,8 +971,8 @@ class SettingsDialog(wx.Dialog):
         soundcard_sizer = wx.BoxSizer(wx.HORIZONTAL)
         soundcard_sizer.Add(wx.StaticText(media_panel, label=_("Preferred Soundcard:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self._current_soundcard = str(config.get("preferred_soundcard", "") or "")
-        self._soundcard_choices = [("System Default", "")]
-        self._soundcard_labels = ["Loading soundcards..."]
+        self._soundcard_choices = [(_("System Default"), "")]
+        self._soundcard_labels = [_("Loading soundcards...")]
         self.soundcard_ctrl = wx.Choice(media_panel, choices=self._soundcard_labels)
         self.soundcard_ctrl.SetSelection(0)
         soundcard_sizer.Add(self.soundcard_ctrl, 1, wx.ALL, 5)
@@ -1018,7 +1027,7 @@ class SettingsDialog(wx.Dialog):
         # Leaving a field blank auto-detects (PATH, Scoop/Choco/WinGet, portable
         # layouts, etc.). Detection runs in the background to keep the dialog snappy.
         tools_box = wx.StaticBoxSizer(
-            wx.VERTICAL, media_panel, "Media tools (ffmpeg, ffprobe, yt-dlp)"
+            wx.VERTICAL, media_panel, _("Media tools (ffmpeg, ffprobe, yt-dlp)")
         )
         tools_box.Add(
             wx.StaticText(
@@ -1037,7 +1046,7 @@ class SettingsDialog(wx.Dialog):
         for tool_key, tool_label, cfg_key in _media_tool_specs:
             row = wx.BoxSizer(wx.HORIZONTAL)
             row.Add(
-                wx.StaticText(media_panel, label=f"{tool_label} path:"),
+                wx.StaticText(media_panel, label=_("{tool} path:").format(tool=tool_label)),
                 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 4,
             )
             ctrl = wx.TextCtrl(media_panel, value=str(config.get(cfg_key, "") or ""))
@@ -1238,8 +1247,8 @@ class SettingsDialog(wx.Dialog):
             sounds_sizer.Add(s, 0, wx.EXPAND | wx.ALL, 5)
             return ctrl
             
-        self.sound_complete_ctrl = _add_sound_field("Refresh Complete Sound:", "sound_refresh_complete")
-        self.sound_error_ctrl = _add_sound_field("Refresh Error Sound:", "sound_refresh_error")
+        self.sound_complete_ctrl = _add_sound_field(_("Refresh Complete Sound:"), "sound_refresh_complete")
+        self.sound_error_ctrl = _add_sound_field(_("Refresh Error Sound:"), "sound_refresh_error")
         
         sounds_panel.SetSizer(sounds_sizer)
         notebook.AddPage(sounds_panel, _("Sounds"))
@@ -2289,7 +2298,12 @@ class SettingsDialog(wx.Dialog):
     def _load_soundcards_async(self):
         """Background thread: enumerate VLC soundcards, then update the UI."""
         choices = self._build_soundcard_choices(self._current_soundcard)
-        wx.CallAfter(self._populate_soundcard_ctrl, choices)
+        try:
+            # The dialog/app can be destroyed while enumeration is still in
+            # flight (notably during fast test or shutdown paths).
+            wx.CallAfter(self._populate_soundcard_ctrl, choices)
+        except (AssertionError, RuntimeError):
+            return
 
     def _populate_soundcard_ctrl(self, choices):
         """Called on main thread to fill the soundcard dropdown."""
@@ -2304,7 +2318,7 @@ class SettingsDialog(wx.Dialog):
         self.soundcard_ctrl.SetSelection(sel_idx)
 
     def _build_soundcard_choices(self, selected_device_id: str) -> list[tuple[str, str]]:
-        choices: list[tuple[str, str]] = [("System Default", "")]
+        choices: list[tuple[str, str]] = [(_("System Default"), "")]
         seen_ids = {""}
         preferred = str(selected_device_id or "")
         devices_ptr = None
@@ -2571,7 +2585,7 @@ class SettingsDialog(wx.Dialog):
 
     def _sync_article_open_controls(self):
         """Enable the custom-command field/Test button only in 'Custom command' mode (issue #31)."""
-        is_custom = self.article_open_method_ctrl.GetStringSelection() == "Custom command"
+        is_custom = self.article_open_method_ctrl.GetStringSelection() == _("Custom command")
         self.article_open_command_ctrl.Enable(is_custom)
         self.article_open_test_btn.Enable(is_custom)
 
@@ -2863,7 +2877,7 @@ class FeedPropertiesDialog(wx.Dialog):
         sizer.Add(timeout_sizer, 0, wx.EXPAND)
 
         sizer.Add(wx.StaticText(self, label=_("Browser impersonation:")), 0, wx.ALL, 5)
-        self.impersonate_ctrl = wx.Choice(self, choices=["Auto", "Always", "Never"])
+        self.impersonate_ctrl = wx.Choice(self, choices=[_("Auto"), _("Always"), _("Never")])
         self.impersonate_ctrl.SetName("Browser impersonation")
         try:
             current_imp = str(self._feed_settings.get("impersonate") or "auto").lower()
@@ -2899,10 +2913,10 @@ class FeedPropertiesDialog(wx.Dialog):
         sizer.Add(wx.StaticText(self, label=_("When I delete an article from this feed:")), 0, wx.ALL, 5)
         del_row = wx.BoxSizer(wx.HORIZONTAL)
         self._feed_delete_choices = [
-            (None, "Use global setting"),
-            ("deleted", "Move it to Deleted Articles"),
-            ("purge", "Remove it permanently"),
-            ("category", "Move it to a category"),
+            (None, _("Use global setting")),
+            ("deleted", _("Move it to Deleted Articles")),
+            ("purge", _("Remove it permanently")),
+            ("category", _("Move it to a category")),
         ]
         self.feed_delete_ctrl = wx.Choice(self, choices=[lbl for _k, lbl in self._feed_delete_choices])
         self.feed_delete_ctrl.SetName("Delete behavior for this feed")
@@ -6092,7 +6106,7 @@ class ShortcutCaptureDialog(wx.Dialog):
         outer.Add(prompt, 0, wx.ALL, 12)
 
         self.captured_lbl = wx.StaticText(self, label=_("Waiting for a key…"))
-        self.captured_lbl.SetName(_("Captured shortcut"))
+        self.captured_lbl.SetName(_("Captured keyboard shortcut"))
         outer.Add(self.captured_lbl, 0, wx.ALL, 12)
 
         btns = self.CreateButtonSizer(wx.OK | wx.CANCEL)

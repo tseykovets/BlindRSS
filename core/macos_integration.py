@@ -15,6 +15,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from core.i18n import _
+
 
 log = logging.getLogger(__name__)
 
@@ -66,14 +68,14 @@ def _run_launchctl(args: list[str]) -> tuple[bool, str]:
 
 def set_macos_startup_enabled(enabled: bool) -> tuple[bool, str]:
     if not is_macos():
-        return False, "Startup registration is only available on macOS."
+        return False, _("Startup registration is only available on macOS.")
 
     target = plist_path()
     try:
         if bool(enabled):
             program_args = _program_arguments()
             if not program_args or not program_args[0]:
-                return False, "Could not determine how to launch BlindRSS."
+                return False, _("Could not determine how to launch BlindRSS.")
 
             target.parent.mkdir(parents=True, exist_ok=True)
             plist = {
@@ -103,11 +105,15 @@ def set_macos_startup_enabled(enabled: bool) -> tuple[bool, str]:
                     )
                     return (
                         False,
-                        "Could not register BlindRSS to start at login: "
-                        f"{msg} (the failed plist could not be removed: {cleanup_error})",
+                        _(
+                            "Could not register BlindRSS to start at login: {error} "
+                            "(the failed plist could not be removed: {cleanup_error})"
+                        ).format(error=msg, cleanup_error=cleanup_error),
                     )
-                return False, f"Could not register BlindRSS to start at login: {msg}"
-            return True, "BlindRSS will now start when you log in."
+                return False, _(
+                    "Could not register BlindRSS to start at login: {error}"
+                ).format(error=msg)
+            return True, _("BlindRSS will now start when you log in.")
 
         # Disable: unload (ignore errors) then remove the plist.
         _run_launchctl(["unload", "-w", str(target)])
@@ -115,7 +121,9 @@ def set_macos_startup_enabled(enabled: bool) -> tuple[bool, str]:
             target.unlink()
         except FileNotFoundError:
             pass
-        return True, "BlindRSS startup on login has been disabled."
+        return True, _("BlindRSS startup on login has been disabled.")
     except Exception as e:
         log.exception("Failed to update macOS startup setting")
-        return False, f"Could not update macOS startup setting: {e}"
+        return False, _("Could not update macOS startup setting: {error}").format(
+            error=e
+        )

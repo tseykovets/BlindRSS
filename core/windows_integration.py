@@ -6,6 +6,8 @@ import subprocess
 import sys
 import tempfile
 
+from core.i18n import _
+
 try:
     import winreg
 except Exception:  # pragma: no cover - non-Windows envs
@@ -36,10 +38,10 @@ def startup_supported() -> bool:
 def startup_setting_label() -> str:
     """Platform-appropriate label for the start-at-login checkbox."""
     if is_windows():
-        return "Start BlindRSS when Windows starts"
+        return _("Start BlindRSS when Windows starts")
     if is_macos():
-        return "Start BlindRSS when you log in"
-    return "Start BlindRSS at login"
+        return _("Start BlindRSS when you log in")
+    return _("Start BlindRSS at login")
 
 
 def _quote_cmd_arg(value: str) -> str:
@@ -92,21 +94,23 @@ def set_startup_enabled(enabled: bool, app_name: str = APP_NAME) -> tuple[bool, 
         return macos_integration.set_macos_startup_enabled(enabled)
 
     if not is_windows() or winreg is None:
-        return False, "Startup registration is not supported on this platform."
+        return False, _("Startup registration is not supported on this platform.")
 
     try:
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, _RUN_KEY) as key:
             if bool(enabled):
                 winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, build_startup_command())
-                return True, "BlindRSS will now start when you sign in to Windows."
+                return True, _("BlindRSS will now start when you sign in to Windows.")
             try:
                 winreg.DeleteValue(key, app_name)
             except FileNotFoundError:
                 pass
-            return True, "BlindRSS startup on sign-in has been disabled."
+            return True, _("BlindRSS startup on sign-in has been disabled.")
     except Exception as e:
         log.exception("Failed to update Windows startup setting")
-        return False, f"Could not update Windows startup setting: {e}"
+        return False, _("Could not update Windows startup setting: {error}").format(
+            error=e
+        )
 
 
 def _start_menu_programs_dir() -> str:

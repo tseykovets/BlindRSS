@@ -27,7 +27,7 @@ def test_build_accessible_view_entries_flattens_specials_categories_and_feeds():
     assert labels[:4] == ["All Articles", "Unread Articles", "Read Articles", "Favorites"]
     assert "Category: News" in labels
     assert "Category: News > Tech" in labels
-    assert "Feed: Daily News, 3 unread (News)" in labels
+    assert "Feed: Daily News, unread: 3 (News)" in labels
     assert "Feed: Tech Talk (News > Tech)" in labels
     assert view_ids[:4] == ["all", "unread:all", "read:all", "favorites:all"]
     assert "category:News" in view_ids
@@ -65,7 +65,7 @@ def test_visible_accessible_view_entries_hide_children_of_collapsed_categories()
     labels = [entry["label"] for entry in visible]
 
     assert "Category: News" in labels
-    assert "Feed: Daily News, 3 unread (News)" in labels
+    assert "Feed: Daily News, unread: 3 (News)" in labels
     assert "Category: News > Tech" in labels
     assert "Feed: Tech Talk (News > Tech)" not in labels
 

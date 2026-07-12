@@ -195,6 +195,7 @@ DEFAULT_CONFIG = {
     "prompt_missing_dependencies_on_startup": True,
     "auto_check_updates": True,
     "start_on_windows_login": False,
+    "start_in_system_tray": False,
     "sounds_enabled": True,
     "sound_refresh_complete": "sounds/refresh_complete.wav",
     "sound_refresh_error": "sounds/refresh_error.wav",

@@ -244,7 +244,7 @@ class RSSApp(wx.App):
         self.provider = get_provider(self.config_manager)
         
         self.frame = MainFrame(self.provider, self.config_manager)
-        self.frame.Show()
+        self.frame.Show(not bool(self.config_manager.get("start_in_system_tray", False)))
 
         # Warm the shared libVLC instance on a background thread shortly after
         # startup so the first playback doesn't wait on the plugin scan.

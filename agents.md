@@ -64,6 +64,10 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - App bootstrap, dependency checks, provider creation, and main frame startup.
   - Startup work scheduled via `wx.CallLater` (`MainFrame` init: accessible-browser check, update check, `_check_media_dependencies`) must do its real work on a background thread and marshal only UI back via `wx.CallAfter`. `check_media_tools_status()` walks PATH/Scoop/Chocolatey layouts and can shell out to winget — it ran on the UI thread for years and froze the app ~0.8s warm (seconds on a cold first launch) right as users started navigating.
   - Starts UI and refresh work without blocking startup.
+  - The start_in_system_tray setting suppresses the initial main-window show
+    while leaving the tray icon and background refresh active. It applies to
+    manual and start-at-login launches and takes precedence over
+    start_maximized.
   - When debug mode is enabled, configures rotating `blindrss.log` in the active data/config directory. This file log should capture DEBUG and above from app and third-party Python loggers; when debug mode is disabled, do not create or attach the file log.
 
 - `core/`
@@ -324,6 +328,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\soundcloud-mixcloud-feeds.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\speed-shortcut-interception.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\test-suite-live-stream-hazard.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\translation-completion-workflow.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\tree-rebuild-fastpath.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\video-search-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\vlc-init-ui-freeze.md

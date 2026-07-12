@@ -95,7 +95,8 @@ class MainFrame(wx.Frame):
         self.provider = provider
         self.config_manager = config_manager
         self._start_maximized = start_maximized
-        if self._start_maximized:
+        self._start_in_system_tray = bool(config_manager.get("start_in_system_tray", False))
+        if self._start_maximized and not self._start_in_system_tray:
             self.Maximize(True)
         self._refresh_guard = threading.Lock()
         # Critical background workers (e.g., destructive DB ops) we may want to wait for during shutdown.
@@ -527,12 +528,19 @@ class MainFrame(wx.Frame):
 
     def _focus_default_control(self):
         """Ensure keyboard focus lands on the tree after the frame is visible."""
+        if not self.IsShown():
+            return
         try:
             self.tree.SetFocus()
         except Exception:
             pass
 
     def _apply_startup_window_state(self):
+        if bool(getattr(self, "_start_in_system_tray", False)):
+            if self.IsIconized():
+                self.Iconize(False)
+            self.Hide()
+            return
         start_maximized = bool(getattr(self, "_start_maximized", False))
         if start_maximized:
             self.Maximize(True)
@@ -6031,6 +6039,9 @@ class MainFrame(wx.Frame):
 
     def _maybe_open_accessible_browser_for_voiceover(self):
         if self._voiceover_browser_attempted:
+            return
+        # A tray-only launch must remain windowless until explicitly restored.
+        if bool(getattr(self, "_start_in_system_tray", False)) and not self.IsShown():
             return
         self._voiceover_browser_attempted = True
         if not sys.platform.startswith("darwin"):

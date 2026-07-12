@@ -538,13 +538,23 @@ class SettingsDialog(wx.Dialog):
         }
         
         notebook = wx.Notebook(self)
+        self.notebook = notebook
         
         # General Tab
         general_panel = wx.Panel(notebook)
         general_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        feeds_panel = wx.Panel(notebook)
+        feeds_sizer = wx.BoxSizer(wx.VERTICAL)
+        downloads_panel = wx.Panel(notebook)
+        downloads_sizer = wx.BoxSizer(wx.VERTICAL)
+        startup_panel = wx.Panel(notebook)
+        startup_sizer = wx.BoxSizer(wx.VERTICAL)
+        youtube_panel = wx.Panel(notebook)
+        youtube_sizer = wx.BoxSizer(wx.VERTICAL)
         
         refresh_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        refresh_sizer.Add(wx.StaticText(general_panel, label=_("Refresh Interval:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        refresh_sizer.Add(wx.StaticText(feeds_panel, label=_("Refresh Interval:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         
         self.refresh_map = {
             "Never": 0,
@@ -563,7 +573,7 @@ class SettingsDialog(wx.Dialog):
             "4 hours": 14400
         }
         self.refresh_choices = list(self.refresh_map.keys())
-        self.refresh_ctrl = wx.Choice(general_panel, choices=self.refresh_choices)
+        self.refresh_ctrl = wx.Choice(feeds_panel, choices=self.refresh_choices)
         
         # Set initial selection
         current_interval = int(config.get("refresh_interval", 300))
@@ -582,7 +592,7 @@ class SettingsDialog(wx.Dialog):
         self.refresh_ctrl.SetStringSelection(best_choice)
         
         refresh_sizer.Add(self.refresh_ctrl, 0, wx.ALL, 5)
-        general_sizer.Add(refresh_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        feeds_sizer.Add(refresh_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         search_mode_sizer = wx.BoxSizer(wx.HORIZONTAL)
         search_mode_sizer.Add(wx.StaticText(general_panel, label=_("Search Matches:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
@@ -605,45 +615,45 @@ class SettingsDialog(wx.Dialog):
         general_sizer.Add(search_mode_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         concurrency_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        concurrency_sizer.Add(wx.StaticText(general_panel, label=_("Max Concurrent Refreshes:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.concurrent_ctrl = wx.SpinCtrl(general_panel, min=1, max=50, initial=int(config.get("max_concurrent_refreshes", 6)))
+        concurrency_sizer.Add(wx.StaticText(feeds_panel, label=_("Max Concurrent Refreshes:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.concurrent_ctrl = wx.SpinCtrl(feeds_panel, min=1, max=50, initial=int(config.get("max_concurrent_refreshes", 6)))
         concurrency_sizer.Add(self.concurrent_ctrl, 0, wx.ALL, 5)
-        general_sizer.Add(concurrency_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        feeds_sizer.Add(concurrency_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         per_host_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        per_host_sizer.Add(wx.StaticText(general_panel, label=_("Max Connections Per Host:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.per_host_ctrl = wx.SpinCtrl(general_panel, min=1, max=10, initial=int(config.get("per_host_max_connections", 2)))
+        per_host_sizer.Add(wx.StaticText(feeds_panel, label=_("Max Connections Per Host:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.per_host_ctrl = wx.SpinCtrl(feeds_panel, min=1, max=10, initial=int(config.get("per_host_max_connections", 2)))
         per_host_sizer.Add(self.per_host_ctrl, 0, wx.ALL, 5)
-        general_sizer.Add(per_host_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        feeds_sizer.Add(per_host_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         timeout_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        timeout_sizer.Add(wx.StaticText(general_panel, label=_("Feed Timeout (seconds):")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.timeout_ctrl = wx.SpinCtrl(general_panel, min=5, max=120, initial=int(config.get("feed_timeout_seconds", 15)))
+        timeout_sizer.Add(wx.StaticText(feeds_panel, label=_("Feed Timeout (seconds):")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.timeout_ctrl = wx.SpinCtrl(feeds_panel, min=5, max=120, initial=int(config.get("feed_timeout_seconds", 15)))
         timeout_sizer.Add(self.timeout_ctrl, 0, wx.ALL, 5)
-        general_sizer.Add(timeout_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        feeds_sizer.Add(timeout_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         retry_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        retry_sizer.Add(wx.StaticText(general_panel, label=_("Feed Retry Attempts:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.retry_ctrl = wx.SpinCtrl(general_panel, min=0, max=5, initial=int(config.get("feed_retry_attempts", 1)))
+        retry_sizer.Add(wx.StaticText(feeds_panel, label=_("Feed Retry Attempts:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.retry_ctrl = wx.SpinCtrl(feeds_panel, min=0, max=5, initial=int(config.get("feed_retry_attempts", 1)))
         retry_sizer.Add(self.retry_ctrl, 0, wx.ALL, 5)
-        general_sizer.Add(retry_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        feeds_sizer.Add(retry_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         # Cache views
         cache_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        cache_sizer.Add(wx.StaticText(general_panel, label=_("Max Cached Views:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.cache_ctrl = wx.SpinCtrl(general_panel, min=5, max=100, initial=int(config.get("max_cached_views", 15)))
+        cache_sizer.Add(wx.StaticText(feeds_panel, label=_("Max Cached Views:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.cache_ctrl = wx.SpinCtrl(feeds_panel, min=5, max=100, initial=int(config.get("max_cached_views", 15)))
         cache_sizer.Add(self.cache_ctrl, 0, wx.ALL, 5)
-        general_sizer.Add(cache_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        feeds_sizer.Add(cache_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         # Full-text caching
-        self.cache_full_text_chk = wx.CheckBox(general_panel, label=_("Cache full text in background"))
+        self.cache_full_text_chk = wx.CheckBox(feeds_panel, label=_("Cache full text in background"))
         self.cache_full_text_chk.SetValue(bool(config.get("cache_full_text", False)))
-        general_sizer.Add(self.cache_full_text_chk, 0, wx.ALL, 5)
+        feeds_sizer.Add(self.cache_full_text_chk, 0, wx.ALL, 5)
         
         # Downloads
-        self.downloads_chk = wx.CheckBox(general_panel, label=_("Enable Downloads"))
+        self.downloads_chk = wx.CheckBox(downloads_panel, label=_("Enable Downloads"))
         self.downloads_chk.SetValue(config.get("downloads_enabled", False))
-        general_sizer.Add(self.downloads_chk, 0, wx.ALL, 5)
+        downloads_sizer.Add(self.downloads_chk, 0, wx.ALL, 5)
 
         self.confirm_delete_chk = wx.CheckBox(general_panel, label=_("Confirm before deleting articles"))
         self.confirm_delete_chk.SetValue(bool(config.get("confirm_article_delete", True)))
@@ -680,62 +690,68 @@ class SettingsDialog(wx.Dialog):
         self._sync_delete_category_enabled()
 
         dl_path_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        dl_path_sizer.Add(wx.StaticText(general_panel, label=_("Download Path:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.dl_path_ctrl = wx.TextCtrl(general_panel, value=config.get("download_path", ""))
+        dl_path_sizer.Add(wx.StaticText(downloads_panel, label=_("Download Path:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.dl_path_ctrl = wx.TextCtrl(downloads_panel, value=config.get("download_path", ""))
         self.dl_path_ctrl.SetName("Download path")
         dl_path_sizer.Add(self.dl_path_ctrl, 1, wx.ALL, 5)
-        browse_btn = wx.Button(general_panel, label=_("Browse..."))
+        browse_btn = wx.Button(downloads_panel, label=_("Browse..."))
         browse_btn.SetName("Browse for download folder")
         browse_btn.Bind(wx.EVT_BUTTON, self.on_browse_dl_path)
         dl_path_sizer.Add(browse_btn, 0, wx.ALL, 5)
-        general_sizer.Add(dl_path_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        downloads_sizer.Add(dl_path_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         retention_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        retention_sizer.Add(wx.StaticText(general_panel, label=_("Retention Policy:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        retention_sizer.Add(wx.StaticText(downloads_panel, label=_("Retention Policy:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         retention_opts = ["1 day", "3 days", "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "6 months", "1 year", "2 years", "5 years", "Unlimited"]
-        self.retention_ctrl = wx.ComboBox(general_panel, choices=retention_opts, style=wx.CB_READONLY)
+        self.retention_ctrl = wx.ComboBox(downloads_panel, choices=retention_opts, style=wx.CB_READONLY)
         self.retention_ctrl.SetValue(config.get("download_retention", "Unlimited"))
         retention_sizer.Add(self.retention_ctrl, 0, wx.ALL, 5)
-        general_sizer.Add(retention_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        downloads_sizer.Add(retention_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
         art_retention_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        art_retention_sizer.Add(wx.StaticText(general_panel, label=_("Article Retention:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.art_retention_ctrl = wx.ComboBox(general_panel, choices=retention_opts, style=wx.CB_READONLY)
+        art_retention_sizer.Add(wx.StaticText(feeds_panel, label=_("Article Retention:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.art_retention_ctrl = wx.ComboBox(feeds_panel, choices=retention_opts, style=wx.CB_READONLY)
         self.art_retention_ctrl.SetValue(config.get("article_retention", "Unlimited"))
         art_retention_sizer.Add(self.art_retention_ctrl, 0, wx.ALL, 5)
-        general_sizer.Add(art_retention_sizer, 0, wx.EXPAND | wx.ALL, 5)
+        feeds_sizer.Add(art_retention_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         # Tray settings
-        self.close_tray_chk = wx.CheckBox(general_panel, label=_("Close to Tray"))
+        self.close_tray_chk = wx.CheckBox(startup_panel, label=_("Close to system tray"))
         self.close_tray_chk.SetValue(config.get("close_to_tray", False))
-        general_sizer.Add(self.close_tray_chk, 0, wx.ALL, 5)
+        startup_sizer.Add(self.close_tray_chk, 0, wx.ALL, 5)
         
-        self.min_tray_chk = wx.CheckBox(general_panel, label=_("Minimize to Tray"))
+        self.min_tray_chk = wx.CheckBox(startup_panel, label=_("Minimize to system tray"))
         self.min_tray_chk.SetValue(config.get("minimize_to_tray", True))        
-        general_sizer.Add(self.min_tray_chk, 0, wx.ALL, 5)
+        startup_sizer.Add(self.min_tray_chk, 0, wx.ALL, 5)
 
-        self.start_maximized_chk = wx.CheckBox(general_panel, label=_("Always start maximized"))
+        self.start_in_tray_chk = wx.CheckBox(
+            startup_panel, label=_("Start BlindRSS in the system tray")
+        )
+        self.start_in_tray_chk.SetValue(bool(config.get("start_in_system_tray", False)))
+        startup_sizer.Add(self.start_in_tray_chk, 0, wx.ALL, 5)
+
+        self.start_maximized_chk = wx.CheckBox(startup_panel, label=_("Always start maximized"))
         self.start_maximized_chk.SetValue(bool(config.get("start_maximized", False)))
-        general_sizer.Add(self.start_maximized_chk, 0, wx.ALL, 5)
+        startup_sizer.Add(self.start_maximized_chk, 0, wx.ALL, 5)
 
         self.debug_mode_chk = wx.CheckBox(general_panel, label=_("Debug mode (show console on startup)"))
         self.debug_mode_chk.SetValue(bool(config.get("debug_mode", False)))     
         general_sizer.Add(self.debug_mode_chk, 0, wx.ALL, 5)
 
-        self.auto_update_chk = wx.CheckBox(general_panel, label=_("Check for updates on startup"))
+        self.auto_update_chk = wx.CheckBox(startup_panel, label=_("Check for updates on startup"))
         self.auto_update_chk.SetValue(bool(config.get("auto_check_updates", True)))
-        general_sizer.Add(self.auto_update_chk, 0, wx.ALL, 5)
+        startup_sizer.Add(self.auto_update_chk, 0, wx.ALL, 5)
 
-        self.refresh_startup_chk = wx.CheckBox(general_panel, label=_("Automatically refresh feeds upon start"))
+        self.refresh_startup_chk = wx.CheckBox(feeds_panel, label=_("Automatically refresh feeds upon start"))
         self.refresh_startup_chk.SetValue(bool(config.get("refresh_on_startup", True)))
-        general_sizer.Add(self.refresh_startup_chk, 0, wx.ALL, 5)
+        feeds_sizer.Add(self.refresh_startup_chk, 0, wx.ALL, 5)
 
         self.ignore_feed_cache_chk = wx.CheckBox(
-            general_panel,
+            feeds_panel,
             label=_("Always fetch full feeds in the background (ignore feed caching)"),
         )
         self.ignore_feed_cache_chk.SetValue(bool(config.get("ignore_feed_cache", False)))
-        general_sizer.Add(self.ignore_feed_cache_chk, 0, wx.ALL, 5)
+        feeds_sizer.Add(self.ignore_feed_cache_chk, 0, wx.ALL, 5)
 
         self.show_image_alt_chk = wx.CheckBox(
             general_panel,
@@ -745,7 +761,7 @@ class SettingsDialog(wx.Dialog):
         general_sizer.Add(self.show_image_alt_chk, 0, wx.ALL, 5)
 
         cookies_label = wx.StaticText(
-            general_panel,
+            youtube_panel,
             label=_(
                 "yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, or "
                 "members-only YouTube content. Installed browsers are detected automatically; Firefox "
@@ -755,82 +771,82 @@ class SettingsDialog(wx.Dialog):
                 "Edge \"Nightly\" means Edge Canary."
             ),
         )
-        general_sizer.Add(cookies_label, 0, wx.LEFT | wx.TOP, 5)
+        youtube_sizer.Add(cookies_label, 0, wx.LEFT | wx.TOP, 5)
         cookies_row = wx.BoxSizer(wx.HORIZONTAL)
-        self.ytdlp_cookies_ctrl = wx.TextCtrl(general_panel, value=str(config.get("ytdlp_cookies_file", "") or ""))
+        self.ytdlp_cookies_ctrl = wx.TextCtrl(youtube_panel, value=str(config.get("ytdlp_cookies_file", "") or ""))
         self.ytdlp_cookies_ctrl.SetName("yt-dlp cookies file path")
         self.ytdlp_cookies_ctrl.SetHint(_("Path to a cookies.txt file"))
         cookies_row.Add(self.ytdlp_cookies_ctrl, 1, wx.EXPAND | wx.RIGHT, 5)
-        cookies_browse = wx.Button(general_panel, label=_("Browse..."))
+        cookies_browse = wx.Button(youtube_panel, label=_("Browse..."))
         cookies_browse.SetName("Browse for cookies file")
         cookies_browse.Bind(wx.EVT_BUTTON, self._on_browse_cookies_file)
         cookies_row.Add(cookies_browse, 0, wx.RIGHT, 5)
-        cookies_import = wx.Button(general_panel, label=_("Import from browser..."))
+        cookies_import = wx.Button(youtube_panel, label=_("Import from browser..."))
         cookies_import.Bind(wx.EVT_BUTTON, self._on_import_cookies_from_browser)
         cookies_row.Add(cookies_import, 0)
-        general_sizer.Add(cookies_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+        youtube_sizer.Add(cookies_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
 
         self.auto_import_cookies_chk = wx.CheckBox(
-            general_panel,
+            youtube_panel,
             label=_("Automatically import a YouTube cookies.txt when you export one to Downloads"),
         )
         self.auto_import_cookies_chk.SetValue(bool(config.get("auto_import_browser_cookies", True)))
-        general_sizer.Add(self.auto_import_cookies_chk, 0, wx.ALL, 5)
+        youtube_sizer.Add(self.auto_import_cookies_chk, 0, wx.ALL, 5)
 
         self.youtube_play_via_download_chk = wx.CheckBox(
-            general_panel,
+            youtube_panel,
             label=_("Play YouTube by downloading first (most reliable; slower to start)"),
         )
         self.youtube_play_via_download_chk.SetValue(bool(config.get("youtube_play_via_download", False)))
-        general_sizer.Add(self.youtube_play_via_download_chk, 0, wx.ALL, 5)
+        youtube_sizer.Add(self.youtube_play_via_download_chk, 0, wx.ALL, 5)
 
         cache_label = wx.StaticText(
-            general_panel,
+            youtube_panel,
             label=_("YouTube playback cache folder (blank = default, next to your data):"),
         )
-        general_sizer.Add(cache_label, 0, wx.LEFT | wx.TOP, 5)
+        youtube_sizer.Add(cache_label, 0, wx.LEFT | wx.TOP, 5)
         cache_row = wx.BoxSizer(wx.HORIZONTAL)
         self.youtube_play_cache_dir_ctrl = wx.TextCtrl(
-            general_panel, value=str(config.get("youtube_play_cache_dir", "") or "")
+            youtube_panel, value=str(config.get("youtube_play_cache_dir", "") or "")
         )
         self.youtube_play_cache_dir_ctrl.SetName("YouTube playback cache folder")
         self.youtube_play_cache_dir_ctrl.SetHint(_("Leave blank for the default location"))
         cache_row.Add(self.youtube_play_cache_dir_ctrl, 1, wx.EXPAND | wx.RIGHT, 5)
-        cache_browse = wx.Button(general_panel, label=_("Browse..."))
+        cache_browse = wx.Button(youtube_panel, label=_("Browse..."))
         cache_browse.SetName("Browse for playback cache folder")
         cache_browse.Bind(wx.EVT_BUTTON, self._on_browse_play_cache_dir)
         cache_row.Add(cache_browse, 0, wx.RIGHT, 5)
-        cache_clear = wx.Button(general_panel, label=_("Clear cache now"))
+        cache_clear = wx.Button(youtube_panel, label=_("Clear cache now"))
         cache_clear.Bind(wx.EVT_BUTTON, self._on_clear_play_cache)
         cache_row.Add(cache_clear, 0)
-        general_sizer.Add(cache_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+        youtube_sizer.Add(cache_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
 
         size_row = wx.BoxSizer(wx.HORIZONTAL)
         size_row.Add(
-            wx.StaticText(general_panel, label=_("Max cache size (MB, 0 = unlimited):")),
+            wx.StaticText(youtube_panel, label=_("Max cache size (MB, 0 = unlimited):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
         )
         self.youtube_play_cache_max_mb_ctrl = wx.SpinCtrl(
-            general_panel, min=0, max=1000000,
+            youtube_panel, min=0, max=1000000,
             initial=int(config.get("youtube_play_cache_max_mb", 500) or 0),
         )
         size_row.Add(self.youtube_play_cache_max_mb_ctrl, 0)
-        general_sizer.Add(size_row, 0, wx.LEFT | wx.BOTTOM, 5)
+        youtube_sizer.Add(size_row, 0, wx.LEFT | wx.BOTTOM, 5)
 
         self.prompt_missing_deps_chk = wx.CheckBox(
-            general_panel,
+            youtube_panel,
             label=_("Ask to install missing media dependencies on startup"),
         )
         self.prompt_missing_deps_chk.SetValue(
             bool(config.get("prompt_missing_dependencies_on_startup", True))
         )
-        general_sizer.Add(self.prompt_missing_deps_chk, 0, wx.ALL, 5)
+        youtube_sizer.Add(self.prompt_missing_deps_chk, 0, wx.ALL, 5)
 
-        self.start_on_login_chk = wx.CheckBox(general_panel, label=windows_integration.startup_setting_label())
+        self.start_on_login_chk = wx.CheckBox(startup_panel, label=windows_integration.startup_setting_label())
         self.start_on_login_chk.SetValue(bool(config.get("start_on_windows_login", False)))
         if not windows_integration.startup_supported():
             self.start_on_login_chk.Disable()
-        general_sizer.Add(self.start_on_login_chk, 0, wx.ALL, 5)
+        startup_sizer.Add(self.start_on_login_chk, 0, wx.ALL, 5)
 
         self.remember_last_feed_chk = wx.CheckBox(general_panel, label=_("Remember last selected feed/folder on startup"))
         self.remember_last_feed_chk.SetValue(bool(config.get("remember_last_feed", False)))
@@ -929,6 +945,14 @@ class SettingsDialog(wx.Dialog):
 
         general_panel.SetSizer(general_sizer)
         notebook.AddPage(general_panel, _("General"))
+        feeds_panel.SetSizer(feeds_sizer)
+        notebook.AddPage(feeds_panel, _("Feeds & Articles"))
+        downloads_panel.SetSizer(downloads_sizer)
+        notebook.AddPage(downloads_panel, _("Downloads"))
+        startup_panel.SetSizer(startup_sizer)
+        notebook.AddPage(startup_panel, _("Startup & Tray"))
+        youtube_panel.SetSizer(youtube_sizer)
+        notebook.AddPage(youtube_panel, _("YouTube"))
 
         # Media Player Tab
         media_panel = wx.Panel(notebook)
@@ -2653,6 +2677,7 @@ class SettingsDialog(wx.Dialog):
             "article_retention": self.art_retention_ctrl.GetValue(),
             "close_to_tray": self.close_tray_chk.GetValue(),
             "minimize_to_tray": self.min_tray_chk.GetValue(),
+            "start_in_system_tray": self.start_in_tray_chk.GetValue(),
             "start_maximized": self.start_maximized_chk.GetValue(),
             "debug_mode": self.debug_mode_chk.GetValue(),
             "refresh_on_startup": self.refresh_startup_chk.GetValue(),

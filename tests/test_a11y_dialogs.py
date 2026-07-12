@@ -176,10 +176,25 @@ def test_settings_dialog_field_names(parent):
     except TypeError:
         dlg = dialogs.SettingsDialog(parent, config)
     try:
-        # General tab: paths and credentials that are otherwise ambiguous when focused.
+        # Paths and credentials that are otherwise ambiguous when focused.
         assert dlg.dl_path_ctrl.GetName() == "Download path"
         assert dlg.ytdlp_cookies_ctrl.GetName() == "yt-dlp cookies file path"
         assert dlg.youtube_play_cache_dir_ctrl.GetName() == "YouTube playback cache folder"
+        page_labels = [
+            dlg.notebook.GetPageText(index)
+            for index in range(dlg.notebook.GetPageCount())
+        ]
+        assert page_labels[:5] == [
+            "General",
+            "Feeds & Articles",
+            "Downloads",
+            "Startup & Tray",
+            "YouTube",
+        ]
+        assert dlg.refresh_ctrl.GetParent() is dlg.notebook.GetPage(1)
+        assert dlg.dl_path_ctrl.GetParent() is dlg.notebook.GetPage(2)
+        assert dlg.start_in_tray_chk.GetParent() is dlg.notebook.GetPage(3)
+        assert dlg.ytdlp_cookies_ctrl.GetParent() is dlg.notebook.GetPage(4)
 
         # Media tools overrides (pre-existing names that must not regress).
         assert (

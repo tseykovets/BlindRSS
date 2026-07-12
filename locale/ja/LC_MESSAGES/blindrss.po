@@ -59,7 +59,7 @@ msgstr "既読にする"
 msgid "Mark Unread"
 msgstr "未読にする"
 
-#: gui/accessibility.py:398 gui/mainframe.py:9782 gui/mainframe.py:4103
+#: gui/accessibility.py:398 gui/mainframe.py:9793 gui/mainframe.py:4111
 msgid "Download"
 msgstr "ダウンロード"
 
@@ -77,7 +77,7 @@ msgid ""
 " to expand and Left Arrow to collapse."
 msgstr "カテゴリは展開または折りたたむことができます。ボタンを使うか、右矢印キーで展開、左矢印キーで折りたたんでください。"
 
-#: gui/accessibility.py:442 gui/mainframe.py:458
+#: gui/accessibility.py:442 gui/mainframe.py:459
 msgid "Articles"
 msgstr "記事"
 
@@ -89,8 +89,8 @@ msgstr "記事を読み込むビューを選択してください。"
 msgid "Article Content"
 msgstr "記事の内容"
 
-#: gui/accessibility.py:777 gui/mainframe.py:947 gui/mainframe.py:1247
-#: gui/mainframe.py:1290
+#: gui/accessibility.py:777 gui/mainframe.py:955 gui/mainframe.py:1255
+#: gui/mainframe.py:1298
 msgid "No articles found."
 msgstr "記事が見つかりませんでした。"
 
@@ -102,11 +102,11 @@ msgstr ""
 "BlindRSS のショートカットを追加する場所を選択してください。\n"
 "タスクバーへのピン留めは、Windows のバージョンやポリシーによって制限される場合があります。"
 
-#: gui/dialogs.py:1930
+#: gui/dialogs.py:1954
 msgid "BlindRSS notification test"
 msgstr "BlindRSS 通知テスト"
 
-#: gui/dialogs.py:1931
+#: gui/dialogs.py:1955
 msgid "If you can read this, notifications are working."
 msgstr "これが読めれば、通知は正常に機能しています。"
 
@@ -118,211 +118,227 @@ msgstr "https://example.com/feed または YouTube/ポッドキャストの URL"
 msgid "Checking compatibility..."
 msgstr "互換性を確認しています..."
 
-#: gui/dialogs.py:669 gui/dialogs.py:2874
+#: gui/dialogs.py:679 gui/dialogs.py:2899
 msgid "Category / Path"
 msgstr "カテゴリ / パス"
 
-#: gui/dialogs.py:762
+#: gui/dialogs.py:778
 msgid "Path to a cookies.txt file"
 msgstr "cookies.txt ファイルへのパス"
 
-#: gui/dialogs.py:797
+#: gui/dialogs.py:813
 msgid "Leave blank for the default location"
 msgstr "既定の場所を使用する場合は空欄にしてください"
 
-#: gui/dialogs.py:931
+#: gui/dialogs.py:947
 msgid "General"
 msgstr "全般"
 
-#: gui/dialogs.py:1038
+#: gui/dialogs.py:949
+msgid "Feeds & Articles"
+msgstr "フィードと記事"
+
+#: gui/dialogs.py:951
+msgid "Downloads"
+msgstr "ダウンロード"
+
+#: gui/dialogs.py:953
+msgid "Startup & Tray"
+msgstr "起動とトレイ"
+
+#: gui/dialogs.py:955
+msgid "YouTube"
+msgstr "YouTube"
+
+#: gui/dialogs.py:1062
 msgid "Media Player"
 msgstr "メディアプレーヤー"
 
-#: gui/dialogs.py:1185 gui/dialogs.py:3382
+#: gui/dialogs.py:1209 gui/dialogs.py:3407
 msgid "Provider"
 msgstr "プロバイダー"
 
-#: gui/dialogs.py:1221
+#: gui/dialogs.py:1245
 msgid "Sounds"
 msgstr "サウンド"
 
-#: gui/dialogs.py:1292 gui/dialogs.py:1927 gui/dialogs.py:1961
-#: gui/mainframe.py:10875
+#: gui/dialogs.py:1316 gui/dialogs.py:1951 gui/dialogs.py:1985
+#: gui/mainframe.py:10886
 msgid "Notifications"
 msgstr "通知"
 
-#: gui/dialogs.py:1643
+#: gui/dialogs.py:1667
 msgid "Translate"
 msgstr "翻訳"
 
-#: gui/dialogs.py:1726
+#: gui/dialogs.py:1750
 msgid "Advanced"
 msgstr "詳細設定"
 
-#: gui/dialogs.py:2329
+#: gui/dialogs.py:2353
 msgid "Choose yt-dlp cookies.txt"
 msgstr "yt-dlp の cookies.txt を選択"
 
-#: gui/dialogs.py:2369
+#: gui/dialogs.py:2393
 msgid "Clear playback cache"
 msgstr "再生キャッシュを消去"
 
-#: gui/dialogs.py:2377
+#: gui/dialogs.py:2401
 msgid "Playback cache cleared"
 msgstr "再生キャッシュを消去しました"
 
-#: gui/dialogs.py:2409
+#: gui/dialogs.py:2433
 msgid "Find my export"
 msgstr "エクスポートしたファイルを探す"
 
-#: gui/dialogs.py:2409
+#: gui/dialogs.py:2433
 msgid "Open extension page"
 msgstr "拡張機能ページを開く"
 
-#: gui/dialogs.py:2409 gui/dialogs.py:2440 gui/player.py:336
+#: gui/dialogs.py:2433 gui/dialogs.py:2464 gui/player.py:336
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: gui/dialogs.py:2479
+#: gui/dialogs.py:2503
 msgid "Cookies imported"
 msgstr "Cookie をインポートしました"
 
-#: gui/dialogs.py:3051 gui/mainframe.py:463 gui/mainframe.py:1866
+#: gui/dialogs.py:3076 gui/mainframe.py:464 gui/mainframe.py:1874
 msgid "Feed"
 msgstr "フィード"
 
-#: gui/dialogs.py:3052
+#: gui/dialogs.py:3077
 msgid "Last attempt"
 msgstr "前回の試行"
 
-#: gui/dialogs.py:3053
+#: gui/dialogs.py:3078
 msgid "Failures"
 msgstr "失敗回数"
 
-#: gui/dialogs.py:3054 gui/mainframe.py:10461 gui/mainframe.py:10512
-#: gui/mainframe.py:9217
+#: gui/dialogs.py:3079 gui/mainframe.py:10472 gui/mainframe.py:10523
+#: gui/mainframe.py:9228
 msgid "Error"
 msgstr "エラー"
 
-#: gui/dialogs.py:3099
+#: gui/dialogs.py:3124
 msgid "No feeds reported errors during their most recent update."
 msgstr "直近の更新でエラーを報告したフィードはありません。"
 
-#: gui/dialogs.py:3101
+#: gui/dialogs.py:3126
 msgid "1 feed failed to update during its most recent attempt:"
 msgstr "直近の試行で 1 件のフィードの更新に失敗しました:"
 
-#: gui/dialogs.py:3358
+#: gui/dialogs.py:3383
 msgid "Podcast name, topic, or site URL"
 msgstr "ポッドキャスト名、トピック、またはサイトの URL"
 
-#: gui/dialogs.py:3381 gui/dialogs.py:4247 gui/dialogs.py:4269
-#: gui/mainframe.py:459
+#: gui/dialogs.py:3406 gui/dialogs.py:4272 gui/dialogs.py:4294
+#: gui/mainframe.py:460
 msgid "Title"
 msgstr "タイトル"
 
-#: gui/dialogs.py:3383 gui/dialogs.py:4273
+#: gui/dialogs.py:3408 gui/dialogs.py:4298
 msgid "Details"
 msgstr "詳細"
 
-#: gui/dialogs.py:3384 gui/dialogs.py:4274
+#: gui/dialogs.py:3409 gui/dialogs.py:4299
 msgid "URL"
 msgstr "URL"
 
-#: gui/dialogs.py:4223
+#: gui/dialogs.py:4248
 msgid "Search videos across sites"
 msgstr "サイト横断で動画を検索"
 
-#: gui/dialogs.py:4247
+#: gui/dialogs.py:4272
 msgid "Relevance"
 msgstr "関連度"
 
-#: gui/dialogs.py:4247 gui/dialogs.py:4270
+#: gui/dialogs.py:4272 gui/dialogs.py:4295
 msgid "Site"
 msgstr "サイト"
 
-#: gui/dialogs.py:4247 gui/dialogs.py:4272
+#: gui/dialogs.py:4272 gui/dialogs.py:4297
 msgid "Plays"
 msgstr "再生数"
 
-#: gui/dialogs.py:4271
+#: gui/dialogs.py:4296
 msgid "Kind"
 msgstr "種類"
 
-#: gui/dialogs.py:4278 gui/dialogs.py:5783 gui/mainframe.py:4768
-#: gui/mainframe.py:4374
+#: gui/dialogs.py:4303 gui/dialogs.py:5808 gui/mainframe.py:4776
+#: gui/mainframe.py:4382
 msgid "Close"
 msgstr "閉じる"
 
-#: gui/dialogs.py:5458 gui/player.py:1854
+#: gui/dialogs.py:5483 gui/player.py:1854
 msgid "Play"
 msgstr "再生"
 
-#: gui/dialogs.py:5459 gui/dialogs.py:5635
+#: gui/dialogs.py:5484 gui/dialogs.py:5660
 msgid "Subscribe"
 msgstr "登録"
 
-#: gui/dialogs.py:5460
+#: gui/dialogs.py:5485
 msgid "Copy URL"
 msgstr "URL をコピー"
 
-#: gui/dialogs.py:5729
+#: gui/dialogs.py:5754
 msgid "Search query:"
 msgstr "検索クエリ:"
 
-#: gui/dialogs.py:5729
+#: gui/dialogs.py:5754
 msgid "Add Search"
 msgstr "検索を追加"
 
-#: gui/dialogs.py:5826
+#: gui/dialogs.py:5851
 msgid "Queued media"
 msgstr "キュー内のメディア"
 
-#: gui/dialogs.py:5952
+#: gui/dialogs.py:5977
 msgid "&Pause"
 msgstr "一時停止(&P)"
 
-#: gui/dialogs.py:5952 gui/dialogs.py:5837
+#: gui/dialogs.py:5977 gui/dialogs.py:5862
 msgid "&Play"
 msgstr "再生(&P)"
 
-#: gui/dialogs.py:6057
+#: gui/dialogs.py:6082
 msgid "Captured shortcut"
 msgstr "取得したショートカット"
 
-#: gui/dialogs.py:6134
+#: gui/dialogs.py:6159
 msgid "Keyboard shortcuts"
 msgstr "キーボードショートカット"
 
-#: gui/dialogs.py:6135
+#: gui/dialogs.py:6160
 msgid "Category"
 msgstr "カテゴリ"
 
-#: gui/dialogs.py:6136
+#: gui/dialogs.py:6161
 msgid "Command"
 msgstr "コマンド"
 
-#: gui/dialogs.py:6137
+#: gui/dialogs.py:6162
 msgid "Shortcut"
 msgstr "ショートカット"
 
-#: gui/dialogs.py:6358
+#: gui/dialogs.py:6383
 msgid "Preset"
 msgstr "プリセット"
 
-#: gui/dialogs.py:6367
+#: gui/dialogs.py:6392
 msgid "Preamp"
 msgstr "プリアンプ"
 
-#: gui/dialogs.py:6450
+#: gui/dialogs.py:6475
 msgid "Custom"
 msgstr "カスタム"
 
-#: gui/dialogs.py:6537
+#: gui/dialogs.py:6562
 msgid "Name for this equalizer preset:"
 msgstr "このイコライザープリセットの名前:"
 
-#: gui/dialogs.py:6537 gui/dialogs.py:6563 gui/dialogs.py:6549
+#: gui/dialogs.py:6562 gui/dialogs.py:6588 gui/dialogs.py:6574
 msgid "Save Preset"
 msgstr "プリセットを保存"
 
@@ -370,61 +386,65 @@ msgstr "利用可能なフィードがありません。"
 msgid "No feed selected."
 msgstr "フィードが選択されていません。"
 
-#: gui/dialogs.py:532 gui/mainframe.py:10861
+#: gui/dialogs.py:532 gui/mainframe.py:10872
 msgid "Settings"
 msgstr "設定"
 
-#: gui/dialogs.py:639
+#: gui/dialogs.py:649
 msgid "Cache full text in background"
 msgstr "バックグラウンドで本文をキャッシュする"
 
-#: gui/dialogs.py:644
+#: gui/dialogs.py:654
 msgid "Enable Downloads"
 msgstr "ダウンロードを有効にする"
 
-#: gui/dialogs.py:648
+#: gui/dialogs.py:658
 msgid "Confirm before deleting articles"
 msgstr "記事削除前に確認する"
 
-#: gui/dialogs.py:687 gui/dialogs.py:764 gui/dialogs.py:799
-#: gui/dialogs.py:1022
+#: gui/dialogs.py:697 gui/dialogs.py:780 gui/dialogs.py:815
+#: gui/dialogs.py:1046
 msgid "Browse..."
 msgstr "参照..."
 
-#: gui/dialogs.py:709
-msgid "Close to Tray"
-msgstr "閉じるときにトレイに格納する"
+#: gui/dialogs.py:719
+msgid "Close to system tray"
+msgstr "閉じるときにシステムトレイに最小化する"
 
-#: gui/dialogs.py:713
-msgid "Minimize to Tray"
-msgstr "最小化時にトレイに格納する"
+#: gui/dialogs.py:723
+msgid "Minimize to system tray"
+msgstr "システムトレイに最小化する"
 
-#: gui/dialogs.py:717
+#: gui/dialogs.py:728
+msgid "Start BlindRSS in the system tray"
+msgstr "BlindRSS をシステムトレイで起動する"
+
+#: gui/dialogs.py:733
 msgid "Always start maximized"
 msgstr "常に最大化して起動する"
 
-#: gui/dialogs.py:721
+#: gui/dialogs.py:737
 msgid "Debug mode (show console on startup)"
 msgstr "デバッグモード(起動時にコンソールを表示)"
 
-#: gui/dialogs.py:725
+#: gui/dialogs.py:741
 msgid "Check for updates on startup"
 msgstr "起動時にアップデートを確認する"
 
-#: gui/dialogs.py:729
+#: gui/dialogs.py:745
 msgid "Automatically refresh feeds upon start"
 msgstr "起動時にフィードを自動更新する"
 
-#: gui/dialogs.py:735
+#: gui/dialogs.py:751
 msgid "Always fetch full feeds in the background (ignore feed caching)"
 msgstr "常にバックグラウンドでフィード全体を取得する(フィードキャッシュを無視)"
 
-#: gui/dialogs.py:742
+#: gui/dialogs.py:758
 msgid ""
 "Include image alt text in articles (announces images, can override per feed)"
 msgstr "記事内の画像に代替テキストを含める(画像を読み上げます。フィードごとに上書き可能)"
 
-#: gui/dialogs.py:749
+#: gui/dialogs.py:765
 msgid ""
 "yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
 " or members-only YouTube content. Installed browsers are detected "
@@ -440,84 +460,84 @@ msgstr ""
 "cookies.txt を使う方法が確実です。LibreWolf は Firefox 互換の Cookie を使用します。Chrome "
 "の「Nightly」は Chrome Canary、Edge の「Nightly」は Edge Canary を意味します。"
 
-#: gui/dialogs.py:768
+#: gui/dialogs.py:784
 msgid "Import from browser..."
 msgstr "ブラウザーからインポート..."
 
-#: gui/dialogs.py:775
+#: gui/dialogs.py:791
 msgid ""
 "Automatically import a YouTube cookies.txt when you export one to Downloads"
 msgstr "YouTube の cookies.txt をダウンロードフォルダーにエクスポートしたときに自動的にインポートする"
 
-#: gui/dialogs.py:782
+#: gui/dialogs.py:798
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
 msgstr "YouTube を先にダウンロードしてから再生する(最も確実ですが再生開始が遅くなります)"
 
-#: gui/dialogs.py:789
+#: gui/dialogs.py:805
 msgid "YouTube playback cache folder (blank = default, next to your data):"
 msgstr "YouTube 再生キャッシュフォルダー(空欄 = 既定、データフォルダーの隣):"
 
-#: gui/dialogs.py:803
+#: gui/dialogs.py:819
 msgid "Clear cache now"
 msgstr "今すぐキャッシュを消去"
 
-#: gui/dialogs.py:822
+#: gui/dialogs.py:838
 msgid "Ask to install missing media dependencies on startup"
 msgstr "起動時に不足しているメディア関連の依存関係のインストールを確認する"
 
-#: gui/dialogs.py:835
+#: gui/dialogs.py:851
 msgid "Remember last selected feed/folder on startup"
 msgstr "起動時に最後に選択したフィード/フォルダーを記憶する"
 
-#: gui/dialogs.py:915
+#: gui/dialogs.py:931
 msgid "Test"
 msgstr "テスト"
 
-#: gui/dialogs.py:922
+#: gui/dialogs.py:938
 msgid "Use %1 for the article URL. Example: chrome --incognito %1"
 msgstr "記事の URL には %1 を使用してください。例: chrome --incognito %1"
 
-#: gui/dialogs.py:949
+#: gui/dialogs.py:973
 msgid "Skip Silence (Experimental)"
 msgstr "無音をスキップ(実験的機能)"
 
-#: gui/dialogs.py:978
+#: gui/dialogs.py:1002
 msgid "Show player window when starting playback"
 msgstr "再生開始時にプレーヤーウィンドウを表示する"
 
-#: gui/dialogs.py:989
+#: gui/dialogs.py:1013
 msgid "Verbose range-cache proxy debug logs"
 msgstr "レンジキャッシュプロキシの詳細デバッグログ"
 
-#: gui/dialogs.py:1191
+#: gui/dialogs.py:1215
 msgid "Enable Sound Notifications"
 msgstr "サウンド通知を有効にする"
 
-#: gui/dialogs.py:1235
+#: gui/dialogs.py:1259
 msgid "Enable notifications for new articles"
 msgstr "新着記事の通知を有効にする"
 
-#: gui/dialogs.py:1244
+#: gui/dialogs.py:1268
 msgid "Include feed name in notification text"
 msgstr "通知テキストにフィード名を含める"
 
-#: gui/dialogs.py:1269
+#: gui/dialogs.py:1293
 msgid "Show a summary notification when notification cap is reached"
 msgstr "通知の上限に達したときに、まとめの通知を表示する"
 
-#: gui/dialogs.py:1276
+#: gui/dialogs.py:1300
 msgid "Test Notification"
 msgstr "通知のテスト"
 
-#: gui/dialogs.py:1280
+#: gui/dialogs.py:1304
 msgid "Exclude Feeds..."
 msgstr "フィードを除外..."
 
-#: gui/dialogs.py:1306
+#: gui/dialogs.py:1330
 msgid "Enable automatic translation for article content"
 msgstr "記事内容の自動翻訳を有効にする"
 
-#: gui/dialogs.py:1397
+#: gui/dialogs.py:1421
 msgid ""
 "Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select "
 "'Groq (LLaMA, Mistral)' instead."
@@ -525,7 +545,7 @@ msgstr ""
 "Grok は xAI が提供しています。console.x.ai "
 "でキーを取得してください。Groq(LLaMA/Mistral)を使う場合は、代わりに「Groq (LLaMA, Mistral)」を選択してください。"
 
-#: gui/dialogs.py:1456
+#: gui/dialogs.py:1480
 msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
@@ -533,19 +553,19 @@ msgstr ""
 "Groq は Grok とは異なります。console.groq.com/keys で無料の Groq キーを取得してください(LLaMA と "
 "Mistral モデルを実行します)。"
 
-#: gui/dialogs.py:1542
+#: gui/dialogs.py:1566
 msgid "Load OpenRouter Models"
 msgstr "OpenRouter のモデルを読み込む"
 
-#: gui/dialogs.py:1546
+#: gui/dialogs.py:1570
 msgid "Loads all available model IDs from OpenRouter."
 msgstr "OpenRouter から利用可能なすべてのモデル ID を読み込みます。"
 
-#: gui/dialogs.py:1649
+#: gui/dialogs.py:1673
 msgid "Data Storage Location"
 msgstr "データの保存場所"
 
-#: gui/dialogs.py:1654
+#: gui/dialogs.py:1678
 msgid ""
 "Where BlindRSS stores config.json and rss.db.\n"
 "User Data Folder keeps your settings and feeds across app upgrades,\n"
@@ -555,147 +575,147 @@ msgstr ""
 "ユーザーデータフォルダーは、アプリの更新後も設定とフィードを保持します。\n"
 "これは特に、インストール済みのアプリバンドルが置き換えられる macOS で重要です。"
 
-#: gui/dialogs.py:1702 gui/dialogs.py:4168
+#: gui/dialogs.py:1726 gui/dialogs.py:4193
 msgid "Video Search"
 msgstr "動画検索"
 
-#: gui/dialogs.py:1706
+#: gui/dialogs.py:1730
 msgid "Enable adult sites in Video Search"
 msgstr "動画検索でアダルトサイトを有効にする"
 
-#: gui/dialogs.py:1765
+#: gui/dialogs.py:1789
 msgid "Loading OpenRouter models..."
 msgstr "OpenRouter のモデルを読み込んでいます..."
 
-#: gui/dialogs.py:1927
+#: gui/dialogs.py:1951
 msgid "Notifications are not supported on this platform."
 msgstr "このプラットフォームでは通知はサポートされていません。"
 
-#: gui/dialogs.py:2036
+#: gui/dialogs.py:2060
 msgid "Enter your Inoreader App ID and App Key first."
 msgstr "先に Inoreader のアプリ ID とアプリキーを入力してください。"
 
-#: gui/dialogs.py:2065
+#: gui/dialogs.py:2089
 msgid "Paste the full URL from your browser address bar"
 msgstr "ブラウザーのアドレスバーから完全な URL を貼り付けてください"
 
-#: gui/dialogs.py:2363
+#: gui/dialogs.py:2387
 msgid "Playback cache"
 msgstr "再生キャッシュ"
 
-#: gui/dialogs.py:2440
+#: gui/dialogs.py:2464
 msgid "Choose file..."
 msgstr "ファイルを選択..."
 
-#: gui/dialogs.py:2447
+#: gui/dialogs.py:2471
 msgid "Choose exported cookies.txt"
 msgstr "エクスポートした cookies.txt を選択"
 
-#: gui/dialogs.py:2547
+#: gui/dialogs.py:2571
 msgid "Enter a command to test. Use %1 where the article URL should go."
 msgstr "テストするコマンドを入力してください。記事の URL を入れる位置には %1 を使用してください。"
 
-#: gui/dialogs.py:2548
+#: gui/dialogs.py:2572
 msgid "Nothing to test"
 msgstr "テストする内容がありません"
 
-#: gui/dialogs.py:2567
+#: gui/dialogs.py:2591
 msgid "Test launched"
 msgstr "テストを開始しました"
 
-#: gui/dialogs.py:2572
+#: gui/dialogs.py:2596
 msgid "Test failed"
 msgstr "テストに失敗しました"
 
-#: gui/dialogs.py:2709
+#: gui/dialogs.py:2734
 msgid "Feed Properties"
 msgstr "フィードのプロパティ"
 
-#: gui/dialogs.py:2754
+#: gui/dialogs.py:2779
 msgid "Use global setting"
 msgstr "全体設定を使用"
 
-#: gui/dialogs.py:2755
+#: gui/dialogs.py:2780
 msgid "Never (manual refresh only)"
 msgstr "しない(手動更新のみ)"
 
-#: gui/dialogs.py:2756
+#: gui/dialogs.py:2781
 msgid "30 seconds"
 msgstr "30 秒"
 
-#: gui/dialogs.py:2757
+#: gui/dialogs.py:2782
 msgid "1 minute"
 msgstr "1 分"
 
-#: gui/dialogs.py:2758
+#: gui/dialogs.py:2783
 msgid "2 minutes"
 msgstr "2 分"
 
-#: gui/dialogs.py:2759
+#: gui/dialogs.py:2784
 msgid "3 minutes"
 msgstr "3 分"
 
-#: gui/dialogs.py:2760
+#: gui/dialogs.py:2785
 msgid "4 minutes"
 msgstr "4 分"
 
-#: gui/dialogs.py:2761
+#: gui/dialogs.py:2786
 msgid "5 minutes"
 msgstr "5 分"
 
-#: gui/dialogs.py:2762
+#: gui/dialogs.py:2787
 msgid "10 minutes"
 msgstr "10 分"
 
-#: gui/dialogs.py:2763
+#: gui/dialogs.py:2788
 msgid "15 minutes"
 msgstr "15 分"
 
-#: gui/dialogs.py:2764
+#: gui/dialogs.py:2789
 msgid "30 minutes"
 msgstr "30 分"
 
-#: gui/dialogs.py:2765
+#: gui/dialogs.py:2790
 msgid "60 minutes"
 msgstr "60 分"
 
-#: gui/dialogs.py:2766
+#: gui/dialogs.py:2791
 msgid "2 hours"
 msgstr "2 時間"
 
-#: gui/dialogs.py:2767
+#: gui/dialogs.py:2792
 msgid "3 hours"
 msgstr "3 時間"
 
-#: gui/dialogs.py:2768
+#: gui/dialogs.py:2793
 msgid "4 hours"
 msgstr "4 時間"
 
-#: gui/dialogs.py:3033
+#: gui/dialogs.py:3058
 msgid "Feeds with Errors"
 msgstr "エラーのあるフィード"
 
-#: gui/dialogs.py:3057
+#: gui/dialogs.py:3082
 msgid "Error &details:"
 msgstr "エラーの詳細(&D):"
 
-#: gui/dialogs.py:3068
+#: gui/dialogs.py:3093
 msgid "&Refresh Selected"
 msgstr "選択項目を更新(&R)"
 
-#: gui/dialogs.py:3069
+#: gui/dialogs.py:3094
 msgid "&Copy Details"
 msgstr "詳細をコピー(&C)"
 
-#: gui/dialogs.py:3070
+#: gui/dialogs.py:3095
 msgid "Feed &Properties..."
 msgstr "フィードのプロパティ(&P)..."
 
-#: gui/dialogs.py:3071
+#: gui/dialogs.py:3096
 msgid "Re&move Feed"
 msgstr "フィードを削除(&M)"
 
-#: gui/dialogs.py:3133
+#: gui/dialogs.py:3158
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
@@ -705,175 +725,175 @@ msgstr ""
 "\n"
 "更新に失敗したフィード(たとえば無効な URL、HTTP エラー、タイムアウト、不正なフィード形式など)は、ここに自動的に表示されます。"
 
-#: gui/dialogs.py:3265
+#: gui/dialogs.py:3290
 msgid "Editing feed properties is not available here."
 msgstr "ここではフィードのプロパティを編集できません。"
 
-#: gui/dialogs.py:3266
+#: gui/dialogs.py:3291
 msgid "Not available"
 msgstr "利用できません"
 
-#: gui/dialogs.py:3290
+#: gui/dialogs.py:3315
 msgid "Confirm Remove"
 msgstr "削除の確認"
 
-#: gui/dialogs.py:3343
+#: gui/dialogs.py:3368
 msgid "Find a Podcast or RSS Feed"
 msgstr "ポッドキャストまたは RSS フィードを検索"
 
-#: gui/dialogs.py:3369 gui/dialogs.py:4225
+#: gui/dialogs.py:3394 gui/dialogs.py:4250
 msgid "Search"
 msgstr "検索"
 
-#: gui/dialogs.py:3375 gui/dialogs.py:4255 gui/dialogs.py:5563
+#: gui/dialogs.py:3400 gui/dialogs.py:4280 gui/dialogs.py:5588
 msgid "Ready."
 msgstr "準備完了。"
 
-#: gui/dialogs.py:3504
+#: gui/dialogs.py:3529
 msgid "Searching all sources..."
 msgstr "すべてのソースを検索しています..."
 
-#: gui/dialogs.py:4227
+#: gui/dialogs.py:4252
 msgid "Load More Results (+80/site)"
 msgstr "さらに結果を読み込む(サイトごとに+80件)"
 
-#: gui/dialogs.py:5183
+#: gui/dialogs.py:5208
 msgid "No searchable sites."
 msgstr "検索可能なサイトがありません。"
 
-#: gui/dialogs.py:5635
+#: gui/dialogs.py:5660
 msgid "Parent window does not support subscribing from this dialog."
 msgstr "親ウィンドウは、このダイアログからの登録をサポートしていません。"
 
-#: gui/dialogs.py:5688
+#: gui/dialogs.py:5713
 msgid "Configure Persistent Search"
 msgstr "保存済み検索の設定"
 
-#: gui/dialogs.py:5701
+#: gui/dialogs.py:5726
 msgid "Add..."
 msgstr "追加..."
 
-#: gui/dialogs.py:5702
+#: gui/dialogs.py:5727
 msgid "Remove"
 msgstr "削除"
 
-#: gui/dialogs.py:5756 gui/mainframe.py:2003
+#: gui/dialogs.py:5781 gui/mainframe.py:2011
 msgid "About BlindRSS"
 msgstr "BlindRSS について"
 
-#: gui/dialogs.py:5767
+#: gui/dialogs.py:5792
 msgid "Copyright (c) 2024-2026 serrebidev and contributors"
 msgstr "Copyright (c) 2024-2026 serrebidev and contributors"
 
-#: gui/dialogs.py:5773
+#: gui/dialogs.py:5798
 msgid "Follow me on GitHub (@serrebidev)"
 msgstr "GitHub でフォローする (@serrebidev)"
 
-#: gui/dialogs.py:5774
+#: gui/dialogs.py:5799
 msgid "Visit Repository"
 msgstr "リポジトリを表示"
 
-#: gui/dialogs.py:5775
+#: gui/dialogs.py:5800
 msgid "View Changelog"
 msgstr "変更履歴を表示"
 
-#: gui/dialogs.py:5815
+#: gui/dialogs.py:5840
 msgid "Play Queue"
 msgstr "再生キュー"
 
-#: gui/dialogs.py:5841 gui/mainframe.py:11533
+#: gui/dialogs.py:5866 gui/mainframe.py:11544
 msgid "Move &Up"
 msgstr "上へ移動(&U)"
 
-#: gui/dialogs.py:5845 gui/mainframe.py:11534
+#: gui/dialogs.py:5870 gui/mainframe.py:11545
 msgid "Move &Down"
 msgstr "下へ移動(&D)"
 
-#: gui/dialogs.py:5849
+#: gui/dialogs.py:5874
 msgid "&Remove"
 msgstr "削除(&R)"
 
-#: gui/dialogs.py:5853
+#: gui/dialogs.py:5878
 msgid "&Clear All"
 msgstr "すべてクリア(&C)"
 
-#: gui/dialogs.py:5920
+#: gui/dialogs.py:5945
 msgid "Untitled"
 msgstr "無題"
 
-#: gui/dialogs.py:5939
+#: gui/dialogs.py:5964
 msgid "The play queue is empty."
 msgstr "再生キューは空です。"
 
-#: gui/dialogs.py:6000
+#: gui/dialogs.py:6025
 msgid "Remove all items from the play queue?"
 msgstr "再生キューからすべての項目を削除しますか?"
 
-#: gui/dialogs.py:6001
+#: gui/dialogs.py:6026
 msgid "Clear Play Queue"
 msgstr "再生キューをクリア"
 
-#: gui/dialogs.py:6043
+#: gui/dialogs.py:6068
 msgid "Press Shortcut"
 msgstr "ショートカットを押す"
 
-#: gui/dialogs.py:6056
+#: gui/dialogs.py:6081
 msgid "Waiting for a key…"
 msgstr "キー入力を待っています…"
 
-#: gui/dialogs.py:6117
+#: gui/dialogs.py:6142
 msgid "Keyboard Shortcuts"
 msgstr "キーボードショートカット"
 
-#: gui/dialogs.py:6129
+#: gui/dialogs.py:6154
 msgid "Select a command and choose Change to set its shortcut."
 msgstr "コマンドを選択し、「変更」を選んでショートカットを設定してください。"
 
-#: gui/dialogs.py:6144
+#: gui/dialogs.py:6169
 msgid "&Change Shortcut..."
 msgstr "ショートカットを変更(&C)..."
 
-#: gui/dialogs.py:6148
+#: gui/dialogs.py:6173
 msgid "&Remove Shortcut"
 msgstr "ショートカットを削除(&R)"
 
-#: gui/dialogs.py:6152
+#: gui/dialogs.py:6177
 msgid "Reset All to &Defaults"
 msgstr "すべて既定値にリセット(&D)"
 
-#: gui/dialogs.py:6270
+#: gui/dialogs.py:6295
 msgid "Reset all keyboard shortcuts to their defaults?"
 msgstr "すべてのキーボードショートカットを既定値にリセットしますか?"
 
-#: gui/dialogs.py:6271
+#: gui/dialogs.py:6296
 msgid "Reset Shortcuts"
 msgstr "ショートカットをリセット"
 
-#: gui/dialogs.py:6324
+#: gui/dialogs.py:6349
 msgid "Equalizer"
 msgstr "イコライザー"
 
-#: gui/dialogs.py:6349
+#: gui/dialogs.py:6374
 msgid "&Enable equalizer"
 msgstr "イコライザーを有効にする(&E)"
 
-#: gui/dialogs.py:6386
+#: gui/dialogs.py:6411
 msgid "&Save as Preset..."
 msgstr "プリセットとして保存(&S)..."
 
-#: gui/dialogs.py:6389
+#: gui/dialogs.py:6414
 msgid "&Delete Preset"
 msgstr "プリセットを削除(&D)"
 
-#: gui/dialogs.py:6392
+#: gui/dialogs.py:6417
 msgid "&Reset (Flat)"
 msgstr "リセット(フラット)(&R)"
 
-#: gui/dialogs.py:6563
+#: gui/dialogs.py:6588
 msgid "Could not save the preset."
 msgstr "プリセットを保存できませんでした。"
 
-#: gui/dialogs.py:6575
+#: gui/dialogs.py:6600
 msgid "Delete Preset"
 msgstr "プリセットを削除"
 
@@ -881,7 +901,7 @@ msgstr "プリセットを削除"
 msgid "Feed or Media URL:"
 msgstr "フィードまたはメディアの URL:"
 
-#: gui/dialogs.py:69 gui/dialogs.py:2744
+#: gui/dialogs.py:69 gui/dialogs.py:2769
 msgid "Category:"
 msgstr "カテゴリ:"
 
@@ -893,91 +913,91 @@ msgstr ""
 "フィードは既定で選択されています。\n"
 "通知を送信しないフィードのチェックを外してください。"
 
-#: gui/dialogs.py:547
+#: gui/dialogs.py:557
 msgid "Refresh Interval:"
 msgstr "更新間隔:"
 
-#: gui/dialogs.py:588
+#: gui/dialogs.py:598
 msgid "Search Matches:"
 msgstr "検索一致件数:"
 
-#: gui/dialogs.py:608
+#: gui/dialogs.py:618
 msgid "Max Concurrent Refreshes:"
 msgstr "同時更新の最大数:"
 
-#: gui/dialogs.py:614
+#: gui/dialogs.py:624
 msgid "Max Connections Per Host:"
 msgstr "ホストごとの最大接続数:"
 
-#: gui/dialogs.py:620
+#: gui/dialogs.py:630
 msgid "Feed Timeout (seconds):"
 msgstr "フィードのタイムアウト(秒):"
 
-#: gui/dialogs.py:626
+#: gui/dialogs.py:636
 msgid "Feed Retry Attempts:"
 msgstr "フィードの再試行回数:"
 
-#: gui/dialogs.py:633
+#: gui/dialogs.py:643
 msgid "Max Cached Views:"
 msgstr "キャッシュするビューの最大数:"
 
-#: gui/dialogs.py:655
+#: gui/dialogs.py:665
 msgid "When I delete an article:"
 msgstr "記事を削除するとき:"
 
-#: gui/dialogs.py:683
+#: gui/dialogs.py:693
 msgid "Download Path:"
 msgstr "ダウンロード先:"
 
-#: gui/dialogs.py:694
+#: gui/dialogs.py:704
 msgid "Retention Policy:"
 msgstr "保持ポリシー:"
 
-#: gui/dialogs.py:702
+#: gui/dialogs.py:712
 msgid "Article Retention:"
 msgstr "記事の保持期間:"
 
-#: gui/dialogs.py:810
+#: gui/dialogs.py:826
 msgid "Max cache size (MB, 0 = unlimited):"
 msgstr "キャッシュの最大サイズ(MB、0 = 無制限):"
 
-#: gui/dialogs.py:844
+#: gui/dialogs.py:860
 msgid "Interface language (requires restart):"
 msgstr "インターフェース言語(再起動が必要):"
 
-#: gui/dialogs.py:868
+#: gui/dialogs.py:884
 msgid "Feed category tree on startup:"
 msgstr "起動時のフィードカテゴリツリー:"
 
-#: gui/dialogs.py:888
+#: gui/dialogs.py:904
 msgid "Article opening method:"
 msgstr "記事を開く方法:"
 
-#: gui/dialogs.py:907
+#: gui/dialogs.py:923
 msgid "Custom command:"
 msgstr "カスタムコマンド:"
 
-#: gui/dialogs.py:939
+#: gui/dialogs.py:963
 msgid "Preferred Soundcard:"
 msgstr "使用するサウンドカード:"
 
-#: gui/dialogs.py:955
+#: gui/dialogs.py:979
 msgid "Default Playback Speed:"
 msgstr "既定の再生速度:"
 
-#: gui/dialogs.py:984
+#: gui/dialogs.py:1008
 msgid "Network Cache (ms):"
 msgstr "ネットワークキャッシュ(ミリ秒):"
 
-#: gui/dialogs.py:1002
+#: gui/dialogs.py:1026
 msgid "Leave a path blank to auto-detect. A set path overrides detection."
 msgstr "自動検出するにはパスを空欄にしてください。パスを設定すると自動検出より優先されます。"
 
-#: gui/dialogs.py:1044
+#: gui/dialogs.py:1068
 msgid "Active Provider:"
 msgstr "有効なプロバイダー:"
 
-#: gui/dialogs.py:1122
+#: gui/dialogs.py:1146
 msgid ""
 "Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
 "localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
@@ -987,83 +1007,83 @@ msgstr ""
 "localhost の読み込みに失敗することがあります。アドレスバーからリダイレクト後の完全な URL をコピーし、\n"
 "表示されたら貼り付けてください。"
 
-#: gui/dialogs.py:1134
+#: gui/dialogs.py:1158
 msgid "Authorize Inoreader"
 msgstr "Inoreader を承認"
 
-#: gui/dialogs.py:1135
+#: gui/dialogs.py:1159
 msgid "Clear Authorization"
 msgstr "承認情報を消去"
 
-#: gui/dialogs.py:1253
+#: gui/dialogs.py:1277
 msgid "Max notifications per refresh (0 = no limit):"
 msgstr "更新ごとの通知の最大数(0 = 無制限):"
 
-#: gui/dialogs.py:1326
+#: gui/dialogs.py:1350
 msgid "Provider:"
 msgstr "プロバイダー:"
 
-#: gui/dialogs.py:1346
+#: gui/dialogs.py:1370
 msgid "Target language:"
 msgstr "翻訳先の言語:"
 
-#: gui/dialogs.py:1367
+#: gui/dialogs.py:1391
 msgid "Choose a language or type a code (e.g. en, es, fr, pt-BR)."
 msgstr "言語を選択するか、コードを入力してください(例: en, es, fr, pt-BR)。"
 
-#: gui/dialogs.py:1376
+#: gui/dialogs.py:1400
 msgid "Grok (xAI) model (optional):"
 msgstr "Grok (xAI) モデル(任意):"
 
-#: gui/dialogs.py:1407
+#: gui/dialogs.py:1431
 msgid "Grok (xAI) API key (starts with xai-):"
 msgstr "Grok (xAI) API キー(xai- で始まります):"
 
-#: gui/dialogs.py:1419
+#: gui/dialogs.py:1443
 msgid "Groq model (optional) - hosts LLaMA and Mistral:"
 msgstr "Groq モデル(任意)- LLaMA と Mistral を提供:"
 
-#: gui/dialogs.py:1441
+#: gui/dialogs.py:1465
 msgid "Groq API key (starts with gsk_):"
 msgstr "Groq API キー(gsk_ で始まります):"
 
-#: gui/dialogs.py:1467
+#: gui/dialogs.py:1491
 msgid "OpenAI model (optional):"
 msgstr "OpenAI モデル(任意):"
 
-#: gui/dialogs.py:1489
+#: gui/dialogs.py:1513
 msgid "OpenAI API key:"
 msgstr "OpenAI API キー:"
 
-#: gui/dialogs.py:1505
+#: gui/dialogs.py:1529
 msgid "OpenRouter model (optional):"
 msgstr "OpenRouter モデル(任意):"
 
-#: gui/dialogs.py:1527
+#: gui/dialogs.py:1551
 msgid "OpenRouter API key:"
 msgstr "OpenRouter API キー:"
 
-#: gui/dialogs.py:1553
+#: gui/dialogs.py:1577
 msgid "Gemini model (optional):"
 msgstr "Gemini モデル(任意):"
 
-#: gui/dialogs.py:1575
+#: gui/dialogs.py:1599
 msgid "Gemini API key:"
 msgstr "Gemini API キー:"
 
-#: gui/dialogs.py:1591
+#: gui/dialogs.py:1615
 msgid "Qwen model (optional):"
 msgstr "Qwen モデル(任意):"
 
-#: gui/dialogs.py:1613
+#: gui/dialogs.py:1637
 msgid "Qwen API key:"
 msgstr "Qwen API キー:"
 
-#: gui/dialogs.py:1669
+#: gui/dialogs.py:1693
 msgid "Storage Location:"
 msgstr "保存場所:"
 
-#: gui/dialogs.py:1714
+#: gui/dialogs.py:1738
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
 "When on, adult sites are added and must still be selected explicitly to search them."
@@ -1071,11 +1091,11 @@ msgstr ""
 "オフの場合、アダルトサイトは動画検索のサイト一覧に一切表示されません。\n"
 "オンの場合、アダルトサイトが追加されますが、検索するには明示的に選択する必要があります。"
 
-#: gui/dialogs.py:2054
+#: gui/dialogs.py:2078
 msgid "Inoreader Authorization"
 msgstr "Inoreader の承認"
 
-#: gui/dialogs.py:2191
+#: gui/dialogs.py:2215
 msgid ""
 "Inoreader authorization failed:\n"
 "{message}"
@@ -1083,64 +1103,64 @@ msgstr ""
 "Inoreader の承認に失敗しました:\n"
 "{message}"
 
-#: gui/dialogs.py:2462 gui/dialogs.py:2469
+#: gui/dialogs.py:2486 gui/dialogs.py:2493
 msgid "Import failed"
 msgstr "インポートに失敗しました"
 
-#: gui/dialogs.py:2485
+#: gui/dialogs.py:2509
 msgid "Executables"
 msgstr "実行可能ファイル"
 
-#: gui/dialogs.py:2485 gui/dialogs.py:2487 gui/dialogs.py:2331
-#: gui/dialogs.py:2448
+#: gui/dialogs.py:2509 gui/dialogs.py:2511 gui/dialogs.py:2355
+#: gui/dialogs.py:2472
 msgid "All files"
 msgstr "すべてのファイル"
 
-#: gui/dialogs.py:2558
+#: gui/dialogs.py:2582
 msgid "Invalid command"
 msgstr "無効なコマンドです"
 
-#: gui/dialogs.py:2726
+#: gui/dialogs.py:2751
 msgid "Title:"
 msgstr "タイトル:"
 
-#: gui/dialogs.py:2733
+#: gui/dialogs.py:2758
 msgid "URL:"
 msgstr "URL:"
 
-#: gui/dialogs.py:2752
+#: gui/dialogs.py:2777
 msgid "Refresh interval for this feed:"
 msgstr "このフィードの更新間隔:"
 
-#: gui/dialogs.py:2796
+#: gui/dialogs.py:2821
 msgid "Custom request headers (one per line, Name: Value):"
 msgstr "カスタムリクエストヘッダー(1行に1つ、名前: 値):"
 
-#: gui/dialogs.py:2812
+#: gui/dialogs.py:2837
 msgid "Request timeout in seconds (blank = default):"
 msgstr "リクエストのタイムアウト(秒、空欄 = 既定):"
 
-#: gui/dialogs.py:2827
+#: gui/dialogs.py:2852
 msgid "Browser impersonation:"
 msgstr "ブラウザーのなりすまし:"
 
-#: gui/dialogs.py:2840
+#: gui/dialogs.py:2865
 msgid "Proxy URL (optional, e.g. http://host:port):"
 msgstr "プロキシ URL(任意、例: http://host:port):"
 
-#: gui/dialogs.py:2861
+#: gui/dialogs.py:2886
 msgid "When I delete an article from this feed:"
 msgstr "このフィードの記事を削除するとき:"
 
-#: gui/dialogs.py:3353 gui/dialogs.py:4219
+#: gui/dialogs.py:3378 gui/dialogs.py:4244
 msgid "Search:"
 msgstr "検索:"
 
-#: gui/dialogs.py:3362
+#: gui/dialogs.py:3387
 msgid "Source:"
 msgstr "ソース:"
 
-#: gui/dialogs.py:3390
+#: gui/dialogs.py:3415
 msgid ""
 "Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedspot, Google "
 "News, Bing News, Feedsearch, NewsBlur, Reddit, Fediverse "
@@ -1149,83 +1169,83 @@ msgstr ""
 "ソース: iTunes、gPodder、fyyd、Podverse、YouTube、Feedly、Feedspot、Google ニュース、Bing "
 "ニュース、Feedsearch、NewsBlur、Reddit、フェディバース (Lemmy/Kbin/Mastodon/Bluesky/PieFed)"
 
-#: gui/dialogs.py:3760 gui/dialogs.py:3785
+#: gui/dialogs.py:3785 gui/dialogs.py:3810
 msgid "News search feed"
 msgstr "ニュース検索フィード"
 
-#: gui/dialogs.py:4233
+#: gui/dialogs.py:4258
 msgid "Search Sites:"
 msgstr "検索対象サイト:"
 
-#: gui/dialogs.py:4237
+#: gui/dialogs.py:4262
 msgid "Filter Results:"
 msgstr "結果を絞り込む:"
 
-#: gui/dialogs.py:4241
+#: gui/dialogs.py:4266
 msgid "Sort by:"
 msgstr "並べ替え:"
 
-#: gui/dialogs.py:5643
+#: gui/dialogs.py:5668
 msgid "Subscribe Error"
 msgstr "登録エラー"
 
-#: gui/dialogs.py:5681
+#: gui/dialogs.py:5706
 msgid "Copied URL."
 msgstr "URL をコピーしました。"
 
-#: gui/dialogs.py:5694
+#: gui/dialogs.py:5719
 msgid "Saved searches:"
 msgstr "保存済みの検索:"
 
-#: gui/dialogs.py:6180
+#: gui/dialogs.py:6205
 msgid "(none)"
 msgstr "(なし)"
 
-#: gui/dialogs.py:6310
+#: gui/dialogs.py:6335
 msgid "{sign}{v} dB"
 msgstr "{sign}{v} dB"
 
-#: gui/dialogs.py:6356
+#: gui/dialogs.py:6381
 msgid "&Preset:"
 msgstr "プリセット(&P):"
 
-#: gui/dialogs.py:1096
+#: gui/dialogs.py:1120
 msgid "Inoreader App ID:"
 msgstr "Inoreader アプリ ID:"
 
-#: gui/dialogs.py:1103
+#: gui/dialogs.py:1127
 msgid "Inoreader App Key:"
 msgstr "Inoreader アプリキー:"
 
-#: gui/dialogs.py:1114
+#: gui/dialogs.py:1138
 msgid "Redirect URI:"
 msgstr "リダイレクト URI:"
 
-#: gui/dialogs.py:2331 gui/dialogs.py:2448
+#: gui/dialogs.py:2355 gui/dialogs.py:2472
 msgid "Cookies"
 msgstr "Cookie"
 
-#: gui/dialogs.py:3768
+#: gui/dialogs.py:3793
 msgid "News topic feed"
 msgstr "ニューストピックフィード"
 
-#: gui/dialogs.py:5617
+#: gui/dialogs.py:5642
 msgid "Playback Error"
 msgstr "再生エラー"
 
-#: gui/dialogs.py:5923
+#: gui/dialogs.py:5948
 msgid "{index}. {title}, from {source}"
 msgstr "{index}. {title}、{source} より"
 
-#: gui/dialogs.py:5927
+#: gui/dialogs.py:5952
 msgid "{index}. {title}"
 msgstr "{index}. {title}"
 
-#: gui/dialogs.py:5933
+#: gui/dialogs.py:5958
 msgid "{count} item(s) in queue."
 msgstr "キューに {count} 件の項目があります。"
 
-#: gui/dialogs.py:6049
+#: gui/dialogs.py:6074
 msgid ""
 "Press the new shortcut for “{command}”.\n"
 "It must include Ctrl, Alt or Shift. Press Escape to cancel."
@@ -1233,35 +1253,35 @@ msgstr ""
 "「{command}」の新しいショートカットを押してください。\n"
 "Ctrl、Alt、Shift のいずれかを含める必要があります。キャンセルするには Escape を押してください。"
 
-#: gui/dialogs.py:6242
+#: gui/dialogs.py:6267
 msgid "Shortcut Conflict"
 msgstr "ショートカットの競合"
 
-#: gui/dialogs.py:6456
+#: gui/dialogs.py:6481
 msgid "{name} (my preset)"
 msgstr "{name} (マイプリセット)"
 
-#: gui/dialogs.py:6574
+#: gui/dialogs.py:6599
 msgid "Delete the preset \"{name}\"?"
 msgstr "プリセット「{name}」を削除しますか?"
 
-#: gui/dialogs.py:5642
+#: gui/dialogs.py:5667
 msgid "Could not subscribe: {error}"
 msgstr "登録できませんでした: {error}"
 
-#: gui/dialogs.py:6548
+#: gui/dialogs.py:6573
 msgid "A preset named \"{name}\" already exists. Overwrite it?"
 msgstr "「{name}」という名前のプリセットは既に存在します。上書きしますか?"
 
-#: gui/dialogs.py:1207
+#: gui/dialogs.py:1231
 msgid "WAV files"
 msgstr "WAV ファイル"
 
-#: gui/dialogs.py:5616
+#: gui/dialogs.py:5641
 msgid "Could not start playback: {error}"
 msgstr "再生を開始できませんでした: {error}"
 
-#: gui/dialogs.py:6238
+#: gui/dialogs.py:6263
 msgid ""
 "{accel} is already assigned to “{other}”.\n"
 "Reassign it to “{this}”?"
@@ -1269,711 +1289,711 @@ msgstr ""
 "{accel} は既に「{other}」に割り当てられています。\n"
 "「{this}」に割り当て直しますか?"
 
-#: gui/mainframe.py:411 gui/mainframe.py:394
+#: gui/mainframe.py:412 gui/mainframe.py:395
 msgid "Shortcuts"
 msgstr "ショートカット"
 
-#: gui/mainframe.py:460 gui/mainframe.py:1864
+#: gui/mainframe.py:461 gui/mainframe.py:1872
 msgid "Author"
 msgstr "作成者"
 
-#: gui/mainframe.py:461 gui/mainframe.py:1431
+#: gui/mainframe.py:462 gui/mainframe.py:1439
 msgid "Media"
 msgstr "メディア"
 
-#: gui/mainframe.py:462 gui/mainframe.py:1862
+#: gui/mainframe.py:463 gui/mainframe.py:1870
 msgid "Date"
 msgstr "日付"
 
-#: gui/mainframe.py:464 gui/mainframe.py:1865
+#: gui/mainframe.py:465 gui/mainframe.py:1873
 msgid "Description"
 msgstr "説明"
 
-#: gui/mainframe.py:465 gui/mainframe.py:1867
+#: gui/mainframe.py:466 gui/mainframe.py:1875
 msgid "Status"
 msgstr "状態"
 
-#: gui/mainframe.py:659 gui/mainframe.py:1796
+#: gui/mainframe.py:667 gui/mainframe.py:1804
 msgid "Configure Persistent Search..."
 msgstr "保存済み検索の設定..."
 
-#: gui/mainframe.py:1783
+#: gui/mainframe.py:1791
 msgid "Add a new RSS feed"
 msgstr "新しい RSS フィードを追加"
 
-#: gui/mainframe.py:1784
+#: gui/mainframe.py:1792
 msgid "&Remove Feed"
 msgstr "フィードを削除(&R)"
 
-#: gui/mainframe.py:1784
+#: gui/mainframe.py:1792
 msgid "Remove selected feed"
 msgstr "選択したフィードを削除"
 
-#: gui/mainframe.py:1785
+#: gui/mainframe.py:1793
 msgid "Refresh all feeds"
 msgstr "すべてのフィードを更新"
 
-#: gui/mainframe.py:1786
+#: gui/mainframe.py:1794
 msgid "Stop the feed refresh currently in progress"
 msgstr "進行中のフィード更新を停止する"
 
-#: gui/mainframe.py:1787
+#: gui/mainframe.py:1795
 msgid "Mark All Items as &Read"
 msgstr "すべての項目を既読にする(&R)"
 
-#: gui/mainframe.py:1787
+#: gui/mainframe.py:1795
 msgid "Mark all items in all feeds as read"
 msgstr "すべてのフィードのすべての項目を既読にする"
 
-#: gui/mainframe.py:1788
+#: gui/mainframe.py:1796
 msgid "View Feed &Errors..."
 msgstr "フィードのエラーを表示(&E)..."
 
-#: gui/mainframe.py:1788
+#: gui/mainframe.py:1796
 msgid "View feeds that failed to update"
 msgstr "更新に失敗したフィードを表示する"
 
-#: gui/mainframe.py:1790
+#: gui/mainframe.py:1798
 msgid "Add &Category"
 msgstr "カテゴリを追加(&C)"
 
-#: gui/mainframe.py:1790
+#: gui/mainframe.py:1798
 msgid "Add a new category"
 msgstr "新しいカテゴリを追加"
 
-#: gui/mainframe.py:1791
+#: gui/mainframe.py:1799
 msgid "Remove C&ategory"
 msgstr "カテゴリを削除(&A)"
 
-#: gui/mainframe.py:1791
+#: gui/mainframe.py:1799
 msgid "Remove selected category"
 msgstr "選択したカテゴリを削除"
 
-#: gui/mainframe.py:1793
+#: gui/mainframe.py:1801
 msgid "&Import OPML..."
 msgstr "OPML をインポート(&I)..."
 
-#: gui/mainframe.py:1793
+#: gui/mainframe.py:1801
 msgid "Import feeds from OPML"
 msgstr "OPML からフィードをインポートする"
 
-#: gui/mainframe.py:1794
+#: gui/mainframe.py:1802
 msgid "E&xport OPML..."
 msgstr "OPML をエクスポート(&X)..."
 
-#: gui/mainframe.py:1794
+#: gui/mainframe.py:1802
 msgid "Export feeds to OPML"
 msgstr "フィードを OPML にエクスポートする"
 
-#: gui/mainframe.py:1796
+#: gui/mainframe.py:1804
 msgid "Configure saved search queries"
 msgstr "保存済みの検索クエリを設定する"
 
-#: gui/mainframe.py:1802
+#: gui/mainframe.py:1810
 msgid "E&xit"
 msgstr "終了(&X)"
 
-#: gui/mainframe.py:1802
+#: gui/mainframe.py:1810
 msgid "Exit application"
 msgstr "アプリケーションを終了する"
 
-#: gui/mainframe.py:1809
+#: gui/mainframe.py:1817
 msgid "Cut the selection"
 msgstr "選択範囲を切り取る"
 
-#: gui/mainframe.py:1810
+#: gui/mainframe.py:1818
 msgid "Copy the selection"
 msgstr "選択範囲をコピーする"
 
-#: gui/mainframe.py:1811
+#: gui/mainframe.py:1819
 msgid "Paste from the clipboard"
 msgstr "クリップボードから貼り付ける"
 
-#: gui/mainframe.py:1812
+#: gui/mainframe.py:1820
 msgid "Select all"
 msgstr "すべて選択する"
 
-#: gui/mainframe.py:1815
+#: gui/mainframe.py:1823
 msgid "Show &Search Field"
 msgstr "検索欄を表示(&S)"
 
-#: gui/mainframe.py:1815
+#: gui/mainframe.py:1823
 msgid "Show or hide the search field"
 msgstr "検索欄の表示/非表示を切り替える"
 
-#: gui/mainframe.py:1848
+#: gui/mainframe.py:1856
 msgid "Article &Filter"
 msgstr "記事フィルター(&F)"
 
-#: gui/mainframe.py:1848
+#: gui/mainframe.py:1856
 msgid "Filter all views by read status and media"
 msgstr "すべてのビューを既読状態とメディアで絞り込む"
 
-#: gui/mainframe.py:1851
+#: gui/mainframe.py:1859
 msgid "Open &Accessible Browser"
 msgstr "アクセシブルブラウザーを開く(&A)"
 
-#: gui/mainframe.py:1852
+#: gui/mainframe.py:1860
 msgid "Open the VoiceOver-friendly browser window"
 msgstr "VoiceOver 対応のブラウザーウィンドウを開く"
 
-#: gui/mainframe.py:1856
+#: gui/mainframe.py:1864
 msgid "Show/Hide &Player (Ctrl+Shift+P)"
 msgstr "プレーヤーの表示/非表示(&P) (Ctrl+Shift+P)"
 
-#: gui/mainframe.py:1856 gui/mainframe.py:1902
+#: gui/mainframe.py:1864 gui/mainframe.py:1910
 msgid "Show or hide the media player window"
 msgstr "メディアプレーヤーウィンドウの表示/非表示を切り替える"
 
-#: gui/mainframe.py:1879
+#: gui/mainframe.py:1887
 msgid "Ascending"
 msgstr "昇順"
 
-#: gui/mainframe.py:1880
+#: gui/mainframe.py:1888
 msgid "Sort in ascending order (default is descending by date)"
 msgstr "昇順で並べ替える(既定は日付の降順)"
 
-#: gui/mainframe.py:1884
+#: gui/mainframe.py:1892
 msgid "Sort &By"
 msgstr "並べ替え基準(&B)"
 
-#: gui/mainframe.py:1901 gui/tray.py:97
+#: gui/mainframe.py:1909 gui/tray.py:97
 msgid "Show/Hide Player"
 msgstr "プレーヤーの表示/非表示"
 
-#: gui/mainframe.py:1906 gui/tray.py:104
+#: gui/mainframe.py:1914 gui/tray.py:104
 msgid "Play/Pause"
 msgstr "再生/一時停止"
 
-#: gui/mainframe.py:1906
+#: gui/mainframe.py:1914
 msgid "Toggle play/pause"
 msgstr "再生と一時停止を切り替える"
 
-#: gui/mainframe.py:1909 gui/player.py:1859 gui/tray.py:105
+#: gui/mainframe.py:1917 gui/player.py:1859 gui/tray.py:105
 msgid "Stop"
 msgstr "停止"
 
-#: gui/mainframe.py:1909
+#: gui/mainframe.py:1917
 msgid "Stop playback"
 msgstr "再生を停止する"
 
-#: gui/mainframe.py:1913
+#: gui/mainframe.py:1921
 msgid "Play &Queue..."
 msgstr "再生キュー(&Q)..."
 
-#: gui/mainframe.py:1914
+#: gui/mainframe.py:1922
 msgid "View and manage the media play queue"
 msgstr "メディア再生キューの表示と管理"
 
-#: gui/mainframe.py:1917
+#: gui/mainframe.py:1925
 msgid "Play Next in Queue"
 msgstr "キューの次を再生"
 
-#: gui/mainframe.py:1918
+#: gui/mainframe.py:1926
 msgid "Play the next item in the play queue"
 msgstr "再生キューの次の項目を再生する"
 
-#: gui/mainframe.py:1921
+#: gui/mainframe.py:1929
 msgid "Play Previous in Queue"
 msgstr "キューの前を再生"
 
-#: gui/mainframe.py:1922
+#: gui/mainframe.py:1930
 msgid "Play the previous item in the play queue"
 msgstr "再生キューの前の項目を再生する"
 
-#: gui/mainframe.py:1928
+#: gui/mainframe.py:1936
 msgid "Increase Speed"
 msgstr "速度を上げる"
 
-#: gui/mainframe.py:1928
+#: gui/mainframe.py:1936
 msgid "Play faster"
 msgstr "速く再生する"
 
-#: gui/mainframe.py:1931
+#: gui/mainframe.py:1939
 msgid "Decrease Speed"
 msgstr "速度を下げる"
 
-#: gui/mainframe.py:1931
+#: gui/mainframe.py:1939
 msgid "Play slower"
 msgstr "遅く再生する"
 
-#: gui/mainframe.py:1934
+#: gui/mainframe.py:1942
 msgid "Normal Speed (1x)"
 msgstr "通常速度 (1x)"
 
-#: gui/mainframe.py:1934
+#: gui/mainframe.py:1942
 msgid "Reset to normal speed"
 msgstr "通常速度に戻す"
 
-#: gui/mainframe.py:1949
+#: gui/mainframe.py:1957
 msgid "Playback &Speed"
 msgstr "再生速度(&S)"
 
-#: gui/mainframe.py:1952
+#: gui/mainframe.py:1960
 msgid "&Equalizer..."
 msgstr "イコライザー(&E)..."
 
-#: gui/mainframe.py:1953
+#: gui/mainframe.py:1961
 msgid "Adjust the audio equalizer"
 msgstr "オーディオイコライザーを調整する"
 
-#: gui/mainframe.py:1959
+#: gui/mainframe.py:1967
 msgid "Rewind (Ctrl+Left)"
 msgstr "早戻し(Ctrl+左)"
 
-#: gui/mainframe.py:1959 gui/tray.py:106
+#: gui/mainframe.py:1967 gui/tray.py:106
 msgid "Rewind"
 msgstr "早戻し"
 
-#: gui/mainframe.py:1960
+#: gui/mainframe.py:1968
 msgid "Fast Forward (Ctrl+Right)"
 msgstr "早送り(Ctrl+右)"
 
-#: gui/mainframe.py:1960
+#: gui/mainframe.py:1968
 msgid "Fast forward"
 msgstr "早送り"
 
-#: gui/mainframe.py:1962
+#: gui/mainframe.py:1970
 msgid "Volume Up (Ctrl+Up)"
 msgstr "音量を上げる(Ctrl+↑)"
 
-#: gui/mainframe.py:1962
+#: gui/mainframe.py:1970
 msgid "Increase volume"
 msgstr "音量を上げる"
 
-#: gui/mainframe.py:1963
+#: gui/mainframe.py:1971
 msgid "Volume Down (Ctrl+Down)"
 msgstr "音量を下げる(Ctrl+↓)"
 
-#: gui/mainframe.py:1963
+#: gui/mainframe.py:1971
 msgid "Decrease volume"
 msgstr "音量を下げる"
 
-#: gui/mainframe.py:1966 gui/player.py:1882
+#: gui/mainframe.py:1974 gui/player.py:1882
 msgid "Chapters"
 msgstr "チャプター"
 
-#: gui/mainframe.py:1980
+#: gui/mainframe.py:1988
 msgid "Find and add a podcast or RSS feed"
 msgstr "ポッドキャストまたは RSS フィードを検索して追加する"
 
-#: gui/mainframe.py:1984
+#: gui/mainframe.py:1992
 msgid "&Video Search..."
 msgstr "動画検索(&V)..."
 
-#: gui/mainframe.py:1985
+#: gui/mainframe.py:1993
 msgid "Search all yt-dlp query-search sites"
 msgstr "yt-dlp のクエリ検索対応サイトをすべて検索する"
 
-#: gui/mainframe.py:1990
+#: gui/mainframe.py:1998
 msgid "Filter &Rules..."
 msgstr "フィルタールール(&R)..."
 
-#: gui/mainframe.py:1991
+#: gui/mainframe.py:1999
 msgid "Create rules that categorize, label, or delete articles as they arrive"
 msgstr "受信した記事を分類、ラベル付け、削除するルールを作成する"
 
-#: gui/mainframe.py:1996
+#: gui/mainframe.py:2004
 msgid "&Keyboard Shortcuts..."
 msgstr "キーボードショートカット(&K)..."
 
-#: gui/mainframe.py:1997
+#: gui/mainframe.py:2005
 msgid "View and customize keyboard shortcuts"
 msgstr "キーボードショートカットの表示とカスタマイズ"
 
-#: gui/mainframe.py:1999
+#: gui/mainframe.py:2007
 msgid "&Settings..."
 msgstr "設定(&S)..."
 
-#: gui/mainframe.py:1999
+#: gui/mainframe.py:2007
 msgid "Configure application"
 msgstr "アプリケーションを設定する"
 
-#: gui/mainframe.py:2002
+#: gui/mainframe.py:2010
 msgid "Check for &Updates..."
 msgstr "アップデートを確認(&U)..."
 
-#: gui/mainframe.py:2002
+#: gui/mainframe.py:2010
 msgid "Check for new versions"
 msgstr "新しいバージョンを確認する"
 
-#: gui/mainframe.py:2003
+#: gui/mainframe.py:2011
 msgid "&About"
 msgstr "情報(&A)"
 
-#: gui/mainframe.py:2005
+#: gui/mainframe.py:2013
 msgid "&File"
 msgstr "ファイル(&F)"
 
-#: gui/mainframe.py:2006
+#: gui/mainframe.py:2014
 msgid "&Edit"
 msgstr "編集(&E)"
 
-#: gui/mainframe.py:2007
+#: gui/mainframe.py:2015
 msgid "&View"
 msgstr "表示(&V)"
 
-#: gui/mainframe.py:2008
+#: gui/mainframe.py:2016
 msgid "&Player"
 msgstr "プレーヤー(&P)"
 
-#: gui/mainframe.py:2009
+#: gui/mainframe.py:2017
 msgid "&Tools"
 msgstr "ツール(&T)"
 
-#: gui/mainframe.py:2010
+#: gui/mainframe.py:2018
 msgid "&Help"
 msgstr "ヘルプ(&H)"
 
-#: gui/mainframe.py:4043
+#: gui/mainframe.py:4051
 msgid "Open Article"
 msgstr "記事を開く"
 
-#: gui/mainframe.py:4044
+#: gui/mainframe.py:4052
 msgid "Open in Default Browser"
 msgstr "既定のブラウザーで開く"
 
-#: gui/mainframe.py:4511
+#: gui/mainframe.py:4519
 msgid "Scanning for audio... This may take a few seconds."
 msgstr "音声をスキャンしています... 数秒かかる場合があります。"
 
-#: gui/mainframe.py:4511 gui/mainframe.py:4106
+#: gui/mainframe.py:4519 gui/mainframe.py:4114
 msgid "Detect Audio"
 msgstr "音声を検出"
 
-#: gui/mainframe.py:4604
+#: gui/mainframe.py:4612
 msgid ""
 "Articles cannot be deleted while feeds are refreshing. Try again after the "
 "refresh is complete."
 msgstr "フィードの更新中は記事を削除できません。更新が完了してから再度お試しください。"
 
-#: gui/mainframe.py:4605 gui/mainframe.py:5567
+#: gui/mainframe.py:4613 gui/mainframe.py:5575
 msgid "Refresh in Progress"
 msgstr "更新中"
 
-#: gui/mainframe.py:5566
+#: gui/mainframe.py:5574
 msgid ""
 "Articles cannot be restored while feeds are refreshing. Try again after the "
 "refresh is complete."
 msgstr "フィードの更新中は記事を復元できません。更新が完了してから再度お試しください。"
 
-#: gui/mainframe.py:5704 gui/mainframe.py:3758
+#: gui/mainframe.py:5712 gui/mainframe.py:3766
 msgid "Rename Category"
 msgstr "カテゴリの名前を変更"
 
-#: gui/mainframe.py:5763 gui/mainframe.py:3754
+#: gui/mainframe.py:5771 gui/mainframe.py:3762
 msgid "Add Subcategory"
 msgstr "サブカテゴリを追加"
 
-#: gui/mainframe.py:7909
+#: gui/mainframe.py:7920
 msgid "Find in article:"
 msgstr "記事内を検索:"
 
-#: gui/mainframe.py:7909
+#: gui/mainframe.py:7920
 msgid "Find"
 msgstr "検索"
 
-#: gui/mainframe.py:9060
+#: gui/mainframe.py:9071
 msgid "Mark all items in all feeds as read?"
 msgstr "すべてのフィードのすべての項目を既読にしますか?"
 
-#: gui/mainframe.py:10515
+#: gui/mainframe.py:10526
 msgid "Import OPML"
 msgstr "OPML をインポート"
 
-#: gui/mainframe.py:10703
+#: gui/mainframe.py:10714
 msgid "Export OPML"
 msgstr "OPML をエクスポート"
 
-#: gui/mainframe.py:655
+#: gui/mainframe.py:663
 msgid "(No saved searches)"
 msgstr "(保存済みの検索はありません)"
 
-#: gui/mainframe.py:1783
+#: gui/mainframe.py:1791
 msgid "&Add Feed"
 msgstr "フィードを追加(&A)"
 
-#: gui/mainframe.py:1785
+#: gui/mainframe.py:1793
 msgid "&Refresh Feeds"
 msgstr "フィードを更新(&R)"
 
-#: gui/mainframe.py:1786
+#: gui/mainframe.py:1794
 msgid "S&top Refresh"
 msgstr "更新を停止(&T)"
 
-#: gui/mainframe.py:1800
+#: gui/mainframe.py:1808
 msgid "Add &Shortcuts..."
 msgstr "ショートカットを追加(&S)..."
 
-#: gui/mainframe.py:1800
+#: gui/mainframe.py:1808
 msgid "Create desktop, taskbar, or Start Menu shortcuts"
 msgstr "デスクトップ、タスクバー、スタートメニューのショートカットを作成する"
 
-#: gui/mainframe.py:1809
+#: gui/mainframe.py:1817
 msgid "Cu&t"
 msgstr "切り取り(&T)"
 
-#: gui/mainframe.py:1810
+#: gui/mainframe.py:1818
 msgid "&Copy"
 msgstr "コピー(&C)"
 
-#: gui/mainframe.py:1811
+#: gui/mainframe.py:1819
 msgid "&Paste"
 msgstr "貼り付け(&P)"
 
-#: gui/mainframe.py:1812
+#: gui/mainframe.py:1820
 msgid "Select &All"
 msgstr "すべて選択(&A)"
 
-#: gui/mainframe.py:1824
+#: gui/mainframe.py:1832
 msgid "&All Articles"
 msgstr "すべての記事(&A)"
 
-#: gui/mainframe.py:1824
+#: gui/mainframe.py:1832
 msgid "Show read and unread articles in all views"
 msgstr "すべてのビューで既読と未読の記事を表示する"
 
-#: gui/mainframe.py:1825
+#: gui/mainframe.py:1833
 msgid "&Unread Only"
 msgstr "未読のみ(&U)"
 
-#: gui/mainframe.py:1825
+#: gui/mainframe.py:1833
 msgid "Show only unread articles in all views"
 msgstr "すべてのビューで未読の記事のみを表示する"
 
-#: gui/mainframe.py:1826
+#: gui/mainframe.py:1834
 msgid "&Read Only"
 msgstr "既読のみ(&R)"
 
-#: gui/mainframe.py:1826
+#: gui/mainframe.py:1834
 msgid "Show only read articles in all views"
 msgstr "すべてのビューで既読の記事のみを表示する"
 
-#: gui/mainframe.py:1839
+#: gui/mainframe.py:1847
 msgid "Media and &Non-media"
 msgstr "メディアあり/なし両方(&N)"
 
-#: gui/mainframe.py:1839
+#: gui/mainframe.py:1847
 msgid "Show articles whether or not they have media"
 msgstr "メディアの有無にかかわらず記事を表示する"
 
-#: gui/mainframe.py:1840
+#: gui/mainframe.py:1848
 msgid "With &Media Only"
 msgstr "メディアありのみ(&M)"
 
-#: gui/mainframe.py:1840
+#: gui/mainframe.py:1848
 msgid "Show only articles that have playable media"
 msgstr "再生可能なメディアがある記事のみ表示する"
 
-#: gui/mainframe.py:1841
+#: gui/mainframe.py:1849
 msgid "Wit&hout Media Only"
 msgstr "メディアなしのみ(&H)"
 
-#: gui/mainframe.py:1841
+#: gui/mainframe.py:1849
 msgid "Show only articles that have no playable media"
 msgstr "再生可能なメディアがない記事のみ表示する"
 
-#: gui/mainframe.py:1862
+#: gui/mainframe.py:1870
 msgid "Sort articles by date"
 msgstr "記事を日付順に並べ替える"
 
-#: gui/mainframe.py:1863
+#: gui/mainframe.py:1871
 msgid "Name"
 msgstr "名前"
 
-#: gui/mainframe.py:1863
+#: gui/mainframe.py:1871
 msgid "Sort articles by name"
 msgstr "記事を名前順に並べ替える"
 
-#: gui/mainframe.py:1864
+#: gui/mainframe.py:1872
 msgid "Sort articles by author"
 msgstr "記事を作成者順に並べ替える"
 
-#: gui/mainframe.py:1865
+#: gui/mainframe.py:1873
 msgid "Sort articles by description"
 msgstr "記事を説明順に並べ替える"
 
-#: gui/mainframe.py:1866
+#: gui/mainframe.py:1874
 msgid "Sort articles by feed"
 msgstr "記事をフィード順に並べ替える"
 
-#: gui/mainframe.py:1867
+#: gui/mainframe.py:1875
 msgid "Sort articles by status"
 msgstr "記事を状態順に並べ替える"
 
-#: gui/mainframe.py:1979
+#: gui/mainframe.py:1987
 msgid "Find a &Podcast or RSS Feed..."
 msgstr "ポッドキャストまたは RSS フィードを検索(&P)..."
 
-#: gui/mainframe.py:2476
+#: gui/mainframe.py:2484
 msgid "Play queue is empty."
 msgstr "再生キューは空です。"
 
-#: gui/mainframe.py:2802
+#: gui/mainframe.py:2810
 msgid "Show Chapters..."
 msgstr "チャプターを表示..."
 
-#: gui/mainframe.py:2803
+#: gui/mainframe.py:2811
 msgid "Show chapter list"
 msgstr "チャプター一覧を表示する"
 
-#: gui/mainframe.py:2813
+#: gui/mainframe.py:2821
 msgid "Previous Chapter (Ctrl+Shift+Left)"
 msgstr "前のチャプター(Ctrl+Shift+左)"
 
-#: gui/mainframe.py:2814
+#: gui/mainframe.py:2822
 msgid "Jump to previous chapter"
 msgstr "前のチャプターに移動する"
 
-#: gui/mainframe.py:2824
+#: gui/mainframe.py:2832
 msgid "Next Chapter (Ctrl+Shift+Right)"
 msgstr "次のチャプター(Ctrl+Shift+右)"
 
-#: gui/mainframe.py:2825
+#: gui/mainframe.py:2833
 msgid "Jump to next chapter"
 msgstr "次のチャプターに移動する"
 
-#: gui/mainframe.py:3740
+#: gui/mainframe.py:3748
 msgid "Refresh Category"
 msgstr "カテゴリを更新"
 
-#: gui/mainframe.py:3743 gui/mainframe.py:3783
+#: gui/mainframe.py:3751 gui/mainframe.py:3791
 msgid "Mark All Items as Read"
 msgstr "すべての項目を既読にする"
 
-#: gui/mainframe.py:3767
+#: gui/mainframe.py:3775
 msgid "Import OPML Here..."
 msgstr "ここに OPML をインポート..."
 
-#: gui/mainframe.py:3770
+#: gui/mainframe.py:3778
 msgid "Export Category to OPML..."
 msgstr "カテゴリを OPML にエクスポート..."
 
-#: gui/mainframe.py:3907
+#: gui/mainframe.py:3915
 msgid "The current provider does not support filter rules."
 msgstr "現在のプロバイダーはフィルタールールをサポートしていません。"
 
-#: gui/mainframe.py:3908 gui/mainframe.py:5337 gui/mainframe.py:5401
+#: gui/mainframe.py:3916 gui/mainframe.py:5345 gui/mainframe.py:5409
 msgid "Not Supported"
 msgstr "サポートされていません"
 
-#: gui/mainframe.py:3976 gui/mainframe.py:3836
+#: gui/mainframe.py:3984 gui/mainframe.py:3844
 msgid "Delete Smart Folder"
 msgstr "スマートフォルダーを削除"
 
-#: gui/mainframe.py:4050
+#: gui/mainframe.py:4058
 msgid "Mark as &Read"
 msgstr "既読にする(&R)"
 
-#: gui/mainframe.py:4051
+#: gui/mainframe.py:4059
 msgid "Mark as &Unread"
 msgstr "未読にする(&U)"
 
-#: gui/mainframe.py:4062
+#: gui/mainframe.py:4070
 msgid "Delete Article\tDel"
 msgstr "記事を削除\tDel"
 
-#: gui/mainframe.py:4077
+#: gui/mainframe.py:4085
 msgid "Restore Article"
 msgstr "記事を復元"
 
-#: gui/mainframe.py:4081
+#: gui/mainframe.py:4089
 msgid "Copy Links"
 msgstr "リンクをコピー"
 
-#: gui/mainframe.py:4081
+#: gui/mainframe.py:4089
 msgid "Copy Link"
 msgstr "リンクをコピー"
 
-#: gui/mainframe.py:4088
+#: gui/mainframe.py:4096
 msgid "Copy Text"
 msgstr "テキストをコピー"
 
-#: gui/mainframe.py:4092
+#: gui/mainframe.py:4100
 msgid "View Feed Description..."
 msgstr "フィードの説明を表示..."
 
-#: gui/mainframe.py:4161
+#: gui/mainframe.py:4169
 msgid "Open Play Queue..."
 msgstr "再生キューを開く..."
 
-#: gui/mainframe.py:4346
+#: gui/mainframe.py:4354
 msgid "Feed Description"
 msgstr "フィードの説明"
 
-#: gui/mainframe.py:4737
+#: gui/mainframe.py:4745
 msgid "No change history for this article."
 msgstr "この記事には変更履歴がありません。"
 
-#: gui/mainframe.py:4737 gui/mainframe.py:4742
+#: gui/mainframe.py:4745 gui/mainframe.py:4750
 msgid "Article History"
 msgstr "記事の履歴"
 
-#: gui/mainframe.py:4869
+#: gui/mainframe.py:4877
 msgid ", played"
 msgstr "、再生済み"
 
-#: gui/mainframe.py:4901
+#: gui/mainframe.py:4909
 msgid "played"
 msgstr "再生済み"
 
-#: gui/mainframe.py:5015
+#: gui/mainframe.py:5023
 msgid "Already in play queue."
 msgstr "既に再生キューにあります。"
 
-#: gui/mainframe.py:5336
+#: gui/mainframe.py:5344
 msgid "This provider does not support deleting articles."
 msgstr "このプロバイダーは記事の削除をサポートしていません。"
 
-#: gui/mainframe.py:5400
+#: gui/mainframe.py:5408
 msgid "This provider does not support permanently deleting articles."
 msgstr "このプロバイダーは記事の完全削除をサポートしていません。"
 
-#: gui/mainframe.py:5720
+#: gui/mainframe.py:5728
 msgid "Add Category"
 msgstr "カテゴリを追加"
 
-#: gui/mainframe.py:5809 gui/mainframe.py:5801
+#: gui/mainframe.py:5817 gui/mainframe.py:5809
 msgid "Please select a category to remove."
 msgstr "削除するカテゴリを選択してください。"
 
-#: gui/mainframe.py:5809 gui/mainframe.py:5814 gui/mainframe.py:5801
+#: gui/mainframe.py:5817 gui/mainframe.py:5822 gui/mainframe.py:5809
 msgid "Info"
 msgstr "情報"
 
-#: gui/mainframe.py:5814
+#: gui/mainframe.py:5822
 msgid "The Uncategorized folder cannot be removed."
 msgstr "「未分類」フォルダーは削除できません。"
 
-#: gui/mainframe.py:5836 gui/mainframe.py:5792 gui/mainframe.py:10284
+#: gui/mainframe.py:5844 gui/mainframe.py:5800 gui/mainframe.py:10295
 msgid "Confirm"
 msgstr "確認"
 
-#: gui/mainframe.py:5904
+#: gui/mainframe.py:5912
 msgid "Warning"
 msgstr "警告"
 
-#: gui/mainframe.py:6554
+#: gui/mainframe.py:6565
 msgid "All Articles"
 msgstr "すべての記事"
 
-#: gui/mainframe.py:9782
+#: gui/mainframe.py:9793
 msgid "No downloadable media found for this item."
 msgstr "この項目には、ダウンロード可能なメディアが見つかりません。"
 
-#: gui/mainframe.py:9785
+#: gui/mainframe.py:9796
 msgid "Downloads are disabled. Enable them in Settings > Downloads."
 msgstr "ダウンロードは無効になっています。設定 > ダウンロードで有効にしてください。"
 
-#: gui/mainframe.py:9785
+#: gui/mainframe.py:9796
 msgid "Downloads disabled"
 msgstr "ダウンロードが無効です"
 
-#: gui/mainframe.py:10277
+#: gui/mainframe.py:10288
 msgid "Failed to add feed."
 msgstr "フィードの追加に失敗しました。"
 
-#: gui/mainframe.py:10424
+#: gui/mainframe.py:10435
 msgid ""
 "This provider does not support changing the feed URL.\n"
 "The title and category will be updated, but the URL will stay the same."
@@ -1981,25 +2001,25 @@ msgstr ""
 "このプロバイダーはフィードの URL 変更をサポートしていません。\n"
 "タイトルとカテゴリは更新されますが、URL はそのままです。"
 
-#: gui/mainframe.py:10428
+#: gui/mainframe.py:10439
 msgid "Feed URL not supported"
 msgstr "フィードの URL はサポートされていません"
 
-#: gui/mainframe.py:10698
+#: gui/mainframe.py:10709
 msgid "Import successful."
 msgstr "インポートが完了しました。"
 
-#: gui/mainframe.py:10700
+#: gui/mainframe.py:10711
 msgid ""
 "Import failed. Please check the latest opml_debug_*.log in the temporary "
 "directory."
 msgstr "インポートに失敗しました。一時ディレクトリ内の最新の opml_debug_*.log を確認してください。"
 
-#: gui/mainframe.py:11037
+#: gui/mainframe.py:11048
 msgid "Update Available"
 msgstr "アップデートがあります"
 
-#: gui/mainframe.py:11045
+#: gui/mainframe.py:11056
 msgid ""
 "Auto-update is only available in the packaged app build.\n"
 "Download the latest release from GitHub."
@@ -2007,449 +2027,449 @@ msgstr ""
 "自動アップデートは、パッケージ化されたアプリビルドでのみ利用できます。\n"
 "GitHub から最新版をダウンロードしてください。"
 
-#: gui/mainframe.py:11049 gui/mainframe.py:11027
+#: gui/mainframe.py:11060 gui/mainframe.py:11038
 msgid "Updates"
 msgstr "アップデート"
 
-#: gui/mainframe.py:11114
+#: gui/mainframe.py:11125
 msgid "Update Failed"
 msgstr "アップデートに失敗しました"
 
-#: gui/mainframe.py:11232
+#: gui/mainframe.py:11243
 msgid "Smart Folder"
 msgstr "スマートフォルダー"
 
-#: gui/mainframe.py:11245
+#: gui/mainframe.py:11256
 msgid "Show articles that match"
 msgstr "一致する記事を表示する"
 
-#: gui/mainframe.py:11354
+#: gui/mainframe.py:11365
 msgid "Filter Rule"
 msgstr "フィルタールール"
 
-#: gui/mainframe.py:11368
+#: gui/mainframe.py:11379
 msgid "Apply this rule to articles that match"
 msgstr "一致する記事にこのルールを適用する"
 
-#: gui/mainframe.py:11419
+#: gui/mainframe.py:11430
 msgid "Mark as &read"
 msgstr "既読にする(&R)"
 
-#: gui/mainframe.py:11421
+#: gui/mainframe.py:11432
 msgid "Mark as &favorite"
 msgstr "お気に入りにする(&F)"
 
-#: gui/mainframe.py:11423
+#: gui/mainframe.py:11434
 msgid "&Delete (uses the configured delete behavior)"
 msgstr "削除する(&D)(設定済みの削除動作を使用)"
 
-#: gui/mainframe.py:11425
+#: gui/mainframe.py:11436
 msgid "Skip &notification"
 msgstr "通知をスキップ(&N)"
 
-#: gui/mainframe.py:11431
+#: gui/mainframe.py:11442
 msgid "&Stop processing later rules when this rule matches"
 msgstr "このルールが一致した場合、以降のルールの処理を停止する(&S)"
 
-#: gui/mainframe.py:11434
+#: gui/mainframe.py:11445
 msgid "Rule &enabled"
 msgstr "ルールを有効にする(&E)"
 
-#: gui/mainframe.py:11489
+#: gui/mainframe.py:11500
 msgid ""
 "Choose at least one action for this rule (move, label, mark, delete, or skip"
 " notification)."
 msgstr "このルールに対して少なくとも1つの操作を選択してください(移動、ラベル付け、マーク、削除、通知スキップ)。"
 
-#: gui/mainframe.py:11490
+#: gui/mainframe.py:11501
 msgid "No Actions"
 msgstr "操作がありません"
 
-#: gui/mainframe.py:11512
+#: gui/mainframe.py:11523
 msgid "Filter Rules"
 msgstr "フィルタールール"
 
-#: gui/mainframe.py:11530
+#: gui/mainframe.py:11541
 msgid "&Add..."
 msgstr "追加(&A)..."
 
-#: gui/mainframe.py:11531
+#: gui/mainframe.py:11542
 msgid "&Edit..."
 msgstr "編集(&E)..."
 
-#: gui/mainframe.py:11532
+#: gui/mainframe.py:11543
 msgid "De&lete"
 msgstr "削除(&L)"
 
-#: gui/mainframe.py:11535
+#: gui/mainframe.py:11546
 msgid "En&able/Disable"
 msgstr "有効/無効の切り替え(&A)"
 
-#: gui/mainframe.py:11536
+#: gui/mainframe.py:11547
 msgid "Apply to E&xisting Articles"
 msgstr "既存の記事に適用(&X)"
 
-#: gui/mainframe.py:11642
+#: gui/mainframe.py:11653
 msgid "Delete Rule"
 msgstr "ルールを削除"
 
-#: gui/mainframe.py:11681
+#: gui/mainframe.py:11692
 msgid ""
 "Run all enabled rules against every existing article now? This may move, "
 "label, or delete articles."
 msgstr "有効なすべてのルールを、既存のすべての記事に対して今すぐ実行しますか? これにより記事が移動、ラベル付け、削除される場合があります。"
 
-#: gui/mainframe.py:11685
+#: gui/mainframe.py:11696
 msgid "Apply to Existing Articles"
 msgstr "既存の記事に適用する"
 
-#: gui/mainframe.py:11712
+#: gui/mainframe.py:11723
 msgid "Filter Rules Applied"
 msgstr "フィルタールールを適用しました"
 
-#: gui/mainframe.py:1444
+#: gui/mainframe.py:1452
 msgid "Playing"
 msgstr "再生中"
 
-#: gui/mainframe.py:1444
+#: gui/mainframe.py:1452
 msgid "Paused"
 msgstr "一時停止中"
 
-#: gui/mainframe.py:2485
+#: gui/mainframe.py:2493
 msgid "End of play queue."
 msgstr "再生キューの末尾です。"
 
-#: gui/mainframe.py:2485
+#: gui/mainframe.py:2493
 msgid "Start of play queue."
 msgstr "再生キューの先頭です。"
 
-#: gui/mainframe.py:2547
+#: gui/mainframe.py:2555
 msgid "Playback speed {speed}x"
 msgstr "再生速度 {speed}x"
 
-#: gui/mainframe.py:2771 gui/player.py:2069
+#: gui/mainframe.py:2779 gui/player.py:2069
 msgid "No chapters available"
 msgstr "利用可能なチャプターがありません"
 
-#: gui/mainframe.py:3761
+#: gui/mainframe.py:3769
 msgid "Remove Category"
 msgstr "カテゴリを削除"
 
-#: gui/mainframe.py:3764
+#: gui/mainframe.py:3772
 msgid "Delete Category and Feeds"
 msgstr "カテゴリとフィードを削除"
 
-#: gui/mainframe.py:3781
+#: gui/mainframe.py:3789
 msgid "Mark all items in this feed as read?"
 msgstr "このフィードのすべての項目を既読にしますか?"
 
-#: gui/mainframe.py:3800
+#: gui/mainframe.py:3808
 msgid "Copy Feed URL"
 msgstr "フィードの URL をコピー"
 
-#: gui/mainframe.py:3803
+#: gui/mainframe.py:3811
 msgid "Notifications for This Feed"
 msgstr "このフィードの通知"
 
-#: gui/mainframe.py:3814
+#: gui/mainframe.py:3822
 msgid "Use default setting"
 msgstr "既定の設定を使用する"
 
-#: gui/mainframe.py:3815
+#: gui/mainframe.py:3823
 msgid "Always show image alt text"
 msgstr "画像の代替テキストを常に表示する"
 
-#: gui/mainframe.py:3816
+#: gui/mainframe.py:3824
 msgid "Never show image alt text"
 msgstr "画像の代替テキストを表示しない"
 
-#: gui/mainframe.py:3823
+#: gui/mainframe.py:3831
 msgid "Image Alt Text"
 msgstr "画像の代替テキスト"
 
-#: gui/mainframe.py:3825
+#: gui/mainframe.py:3833
 msgid "Remove Feed"
 msgstr "フィードを削除"
 
-#: gui/mainframe.py:4069
+#: gui/mainframe.py:4077
 msgid "Delete Article Permanently\tDel"
 msgstr "記事を完全に削除\tDel"
 
-#: gui/mainframe.py:4181
+#: gui/mainframe.py:4189
 msgid "Chapter Links"
 msgstr "チャプターリンク"
 
-#: gui/mainframe.py:4373
+#: gui/mainframe.py:4381
 msgid "Copy"
 msgstr "コピー"
 
-#: gui/mainframe.py:4905
+#: gui/mainframe.py:4913
 msgid "not played"
 msgstr "未再生"
 
-#: gui/mainframe.py:5355
+#: gui/mainframe.py:5363
 msgid "Confirm Delete"
 msgstr "削除の確認"
 
-#: gui/mainframe.py:5419
+#: gui/mainframe.py:5427
 msgid "Confirm Permanent Delete"
 msgstr "完全削除の確認"
 
-#: gui/mainframe.py:5703
+#: gui/mainframe.py:5711
 msgid "Rename category '{category}' to:"
 msgstr "カテゴリ「{category}」の新しい名前:"
 
-#: gui/mainframe.py:5723
+#: gui/mainframe.py:5731
 msgid "Category name:"
 msgstr "カテゴリ名:"
 
-#: gui/mainframe.py:5731
+#: gui/mainframe.py:5739
 msgid "(None - Top Level)"
 msgstr "(なし - 最上位)"
 
-#: gui/mainframe.py:5762
+#: gui/mainframe.py:5770
 msgid "Enter subcategory name (under '{category}'):"
 msgstr "サブカテゴリ名を入力してください(「{category}」の下):"
 
-#: gui/mainframe.py:9067 gui/mainframe.py:9222
+#: gui/mainframe.py:9078 gui/mainframe.py:9233
 msgid "Mark All as Read"
 msgstr "すべて既読にする"
 
-#: gui/mainframe.py:9222
+#: gui/mainframe.py:9233
 msgid "All items are already marked as read."
 msgstr "すべての項目はすでに既読になっています。"
 
-#: gui/mainframe.py:9388
+#: gui/mainframe.py:9399
 msgid "Custom command failed"
 msgstr "カスタムコマンドが失敗しました"
 
-#: gui/mainframe.py:9969 gui/mainframe.py:10043 gui/mainframe.py:9932
+#: gui/mainframe.py:9980 gui/mainframe.py:10054 gui/mainframe.py:9943
 msgid "Download error"
 msgstr "ダウンロードエラー"
 
-#: gui/mainframe.py:10387
+#: gui/mainframe.py:10398
 msgid "This provider does not support editing feeds."
 msgstr "このプロバイダーはフィードの編集をサポートしていません。"
 
-#: gui/mainframe.py:10387 gui/mainframe.py:10478
+#: gui/mainframe.py:10398 gui/mainframe.py:10489
 msgid "Not supported"
 msgstr "サポートされていません"
 
-#: gui/mainframe.py:10477
+#: gui/mainframe.py:10488
 msgid "This provider does not support resetting feed titles."
 msgstr "このプロバイダーはフィードタイトルのリセットをサポートしていません。"
 
-#: gui/mainframe.py:11017
+#: gui/mainframe.py:11028
 msgid "Update Check Failed"
 msgstr "アップデートの確認に失敗しました"
 
-#: gui/mainframe.py:11022
+#: gui/mainframe.py:11033
 msgid "No Updates"
 msgstr "アップデートはありません"
 
-#: gui/mainframe.py:11027
+#: gui/mainframe.py:11038
 msgid "Unable to determine update status."
 msgstr "アップデートの状態を確認できませんでした。"
 
-#: gui/mainframe.py:11237
+#: gui/mainframe.py:11248
 msgid "Folder &name:"
 msgstr "フォルダー名(&N):"
 
-#: gui/mainframe.py:11254 gui/mainframe.py:11378
+#: gui/mainframe.py:11265 gui/mainframe.py:11389
 msgid "Field"
 msgstr "フィールド"
 
-#: gui/mainframe.py:11255 gui/mainframe.py:11379
+#: gui/mainframe.py:11266 gui/mainframe.py:11390
 msgid "Condition"
 msgstr "条件"
 
-#: gui/mainframe.py:11256 gui/mainframe.py:11380
+#: gui/mainframe.py:11267 gui/mainframe.py:11391
 msgid "Value"
 msgstr "値"
 
-#: gui/mainframe.py:11360
+#: gui/mainframe.py:11371
 msgid "Rule &name:"
 msgstr "ルール名(&N):"
 
-#: gui/mainframe.py:11404
+#: gui/mainframe.py:11415
 msgid "&Move to category:"
 msgstr "カテゴリへ移動(&M):"
 
-#: gui/mainframe.py:11412
+#: gui/mainframe.py:11423
 msgid "Also &label with category:"
 msgstr "カテゴリでもラベル付け(&L):"
 
-#: gui/mainframe.py:11519
+#: gui/mainframe.py:11530
 msgid "Rules run top to bottom for each incoming article, like email filters."
 msgstr "ルールは、メールフィルターのように、受信した記事ごとに上から下へ順に実行されます。"
 
-#: gui/mainframe.py:342
+#: gui/mainframe.py:343
 msgid "Missing Dependencies"
 msgstr "不足している依存関係"
 
-#: gui/mainframe.py:443
+#: gui/mainframe.py:444
 msgid "Filter current view (Enter)"
 msgstr "現在のビューを絞り込む(Enter)"
 
-#: gui/mainframe.py:1439
+#: gui/mainframe.py:1447
 msgid "{elapsed} / {total} ({remaining} left)"
 msgstr "{elapsed} / {total} (残り {remaining})"
 
-#: gui/mainframe.py:1945
+#: gui/mainframe.py:1953
 msgid "{speed}x"
 msgstr "{speed}x"
 
-#: gui/mainframe.py:3775
+#: gui/mainframe.py:3783
 msgid "Refresh Feed"
 msgstr "フィードを更新"
 
-#: gui/mainframe.py:3790
+#: gui/mainframe.py:3798
 msgid "Edit Feed..."
 msgstr "フィードを編集..."
 
-#: gui/mainframe.py:3829 gui/mainframe.py:3838
+#: gui/mainframe.py:3837 gui/mainframe.py:3846
 msgid "New Smart Folder..."
 msgstr "新しいスマートフォルダー..."
 
-#: gui/mainframe.py:3975
+#: gui/mainframe.py:3983
 msgid "Delete Smart Folder \"{name}\"? Your articles are not affected."
 msgstr "スマートフォルダー「{name}」を削除しますか? 記事には影響しません。"
 
-#: gui/mainframe.py:4047
+#: gui/mainframe.py:4055
 msgid "Mark {count} as &Read"
 msgstr "{count} 件を既読にする(&R)"
 
-#: gui/mainframe.py:4048
+#: gui/mainframe.py:4056
 msgid "Mark {count} as &Unread"
 msgstr "{count} 件を未読にする(&U)"
 
-#: gui/mainframe.py:4060
+#: gui/mainframe.py:4068
 msgid "Delete {count} Articles\tDel"
 msgstr "{count} 件の記事を削除\tDel"
 
-#: gui/mainframe.py:4075
+#: gui/mainframe.py:4083
 msgid "Restore {count} Articles"
 msgstr "{count} 件の記事を復元"
 
-#: gui/mainframe.py:4086
+#: gui/mainframe.py:4094
 msgid "Copy Text ({count} articles)"
 msgstr "テキストをコピー({count} 件の記事)"
 
-#: gui/mainframe.py:4101
+#: gui/mainframe.py:4109
 msgid "Copy Media Link"
 msgstr "メディアリンクをコピー"
 
-#: gui/mainframe.py:4110
+#: gui/mainframe.py:4118
 msgid "Copy Image Link"
 msgstr "画像リンクをコピー"
 
-#: gui/mainframe.py:4186
+#: gui/mainframe.py:4194
 msgid "Remove from Favorites"
 msgstr "お気に入りから削除"
 
-#: gui/mainframe.py:4188
+#: gui/mainframe.py:4196
 msgid "Add to Favorites"
 msgstr "お気に入りに追加"
 
-#: gui/mainframe.py:4196
+#: gui/mainframe.py:4204
 msgid "View History..."
 msgstr "履歴を表示..."
 
-#: gui/mainframe.py:4871
+#: gui/mainframe.py:4879
 msgid ", {position} of {total}"
 msgstr "、{total} 中 {position} 番目"
 
-#: gui/mainframe.py:4875
+#: gui/mainframe.py:4883
 msgid ", {total}"
 msgstr "、{total}"
 
-#: gui/mainframe.py:4877
+#: gui/mainframe.py:4885
 msgid ", {position} played"
 msgstr "、{position} 再生済み"
 
-#: gui/mainframe.py:5012
+#: gui/mainframe.py:5020
 msgid "Added {count} to play queue ({total} queued)."
 msgstr "{count} 件を再生キューに追加しました (計 {total} 件)。"
 
-#: gui/mainframe.py:5033
+#: gui/mainframe.py:5041
 msgid "Removed {count} from play queue ({total} queued)."
 msgstr "{count} 件を再生キューから削除しました (計 {total} 件)。"
 
-#: gui/mainframe.py:5626
+#: gui/mainframe.py:5634
 msgid "Could not restore article."
 msgstr "記事を復元できませんでした。"
 
-#: gui/mainframe.py:5713
+#: gui/mainframe.py:5721
 msgid "Could not rename category."
 msgstr "カテゴリの名前を変更できませんでした。"
 
-#: gui/mainframe.py:5732
+#: gui/mainframe.py:5740
 msgid "Parent category:"
 msgstr "親カテゴリ:"
 
-#: gui/mainframe.py:5753
+#: gui/mainframe.py:5761
 msgid "Could not add category."
 msgstr "カテゴリを追加できませんでした。"
 
-#: gui/mainframe.py:5771
+#: gui/mainframe.py:5779
 msgid "Could not add subcategory."
 msgstr "サブカテゴリを追加できませんでした。"
 
-#: gui/mainframe.py:6563
+#: gui/mainframe.py:6574
 msgid "Favorites"
 msgstr "お気に入り"
 
-#: gui/mainframe.py:6571
+#: gui/mainframe.py:6582
 msgid "Deleted Articles"
 msgstr "削除済みの記事"
 
-#: gui/mainframe.py:6583
+#: gui/mainframe.py:6594
 msgid "Smart Folders"
 msgstr "スマートフォルダー"
 
-#: gui/mainframe.py:10034 gui/mainframe.py:9952
+#: gui/mainframe.py:10045 gui/mainframe.py:9963
 msgid "Download complete"
 msgstr "ダウンロード完了"
 
-#: gui/mainframe.py:10284
+#: gui/mainframe.py:10295
 msgid "Are you sure you want to remove this feed?"
 msgstr "このフィードを削除してもよろしいですか?"
 
-#: gui/mainframe.py:10515 gui/mainframe.py:10703 gui/mainframe.py:10752
+#: gui/mainframe.py:10526 gui/mainframe.py:10714 gui/mainframe.py:10763
 msgid "OPML files"
 msgstr "OPML ファイル"
 
-#: gui/mainframe.py:10709 gui/mainframe.py:10762
+#: gui/mainframe.py:10720 gui/mainframe.py:10773
 msgid "Export successful."
 msgstr "エクスポートが完了しました。"
 
-#: gui/mainframe.py:10711 gui/mainframe.py:10764
+#: gui/mainframe.py:10722 gui/mainframe.py:10775
 msgid "Export failed."
 msgstr "エクスポートに失敗しました。"
 
-#: gui/mainframe.py:10819
+#: gui/mainframe.py:10830
 msgid "Storage Location"
 msgstr "保存場所"
 
-#: gui/mainframe.py:10824
+#: gui/mainframe.py:10835
 msgid ""
 "Config has been moved. The feed database will be migrated to the new "
 "location the next time BlindRSS starts."
 msgstr "設定が移動されました。次回 BlindRSS を起動する際に、フィードデータベースが新しい場所に移行されます。"
 
-#: gui/mainframe.py:10828
+#: gui/mainframe.py:10839
 msgid "Storage Location Changed"
 msgstr "保存場所が変更されました"
 
-#: gui/mainframe.py:11641
+#: gui/mainframe.py:11652
 msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr "フィルタールール「{name}」を削除しますか? すでに処理済みの記事は変更されません。"
 
-#: gui/mainframe.py:329
+#: gui/mainframe.py:330
 msgid "Install Dependencies"
 msgstr "依存関係をインストール"
 
-#: gui/mainframe.py:393
+#: gui/mainframe.py:394
 msgid ""
 "Could not add shortcuts:\n"
 "{error}"
@@ -2457,79 +2477,79 @@ msgstr ""
 "ショートカットを追加できませんでした:\n"
 "{error}"
 
-#: gui/mainframe.py:2494
+#: gui/mainframe.py:2502
 msgid "Playing {position} of {total}: {title}"
 msgstr "{total} 中 {position} 番目を再生中: {title}"
 
-#: gui/mainframe.py:2498
+#: gui/mainframe.py:2506
 msgid "Playing {position} of {total}"
 msgstr "{total} 中 {position} 番目を再生中"
 
-#: gui/mainframe.py:3780
+#: gui/mainframe.py:3788
 msgid "Mark all items in \"{feed}\" as read?"
 msgstr "「{feed}」のすべての項目を既読にしますか?"
 
-#: gui/mainframe.py:3795
+#: gui/mainframe.py:3803
 msgid "Reset Title to Feed Default"
 msgstr "タイトルをフィードの既定値にリセット"
 
-#: gui/mainframe.py:3834
+#: gui/mainframe.py:3842
 msgid "Edit Smart Folder..."
 msgstr "スマートフォルダーを編集..."
 
-#: gui/mainframe.py:3935
+#: gui/mainframe.py:3943
 msgid "Could not create the Smart Folder."
 msgstr "スマートフォルダーを作成できませんでした。"
 
-#: gui/mainframe.py:3959
+#: gui/mainframe.py:3967
 msgid "Could not update the Smart Folder."
 msgstr "スマートフォルダーを更新できませんでした。"
 
-#: gui/mainframe.py:4067
+#: gui/mainframe.py:4075
 msgid "Delete {count} Articles Permanently\tDel"
 msgstr "{count} 件の記事を完全に削除\tDel"
 
-#: gui/mainframe.py:4148
+#: gui/mainframe.py:4156
 msgid "Remove from Play Queue"
 msgstr "再生キューから削除"
 
-#: gui/mainframe.py:4155
+#: gui/mainframe.py:4163
 msgid "Add to Play Queue"
 msgstr "再生キューに追加"
 
-#: gui/mainframe.py:4172
+#: gui/mainframe.py:4180
 msgid "Open {chapter}"
 msgstr "{chapter} を開く"
 
-#: gui/mainframe.py:4868
+#: gui/mainframe.py:4876
 msgid ", played, {total}"
 msgstr "、再生済み、{total}"
 
-#: gui/mainframe.py:4903
+#: gui/mainframe.py:4911
 msgid "played {position}"
 msgstr "再生済み {position}"
 
-#: gui/mainframe.py:5799
+#: gui/mainframe.py:5807
 msgid "Could not remove category."
 msgstr "カテゴリを削除できませんでした。"
 
-#: gui/mainframe.py:9968
+#: gui/mainframe.py:9979
 msgid "Download failed: {error}"
 msgstr "ダウンロードに失敗しました: {error}"
 
-#: gui/mainframe.py:10818
+#: gui/mainframe.py:10829
 msgid "Could not move config file."
 msgstr "設定ファイルを移動できませんでした。"
 
-#: gui/mainframe.py:11599
+#: gui/mainframe.py:11610
 msgid "Could not create the rule."
 msgstr "ルールを作成できませんでした。"
 
-#: gui/mainframe.py:11628
+#: gui/mainframe.py:11639
 msgid "Could not update the rule."
 msgstr "ルールを更新できませんでした。"
 
-#: gui/mainframe.py:11704
+#: gui/mainframe.py:11715
 msgid ""
 "Could not apply rules.\n"
 "\n"
@@ -2539,27 +2559,27 @@ msgstr ""
 "\n"
 "{error}"
 
-#: gui/mainframe.py:3748
+#: gui/mainframe.py:3756
 msgid "Mark all items in category \"{category}\" as read?"
 msgstr "カテゴリ「{category}」のすべての項目を既読にしますか?"
 
-#: gui/mainframe.py:4131
+#: gui/mainframe.py:4139
 msgid "Add {count} to Play Queue"
 msgstr "{count} 件を再生キューに追加"
 
-#: gui/mainframe.py:4139
+#: gui/mainframe.py:4147
 msgid "Remove {count} from Play Queue"
 msgstr "{count} 件を再生キューから削除"
 
-#: gui/mainframe.py:5627
+#: gui/mainframe.py:5635
 msgid "Could not restore {count} articles."
 msgstr "{count} 件の記事を復元できませんでした。"
 
-#: gui/mainframe.py:5789
+#: gui/mainframe.py:5797
 msgid "Remove category '{category}'? Feeds will be moved to Uncategorized."
 msgstr "カテゴリ「{category}」を削除しますか? フィードは「未分類」に移動されます。"
 
-#: gui/mainframe.py:10033 gui/mainframe.py:9951
+#: gui/mainframe.py:10044 gui/mainframe.py:9962
 msgid ""
 "Downloaded to:\n"
 "{path}"
@@ -2567,15 +2587,15 @@ msgstr ""
 "ダウンロード先:\n"
 "{path}"
 
-#: gui/mainframe.py:10766
+#: gui/mainframe.py:10777
 msgid "Export failed: {error}"
 msgstr "エクスポートに失敗しました: {error}"
 
-#: gui/mainframe.py:10874
+#: gui/mainframe.py:10885
 msgid "Windows notification prerequisites could not be fully configured."
 msgstr "Windows 通知の前提条件を完全に構成できませんでした。"
 
-#: gui/mainframe.py:9931
+#: gui/mainframe.py:9942
 msgid ""
 "yt-dlp is not installed. Install it via Settings to download YouTube items."
 msgstr "yt-dlp がインストールされていません。YouTube の項目をダウンロードするには、設定からインストールしてください。"
@@ -2713,4 +2733,4 @@ msgid "BlindRSS is already running."
 msgstr "BlindRSS はすでに実行されています。"
 
 #~ msgid "Show/Hide Player (Ctrl+P)"
-#~ msgstr "プレーヤーの表示/非表示(Ctrl+P)"
+#~ msgstr "プレーヤーの表示/非表示 (Ctrl+P)"

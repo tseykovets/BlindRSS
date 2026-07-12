@@ -13,6 +13,7 @@ def test_default_sort_and_notification_settings():
     assert DEFAULT_CONFIG.get("windows_notifications_excluded_feeds", None) == []
     assert bool(DEFAULT_CONFIG.get("confirm_article_delete", False)) is True
     assert bool(DEFAULT_CONFIG.get("start_on_windows_login", True)) is False
+    assert bool(DEFAULT_CONFIG.get("start_in_system_tray", True)) is False
     assert bool(DEFAULT_CONFIG.get("translation_enabled", True)) is False
     assert str(DEFAULT_CONFIG.get("translation_provider", "")) == "grok"
     assert str(DEFAULT_CONFIG.get("translation_target_language", "")) == "en"

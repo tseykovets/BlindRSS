@@ -15,7 +15,7 @@ from core import utils
 from core import discovery
 from core import equalizer as equalizer_mod
 from core import playback_state
-from core.casting import CastingManager
+from core.casting import CastingManager, CastProtocol
 from core import vlc_instance as vlc_shared
 from core.i18n import _
 from urllib.parse import urlparse
@@ -312,12 +312,56 @@ def _should_reapply_seek(target_ms: int, current_ms: int, tolerance_ms: int, rem
         return False
 
 
+def _airplay_creds_store(config_manager):
+    try:
+        store = config_manager.get("airplay_credentials", {})
+        return dict(store) if isinstance(store, dict) else {}
+    except Exception:
+        return {}
+
+
+def _load_airplay_creds(config_manager, identifier):
+    """Return the persisted ``{protocol: credential}`` mapping for a device."""
+    if not config_manager or not identifier:
+        return None
+    return _airplay_creds_store(config_manager).get(identifier) or None
+
+
+def _save_airplay_creds(config_manager, identifier, creds):
+    if not config_manager or not identifier or not creds:
+        return
+    try:
+        store = _airplay_creds_store(config_manager)
+        # Merge so pairing a second protocol keeps the first one's credential.
+        existing = store.get(identifier)
+        if isinstance(existing, dict) and isinstance(creds, dict):
+            merged = dict(existing)
+            merged.update(creds)
+            store[identifier] = merged
+        else:
+            store[identifier] = creds
+        config_manager.set("airplay_credentials", store)
+    except Exception:
+        pass
+
+
+def _airplay_needs_pairing(exc) -> bool:
+    """Heuristic: does this connect failure look like it needs (re)pairing?"""
+    text = str(exc).lower()
+    return any(tok in text for tok in (
+        "auth", "pair", "credential", "not authenticated", "verification", "pin",
+    ))
+
+
 class CastDialog(wx.Dialog):
-    def __init__(self, parent, manager: CastingManager):
+    def __init__(self, parent, manager: CastingManager, config_manager=None):
         super().__init__(parent, title=_("Cast to Device"), size=(400, 300))
         self.manager = manager
+        self.config_manager = config_manager
         self.devices = []
         self.selected_device = None
+        self._callback_generation = 0
+        self._dialog_destroyed = False
         
         sizer = wx.BoxSizer(wx.VERTICAL)
         
@@ -346,15 +390,23 @@ class CastDialog(wx.Dialog):
         self.on_refresh(None)
 
     def on_refresh(self, event):
+        self._callback_generation += 1
+        generation = self._callback_generation
         self.list_box.Clear()
         self.list_box.Append(_("Scanning..."))
-        threading.Thread(target=self._scan, daemon=True).start()
+        threading.Thread(target=self._scan, args=(generation,), daemon=True).start()
 
-    def _scan(self):
-        self.devices = self.manager.discover_all()
-        wx.CallAfter(self._update_list)
+    def _scan(self, generation):
+        try:
+            devices = self.manager.discover_all()
+        except Exception:
+            devices = []
+        wx.CallAfter(self._update_list, generation, devices)
 
-    def _update_list(self):
+    def _update_list(self, generation, devices):
+        if self._dialog_destroyed or generation != self._callback_generation:
+            return
+        self.devices = list(devices or [])
         self.list_box.Clear()
         if not self.devices:
             self.list_box.Append(_("No devices found"))
@@ -382,15 +434,88 @@ class CastDialog(wx.Dialog):
     def _connect_thread(self, device):
         success = False
         try:
-            # This blocks the thread, not the GUI
-            self.manager.connect(device)
-            success = True
+            is_airplay = getattr(device, "protocol", None) == CastProtocol.AIRPLAY
+            creds = _load_airplay_creds(self.config_manager, device.identifier) if is_airplay else None
+            try:
+                # This blocks the worker thread, not the GUI
+                self.manager.connect(device, credentials=creds)
+                success = True
+            except Exception as e:
+                # AirPlay devices (Apple TV / HomePod) often require a one-time
+                # PIN pairing. Offer it, persist the credentials, and retry.
+                if is_airplay and _airplay_needs_pairing(e):
+                    new_creds = self._pair_airplay(device)
+                    if not new_creds:
+                        raise
+                    _save_airplay_creds(self.config_manager, device.identifier, new_creds)
+                    merged = _load_airplay_creds(self.config_manager, device.identifier)
+                    self.manager.connect(device, credentials=merged)
+                    success = True
+                else:
+                    raise
         except Exception as e:
             wx.CallAfter(self._on_connect_error, str(e))
         finally:
             wx.CallAfter(self._on_connect_complete, success)
 
+    def _pair_airplay(self, device):
+        """Drive the pyatv pairing flow, prompting the user for the PIN.
+
+        Runs on the connect worker thread; the PIN dialog is marshaled to the
+        wx thread. Returns a ``{protocol: credential}`` mapping or None.
+        """
+        try:
+            self.manager.start_pairing(device)
+        except Exception as e:
+            wx.CallAfter(
+                self._on_connect_error,
+                _("Could not start pairing: {error}").format(error=str(e)),
+            )
+            return None
+
+        pin = self._prompt_pin()
+        if pin is None:
+            try:
+                # Cancel the in-progress pairing handler cleanly.
+                self.manager.finish_pairing(device, None)
+            except Exception:
+                pass
+            return None
+
+        try:
+            return self.manager.finish_pairing(device, pin)
+        except Exception as e:
+            wx.CallAfter(
+                self._on_connect_error,
+                _("Pairing failed: {error}").format(error=str(e)),
+            )
+            return None
+
+    def _prompt_pin(self):
+        """Show a PIN entry dialog on the wx thread and block until answered."""
+        result = {}
+        done = threading.Event()
+
+        def ask():
+            try:
+                dlg = wx.TextEntryDialog(
+                    self,
+                    _("Enter the PIN code shown on the device:"),
+                    _("AirPlay Pairing"),
+                )
+                if dlg.ShowModal() == wx.ID_OK:
+                    result["pin"] = dlg.GetValue().strip()
+                dlg.Destroy()
+            finally:
+                done.set()
+
+        wx.CallAfter(ask)
+        done.wait()
+        return result.get("pin")
+
     def _on_connect_error(self, error_msg):
+        if self._dialog_destroyed:
+            return
         wx.MessageBox(
             _("Connection failed: {error}").format(error=error_msg),
             _("Error"),
@@ -398,6 +523,8 @@ class CastDialog(wx.Dialog):
         )
 
     def _on_connect_complete(self, success):
+        if self._dialog_destroyed:
+            return
         wx.EndBusyCursor()
         if success:
             self.EndModal(wx.ID_OK)
@@ -411,6 +538,11 @@ class CastDialog(wx.Dialog):
     def on_cancel(self, event):
         self.EndModal(wx.ID_CANCEL)
 
+    def Destroy(self):
+        self._dialog_destroyed = True
+        self._callback_generation += 1
+        return super().Destroy()
+
 
 class PlayerFrame(wx.Frame):
     def __init__(self, parent, config_manager):
@@ -422,13 +554,20 @@ class PlayerFrame(wx.Frame):
         self.casting_manager.start()
         self.is_casting = False
         self._cast_last_pos_ms = 0
+        self._cast_last_pos_ts = time.monotonic()
         self._cast_local_was_playing = False
         self._cast_poll_ts = 0.0
+        self._cast_poll_interval_s = 5.0
+        self._cast_status_poll_inflight = False
+        self._cast_session_token = 0
+        self._cast_missing_status_count = 0
+        self._cast_recovery_attempted = False
+        self._cast_recovery_inflight = False
+        self._cast_started_ts = 0.0
+        self._cast_content_type = "audio/mpeg"
 
         # Cast handoff tracking
         self._cast_handoff_source_url = None
-        self._cast_handoff_target_ms = 0
-        self._cast_handoff_attempts_left = 0
         self._timer_interval_ms = 0
 
         # Resume Seek State
@@ -790,6 +929,13 @@ class PlayerFrame(wx.Frame):
                 base = max(0, int(getattr(self, "_cast_last_pos_ms", 0) or 0))
             except Exception:
                 base = 0
+            try:
+                if bool(getattr(self, "is_playing", False)):
+                    sampled_at = float(getattr(self, "_cast_last_pos_ts", 0.0) or 0.0)
+                    if sampled_at > 0:
+                        base += int(max(0.0, time.monotonic() - sampled_at) * 1000.0)
+            except Exception:
+                pass
             try:
                 dur = int(getattr(self, "duration", 0) or 0)
                 if dur > 0 and base > dur:
@@ -1919,6 +2065,11 @@ class PlayerFrame(wx.Frame):
     def _init_player_menu_bar(self) -> None:
         try:
             menubar = wx.MenuBar()
+            playback_menu = wx.Menu()
+            self._cast_menu_item = playback_menu.Append(
+                wx.ID_ANY,
+                _("&Cast to Device..."),
+            )
             chapters_menu = wx.Menu()
 
             self._chapter_menu_show_item = chapters_menu.Append(wx.ID_ANY, _("Show &Chapters\tCtrl+M"))
@@ -1930,9 +2081,11 @@ class PlayerFrame(wx.Frame):
             self._chapter_menu_prev_item = chapters_menu.Append(wx.ID_ANY, _("&Previous Chapter\tCtrl+Shift+Left"))
             self._chapter_menu_next_item = chapters_menu.Append(wx.ID_ANY, _("&Next Chapter\tCtrl+Shift+Right"))
 
+            menubar.Append(playback_menu, _("&Playback"))
             menubar.Append(chapters_menu, _("&Chapters"))
             self.SetMenuBar(menubar)
 
+            self.Bind(wx.EVT_MENU, self.on_cast, self._cast_menu_item)
             self.Bind(wx.EVT_MENU, self.on_show_chapters_menu, self._chapter_menu_show_item)
             self.Bind(wx.EVT_MENU, self.on_open_chapter_link, self._chapter_menu_open_link_item)
             self.Bind(wx.EVT_MENU, self.on_prev_chapter, self._chapter_menu_prev_item)
@@ -1940,7 +2093,23 @@ class PlayerFrame(wx.Frame):
         except Exception:
             log.exception("Failed to initialize player menu bar")
         finally:
+            self._refresh_cast_menu_state()
             self._refresh_chapter_controls_state()
+
+    def _refresh_cast_menu_state(self) -> None:
+        casting = bool(getattr(self, "is_casting", False))
+        button_label = _("Disconnect") if casting else _("Cast")
+        menu_label = _("&Disconnect Cast") if casting else _("&Cast to Device...")
+        try:
+            self.cast_btn.SetLabel(button_label)
+        except Exception:
+            pass
+        try:
+            item = getattr(self, "_cast_menu_item", None)
+            if item is not None:
+                item.SetItemLabel(menu_label)
+        except Exception:
+            pass
 
     def _refresh_chapter_controls_state(self) -> None:
         chapters = list(getattr(self, "current_chapters", []) or [])
@@ -2144,27 +2313,12 @@ class PlayerFrame(wx.Frame):
 
     def on_cast(self, event):
         if self.is_casting:
-            cast_pos_ms = None
-            try:
-                pos_sec = self.casting_manager.get_position()
-                if pos_sec is not None:
-                    cast_pos_ms = int(float(pos_sec) * 1000.0)
-            except Exception:
-                cast_pos_ms = None
-
-            # Fallback if device returns nothing or 0 (likely buffering/glitch)
-            if cast_pos_ms is None or cast_pos_ms == 0:
-                try:
-                    fallback = int(getattr(self, '_cast_last_pos_ms', 0) or 0)
-                    if fallback > 0:
-                        cast_pos_ms = fallback
-                except Exception:
-                    pass
-            
-            if cast_pos_ms is None:
-                cast_pos_ms = 0
+            cast_pos_ms = int(self._current_position_ms())
 
             cast_was_playing = bool(self.is_playing)
+            self._cast_session_token = int(getattr(self, "_cast_session_token", 0) or 0) + 1
+            self._cast_status_poll_inflight = False
+            self._cast_recovery_inflight = False
 
             try:
                 self.casting_manager.disconnect()
@@ -2172,20 +2326,11 @@ class PlayerFrame(wx.Frame):
                 pass
 
             self.is_casting = False
-            try:
-                self.cast_btn.SetLabel(_("Cast"))
-            except Exception:
-                pass
+            PlayerFrame._refresh_cast_menu_state(self)
             try:
                 self.title_lbl.SetLabel(f"{self.current_title} (Local)")
             except Exception:
                 pass
-            try:
-                # Stop remote playback so audio does not continue on the cast device.
-                self.casting_manager.stop_playback()
-            except Exception:
-                pass
-
             if self.current_url:
                 same_media = False
                 try:
@@ -2214,23 +2359,11 @@ class PlayerFrame(wx.Frame):
                 self._cast_handoff_source_url = None
             return
 
+        local_was_playing = False
         local_pos_ms = 0
-        try:
-            if getattr(self, '_seek_target_ms', None) is not None:
-                local_pos_ms = int(self._seek_target_ms or 0)
-            else:
-                local_pos_ms = int(self._current_position_ms())
-            if local_pos_ms < 0:
-                local_pos_ms = 0
-        except Exception:
-            local_pos_ms = 0
-
-        local_was_playing = bool(self.is_playing)
-        self._cast_local_was_playing = local_was_playing
-        self._cast_last_pos_ms = local_pos_ms
         local_paused_for_cast = False
 
-        dlg = CastDialog(self, self.casting_manager)
+        dlg = CastDialog(self, self.casting_manager, self.config_manager)
         try:
             if dlg.ShowModal() != wx.ID_OK:
                 return
@@ -2239,13 +2372,30 @@ class PlayerFrame(wx.Frame):
                 return
 
             try:
+                # Local playback continues while discovery/connection is open.
+                # Capture the live position only after the dialog returns; the
+                # helper already ignores stale seek targets after 2.5 seconds.
+                local_pos_ms = max(0, int(self._current_position_ms()))
+                local_was_playing = bool(self.is_playing)
+                self._cast_local_was_playing = local_was_playing
+                self._cast_last_pos_ms = local_pos_ms
+                self._cast_last_pos_ts = time.monotonic()
+
                 # CastDialog already connects before returning wx.ID_OK. Reuse
                 # that live session instead of disconnecting it and repeating
                 # discovery; reconnect only if the session dropped meanwhile.
                 if not self.casting_manager.is_connected_to(device):
-                    self.casting_manager.connect(device)
+                    reconnect_creds = None
+                    if getattr(device, "protocol", None) == CastProtocol.AIRPLAY:
+                        reconnect_creds = _load_airplay_creds(self.config_manager, device.identifier)
+                    self.casting_manager.connect(device, credentials=reconnect_creds)
                 self.is_casting = True
-                self.cast_btn.SetLabel(_("Disconnect"))
+                self._cast_session_token = int(getattr(self, "_cast_session_token", 0) or 0) + 1
+                self._cast_missing_status_count = 0
+                self._cast_recovery_attempted = False
+                self._cast_recovery_inflight = False
+                self._cast_started_ts = time.monotonic()
+                PlayerFrame._refresh_cast_menu_state(self)
                 self.title_lbl.SetLabel(f"{self.current_title} (Casting to {device.name})")
 
                 if local_was_playing:
@@ -2268,14 +2418,8 @@ class PlayerFrame(wx.Frame):
                     except Exception:
                         start_sec = None
                     self._cast_handoff_source_url = self.current_url
-                    self.casting_manager.play(self.current_url, self.current_title, content_type='audio/mpeg', start_time_seconds=start_sec)
-                    if local_pos_ms > 0:
-                        try:
-                            self._cast_handoff_target_ms = int(local_pos_ms)
-                            self._cast_handoff_attempts_left = 4
-                            wx.CallLater(1200, self._cast_handoff_seek_tick)
-                        except Exception:
-                            pass
+                    self._cast_content_type = "audio/mpeg"
+                    self.casting_manager.play(self.current_url, self.current_title, content_type=self._cast_content_type, start_time_seconds=start_sec)
 
                     if not local_was_playing:
                         try:
@@ -2289,11 +2433,10 @@ class PlayerFrame(wx.Frame):
                 except Exception:
                     pass
                 self.is_casting = False
+                self._cast_session_token = int(getattr(self, "_cast_session_token", 0) or 0) + 1
+                self._cast_status_poll_inflight = False
                 self._cast_handoff_source_url = None
-                try:
-                    self.cast_btn.SetLabel(_("Cast"))
-                except Exception:
-                    pass
+                PlayerFrame._refresh_cast_menu_state(self)
                 try:
                     self.title_lbl.SetLabel(f"{self.current_title} (Local)")
                 except Exception:
@@ -2314,39 +2457,104 @@ class PlayerFrame(wx.Frame):
             except Exception:
                 pass
 
-    def _cast_handoff_seek_tick(self):
+    def _request_cast_status_poll(self):
+        """Request one remote status snapshot without blocking the wx thread."""
         try:
-            if not bool(getattr(self, 'is_casting', False)):
+            if not bool(getattr(self, "is_casting", False)):
                 return
-            target_ms = int(getattr(self, '_cast_handoff_target_ms', 0) or 0)
-            if target_ms <= 0:
+            if bool(getattr(self, "_cast_status_poll_inflight", False)):
                 return
+            token = int(getattr(self, "_cast_session_token", 0) or 0)
+            self._cast_status_poll_inflight = True
+
+            def completed(status):
+                wx.CallAfter(self._apply_cast_status, token, status)
 
             try:
-                pos_sec = self.casting_manager.get_position()
-                if pos_sec is not None:
-                    cur_ms = int(float(pos_sec) * 1000.0)
-                    self._cast_last_pos_ms = int(cur_ms)
-                    if abs(int(cur_ms) - int(target_ms)) <= 2000:
-                        return
+                future = self.casting_manager.get_status_async(completed)
+                if future is None:
+                    self._cast_status_poll_inflight = False
             except Exception:
-                pass
+                self._cast_status_poll_inflight = False
+        except Exception:
+            self._cast_status_poll_inflight = False
 
-            try:
-                self.casting_manager.seek(float(target_ms) / 1000.0)
-            except Exception:
-                pass
+    def _apply_cast_status(self, token, status):
+        if token != int(getattr(self, "_cast_session_token", 0) or 0):
+            return
+        self._cast_status_poll_inflight = False
+        if not bool(getattr(self, "is_casting", False)):
+            return
 
-            try:
-                left = int(getattr(self, '_cast_handoff_attempts_left', 0) or 0)
-            except Exception:
-                left = 0
-            left -= 1
-            self._cast_handoff_attempts_left = left
-            if left > 0:
-                wx.CallLater(1200, self._cast_handoff_seek_tick)
+        status = status if isinstance(status, dict) else {}
+        pos_sec = status.get("position_seconds")
+        try:
+            if pos_sec is not None and float(pos_sec) > 0:
+                self._cast_last_pos_ms = int(float(pos_sec) * 1000.0)
+                self._cast_last_pos_ts = time.monotonic()
         except Exception:
             pass
+
+        player_state = str(status.get("player_state") or "").upper()
+        if player_state == "PLAYING":
+            self.is_playing = True
+        elif player_state == "PAUSED":
+            self.is_playing = False
+
+        if not bool(status.get("supports_session_detection", False)):
+            return
+        healthy = bool(status.get("connected", False)) and status.get("media_session_id") is not None
+        if healthy:
+            self._cast_missing_status_count = 0
+            self._cast_recovery_attempted = False
+            return
+
+        self._cast_missing_status_count = int(getattr(self, "_cast_missing_status_count", 0) or 0) + 1
+        try:
+            within_startup_grace = (time.monotonic() - float(getattr(self, "_cast_started_ts", 0.0) or 0.0)) < 10.0
+        except Exception:
+            within_startup_grace = False
+        if self._cast_missing_status_count >= 2 and not within_startup_grace:
+            self._start_cast_recovery(token)
+
+    def _start_cast_recovery(self, token):
+        if token != int(getattr(self, "_cast_session_token", 0) or 0):
+            return
+        if not bool(getattr(self, "is_casting", False)) or not self.current_url:
+            return
+        if bool(getattr(self, "_cast_recovery_attempted", False)) or bool(getattr(self, "_cast_recovery_inflight", False)):
+            return
+
+        self._cast_recovery_attempted = True
+        self._cast_recovery_inflight = True
+        should_pause = not bool(getattr(self, "is_playing", False))
+        start_sec = max(0.0, float(self._current_position_ms()) / 1000.0)
+
+        def completed(_result):
+            wx.CallAfter(self._finish_cast_recovery, token, should_pause)
+
+        try:
+            self.casting_manager.play_async(
+                self.current_url,
+                self.current_title,
+                content_type=getattr(self, "_cast_content_type", "audio/mpeg"),
+                start_time_seconds=start_sec,
+                callback=completed,
+            )
+        except Exception:
+            self._cast_recovery_inflight = False
+
+    def _finish_cast_recovery(self, token, should_pause):
+        if token != int(getattr(self, "_cast_session_token", 0) or 0):
+            return
+        self._cast_recovery_inflight = False
+        self._cast_started_ts = time.monotonic()
+        self._cast_missing_status_count = 0
+        if should_pause and bool(getattr(self, "is_casting", False)):
+            try:
+                self.casting_manager.pause_async()
+            except Exception:
+                pass
 
     def _resume_local_from_cast(self, position_ms: int, was_playing: bool) -> bool:
         try:
@@ -3576,6 +3784,12 @@ class PlayerFrame(wx.Frame):
             log.exception("Error during playback position restore and migration")
 
         if self.is_casting:
+            self._cast_session_token = int(getattr(self, "_cast_session_token", 0) or 0) + 1
+            self._cast_status_poll_inflight = False
+            self._cast_missing_status_count = 0
+            self._cast_recovery_attempted = False
+            self._cast_recovery_inflight = False
+            self._cast_started_ts = time.monotonic()
             try:
                 start_ms = getattr(self, "_pending_resume_seek_ms", None)
             except Exception:
@@ -3583,6 +3797,7 @@ class PlayerFrame(wx.Frame):
             if start_ms is not None and int(start_ms) > 0:
                 try:
                     self._cast_last_pos_ms = int(start_ms)
+                    self._cast_last_pos_ts = time.monotonic()
                 except Exception:
                     pass
                 self.casting_manager.play(
@@ -4078,14 +4293,10 @@ class PlayerFrame(wx.Frame):
         if self.is_casting:
             try:
                 now = time.time()
-                if now - float(getattr(self, '_cast_poll_ts', 0.0)) >= 1.0:
+                interval = max(1.0, float(getattr(self, "_cast_poll_interval_s", 5.0) or 5.0))
+                if now - float(getattr(self, '_cast_poll_ts', 0.0)) >= interval:
                     self._cast_poll_ts = now
-                    pos_sec = self.casting_manager.get_position()
-                    if pos_sec is not None:
-                        val = int(float(pos_sec) * 1000.0)
-                        # Only update if > 0 to avoid overwriting valid progress with 0 during glitches
-                        if val > 0:
-                            self._cast_last_pos_ms = val
+                    self._request_cast_status_poll()
             except Exception:
                 pass
             cast_cur = self._current_position_ms()
@@ -4604,6 +4815,7 @@ class PlayerFrame(wx.Frame):
                 fraction = float(value) / 1000.0
                 target_ms = int(fraction * int(self.duration))
                 self._cast_last_pos_ms = int(target_ms)
+                self._cast_last_pos_ts = time.monotonic()
                 self.casting_manager.seek(float(target_ms) / 1000.0)
             except Exception:
                 pass
@@ -4629,13 +4841,10 @@ class PlayerFrame(wx.Frame):
         if self.is_casting:
             try:
                 cur_ms = int(getattr(self, '_cast_last_pos_ms', 0) or 0)
-                if cur_ms <= 0:
-                    pos_sec = self.casting_manager.get_position()
-                    if pos_sec is not None:
-                        cur_ms = int(float(pos_sec) * 1000.0)
                 step = int(getattr(self, 'seek_back_ms', 10000) or 10000)
                 target_ms = max(0, int(cur_ms) - int(step))
                 self._cast_last_pos_ms = int(target_ms)
+                self._cast_last_pos_ts = time.monotonic()
                 self.casting_manager.seek(float(target_ms) / 1000.0)
             except Exception:
                 pass
@@ -4648,15 +4857,12 @@ class PlayerFrame(wx.Frame):
         if self.is_casting:
             try:
                 cur_ms = int(getattr(self, '_cast_last_pos_ms', 0) or 0)
-                if cur_ms <= 0:
-                    pos_sec = self.casting_manager.get_position()
-                    if pos_sec is not None:
-                        cur_ms = int(float(pos_sec) * 1000.0)
                 step = int(getattr(self, 'seek_forward_ms', 10000) or 10000)
                 target_ms = int(cur_ms) + int(step)
                 if getattr(self, 'duration', 0) and int(self.duration) > 0 and target_ms > int(self.duration):
                     target_ms = int(self.duration)
                 self._cast_last_pos_ms = int(target_ms)
+                self._cast_last_pos_ts = time.monotonic()
                 self.casting_manager.seek(float(target_ms) / 1000.0)
             except Exception:
                 pass
@@ -4941,6 +5147,7 @@ class PlayerFrame(wx.Frame):
                 self._chapter_last_commit_idx = int(idx)
                 self._chapter_last_commit_ts = float(now_ts)
                 self._cast_last_pos_ms = int(target_ms)
+                self._cast_last_pos_ts = time.monotonic()
                 self.casting_manager.seek(float(target_ms) / 1000.0)
                 self._update_chapter_accessibility_label(idx)
             except Exception:
@@ -5237,7 +5444,9 @@ class PlayerFrame(wx.Frame):
                 caster = getattr(self.casting_manager, "active_caster", None)
                 if caster is not None and hasattr(caster, "set_volume"):
                     level = float(percent) / 100.0
-                    self.casting_manager.dispatch(caster.set_volume(level))
+                    # Non-blocking: a slow/unresponsive cast device must not
+                    # freeze the wx (screen-reader) thread on a volume change.
+                    self.casting_manager.set_volume_async(level)
             except Exception:
                 pass
         if persist and self.config_manager:
@@ -6211,6 +6420,9 @@ class PlayerFrame(wx.Frame):
         if getattr(self, "_shutdown_done", False):
             return
         self._shutdown_done = True
+        self._cast_session_token = int(getattr(self, "_cast_session_token", 0) or 0) + 1
+        self._cast_status_poll_inflight = False
+        self._cast_recovery_inflight = False
 
         try:
             self._persist_playback_position(force=True)

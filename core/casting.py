@@ -139,6 +139,13 @@ class BaseCaster(ABC):
         """Return current playback position in seconds (if supported)."""
         return None
 
+    async def get_status(self) -> Dict:
+        """Return a protocol-neutral playback status snapshot."""
+        return {
+            "position_seconds": await self.get_position(),
+            "supports_session_detection": False,
+        }
+
 
 
 # ============================================================================
@@ -618,35 +625,19 @@ class ChromecastCaster(BaseCaster):
             except Exception as e:
                 raise PlaybackError(f"Chromecast playback failed: {e}") from e
 
-            # Some devices ignore current_time; enforce via seek with retries.
+            # Some devices ignore current_time. Enforce it with one bounded,
+            # acknowledged seek. MediaController.seek defaults to a 10-second
+            # wait, so repeated default-timeout calls can freeze the wx UI for
+            # close to a minute when a receiver stops acknowledging commands.
             if target_start and target_start > 0:
-                import time as _time
-                for _attempt in range(5):
-                    try:
-                        mc.update_status()
-                    except Exception:
-                        pass
-                    cur = None
-                    try:
-                        st = getattr(mc, "status", None)
-                        if st is not None:
-                            cur = getattr(st, "adjusted_current_time", None)
-                            if cur is None:
-                                cur = getattr(st, "current_time", None)
-                    except Exception:
-                        cur = None
-
-                    try:
-                        if cur is not None and abs(float(cur) - float(target_start)) <= 2.0:
-                            break
-                    except Exception:
-                        pass
-
-                    try:
-                        mc.seek(float(target_start))
-                    except Exception:
-                        pass
-                    _time.sleep(0.8)
+                try:
+                    mc.seek(float(target_start), timeout=2.0)
+                except TypeError:
+                    # pychromecast>=14 supports timeout=. Do not fall back to
+                    # its unbounded/default wait on an unexpected older API.
+                    LOG.warning("Chromecast seek API does not support a bounded timeout")
+                except Exception as e:
+                    LOG.warning("Chromecast resume seek was not acknowledged: %s", e)
 
         
         await loop.run_in_executor(None, do_play)
@@ -718,31 +709,72 @@ class ChromecastCaster(BaseCaster):
 
     async def get_position(self) -> Optional[float]:
         """Get current playback position in seconds from Chromecast (best-effort)."""
+        status = await self.get_status()
+        return status.get("position_seconds")
+
+    async def get_status(self) -> Dict:
+        """Return one acknowledged Chromecast receiver/media snapshot."""
         if not self._cast:
-            return None
+            return {
+                "position_seconds": None,
+                "media_session_id": None,
+                "content_id": None,
+                "player_state": None,
+                "receiver_app_ids": [],
+                "transport_id": None,
+                "connected": False,
+                "supports_session_detection": True,
+            }
         loop = asyncio.get_event_loop()
 
         def do_get():
+            cast = self._cast
+            snapshot = {
+                "position_seconds": None,
+                "media_session_id": None,
+                "content_id": None,
+                "player_state": None,
+                "receiver_app_ids": [],
+                "transport_id": None,
+                "connected": False,
+                "supports_session_detection": True,
+            }
             try:
-                mc = self._cast.media_controller
+                if cast is None:
+                    return snapshot
+                snapshot["connected"] = bool(self.is_connected())
+                mc = cast.media_controller
+                refreshed = threading.Event()
+
+                def status_callback(_sent, _response):
+                    refreshed.set()
+
                 try:
+                    mc.update_status(callback_function=status_callback)
+                except TypeError:
                     mc.update_status()
                 except Exception:
                     pass
+                refreshed.wait(1.0)
                 st = getattr(mc, 'status', None)
-                if st is None:
-                    return None
-                v = getattr(st, 'adjusted_current_time', None)
-                if v is None:
-                    v = getattr(st, 'current_time', None)
-                if v is None:
-                    return None
-                try:
-                    return float(v)
-                except Exception:
-                    return None
+                if st is not None:
+                    snapshot["media_session_id"] = getattr(st, "media_session_id", None)
+                    snapshot["content_id"] = getattr(st, "content_id", None)
+                    snapshot["player_state"] = getattr(st, "player_state", None)
+                    v = getattr(st, 'adjusted_current_time', None)
+                    if v is None:
+                        v = getattr(st, 'current_time', None)
+                    try:
+                        if v is not None:
+                            snapshot["position_seconds"] = float(v)
+                    except Exception:
+                        pass
+                snapshot["receiver_app_ids"] = sorted(self._reported_app_ids(cast))
+                receiver_status = getattr(cast, "status", None)
+                snapshot["transport_id"] = getattr(receiver_status, "transport_id", None)
             except Exception:
-                return None
+                pass
+            return snapshot
 
         return await loop.run_in_executor(None, do_get)
 
@@ -1038,69 +1070,133 @@ class DLNACaster(BaseCaster):
 try:
     import pyatv
     from pyatv import conf
+    from pyatv.interface import DeviceListener as _PyatvDeviceListener
     _HAS_AIRPLAY = True
 except ImportError:
     _HAS_AIRPLAY = False
+    _PyatvDeviceListener = object
+
+
+class _AirPlayConnListener(_PyatvDeviceListener):
+    """Nulls the caster's connection when pyatv reports the link dropped."""
+
+    def __init__(self, on_lost):
+        self._on_lost = on_lost
+
+    def connection_lost(self, exception) -> None:  # pyatv callback
+        try:
+            self._on_lost()
+        except Exception:
+            pass
+
+    def connection_closed(self) -> None:  # pyatv callback
+        try:
+            self._on_lost()
+        except Exception:
+            pass
 
 
 class AirPlayCaster(BaseCaster):
-    """AirPlay protocol implementation using pyatv."""
-    
+    """AirPlay / AirPlay 2 implementation using pyatv.
+
+    Handles two distinct streaming paths:
+      * ``play_url`` for AirPlay video receivers (Apple TV). The receiver
+        fetches the URL itself, so local/loopback/header-bearing streams are
+        routed through StreamProxy on a device-reachable IP.
+      * ``stream_file`` (RAOP) for AirPlay 2 audio-only speakers (HomePod,
+        AirPort Express). pyatv decodes the audio locally, so loopback URLs are
+        reachable as-is and only header injection needs the proxy.
+    """
+
     def __init__(self):
         if not _HAS_AIRPLAY:
             raise CastError("pyatv is not installed. Run: pip install pyatv")
         self._atv = None
-        
+        self._device_host = None
+        self._supports_airplay_video = True
+        self._supports_raop = False
+        self._raop_task = None          # long-running stream_file task (RAOP)
+        self._uses_raop = False         # last playback used RAOP audio streaming
+        self._connection_lost = False
+        self._listener = None
+        # Pairing state (one device at a time)
+        self._pairing_handler = None
+        self._pairing_protocol = None
+
     async def discover(self, timeout: float = 5.0) -> List[CastDevice]:
-        """Discover AirPlay devices."""
+        """Discover AirPlay and AirPlay 2 (RAOP) devices."""
         devices = []
         try:
             atvs = await pyatv.scan(loop=asyncio.get_event_loop(), timeout=int(timeout))
-            
+
             for atv in atvs:
-                # Prefer AirPlay protocol
+                # Surface devices exposing either AirPlay (video) or RAOP
+                # (AirPlay 2 audio); RAOP-only speakers were previously dropped.
                 service = atv.get_service(conf.Protocol.AirPlay)
-                if not service:
+                raop = atv.get_service(conf.Protocol.RAOP)
+                if not service and not raop:
                     continue
-                
+
                 # atv is a BaseConfig which has address (IPv4/IPv6)
-                # service is BaseService (or MutableService) which has port
                 host = str(atv.address) if atv.address else ""
-                
+                port = service.port if service else raop.port
+
                 device = CastDevice(
                     name=atv.name,
                     protocol=CastProtocol.AIRPLAY,
                     identifier=atv.identifier,
                     host=host,
-                    port=service.port,
+                    port=port,
                     metadata={
-                        "conf": atv
-                    }
+                        "conf": atv,
+                        "supports_airplay_video": service is not None,
+                        "supports_raop": raop is not None,
+                    },
                 )
                 devices.append(device)
         except Exception as e:
             LOG.warning("AirPlay discovery error: %s", e)
-            
+
         return devices
-    
-    async def connect(self, device: CastDevice, credentials: Optional[str] = None) -> None:
+
+    def _apply_credentials(self, config, credentials) -> None:
+        """Apply stored credentials. ``credentials`` may be a plain AirPlay
+        string or a ``{protocol_name: credential}`` mapping."""
+        if not credentials:
+            return
+        if isinstance(credentials, str):
+            credentials = {conf.Protocol.AirPlay.name: credentials}
+        if not isinstance(credentials, dict):
+            return
+        for proto_name, cred in credentials.items():
+            if not cred:
+                continue
+            proto = proto_name
+            if isinstance(proto_name, str):
+                proto = getattr(conf.Protocol, proto_name, None)
+            if proto is None:
+                continue
+            try:
+                config.set_credentials(proto, cred)
+            except Exception as e:
+                LOG.debug("AirPlay set_credentials(%s) failed: %s", proto_name, e)
+
+    async def connect(self, device: CastDevice, credentials: Optional[object] = None) -> None:
         """Connect to an AirPlay device."""
         config = device.metadata.get("conf")
-        
+
         # Try to connect with cached config first
         try:
             if not config:
                 raise ConnectionError("Missing AirPlay configuration")
-            
-            if credentials:
-                config.set_credentials(conf.Protocol.AirPlay, credentials)
-
+            self._apply_credentials(config, credentials)
             self._atv = await pyatv.connect(config, loop=asyncio.get_event_loop())
+            self._after_connect(device, config)
             return
         except Exception:
             # Fallback: re-scan and retry once
             pass
-            
+
         try:
             # Re-scan to get fresh config (handles IP changes, ephemeral ports, loop affinity)
             LOG.info(f"Re-scanning for {device.identifier}...")
@@ -1109,20 +1205,37 @@ class AirPlayCaster(BaseCaster):
                 config = atvs[0]
                 # Update metadata reference for future use
                 device.metadata["conf"] = config
-            
+
             if not config:
                 raise ConnectionError("Device not found during re-scan")
 
-            if credentials:
-                config.set_credentials(conf.Protocol.AirPlay, credentials)
-            
+            self._apply_credentials(config, credentials)
             self._atv = await pyatv.connect(config, loop=asyncio.get_event_loop())
-            
+            self._after_connect(device, config)
+
         except Exception as e:
             raise ConnectionError(f"Failed to connect to {device.name}: {e}")
 
-    async def start_pairing(self, device: CastDevice) -> object:
-        """Start pairing process. Returns a pyatv PairingHandler."""
+    def _after_connect(self, device: CastDevice, config) -> None:
+        """Record device capabilities and register a connection listener."""
+        self._connection_lost = False
+        self._device_host = str(getattr(config, "address", "") or device.host or "") or None
+        meta = device.metadata or {}
+        self._supports_airplay_video = bool(meta.get("supports_airplay_video", True))
+        self._supports_raop = bool(meta.get("supports_raop", False))
+        try:
+            self._listener = _AirPlayConnListener(self._on_connection_lost)
+            self._atv.listener = self._listener
+        except Exception as e:
+            LOG.debug("AirPlay listener registration failed: %s", e)
+
+    def _on_connection_lost(self) -> None:
+        LOG.info("AirPlay connection lost")
+        self._connection_lost = True
+
+    async def start_pairing(self, device: CastDevice, protocol: Optional[object] = None) -> object:
+        """Begin pairing. Returns a pyatv PairingHandler that has already been
+        ``begin()``-ed; call :meth:`finish_pairing` with the PIN afterwards."""
         # Always re-scan before pairing to ensure we have the latest state/loop context
         config = device.metadata.get("conf")
         try:
@@ -1132,48 +1245,259 @@ class AirPlayCaster(BaseCaster):
                 device.metadata["conf"] = config
         except Exception as e:
             LOG.warning("Re-scan for pairing failed: %s", e)
-            
+
         if not config:
             raise CastError("Missing configuration")
-        
-        # Ensure we start with a clean slate for credentials to avoid "not authenticated"
-        # if stale garbage is present.
-        config.set_credentials(conf.Protocol.AirPlay, None)
-        
-        return await pyatv.pair(config, conf.Protocol.AirPlay, loop=asyncio.get_event_loop())
-    
+
+        if protocol is None:
+            # Prefer AirPlay for video receivers; otherwise pair RAOP audio.
+            protocol = conf.Protocol.AirPlay if config.get_service(conf.Protocol.AirPlay) else conf.Protocol.RAOP
+
+        # Ensure we start with a clean slate for credentials to avoid "not
+        # authenticated" if stale garbage is present.
+        try:
+            config.set_credentials(protocol, None)
+        except Exception:
+            pass
+
+        handler = await pyatv.pair(config, protocol, loop=asyncio.get_event_loop())
+        await handler.begin()
+        self._pairing_handler = handler
+        self._pairing_protocol = protocol
+        return handler
+
+    async def finish_pairing(self, pin: Optional[object]) -> Optional[Dict[str, str]]:
+        """Submit the PIN and finalize pairing. Returns a
+        ``{protocol_name: credential}`` mapping suitable for persistence."""
+        handler = self._pairing_handler
+        if handler is None:
+            raise CastError("No pairing in progress")
+        try:
+            if pin is not None:
+                handler.pin(str(pin))
+            await handler.finish()
+            creds = None
+            try:
+                creds = getattr(handler.service, "credentials", None)
+            except Exception:
+                creds = None
+            proto_name = getattr(self._pairing_protocol, "name", None) or conf.Protocol.AirPlay.name
+            return {proto_name: creds} if creds else None
+        finally:
+            try:
+                await handler.close()
+            except Exception:
+                pass
+            self._pairing_handler = None
+            self._pairing_protocol = None
+
+    def _feature_state(self, feature_name):
+        try:
+            from pyatv.const import FeatureState
+            info = self._atv.features.get_feature(feature_name)
+            return info.state, FeatureState
+        except Exception:
+            return None, None
+
+    def _supported(self, feature_name, advertised: bool) -> bool:
+        """Whether a feature is usable, falling back to the advertised service
+        when pyatv reports the feature state as Unknown."""
+        state, FeatureState = self._feature_state(feature_name)
+        if FeatureState is None:
+            return advertised
+        if state == FeatureState.Available:
+            return True
+        if state in (FeatureState.Unsupported, FeatureState.Unavailable):
+            return False
+        return advertised  # Unknown -> trust discovery
+
+    def _prepare_url(self, url: str, content_type: str,
+                     headers: Optional[Dict[str, str]], for_local: bool) -> str:
+        """Route a URL through StreamProxy so the playback path can reach it.
+
+        ``for_local`` selects the RAOP path (pyatv reads locally, so loopback
+        URLs and local files are used directly) versus the play_url path (the
+        receiver fetches, so local content must be proxied on a reachable IP).
+        """
+        try:
+            parsed = urllib.parse.urlparse(url or '')
+        except Exception:
+            parsed = urllib.parse.urlparse('')
+
+        file_path = None
+        try:
+            if parsed.scheme == 'file':
+                fp = urllib.parse.unquote(parsed.path or '')
+                # Windows file URLs are commonly like /C:/path
+                if fp.startswith('/') and len(fp) >= 3 and fp[2] == ':':
+                    fp = fp[1:]
+                file_path = fp
+            elif url and os.path.isfile(url):
+                file_path = url
+        except Exception:
+            file_path = None
+
+        proxy = get_proxy()
+
+        try:
+            if for_local:
+                # RAOP: pyatv decodes locally. stream_file accepts a local path
+                # directly, and loopback/remote URLs are reachable as-is. Only
+                # header injection requires proxying (through loopback).
+                if file_path:
+                    return file_path
+                if headers and proxy:
+                    return proxy.get_proxied_url(url, headers, device_ip="127.0.0.1")
+                return url
+
+            # play_url: the receiver fetches, so local content must be proxied
+            # on an IP it can reach.
+            device_ip = self._device_host or None
+            if proxy and file_path:
+                return proxy.get_file_url(file_path, device_ip=device_ip)
+            needs_proxy = False
+            if parsed.scheme in ('http', 'https') and parsed.hostname in ('127.0.0.1', 'localhost'):
+                needs_proxy = True
+            if headers:
+                needs_proxy = True
+            if proxy and needs_proxy:
+                return proxy.get_proxied_url(url, headers, device_ip=device_ip)
+        except Exception as e:
+            LOG.warning("AirPlay URL preparation failed; using direct URL: %s", e)
+        return url
+
+    def _start_raop_stream(self, url: str, title: str) -> None:
+        """Schedule RAOP audio streaming as a background task.
+
+        ``stream_file`` blocks until the whole stream finishes, so it must run
+        detached rather than being awaited inside ``play``.
+        """
+        atv = self._atv
+
+        async def _run():
+            try:
+                metadata = None
+                try:
+                    from pyatv.interface import MediaMetadata
+                    metadata = MediaMetadata(title=title)
+                except Exception:
+                    metadata = None
+                if metadata is not None:
+                    await atv.stream.stream_file(url, metadata=metadata, override_missing_metadata=True)
+                else:
+                    await atv.stream.stream_file(url)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                LOG.warning("AirPlay RAOP streaming ended: %s", e)
+
+        self._raop_task = asyncio.ensure_future(_run())
+
+    async def _cancel_raop_task(self) -> None:
+        task = self._raop_task
+        self._raop_task = None
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                pass
+
     async def play(self, url: str, title: str = "IPTV Stream",
                    content_type: str = "video/mp2t", headers: Optional[Dict[str, str]] = None,
                    start_time_seconds: Optional[float] = None) -> None:
-        """Play a stream on AirPlay."""
+        """Play a stream on AirPlay, choosing play_url or RAOP as appropriate."""
         if not self._atv:
             raise ConnectionError("Not connected to an AirPlay device")
-        
+
+        # Any previous RAOP stream must be torn down before starting a new one.
+        await self._cancel_raop_task()
+
+        from pyatv.const import FeatureName
+        can_play_url = self._supported(FeatureName.PlayUrl, self._supports_airplay_video)
+        can_raop = self._supported(FeatureName.StreamFile, self._supports_raop)
+
+        pos = 0
         try:
-            stream = self._atv.stream
-            # pyatv's play_url doesn't directly support custom HTTP headers
-            # However, some headers might be embedded in the URL itself if needed
-            # For most AirPlay devices, this is not a common requirement as they
-            # often fetch content directly without needing custom headers from the client.
-            # If a stream requires custom headers, a proxy might be needed or
-            # pyatv's capabilities extended.
+            if start_time_seconds is not None:
+                pos = max(0, int(float(start_time_seconds)))
+        except Exception:
             pos = 0
-            try:
-                if start_time_seconds is not None:
-                    pos = max(0, int(float(start_time_seconds)))
-            except Exception:
-                pos = 0
-            await stream.play_url(url, position=pos)
+
+        # Audio-only speakers (RAOP without play_url) go straight to RAOP.
+        if can_raop and not can_play_url:
+            prepared = self._prepare_url(url, content_type, headers, for_local=True)
+            self._start_raop_stream(prepared, title)
+            self._uses_raop = True
+            return
+
+        prepared = self._prepare_url(url, content_type, headers, for_local=False)
+        try:
+            await self._atv.stream.play_url(prepared, position=pos)
+            self._uses_raop = False
+            return
         except Exception as e:
-            # pyatv 0.14+ raises NotSupportedError if the connected protocol doesn't support streaming (e.g. RAOP only)
-            if "NotSupportedError" in str(type(e).__name__):
+            # pyatv raises NotSupportedError when the connected protocol can't
+            # stream video (e.g. an AirPlay 2 speaker). Fall back to RAOP audio.
+            if "NotSupportedError" in type(e).__name__ and can_raop:
+                prepared_local = self._prepare_url(url, content_type, headers, for_local=True)
+                self._start_raop_stream(prepared_local, title)
+                self._uses_raop = True
+                return
+            if "NotSupportedError" in type(e).__name__:
                 raise PlaybackError(
                     "This AirPlay device does not support video streaming (play_url). "
-                    "It might be an audio-only device or connected via limited protocol."
+                    "It might be an audio-only device or connected via a limited protocol."
                 )
             raise PlaybackError(f"Failed to start playback: {e}")
 
+    async def seek(self, position_seconds: float) -> None:
+        if not self._atv:
+            return
+        try:
+            await self._atv.remote_control.set_position(max(0, int(float(position_seconds))))
+        except Exception as e:
+            LOG.debug("AirPlay seek error: %s", e)
+
+    async def get_position(self) -> Optional[float]:
+        status = await self.get_status()
+        return status.get("position_seconds")
+
+    async def get_status(self) -> Dict:
+        """Return a playback snapshot from the device.
+
+        ``supports_session_detection`` is intentionally False: AirPlay has no
+        Chromecast-style media session id, so the UI's session-health/recovery
+        machinery must not run — but position and player_state are still
+        reported so the progress display tracks the device.
+        """
+        snapshot = {
+            "position_seconds": None,
+            "player_state": None,
+            "connected": self.is_connected(),
+            "supports_session_detection": False,
+        }
+        if not self._atv or self._connection_lost:
+            snapshot["connected"] = False
+            return snapshot
+        try:
+            playing = await self._atv.metadata.playing()
+            pos = getattr(playing, "position", None)
+            if pos is not None:
+                try:
+                    snapshot["position_seconds"] = float(pos)
+                except Exception:
+                    pass
+            state = getattr(playing, "device_state", None)
+            snapshot["player_state"] = getattr(state, "name", None)
+        except Exception as e:
+            LOG.debug("AirPlay status error: %s", e)
+        return snapshot
+
     async def stop(self) -> None:
+        await self._cancel_raop_task()
         if self._atv:
             try:
                 await self._atv.remote_control.stop()
@@ -1197,21 +1521,29 @@ class AirPlayCaster(BaseCaster):
     async def set_volume(self, level: float) -> None:
         if self._atv:
             try:
-                # pyatv volume is typically 0.0-100.0
+                # pyatv volume is 0.0-100.0
                 await self._atv.audio.set_volume(level * 100.0)
             except Exception as e:
                 LOG.debug("AirPlay set_volume error: %s", e)
 
     async def disconnect(self) -> None:
-        if self._atv:
+        await self._cancel_raop_task()
+        atv = self._atv
+        self._atv = None
+        self._listener = None
+        self._connection_lost = False
+        if atv:
             try:
-                self._atv.close()
+                # pyatv's close() returns pending tasks that must be awaited to
+                # avoid leaked connections and "task was destroyed" warnings.
+                pending = atv.close()
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
             except Exception:
                 pass
-            self._atv = None
 
     def is_connected(self) -> bool:
-        return self._atv is not None
+        return self._atv is not None and not self._connection_lost
 
 
 def _detect_mime_type(url: str, default: str = "video/mp2t") -> str:
@@ -1320,6 +1652,38 @@ class CastingManager:
         future = asyncio.run_coroutine_threadsafe(coro, self._loop)
         return future.result()
 
+    def dispatch_async(self, coro, callback=None):
+        """Schedule cast work without blocking the caller's (usually wx) thread."""
+        if not self._running or not self._loop:
+            try:
+                coro.close()
+            except Exception:
+                pass
+            raise RuntimeError("CastingManager is not running. Call start() first.")
+
+        try:
+            future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        except Exception:
+            try:
+                coro.close()
+            except Exception:
+                pass
+            raise
+
+        if callback is not None:
+            def completed(done_future):
+                try:
+                    result = done_future.result()
+                except Exception:
+                    result = None
+                try:
+                    callback(result)
+                except Exception:
+                    LOG.exception("Casting async callback failed")
+
+            future.add_done_callback(completed)
+        return future
+
     def discover_all(self, timeout: float = 5.0) -> List[CastDevice]:
         """Discover devices across all supported protocols."""
         return self.dispatch(self._discover_all_async(timeout))
@@ -1363,18 +1727,34 @@ class CastingManager:
         self.active_caster = caster
         self.active_device = device
 
-    def start_pairing(self, device: CastDevice) -> object:
+    def start_pairing(self, device: CastDevice, protocol: Optional[object] = None) -> object:
         """Start pairing if supported by the protocol."""
-        return self.dispatch(self._start_pairing_async(device))
+        return self.dispatch(self._start_pairing_async(device, protocol))
 
-    async def _start_pairing_async(self, device: CastDevice) -> object:
+    async def _start_pairing_async(self, device: CastDevice, protocol: Optional[object] = None) -> object:
         caster = self.casters.get(device.protocol)
         if isinstance(caster, AirPlayCaster):
-            return await caster.start_pairing(device)
+            return await caster.start_pairing(device, protocol)
+        raise CastError("Pairing not supported for this device type")
+
+    def finish_pairing(self, device: CastDevice, pin: Optional[object]) -> Optional[Dict[str, str]]:
+        """Submit the PIN and finalize pairing, returning credentials to persist."""
+        return self.dispatch(self._finish_pairing_async(device, pin))
+
+    async def _finish_pairing_async(self, device: CastDevice, pin: Optional[object]) -> Optional[Dict[str, str]]:
+        caster = self.casters.get(device.protocol)
+        if isinstance(caster, AirPlayCaster):
+            return await caster.finish_pairing(pin)
         raise CastError("Pairing not supported for this device type")
 
     def play(self, url: str, title: str = "IPTV Stream", channel: Optional[Dict[str, str]] = None, content_type: str = "audio/mpeg", start_time_seconds: Optional[float] = None) -> None:
         self.dispatch(self._play_async(url, title, channel, content_type, start_time_seconds))
+
+    def play_async(self, url: str, title: str = "IPTV Stream", channel: Optional[Dict[str, str]] = None, content_type: str = "audio/mpeg", start_time_seconds: Optional[float] = None, callback=None):
+        return self.dispatch_async(
+            self._play_async(url, title, channel, content_type, start_time_seconds),
+            callback=callback,
+        )
 
     async def _play_async(self, url: str, title: str, channel: Optional[Dict[str, str]], content_type: str, start_time_seconds: Optional[float]) -> None:
         if not self.active_caster:
@@ -1391,15 +1771,32 @@ class CastingManager:
         if self.active_caster:
             self.dispatch(self.active_caster.pause())
 
+    def pause_async(self, callback=None):
+        caster = self.active_caster
+        if caster:
+            return self.dispatch_async(caster.pause(), callback=callback)
+        return None
+
     def resume(self) -> None:
         if self.active_caster:
             self.dispatch(self.active_caster.resume())
 
+    def set_volume_async(self, level: float, callback=None):
+        """Set the cast device volume without blocking the caller (wx) thread."""
+        caster = self.active_caster
+        if caster is None:
+            return None
+        try:
+            return self.dispatch_async(caster.set_volume(level), callback=callback)
+        except Exception:
+            return None
+
     def seek(self, position_seconds: float) -> None:
-        """Seek on the active cast device (seconds)."""
-        if self.active_caster:
+        """Seek on the active cast device without blocking the UI thread."""
+        caster = self.active_caster
+        if caster:
             try:
-                self.dispatch(self.active_caster.seek(position_seconds))
+                self.dispatch_async(caster.seek(position_seconds))
             except Exception:
                 pass
 
@@ -1411,6 +1808,30 @@ class CastingManager:
             except Exception:
                 return None
         return None
+
+    def get_position_async(self, callback):
+        """Fetch position in the background and invoke ``callback(value)``."""
+        caster = self.active_caster
+        if caster is None:
+            callback(None)
+            return None
+        try:
+            return self.dispatch_async(caster.get_position(), callback=callback)
+        except Exception:
+            callback(None)
+            return None
+
+    def get_status_async(self, callback):
+        """Fetch a full playback snapshot without blocking the caller."""
+        caster = self.active_caster
+        if caster is None:
+            callback(None)
+            return None
+        try:
+            return self.dispatch_async(caster.get_status(), callback=callback)
+        except Exception:
+            callback(None)
+            return None
 
     def disconnect(self) -> None:
         self.dispatch(self._disconnect_async())

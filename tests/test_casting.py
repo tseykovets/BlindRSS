@@ -1,4 +1,6 @@
 import asyncio
+import threading
+import time
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -342,6 +344,86 @@ def test_chromecast_play_does_not_relaunch_default_receiver(monkeypatch):
     assert play_calls == [("https://example.com/test.wav", "audio/wav")]
 
 
+def test_chromecast_play_sends_start_time_and_one_bounded_seek(monkeypatch):
+    chromecast = _Chromecast(app_id=casting.APP_MEDIA_RECEIVER)
+    play_calls = []
+    seek_calls = []
+    chromecast.media_controller.play_media = (
+        lambda url, content_type, **kwargs: play_calls.append((url, content_type, kwargs))
+    )
+    chromecast.media_controller.block_until_active = lambda timeout=None: None
+    chromecast.media_controller.seek = (
+        lambda position, timeout=None: seek_calls.append((position, timeout))
+    )
+    monkeypatch.setattr(casting, "get_proxy", lambda: None)
+
+    caster = casting.ChromecastCaster()
+    caster._cast = chromecast
+    asyncio.run(
+        caster.play(
+            "https://example.com/episode.mp3",
+            content_type="audio/mpeg",
+            start_time_seconds=42.5,
+        )
+    )
+
+    assert play_calls[0][2]["current_time"] == 42.5
+    assert seek_calls == [(42.5, 2.0)]
+
+
+def test_chromecast_status_waits_for_acknowledged_snapshot():
+    chromecast = _Chromecast(app_id=casting.APP_MEDIA_RECEIVER)
+    chromecast.status.transport_id = "transport-2"
+    chromecast.media_controller.status = SimpleNamespace(
+        media_session_id=9,
+        content_id="https://example.com/episode.mp3",
+        player_state="PLAYING",
+        adjusted_current_time=320.75,
+    )
+
+    def update_status(callback_function=None):
+        if callback_function:
+            callback_function(True, {})
+
+    chromecast.media_controller.update_status = update_status
+    caster = casting.ChromecastCaster()
+    caster._cast = chromecast
+
+    status = asyncio.run(caster.get_status())
+
+    assert status == {
+        "position_seconds": 320.75,
+        "media_session_id": 9,
+        "content_id": "https://example.com/episode.mp3",
+        "player_state": "PLAYING",
+        "receiver_app_ids": [casting.APP_MEDIA_RECEIVER],
+        "transport_id": "transport-2",
+        "connected": True,
+        "supports_session_detection": True,
+    }
+
+
+def test_casting_manager_seek_does_not_wait_for_network_completion():
+    completed = threading.Event()
+
+    class _SlowCaster:
+        async def seek(self, position):
+            await asyncio.sleep(0.15)
+            completed.set()
+
+    manager = casting.CastingManager()
+    manager.active_caster = _SlowCaster()
+    manager.start()
+    try:
+        started = time.monotonic()
+        manager.seek(12.0)
+        elapsed = time.monotonic() - started
+        assert elapsed < 0.1
+        assert completed.wait(1.0)
+    finally:
+        manager.stop()
+
+
 def test_chromecast_receiver_launch_failure_is_playback_error(monkeypatch):
     chromecast = _Chromecast(
         app_id="70FE3A67",
@@ -674,3 +756,255 @@ def test_connect_raises_when_no_caster_for_protocol():
     manager = _bare_manager({})
     with pytest.raises(casting.CastError):
         asyncio.run(manager._connect_async(_device()))
+
+
+# ============================================================================
+# AirPlay / AirPlay 2 (RAOP)
+# ============================================================================
+
+from pyatv.const import DeviceState, FeatureName, FeatureState  # noqa: E402
+from pyatv import conf as _pyatv_conf  # noqa: E402
+
+
+class _FakeStream:
+    def __init__(self, play_url_error=None):
+        self.play_url_calls = []
+        self.stream_file_calls = []
+        self.play_url_error = play_url_error
+
+    async def play_url(self, url, **kwargs):
+        self.play_url_calls.append((url, kwargs))
+        if self.play_url_error is not None:
+            raise self.play_url_error
+
+    async def stream_file(self, file, **kwargs):
+        self.stream_file_calls.append((file, kwargs))
+        # Emulate a long-running stream that stays active until cancelled.
+        await asyncio.Event().wait()
+
+
+class _FakeRemote:
+    def __init__(self):
+        self.set_position_calls = []
+        self.stop_calls = 0
+
+    async def set_position(self, pos):
+        self.set_position_calls.append(pos)
+
+    async def stop(self):
+        self.stop_calls += 1
+
+    async def pause(self):
+        pass
+
+    async def play(self):
+        pass
+
+
+class _FakeMetadata:
+    def __init__(self, position=None, device_state=None):
+        self._playing = SimpleNamespace(position=position, device_state=device_state)
+
+    async def playing(self):
+        return self._playing
+
+
+class _FakeFeatures:
+    def __init__(self, states):
+        self._states = states
+
+    def get_feature(self, name):
+        return SimpleNamespace(state=self._states.get(name, FeatureState.Unknown))
+
+
+class _FakeATV:
+    def __init__(self, features_states=None, position=None, device_state=None,
+                 play_url_error=None):
+        self.stream = _FakeStream(play_url_error=play_url_error)
+        self.remote_control = _FakeRemote()
+        self.metadata = _FakeMetadata(position=position, device_state=device_state)
+        self.audio = SimpleNamespace(set_volume=self._set_volume)
+        self.features = _FakeFeatures(features_states or {})
+        self.listener = None
+        self.close_calls = 0
+        self.pending = []
+        self.volume_calls = []
+
+    async def _set_volume(self, level, **kwargs):
+        self.volume_calls.append(level)
+
+    def close(self):
+        self.close_calls += 1
+        return set(self.pending)
+
+
+def _airplay_caster(atv, **flags):
+    caster = casting.AirPlayCaster()
+    caster._atv = atv
+    caster._supports_airplay_video = flags.get("video", True)
+    caster._supports_raop = flags.get("raop", False)
+    caster._device_host = flags.get("host")
+    return caster
+
+
+async def _play_then_cleanup(caster, *args, **kwargs):
+    await caster.play(*args, **kwargs)
+    # Let a scheduled RAOP task start and record its call before teardown.
+    await asyncio.sleep(0.05)
+    await caster._cancel_raop_task()
+
+
+def test_airplay_seek_calls_set_position():
+    atv = _FakeATV()
+    caster = _airplay_caster(atv)
+    asyncio.run(caster.seek(42.9))
+    assert atv.remote_control.set_position_calls == [42]
+
+
+def test_airplay_status_reports_position_and_state_without_session_detection():
+    atv = _FakeATV(position=88, device_state=DeviceState.Playing)
+    caster = _airplay_caster(atv)
+    status = asyncio.run(caster.get_status())
+    assert status["position_seconds"] == 88.0
+    assert status["player_state"] == "Playing"
+    assert status["connected"] is True
+    # AirPlay has no media-session id, so recovery machinery must stay off.
+    assert status["supports_session_detection"] is False
+
+
+def test_airplay_play_uses_play_url_for_video_receiver():
+    atv = _FakeATV({
+        FeatureName.PlayUrl: FeatureState.Available,
+        FeatureName.StreamFile: FeatureState.Unavailable,
+    })
+    caster = _airplay_caster(atv, video=True, raop=False)
+    asyncio.run(caster.play("https://cdn.example.com/video.mp4", "Clip",
+                            content_type="video/mp4", start_time_seconds=12))
+    assert len(atv.stream.play_url_calls) == 1
+    url, kwargs = atv.stream.play_url_calls[0]
+    assert url == "https://cdn.example.com/video.mp4"
+    assert kwargs.get("position") == 12
+    assert atv.stream.stream_file_calls == []
+    assert caster._uses_raop is False
+
+
+def test_airplay_play_uses_raop_for_audio_only_speaker():
+    atv = _FakeATV({
+        FeatureName.PlayUrl: FeatureState.Unsupported,
+        FeatureName.StreamFile: FeatureState.Available,
+    })
+    caster = _airplay_caster(atv, video=False, raop=True)
+    asyncio.run(_play_then_cleanup(caster, "https://cdn.example.com/podcast.mp3",
+                                   content_type="audio/mpeg"))
+    assert atv.stream.play_url_calls == []
+    assert len(atv.stream.stream_file_calls) == 1
+    assert atv.stream.stream_file_calls[0][0] == "https://cdn.example.com/podcast.mp3"
+    assert caster._uses_raop is True
+
+
+def test_airplay_play_url_notsupported_falls_back_to_raop():
+    class NotSupportedError(Exception):
+        pass
+
+    atv = _FakeATV(
+        {
+            FeatureName.PlayUrl: FeatureState.Available,
+            FeatureName.StreamFile: FeatureState.Available,
+        },
+        play_url_error=NotSupportedError("no video"),
+    )
+    caster = _airplay_caster(atv, video=True, raop=True)
+    asyncio.run(_play_then_cleanup(caster, "https://x/podcast.mp3",
+                                   content_type="audio/mpeg"))
+    assert len(atv.stream.play_url_calls) == 1
+    assert len(atv.stream.stream_file_calls) == 1
+    assert caster._uses_raop is True
+
+
+def test_airplay_prepare_url_routing(monkeypatch):
+    monkeypatch.setattr(casting, "get_proxy", lambda: _FakeProxy())
+    caster = casting.AirPlayCaster()
+    caster._device_host = "192.168.1.50"
+    loop_url = "http://127.0.0.1:9000/podcast.mp3"
+
+    # play_url: receiver fetches, so loopback must be proxied on a reachable IP.
+    out = caster._prepare_url(loop_url, "audio/mpeg", None, for_local=False)
+    assert out == f"proxied://192.168.1.50/{loop_url}"
+
+    # RAOP: pyatv reads locally, so loopback is reachable as-is.
+    assert caster._prepare_url(loop_url, "audio/mpeg", None, for_local=True) == loop_url
+
+    # RAOP with headers: proxy through loopback to inject them.
+    out_hdr = caster._prepare_url(loop_url, "audio/mpeg", {"X": "1"}, for_local=True)
+    assert out_hdr == f"proxied://127.0.0.1/{loop_url}"
+
+
+def test_airplay_connection_listener_marks_disconnected():
+    atv = _FakeATV()
+    caster = casting.AirPlayCaster()
+    device = casting.CastDevice(
+        name="ATV", protocol=casting.CastProtocol.AIRPLAY, identifier="atv-1",
+        host="192.168.1.50", port=7000,
+        metadata={"supports_airplay_video": True, "supports_raop": False},
+    )
+    caster._atv = atv
+    caster._after_connect(device, SimpleNamespace(address="192.168.1.50"))
+    assert caster.is_connected() is True
+
+    # pyatv reports the link dropped.
+    atv.listener.connection_lost(RuntimeError("boom"))
+    assert caster.is_connected() is False
+    assert asyncio.run(caster.get_status())["connected"] is False
+
+
+def test_airplay_disconnect_awaits_close_pending_tasks():
+    atv = _FakeATV()
+    caster = _airplay_caster(atv)
+
+    async def scenario():
+        async def _pending():
+            return None
+        atv.pending = [asyncio.ensure_future(_pending())]
+        await caster.disconnect()
+
+    asyncio.run(scenario())
+    assert atv.close_calls == 1
+    assert caster._atv is None
+    assert caster.is_connected() is False
+
+
+def test_airplay_finish_pairing_returns_credentials():
+    caster = casting.AirPlayCaster()
+
+    class _Handler:
+        def __init__(self):
+            self.service = SimpleNamespace(credentials="CRED123")
+            self.pin_calls = []
+            self.closed = False
+
+        def pin(self, code):
+            self.pin_calls.append(code)
+
+        async def finish(self):
+            pass
+
+        async def close(self):
+            self.closed = True
+
+    handler = _Handler()
+    caster._pairing_handler = handler
+    caster._pairing_protocol = _pyatv_conf.Protocol.AirPlay
+
+    creds = asyncio.run(caster.finish_pairing("1234"))
+    assert creds == {"AirPlay": "CRED123"}
+    assert handler.pin_calls == ["1234"]
+    assert handler.closed is True
+    assert caster._pairing_handler is None
+
+
+class _FakeProxy:
+    def get_proxied_url(self, url, headers, device_ip=None):
+        return f"proxied://{device_ip}/{url}"
+
+    def get_file_url(self, path, device_ip=None):
+        return f"file-proxied://{device_ip}{path}"

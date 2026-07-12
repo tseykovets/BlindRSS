@@ -404,13 +404,21 @@ def test_current_position_keeps_local_tracking_when_not_casting(monkeypatch):
     assert PlayerFrame._current_position_ms(_Frame()) == 11_500
 
 
-def test_cast_timer_syncs_elapsed_chapter_accessibility_and_menu_boundaries():
+def test_cast_timer_syncs_elapsed_chapter_accessibility_and_menu_boundaries(monkeypatch):
+    monkeypatch.setattr("gui.player.wx.CallAfter", lambda fn, *args: fn(*args))
+
     class _Casting:
         def __init__(self):
             self.positions = iter((65.0, 125.0))
 
-        def get_position(self):
-            return next(self.positions)
+        def get_status_async(self, callback):
+            callback(
+                {
+                    "position_seconds": next(self.positions),
+                    "supports_session_detection": False,
+                }
+            )
+            return object()
 
     class _Slider:
         def __init__(self):
@@ -424,7 +432,11 @@ def test_cast_timer_syncs_elapsed_chapter_accessibility_and_menu_boundaries():
             self.is_casting = True
             self.casting_manager = _Casting()
             self._cast_poll_ts = 0.0
+            self._cast_poll_interval_s = 5.0
+            self._cast_status_poll_inflight = False
+            self._cast_session_token = 1
             self._cast_last_pos_ms = 0
+            self._cast_last_pos_ts = 0.0
             self._is_dragging_slider = False
             self.duration = 180_000
             self.current_chapters = [
@@ -442,6 +454,12 @@ def test_cast_timer_syncs_elapsed_chapter_accessibility_and_menu_boundaries():
 
         def _current_position_ms(self):
             return PlayerFrame._current_position_ms(self)
+
+        def _request_cast_status_poll(self):
+            return PlayerFrame._request_cast_status_poll(self)
+
+        def _apply_cast_status(self, token, status):
+            return PlayerFrame._apply_cast_status(self, token, status)
 
         def _format_time(self, position_ms):
             return PlayerFrame._format_time(self, position_ms)

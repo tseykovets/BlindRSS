@@ -173,7 +173,8 @@ def _looks_like_media_url(url: str) -> bool:
 
 
 def _normalize_whitespace(text: str) -> str:
-    text = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    text = (text or "").replace("\u200b", "").replace("\u2060", "").replace("\ufeff", "")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
@@ -331,6 +332,13 @@ def _extract_json_ld_text(html: str) -> str:
 
     cleaned: List[str] = []
     for c in candidates:
+        first_tag = re.search(r"<[a-z][^>]*>", c, flags=re.I)
+        if first_tag:
+            # Some publishers (notably Sky News) put the standfirst directly before the first
+            # ``<p>`` in articleBody.  Preserve that leading text while stripping the markup.
+            prefix = _normalize_whitespace(c[: first_tag.start()])
+            fragment_text = _html_fragment_to_text(c[first_tag.start() :])
+            c = "\n\n".join(part for part in (prefix, fragment_text) if part)
         t = _normalize_whitespace(c)
         if t:
             cleaned.append(t)
@@ -1304,6 +1312,36 @@ def _download_via_smry(target_url: str, timeout: int) -> Optional[str]:
     return None
 
 
+def _download_sky_via_google_translate(target_url: str, timeout: int) -> Optional[str]:
+    """Fetch a current Sky News article through Google's browser-facing web proxy.
+
+    Sky's Akamai edge commonly returns a tiny 403 ``Access Denied`` page to plain requests and
+    curl_cffi browser fingerprints even though the same article opens normally in Chrome.  The
+    English-to-English Google Translate route fetches the live page (not a cached copy) and keeps
+    the original article markup readable by the normal extraction pipeline.
+    """
+    try:
+        parts = urlsplit((target_url or "").strip())
+        if (parts.hostname or "").lower() != "news.sky.com":
+            return None
+        path = parts.path or "/"
+        query = parts.query + ("&" if parts.query else "")
+        query += "_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en"
+        proxy_url = f"https://news-sky-com.translate.goog{path}?{query}"
+        r = utils.safe_requests_get(
+            proxy_url,
+            timeout=timeout,
+            headers=dict(_HTML_ACCEPT_HEADERS),
+            allow_redirects=True,
+        )
+        body = _response_text(r)
+        if 200 <= r.status_code < 400 and body and not _looks_like_bot_interstitial(body):
+            return body
+    except Exception:
+        return None
+    return None
+
+
 def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
     """Fetch a page, treating anti-bot/verification interstitials as a (recoverable) block.
 
@@ -1312,10 +1350,11 @@ def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
 
     Fallback chain when the direct fetch fails (live sources first — the user wants the CURRENT
     page text; the possibly-stale Wayback snapshot is the last resort):
-    1. impersonated refetch of the live page (real-browser TLS fingerprint, beats most WAF gates);
-    2. Jina read-proxy (live; gates only);
-    3. Smry.ai reader (live);
-    4. Wayback Machine snapshot.
+    1. Sky News' live Google Translate route (Sky only);
+    2. impersonated refetch of the live page (real-browser TLS fingerprint, beats most WAF gates);
+    3. Jina read-proxy (live; gates only);
+    4. Smry.ai reader (live);
+    5. Wayback Machine snapshot.
     """
     if not url:
         return _FetchResult()
@@ -1330,6 +1369,8 @@ def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
         # Every fallback body is re-checked for interstitials so a gate served by the fallback
         # itself (or archived by it) is never stored as article text.
         candidates: List[Callable[[], Optional[str]]] = []
+        if (urlsplit(url).hostname or "").lower() == "news.sky.com":
+            candidates.append(lambda: _download_sky_via_google_translate(url, timeout))
         if not tried_impersonation_first:
             candidates.append(lambda: _download_via_impersonation(url, timeout))
         if gate_seen:

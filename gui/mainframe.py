@@ -8678,9 +8678,10 @@ class MainFrame(wx.Frame):
                 else:
                     # last resort: strip HTML to visible text
                     try:
-                        final_text += (self._strip_html(fallback_html) or "").strip()
+                        stripped_fallback = (self._strip_html(fallback_html) or "").strip()
                     except Exception:
-                        final_text += "No text available.\n"
+                        stripped_fallback = ""
+                    final_text += stripped_fallback or "No text available.\n"
                 rendered = final_text
                 render_source = "fallback"
 

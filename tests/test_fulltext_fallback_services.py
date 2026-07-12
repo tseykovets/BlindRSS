@@ -110,6 +110,70 @@ def test_gate_recovered_by_impersonated_refetch(monkeypatch):
     assert not any("r.jina.ai" in c or "smry.ai" in c or "archive.org" in c for c in calls)
 
 
+def test_sky_gate_recovered_through_live_google_translate_route(monkeypatch):
+    sky_url = "https://news.sky.com/story/example-world-report-13562675"
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append(url)
+        if "news-sky-com.translate.goog" in url:
+            return _resp(200, ARTICLE_HTML)
+        return _resp(403, "<html><h1>Access Denied</h1></html>")
+
+    monkeypatch.setattr(utils, "safe_requests_get", fake_get)
+    res = article_extractor._fetch_page(sky_url)
+
+    assert res.blocked is False
+    assert "university mail servers" in (res.html or "")
+    assert calls[1].startswith(
+        "https://news-sky-com.translate.goog/story/example-world-report-13562675?"
+    )
+    assert "_x_tr_tl=en" in calls[1]
+    assert not any("r.jina.ai" in call or "archive.org" in call for call in calls)
+
+
+def test_sky_translate_route_rejects_akamai_footer(monkeypatch):
+    gate = "Powered and protected by Akamai Privacy"
+    monkeypatch.setattr(
+        utils,
+        "safe_requests_get",
+        lambda *args, **kwargs: _resp(200, gate),
+    )
+
+    assert article_extractor._download_sky_via_google_translate(
+        "https://news.sky.com/story/example-13562675", 20
+    ) is None
+    assert article_extractor._download_sky_via_google_translate(
+        "https://example.com/story", 20
+    ) is None
+
+
+def test_json_ld_article_body_html_is_rendered_as_plain_text():
+    payload = json.dumps(
+        {
+            "@type": "NewsArticle",
+            "articleBody": (
+                "The opening sentence is readable. "
+                "<p>The second paragraph has <strong>important</strong> details.</p>"
+                "<p>The final paragraph contains enough reporting to qualify as an article, "
+                "including additional verified context from police and witnesses at the scene.</p>"
+            ),
+        }
+    )
+    html = f'<html><script type="application/ld+json">{payload}</script></html>'
+
+    text = article_extractor._extract_json_ld_text(html)
+
+    assert "The opening sentence is readable." in text
+    assert "important details" in text
+    assert "<p>" not in text
+    assert "<strong>" not in text
+
+
+def test_normalize_whitespace_removes_invisible_word_break_characters():
+    assert article_extractor._normalize_whitespace("the \u200barticle \u2060body") == "the article body"
+
+
 def test_impersonation_falls_through_to_safari_fingerprint(monkeypatch):
     # Cloudflare-managed challenges can 403 curl_cffi's Chrome hello but pass Safari's
     # (seen live on neowin.net); the impersonated refetch must try both.

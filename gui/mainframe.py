@@ -43,7 +43,7 @@ from core import screen_reader_announce
 from core.version import APP_VERSION
 from core import dependency_check
 from core import shortcuts as shortcuts_mod
-from core.i18n import _
+from core.i18n import _, ngettext
 import core.discovery
 from .shortcut_keys import event_to_accel
 
@@ -333,16 +333,18 @@ class MainFrame(wx.Frame):
     def _prompt_missing_dependencies(self, missing_vlc, missing_ffmpeg, missing_ytdlp):
         try:
             if missing_vlc or missing_ffmpeg or missing_ytdlp:
-                msg = "Missing recommended tools:\n"
+                msg = _("Missing recommended tools:") + "\n"
                 if missing_vlc:
-                    msg += "- VLC Media Player (required for playback)\n"
+                    msg += "- " + _("VLC Media Player (required for playback)") + "\n"
                 if missing_ffmpeg:
-                    msg += "- FFmpeg (required for some podcasts)\n"
+                    msg += "- " + _("FFmpeg (required for some podcasts)") + "\n"
                 if missing_ytdlp:
-                    msg += "- yt-dlp (required for YouTube and many media sources)\n"
+                    msg += "- " + _("yt-dlp (required for YouTube and many media sources)") + "\n"
                 if sys.platform.startswith("win"):
-                    msg += "\nWould you like to install them automatically (via winget/Ninite) and add them to PATH?"
-                    msg += "\n\nTip: You can disable this prompt in Settings > General."
+                    msg += "\n" + _(
+                        "Would you like to install them automatically (via winget/Ninite) and add them to PATH?"
+                        "\n\nTip: You can disable this prompt in Settings > YouTube."
+                    )
 
                     if wx.MessageBox(msg, _("Install Dependencies"), wx.YES_NO | wx.ICON_QUESTION) == wx.YES:
                         self.SetStatusText("Installing dependencies...")
@@ -354,9 +356,11 @@ class MainFrame(wx.Frame):
                         ).start()
                 else:
                     log_path = dependency_check.get_dependency_log_path()
-                    msg += "\n\nThis macOS/Linux build should already bundle these tools."
-                    msg += f"\nIf they still appear missing, see the log: {log_path}"
-                    msg += "\n\nTip: You can disable this prompt in Settings > General."
+                    msg += "\n\n" + _(
+                        "This macOS/Linux build should already bundle these tools."
+                        "\nIf they still appear missing, see the log: {log_path}"
+                        "\n\nTip: You can disable this prompt in Settings > YouTube."
+                    ).format(log_path=log_path)
                     wx.MessageBox(msg, _("Missing Dependencies"), wx.OK | wx.ICON_WARNING)
         except Exception as e:
             log.error(f"Dependency check failed: {e}")
@@ -369,19 +373,19 @@ class MainFrame(wx.Frame):
                 log_path = dependency_check.get_dependency_log_path()
                 wx.CallAfter(
                     wx.MessageBox,
-                    f"Some dependencies are still missing.\n\nSee log: {log_path}",
-                    "Install Incomplete",
+                    _("Some dependencies are still missing.\n\nSee log: {log_path}").format(log_path=log_path),
+                    _("Install Incomplete"),
                     wx.ICON_WARNING,
                 )
             else:
                 wx.CallAfter(
                     wx.MessageBox,
-                    "Dependencies installed and PATH updated. A restart is recommended.",
-                    "Success",
+                    _("Dependencies installed and PATH updated. A restart is recommended."),
+                    _("Success"),
                     wx.ICON_INFORMATION,
                 )
         except Exception as e:
-            wx.CallAfter(wx.MessageBox, f"Installation failed: {e}", "Error", wx.ICON_ERROR)
+            wx.CallAfter(wx.MessageBox, _("Installation failed: {error}").format(error=e), _("Error"), wx.ICON_ERROR)
 
     def on_about(self, event):
         dlg = AboutDialog(self, APP_VERSION)
@@ -1290,7 +1294,7 @@ class MainFrame(wx.Frame):
 
         if self._is_search_active():
             try:
-                self.SetStatusText(f"Filter: {len(self.current_articles)} of {len(base_articles)}")
+                self.SetStatusText(_("Filter: {count} of {total}").format(count=len(self.current_articles), total=len(base_articles)))
             except Exception:
                 pass
 
@@ -1337,7 +1341,7 @@ class MainFrame(wx.Frame):
                 pass
 
         try:
-            self.SetStatusText(f"Filter: {len(self.current_articles)} of {len(base_articles)}")
+            self.SetStatusText(_("Filter: {count} of {total}").format(count=len(self.current_articles), total=len(base_articles)))
         except Exception:
             pass
 
@@ -1662,7 +1666,7 @@ class MainFrame(wx.Frame):
             self._render_articles_list(self.current_articles, empty_label=empty_label)
             if self._is_search_active():
                 try:
-                    self.SetStatusText(f"Filter: {len(self.current_articles)} of {len(base_articles)}")
+                    self.SetStatusText(_("Filter: {count} of {total}").format(count=len(self.current_articles), total=len(base_articles)))
                 except Exception:
                     pass
 
@@ -2808,7 +2812,7 @@ class MainFrame(wx.Frame):
                 try:
                     label = self._format_player_chapter_menu_label(ch)
                     if int(i) == int(active_idx):
-                        label = f"Current chapter, {label}"
+                        label = _("Current chapter, {label}").format(label=label)
                     item = submenu.Append(wx.ID_ANY, label)
                     submenu.Bind(wx.EVT_MENU, lambda evt, idx=i: self.on_player_chapter_jump(evt, idx), item)
                     self._player_chapter_dynamic_item_ids.append(int(item.GetId()))
@@ -3270,7 +3274,7 @@ class MainFrame(wx.Frame):
             return feed_text
         if preview_text:
             return preview_text
-        return "New article available."
+        return _("New article available.")
 
     def _build_notification_activation_payload(self, item: dict, feed_id: str = "") -> dict | None:
         if not isinstance(item, dict):
@@ -4553,7 +4557,7 @@ class MainFrame(wx.Frame):
                 else:
                     wx.CallAfter(wx.MessageBox, "No audio found.", "Result", wx.ICON_INFORMATION)
             except Exception as e:
-                wx.CallAfter(wx.MessageBox, f"Error detecting audio: {e}", "Error", wx.ICON_ERROR)
+                wx.CallAfter(wx.MessageBox, _("Error detecting audio: {error}").format(error=e), _("Error"), wx.ICON_ERROR)
                 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -4770,7 +4774,7 @@ class MainFrame(wx.Frame):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         heading = wx.StaticText(
-            dlg, label=f"{total} versions of: {getattr(article, 'title', '') or ''}"
+            dlg, label=_("{total} versions of: {title}").format(title=getattr(article, 'title', '') or '')
         )
         sizer.Add(heading, 0, wx.ALL, 8)
 
@@ -4782,7 +4786,7 @@ class MainFrame(wx.Frame):
             ts = v.get("captured_at") or 0
             when = time.strftime("%Y-%m-%d %H:%M", time.localtime(float(ts))) if ts else "unknown time"
             suffix = " (current)" if i == 0 else (" (original)" if num == 1 else "")
-            listbox.Append(f"Version {num} - {when}{suffix}")
+            listbox.Append(_("Version {num} - {when}{suffix}").format(num=num, when=when, suffix=suffix))
         row.Add(listbox, 1, wx.EXPAND | wx.ALL, 8)
 
         text = wx.TextCtrl(dlg, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2)
@@ -4835,7 +4839,7 @@ class MainFrame(wx.Frame):
         if suffix:
             title = f"{title}{suffix}"
         if getattr(article, "chapters", None):
-            return f"{title}, Chapters available"
+            return f"{title}, " + _("Chapters available")
         return title
 
     @staticmethod
@@ -5411,12 +5415,12 @@ class MainFrame(wx.Frame):
         except Exception:
             behavior = "deleted"
         kind, category = filters_mod.parse_delete_behavior(behavior)
-        subject = "this article" if count == 1 else f"{count} articles"
+        subject = ngettext("this article", "%d articles", count)
         if kind == "category" and category:
-            return f'Move {subject} to the "{category}" category?'
+            return _("Move {subject} to the '{category}' category?").format(subject=subject, category=category)
         if kind == "purge":
-            return f"Permanently delete {subject}? This cannot be undone."
-        return f"Delete {subject}? Deleted articles can be restored from the Deleted Articles view."
+            return _("Permanently delete {subject}? This cannot be undone.").format(subject=subject)
+        return _("Delete {subject}? Deleted articles can be restored from the Deleted Articles view.").format(subject=subject)
 
     def _purge_deleted_articles(self, indices, *, confirm: bool | None = None) -> None:
         """Permanently delete the given Deleted-view rows."""
@@ -5436,9 +5440,9 @@ class MainFrame(wx.Frame):
                 confirm = True
         if confirm:
             prompt = (
-                "Permanently delete this article? It cannot be restored."
+                _("Permanently delete this article? It cannot be restored.")
                 if count == 1
-                else f"Permanently delete {count} articles? They cannot be restored."
+                else _("Permanently delete {count} articles? They cannot be restored.").format(count=count)
             )
             try:
                 ok = wx.MessageBox(prompt, _("Confirm Permanent Delete"), wx.YES_NO | wx.ICON_WARNING)
@@ -5538,7 +5542,7 @@ class MainFrame(wx.Frame):
         if failures:
             n = len(failures)
             first_err = next((e for _id, e in failures if e), "")
-            msg = "Could not delete article." if n == 1 else f"Could not delete {n} articles."
+            msg = ngettext("Could not delete article.", "Could not delete %d articles.", n)
             if first_err:
                 msg += f"\n\n{first_err}"
             try:
@@ -5853,10 +5857,10 @@ class MainFrame(wx.Frame):
             sub_cats = []
 
         count = len(feed_ids)
-        sub_note = f" (including subcategories)" if len(sub_cats) > 0 else ""
+        sub_note = _(" (including subcategories)") if len(sub_cats) > 0 else ""
         prompt = (
-            f"Delete category '{cat_title}'{sub_note} and its {count} feed(s)?\n\n"
-            "This will remove the feeds and their articles."
+            _("Delete category '{title}'{note} and its {count} feed(s)?\n\n"
+            "This will remove the feeds and their articles.").format(title=cat_title, note=sub_note, count=count)
         )
         if wx.MessageBox(prompt, _("Confirm"), wx.YES_NO | wx.ICON_WARNING) != wx.YES:
             return
@@ -5920,11 +5924,11 @@ class MainFrame(wx.Frame):
         self.refresh_feeds()
         warnings = []
         if not category_deleted:
-            warnings.append(f"Category '{cat_title}' could not be deleted.")
+            warnings.append(_("Category '{title}' could not be deleted.").format(title=cat_title))
             if category_error:
-                warnings.append(f"Error: {category_error}")
+                warnings.append(_("Error: {error}").format(error=category_error))
         if failed:
-            warnings.append(f"{len(failed)} feed(s) could not be removed.")
+            warnings.append(_("{count} feed(s) could not be removed.").format(count=len(failed)))
         if warnings:
             wx.MessageBox("\n\n".join(warnings), _("Warning"), wx.ICON_WARNING)
 
@@ -6013,7 +6017,7 @@ class MainFrame(wx.Frame):
         except Exception as e:
             log.exception("Feed tree load failed")
             # Runs in a background thread; marshal the dialog onto the UI thread.
-            wx.CallAfter(wx.MessageBox, f"Error fetching feeds: {e}", "Error", wx.ICON_ERROR)
+            wx.CallAfter(wx.MessageBox, _("Error fetching feeds: {error}").format(error=e), _("Error"), wx.ICON_ERROR)
 
     def _ensure_accessible_browser(self):
         browser = getattr(self, "_accessible_browser", None)
@@ -8859,7 +8863,7 @@ class MainFrame(wx.Frame):
 
     def _format_article_chapters_text(self, chapters) -> str:
         chapter_list = list(chapters or [])
-        lines = [f"Chapters ({len(chapter_list)}):"]
+        lines = [_("Chapters ({count}):").format(count=len(chapter_list))]
         for chapter in chapter_list:
             timestamp = self._format_chapter_timestamp(chapter.get("start", 0))
             title = str(chapter.get("title", "") or "").strip() or "Untitled chapter"

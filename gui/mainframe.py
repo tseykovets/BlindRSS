@@ -1035,7 +1035,7 @@ class MainFrame(wx.Frame):
         self.list_ctrl.SetItem(idx, ARTICLE_COL_DATE, utils.humanize_article_date(article.date))
         self.list_ctrl.SetItem(idx, ARTICLE_COL_FEED, feed_title)
         self.list_ctrl.SetItem(idx, ARTICLE_COL_DESCRIPTION, self._article_description_preview(article))
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, "Read" if article.is_read else "Unread")
+        self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Read") if article.is_read else _("Unread"))
 
     def _render_articles_batch(self, articles, start, generation, feed_id) -> None:
         """Append one bounded batch of article rows, then queue the next batch."""
@@ -2919,9 +2919,9 @@ class MainFrame(wx.Frame):
         if requested:
             log.info("User requested refresh stop")
             self._refresh_stop_requested = True
-            self._post_activity_status("Stopping refresh...")
+            self._post_activity_status(_("Stopping refresh..."))
         else:
-            self._post_activity_status("No refresh in progress")
+            self._post_activity_status(_("No refresh in progress"))
 
     def on_refresh_single_feed(self, event):
         item = self.tree.GetSelection()
@@ -6136,7 +6136,7 @@ class MainFrame(wx.Frame):
         full-feed refresh. Shared by all four refresh entry points so the
         begin/end wording stays consistent instead of being copy-pasted.
         """
-        message = f"Refreshing {detail}..." if detail else "Refreshing feeds..."
+        message = _("Refreshing {detail}...").format(detail=detail) if detail else _("Refreshing feeds...")
         self._post_activity_status(message)
 
     def _end_refresh_activity(self) -> None:
@@ -6144,9 +6144,9 @@ class MainFrame(wx.Frame):
         stopped by the user via Stop Refresh)."""
         if getattr(self, "_refresh_stop_requested", False):
             self._refresh_stop_requested = False
-            self._post_activity_status("Refresh stopped")
+            self._post_activity_status(_("Refresh stopped"))
             return
-        self._post_activity_status("Refresh complete")
+        self._post_activity_status(_("Refresh complete"))
 
     def _set_feed_activity_status(self, state: dict) -> None:
         """Reflect a just-completed per-feed refresh (called on the UI thread
@@ -6157,9 +6157,9 @@ class MainFrame(wx.Frame):
             return
         title = str(state.get("title") or "").strip() or "feed"
         if state.get("error") or state.get("status") == "error":
-            message = f"Error checking: {title}"
+            message = _("Error checking: {title}").format(title=title)
         else:
-            message = f"Checked: {title}"
+            message = _("Checked: {title}").format(title=title)
         self._set_activity_status(message)
 
     def _on_feed_refresh_progress(self, state):
@@ -9056,7 +9056,7 @@ class MainFrame(wx.Frame):
         if not article.is_read:
             threading.Thread(target=self.provider.mark_read, args=(article.id,), daemon=True).start()
             article.is_read = True
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, "Read")
+            self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Read"))
             self._update_feed_unread_count_ui(article.feed_id, -1)
 
     def mark_article_unread(self, idx):
@@ -9066,7 +9066,7 @@ class MainFrame(wx.Frame):
         if article.is_read:
             threading.Thread(target=self.provider.mark_unread, args=(article.id,), daemon=True).start()
             article.is_read = False
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, "Unread")
+            self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Unread"))
             self._update_feed_unread_count_ui(article.feed_id, 1)
 
     def toggle_selected_article_read_status(self):
@@ -9260,7 +9260,7 @@ class MainFrame(wx.Frame):
                     article.is_read = True
                     if not self._is_load_more_row(i):
                         try:
-                            self.list_ctrl.SetItem(i, ARTICLE_COL_STATUS, "Read")
+                            self.list_ctrl.SetItem(i, ARTICLE_COL_STATUS, _("Read"))
                         except Exception:
                             pass
         except Exception:
@@ -9961,7 +9961,7 @@ class MainFrame(wx.Frame):
                     wx.CallAfter(lambda: wx.MessageBox(
                         _("yt-dlp is not installed. Install it via Settings to download YouTube items."),
                         _("Download error"), wx.ICON_ERROR))
-                    self._post_activity_status(f"Download failed: {title}")
+                    self._post_activity_status(_("Download failed: {title}").format(title=title))
                     return
                 except subprocess.TimeoutExpired:
                     last_err = "yt-dlp download timed out"
@@ -9983,7 +9983,7 @@ class MainFrame(wx.Frame):
                             _("Download complete"),
                         )
                     )
-                    self._post_activity_status(f"Download complete: {title}")
+                    self._post_activity_status(_("Download complete: {title}").format(title=title))
                     return
 
                 last_err = (res.stderr or res.stdout or last_err).strip() or last_err
@@ -10001,7 +10001,7 @@ class MainFrame(wx.Frame):
                 wx.ICON_ERROR,
             )
         )
-        self._post_activity_status(f"Download failed: {title}")
+        self._post_activity_status(_("Download failed: {title}").format(title=title))
 
     def _find_downloaded_file(self, target_dir, base_name):
         try:
@@ -10026,7 +10026,7 @@ class MainFrame(wx.Frame):
 
     def _download_article_thread(self, article):
         title = self._download_activity_title(article)
-        self._post_activity_status(f"Downloading: {title}")
+        self._post_activity_status(_("Downloading: {title}").format(title=title))
         try:
             ytdlp_url = self._ytdlp_download_target(article)
             if ytdlp_url:
@@ -10065,7 +10065,7 @@ class MainFrame(wx.Frame):
                     _("Download complete"),
                 )
             )
-            self._post_activity_status(f"Download complete: {title}")
+            self._post_activity_status(_("Download complete: {title}").format(title=title))
         except Exception as e:
             error_message = str(e) or type(e).__name__
             wx.CallAfter(
@@ -10075,7 +10075,7 @@ class MainFrame(wx.Frame):
                     wx.ICON_ERROR,
                 )
             )
-            self._post_activity_status(f"Download failed: {title}")
+            self._post_activity_status(_("Download failed: {title}").format(title=title))
 
     def _guess_extension(self, url, content_type=None):
         path = urlsplit(url).path if url else ""

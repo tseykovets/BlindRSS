@@ -9,7 +9,199 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: gui/accessibility.py:579
+#: core/article_extractor.py:1879
+msgid "(unknown)"
+msgstr "(onbekend)"
+
+#: core/article_extractor.py:1880 gui/dialogs.py:2778
+msgid "Title:"
+msgstr "Titel:"
+
+#: core/article_extractor.py:1881 gui/accessibility.py:843
+#: gui/mainframe.py:4462 gui/mainframe.py:7686
+msgid "Author:"
+msgstr "Auteur:"
+
+#: core/macos_integration.py:71
+msgid "Startup registration is only available on macOS."
+msgstr "Registratie voor opstarten is alleen beschikbaar op macOS."
+
+#: core/macos_integration.py:124
+msgid "BlindRSS startup on login has been disabled."
+msgstr "Het opstarten van BlindRSS bij aanmelden is uitgeschakeld."
+
+#: core/macos_integration.py:116
+msgid "BlindRSS will now start when you log in."
+msgstr "BlindRSS wordt nu gestart wanneer u zich aanmeldt."
+
+#: core/macos_integration.py:78
+msgid "Could not determine how to launch BlindRSS."
+msgstr "Kon niet bepalen hoe BlindRSS gestart moet worden."
+
+#: core/macos_integration.py:127
+msgid "Could not update macOS startup setting: {error}"
+msgstr "Kon de macOS-opstartinstelling niet bijwerken: {error}"
+
+#: core/macos_integration.py:113
+msgid "Could not register BlindRSS to start at login: {error}"
+msgstr "Kon BlindRSS niet registreren om te starten bij aanmelden: {error}"
+
+#: core/macos_integration.py:108
+msgid ""
+"Could not register BlindRSS to start at login: {error} (the failed plist "
+"could not be removed: {cleanup_error})"
+msgstr ""
+"Kon BlindRSS niet registreren om te starten bij aanmelden: {error} (het "
+"mislukte plist-bestand kon niet worden verwijderd: {cleanup_error})"
+
+#: core/updater.py:293
+msgid "Update available."
+msgstr "Update beschikbaar."
+
+#: core/updater.py:193
+msgid "No release data from GitHub."
+msgstr "Geen releasegegevens ontvangen van GitHub."
+
+#: core/updater.py:218
+msgid "Update manifest is empty."
+msgstr "Het updatemanifest is leeg."
+
+#: core/updater.py:222
+msgid "Update manifest has invalid version."
+msgstr "Het updatemanifest heeft een ongeldige versie."
+
+#: core/updater.py:224
+msgid "Update manifest version does not match the latest release."
+msgstr ""
+"De versie van het updatemanifest komt niet overeen met de nieuwste release."
+
+#: core/updater.py:228
+msgid "Update manifest is missing asset name."
+msgstr "In het updatemanifest ontbreekt de naam van het item."
+
+#: core/updater.py:238
+msgid "Update manifest is missing a download URL."
+msgstr "In het updatemanifest ontbreekt een download-URL."
+
+#: core/updater.py:242
+msgid "Update manifest has an invalid SHA-256 hash."
+msgstr "Het updatemanifest heeft een ongeldige SHA-256-hash."
+
+#: core/updater.py:187
+msgid "Invalid current version: {version}"
+msgstr "Ongeldige huidige versie: {version}"
+
+#: core/updater.py:198
+msgid "Latest release tag is not semver: {tag}"
+msgstr "De tag van de nieuwste release is geen geldige semver: {tag}"
+
+#: core/updater.py:201
+msgid "BlindRSS is up to date ({version})."
+msgstr "BlindRSS is up-to-date ({version})."
+
+#: core/updater.py:205
+msgid "Auto-update is not supported on this platform ({platform})."
+msgstr ""
+"Automatisch bijwerken wordt niet ondersteund op dit platform ({platform})."
+
+#: core/updater.py:212
+msgid "Update manifest '{manifest}' not found in release assets."
+msgstr "Updatemanifest '{manifest}' niet gevonden in de release-items."
+
+#: core/updater.py:230
+msgid "Update asset must be a {extension} file."
+msgstr "Het update-item moet een {extension}-bestand zijn."
+
+#: core/updater.py:234
+msgid "Update asset '{name}' not found in release assets."
+msgstr "Update-item '{name}' niet gevonden in de release-items."
+
+#: core/updater.py:260
+msgid "Windows installer asset must be an .exe file."
+msgstr "Het Windows-installatie-item moet een .exe-bestand zijn."
+
+#: core/updater.py:269
+msgid "Update installer has an invalid SHA-256 hash."
+msgstr "Het update-installatieprogramma heeft een ongeldige SHA-256-hash."
+
+#: core/updater.py:276
+msgid "Update installer is missing a download URL."
+msgstr "In het update-installatieprogramma ontbreekt een download-URL."
+
+#: core/updater.py:265
+msgid "Update installer '{name}' not found in release assets."
+msgstr ""
+"Update-installatieprogramma '{name}' niet gevonden in de release-items."
+
+#: core/utils.py:801
+msgid "Just now"
+msgstr "Zojuist"
+
+#: core/utils.py:806
+msgid "{n} hour ago"
+msgid_plural "{n} hours ago"
+msgstr[0] "{n} uur geleden"
+msgstr[1] "{n} uur geleden"
+
+#: core/utils.py:804
+msgid "{n} minute ago"
+msgid_plural "{n} minutes ago"
+msgstr[0] "{n} minuut geleden"
+msgstr[1] "{n} minuten geleden"
+
+#: core/windows_integration.py:44
+msgid "Start BlindRSS at login"
+msgstr "BlindRSS starten bij aanmelden"
+
+#: core/windows_integration.py:41
+msgid "Start BlindRSS when Windows starts"
+msgstr "BlindRSS starten wanneer Windows start"
+
+#: core/windows_integration.py:43
+msgid "Start BlindRSS when you log in"
+msgstr "BlindRSS starten wanneer u zich aanmeldt"
+
+#: core/windows_integration.py:97
+msgid "Startup registration is not supported on this platform."
+msgstr "Registratie voor opstarten wordt niet ondersteund op dit platform."
+
+#: core/windows_integration.py:108
+msgid "BlindRSS startup on sign-in has been disabled."
+msgstr "Het opstarten van BlindRSS bij aanmelden is uitgeschakeld."
+
+#: core/windows_integration.py:103
+msgid "BlindRSS will now start when you sign in to Windows."
+msgstr "BlindRSS wordt nu gestart wanneer u zich aanmeldt bij Windows."
+
+#: core/windows_integration.py:111
+msgid "Could not update Windows startup setting: {error}"
+msgstr "Kon de Windows-opstartinstelling niet bijwerken: {error}"
+
+#: gui/accessibility.py:314
+msgid "expanded"
+msgstr "uitgevouwen"
+
+#: gui/accessibility.py:314
+msgid "collapsed"
+msgstr "samengevouwen"
+
+#: gui/accessibility.py:199 gui/mainframe.py:6582
+msgid "All Articles"
+msgstr "Alle artikelen"
+
+#: gui/accessibility.py:200
+msgid "Unread Articles"
+msgstr "Ongelezen artikelen"
+
+#: gui/accessibility.py:201
+msgid "Read Articles"
+msgstr "Gelezen artikelen"
+
+#: gui/accessibility.py:378 gui/accessibility.py:377 gui/tray.py:100
+msgid "Refresh Feeds"
+msgstr "Feeds vernieuwen"
+
+#: gui/accessibility.py:579 gui/mainframe.py:6139
 msgid "Refreshing feeds..."
 msgstr "Feeds vernieuwen..."
 
@@ -17,9 +209,13 @@ msgstr "Feeds vernieuwen..."
 msgid "Loading articles..."
 msgstr "Artikelen laden..."
 
-#: gui/accessibility.py:1227
+#: gui/accessibility.py:1232
 msgid "Loading more articles..."
 msgstr "Meer artikelen laden..."
+
+#: gui/accessibility.py:204 gui/mainframe.py:6591
+msgid "Favorites"
+msgstr "Favorieten"
 
 #: gui/accessibility.py:320
 msgid "BlindRSS Accessible Browser"
@@ -32,10 +228,6 @@ msgid ""
 msgstr ""
 "VoiceOver-vriendelijke browser voor feeds, artikelen en inhoud. Gebruik de "
 "onderstaande lijsten om een weergave en artikel te kiezen."
-
-#: gui/accessibility.py:377 gui/tray.py:100
-msgid "Refresh Feeds"
-msgstr "Feeds vernieuwen"
 
 #: gui/accessibility.py:380
 msgid "Load More Articles"
@@ -61,7 +253,7 @@ msgstr "Markeren als gelezen"
 msgid "Mark Unread"
 msgstr "Markeren als ongelezen"
 
-#: gui/accessibility.py:398 gui/mainframe.py:9793 gui/mainframe.py:4111
+#: gui/accessibility.py:398 gui/mainframe.py:9813 gui/mainframe.py:4128
 msgid "Download"
 msgstr "Downloaden"
 
@@ -75,13 +267,13 @@ msgstr "Weergaven"
 
 #: gui/accessibility.py:433
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
-"to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
+" to expand and Left Arrow to collapse."
 msgstr ""
 "Categorieën kunnen worden uitgevouwen of samengevouwen. Gebruik de knoppen, "
 "of de pijl-rechts om uit te vouwen en pijl-links om samen te vouwen."
 
-#: gui/accessibility.py:442 gui/mainframe.py:459
+#: gui/accessibility.py:442 gui/mainframe.py:476
 msgid "Articles"
 msgstr "Artikelen"
 
@@ -93,10 +285,38 @@ msgstr "Kies een weergave om artikelen te laden."
 msgid "Article Content"
 msgstr "Artikelinhoud"
 
-#: gui/accessibility.py:777 gui/mainframe.py:955 gui/mainframe.py:1255
-#: gui/mainframe.py:1298
+#: gui/accessibility.py:842 gui/mainframe.py:4461 gui/mainframe.py:7685
+msgid "Date:"
+msgstr "Datum:"
+
+#: gui/accessibility.py:844 gui/mainframe.py:4463 gui/mainframe.py:7687
+msgid "Link:"
+msgstr "Link:"
+
+#: gui/accessibility.py:260
+msgid "Feed:"
+msgstr "Feed:"
+
+#: gui/accessibility.py:782 gui/mainframe.py:972 gui/mainframe.py:1272
+#: gui/mainframe.py:1315
 msgid "No articles found."
 msgstr "Geen artikelen gevonden."
+
+#: gui/accessibility.py:241 gui/dialogs.py:69 gui/dialogs.py:2796
+msgid "Category:"
+msgstr "Categorie:"
+
+#: gui/accessibility.py:262
+msgid ", unread: {unread}"
+msgstr ", ongelezen: {unread}"
+
+#: gui/accessibility.py:761
+msgid "Articles loaded: {count}."
+msgstr "Geladen artikelen: {count}."
+
+#: gui/accessibility.py:764
+msgid "Articles loaded: {count} of {total}."
+msgstr "Geladen artikelen: {count} van {total}."
 
 #: gui/dialogs.py:134
 msgid ""
@@ -104,14 +324,13 @@ msgid ""
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Kies waar BlindRSS-snelkoppelingen moeten worden toegevoegd.\n"
-"Vastmaken aan de taakbalk kan beperkt zijn door uw Windows-versie of "
-"beleidsregels."
+"Vastmaken aan de taakbalk kan beperkt zijn door uw Windows-versie of beleidsregels."
 
-#: gui/dialogs.py:1966
+#: gui/dialogs.py:1975
 msgid "BlindRSS notification test"
 msgstr "BlindRSS-meldingstest"
 
-#: gui/dialogs.py:1967
+#: gui/dialogs.py:1976
 msgid "If you can read this, notifications are working."
 msgstr "Als u dit kunt lezen, werken de meldingen."
 
@@ -123,227 +342,279 @@ msgstr "https://example.com/feed of een YouTube-/podcast-URL"
 msgid "Checking compatibility..."
 msgstr "Compatibiliteit controleren..."
 
-#: gui/dialogs.py:679 gui/dialogs.py:2912
+#: gui/dialogs.py:262 gui/dialogs.py:288
+msgid "checked"
+msgstr "aangevinkt"
+
+#: gui/dialogs.py:262 gui/dialogs.py:288
+msgid "unchecked"
+msgstr "uitgevinkt"
+
+#: gui/dialogs.py:602
+msgid "Titles only"
+msgstr "Alleen titels"
+
+#: gui/dialogs.py:603
+msgid "Titles and article text"
+msgstr "Titels en artikeltekst"
+
+#: gui/dialogs.py:688 gui/dialogs.py:2926
 msgid "Category / Path"
 msgstr "Categorie / Pad"
 
-#: gui/dialogs.py:778
+#: gui/dialogs.py:787
 msgid "Path to a cookies.txt file"
 msgstr "Pad naar een cookies.txt-bestand"
 
-#: gui/dialogs.py:813
+#: gui/dialogs.py:822
 msgid "Leave blank for the default location"
 msgstr "Laat leeg voor de standaardlocatie"
 
-#: gui/dialogs.py:947
+#: gui/dialogs.py:897 gui/dialogs.py:905
+msgid "All items expanded"
+msgstr "Alle items uitgevouwen"
+
+#: gui/dialogs.py:898 gui/dialogs.py:905
+msgid "All items collapsed"
+msgstr "Alle items samengevouwen"
+
+#: gui/dialogs.py:917 gui/dialogs.py:925
+msgid "Default browser"
+msgstr "Standaardbrowser"
+
+#: gui/dialogs.py:918 gui/dialogs.py:2588 gui/dialogs.py:925
+msgid "Custom command"
+msgstr "Aangepaste opdracht"
+
+#: gui/dialogs.py:956
 msgid "General"
 msgstr "Algemeen"
 
-#: gui/dialogs.py:949
+#: gui/dialogs.py:958
 msgid "Feeds & Articles"
 msgstr "Feeds & Artikelen"
 
-#: gui/dialogs.py:951
+#: gui/dialogs.py:960
 msgid "Downloads"
 msgstr "Downloads"
 
-#: gui/dialogs.py:953
+#: gui/dialogs.py:962
 msgid "Startup & Tray"
 msgstr "Opstarten & Systeemvak"
 
-#: gui/dialogs.py:955
+#: gui/dialogs.py:964
 msgid "YouTube"
 msgstr "YouTube"
 
-#: gui/dialogs.py:1062
+#: gui/dialogs.py:975
+msgid "Loading soundcards..."
+msgstr "Geluidskaarten laden..."
+
+#: gui/dialogs.py:1030
+msgid "Media tools (ffmpeg, ffprobe, yt-dlp)"
+msgstr "Mediahulpmiddelen (ffmpeg, ffprobe, yt-dlp)"
+
+#: gui/dialogs.py:1071
 msgid "Media Player"
 msgstr "Mediaspeler"
 
-#: gui/dialogs.py:1209 gui/dialogs.py:3420
+#: gui/dialogs.py:1218 gui/dialogs.py:3434
 msgid "Provider"
 msgstr "Provider"
 
-#: gui/dialogs.py:1245
+#: gui/dialogs.py:1250
+msgid "Refresh Complete Sound:"
+msgstr "Geluid bij voltooide vernieuwing:"
+
+#: gui/dialogs.py:1251
+msgid "Refresh Error Sound:"
+msgstr "Geluid bij vernieuwingsfout:"
+
+#: gui/dialogs.py:1254
 msgid "Sounds"
 msgstr "Geluiden"
 
-#: gui/dialogs.py:1316 gui/dialogs.py:1963 gui/dialogs.py:1997
-#: gui/mainframe.py:10886
+#: gui/dialogs.py:1325 gui/dialogs.py:1972 gui/dialogs.py:2006
+#: gui/mainframe.py:10910
 msgid "Notifications"
 msgstr "Meldingen"
 
-#: gui/dialogs.py:1667
+#: gui/dialogs.py:1676
 msgid "Translate"
 msgstr "Vertalen"
 
-#: gui/dialogs.py:1762
+#: gui/dialogs.py:1771
 msgid "Advanced"
 msgstr "Geavanceerd"
 
-#: gui/dialogs.py:2365
+#: gui/dialogs.py:2379
 msgid "Choose yt-dlp cookies.txt"
 msgstr "Kies cookies.txt voor yt-dlp"
 
-#: gui/dialogs.py:2405
+#: gui/dialogs.py:2419
 msgid "Clear playback cache"
 msgstr "Afspeelcache wissen"
 
-#: gui/dialogs.py:2413
+#: gui/dialogs.py:2427
 msgid "Playback cache cleared"
 msgstr "Afspeelcache gewist"
 
-#: gui/dialogs.py:2445
+#: gui/dialogs.py:2459
 msgid "Find my export"
 msgstr "Mijn export zoeken"
 
-#: gui/dialogs.py:2445
+#: gui/dialogs.py:2459
 msgid "Open extension page"
 msgstr "Extensiepagina openen"
 
-#: gui/dialogs.py:2445 gui/dialogs.py:2476 gui/player.py:336
+#: gui/dialogs.py:2459 gui/dialogs.py:2490 gui/player.py:380
 msgid "Cancel"
 msgstr "Annuleren"
 
-#: gui/dialogs.py:2515
+#: gui/dialogs.py:2529
 msgid "Cookies imported"
 msgstr "Cookies geïmporteerd"
 
-#: gui/dialogs.py:3089 gui/mainframe.py:464 gui/mainframe.py:1874
+#: gui/dialogs.py:2823
+msgid "Refresh interval for this feed"
+msgstr "Vernieuwingsinterval voor deze feed"
+
+#: gui/dialogs.py:3103 gui/mainframe.py:481 gui/mainframe.py:1891
 msgid "Feed"
 msgstr "Feed"
 
-#: gui/dialogs.py:3090
+#: gui/dialogs.py:3104
 msgid "Last attempt"
 msgstr "Laatste poging"
 
-#: gui/dialogs.py:3091
+#: gui/dialogs.py:3105
 msgid "Failures"
 msgstr "Mislukkingen"
 
-#: gui/dialogs.py:3092 gui/mainframe.py:10472 gui/mainframe.py:10523
-#: gui/mainframe.py:9228
+#: gui/dialogs.py:3106 gui/mainframe.py:10492 gui/mainframe.py:10543
+#: gui/mainframe.py:9246
 msgid "Error"
 msgstr "Fout"
 
-#: gui/dialogs.py:3137
+#: gui/dialogs.py:3151
 msgid "No feeds reported errors during their most recent update."
 msgstr "Geen enkele feed meldde fouten tijdens de laatste update."
 
-#: gui/dialogs.py:3139
+#: gui/dialogs.py:3153
 msgid "1 feed failed to update during its most recent attempt:"
 msgstr "1 feed kon bij de laatste poging niet worden bijgewerkt:"
 
-#: gui/dialogs.py:3396
+#: gui/dialogs.py:3410
 msgid "Podcast name, topic, or site URL"
 msgstr "Podcastnaam, onderwerp of site-URL"
 
-#: gui/dialogs.py:3419 gui/dialogs.py:4285 gui/dialogs.py:4307
-#: gui/mainframe.py:460
+#: gui/dialogs.py:3433 gui/dialogs.py:4299 gui/dialogs.py:4321
+#: gui/mainframe.py:477
 msgid "Title"
 msgstr "Titel"
 
-#: gui/dialogs.py:3421 gui/dialogs.py:4311
+#: gui/dialogs.py:3435 gui/dialogs.py:4325
 msgid "Details"
 msgstr "Details"
 
-#: gui/dialogs.py:3422 gui/dialogs.py:4312
+#: gui/dialogs.py:3436 gui/dialogs.py:4326
 msgid "URL"
 msgstr "URL"
 
-#: gui/dialogs.py:4261
+#: gui/dialogs.py:4275
 msgid "Search videos across sites"
 msgstr "Video's zoeken op verschillende sites"
 
-#: gui/dialogs.py:4285
+#: gui/dialogs.py:4299
 msgid "Relevance"
 msgstr "Relevantie"
 
-#: gui/dialogs.py:4285 gui/dialogs.py:4308
+#: gui/dialogs.py:4299 gui/dialogs.py:4322
 msgid "Site"
 msgstr "Site"
 
-#: gui/dialogs.py:4285 gui/dialogs.py:4310
+#: gui/dialogs.py:4299 gui/dialogs.py:4324
 msgid "Plays"
 msgstr "Afspelingen"
 
-#: gui/dialogs.py:4309
+#: gui/dialogs.py:4323
 msgid "Kind"
 msgstr "Soort"
 
-#: gui/dialogs.py:4316 gui/dialogs.py:5821 gui/mainframe.py:4776
-#: gui/mainframe.py:4382
+#: gui/dialogs.py:4330 gui/dialogs.py:5835 gui/mainframe.py:4793
+#: gui/mainframe.py:4399
 msgid "Close"
 msgstr "Sluiten"
 
-#: gui/dialogs.py:5496 gui/player.py:1854
+#: gui/dialogs.py:5510 gui/player.py:2001
 msgid "Play"
 msgstr "Afspelen"
 
-#: gui/dialogs.py:5497 gui/dialogs.py:5673
+#: gui/dialogs.py:5511 gui/dialogs.py:5687
 msgid "Subscribe"
 msgstr "Abonneren"
 
-#: gui/dialogs.py:5498
+#: gui/dialogs.py:5512
 msgid "Copy URL"
 msgstr "URL kopiëren"
 
-#: gui/dialogs.py:5767
+#: gui/dialogs.py:5781
 msgid "Search query:"
 msgstr "Zoekopdracht:"
 
-#: gui/dialogs.py:5767
+#: gui/dialogs.py:5781
 msgid "Add Search"
 msgstr "Zoekopdracht toevoegen"
 
-#: gui/dialogs.py:5864
+#: gui/dialogs.py:5878
 msgid "Queued media"
 msgstr "Media in wachtrij"
 
-#: gui/dialogs.py:5990
+#: gui/dialogs.py:6004
 msgid "&Pause"
 msgstr "&Pauzeren"
 
-#: gui/dialogs.py:5990 gui/dialogs.py:5875
+#: gui/dialogs.py:6004 gui/dialogs.py:5889
 msgid "&Play"
 msgstr "&Afspelen"
 
-#: gui/dialogs.py:6095
-msgid "Captured shortcut"
+#: gui/dialogs.py:6109
+msgid "Captured keyboard shortcut"
 msgstr "Vastgelegde sneltoets"
 
-#: gui/dialogs.py:6172
+#: gui/dialogs.py:6186
 msgid "Keyboard shortcuts"
 msgstr "Sneltoetsen"
 
-#: gui/dialogs.py:6173
+#: gui/dialogs.py:6187
 msgid "Category"
 msgstr "Categorie"
 
-#: gui/dialogs.py:6174
+#: gui/dialogs.py:6188
 msgid "Command"
 msgstr "Opdracht"
 
-#: gui/dialogs.py:6175
+#: gui/dialogs.py:6189
 msgid "Shortcut"
 msgstr "Sneltoets"
 
-#: gui/dialogs.py:6396
+#: gui/dialogs.py:6410
 msgid "Preset"
 msgstr "Voorinstelling"
 
-#: gui/dialogs.py:6405
+#: gui/dialogs.py:6419
 msgid "Preamp"
 msgstr "Voorversterker"
 
-#: gui/dialogs.py:6488
+#: gui/dialogs.py:6502
 msgid "Custom"
 msgstr "Aangepast"
 
-#: gui/dialogs.py:6575
+#: gui/dialogs.py:6589
 msgid "Name for this equalizer preset:"
 msgstr "Naam voor deze equalizervoorinstelling:"
 
-#: gui/dialogs.py:6575 gui/dialogs.py:6601 gui/dialogs.py:6587
+#: gui/dialogs.py:6589 gui/dialogs.py:6615 gui/dialogs.py:6601
 msgid "Save Preset"
 msgstr "Voorinstelling opslaan"
 
@@ -391,165 +662,183 @@ msgstr "Geen feeds beschikbaar."
 msgid "No feed selected."
 msgstr "Geen feed geselecteerd."
 
-#: gui/dialogs.py:532 gui/mainframe.py:10872
+#: gui/dialogs.py:534 gui/mainframe.py:10896
 msgid "Settings"
 msgstr "Instellingen"
 
-#: gui/dialogs.py:649
+#: gui/dialogs.py:658
 msgid "Cache full text in background"
 msgstr "Volledige tekst op de achtergrond cachen"
 
-#: gui/dialogs.py:654
+#: gui/dialogs.py:663
 msgid "Enable Downloads"
 msgstr "Downloads inschakelen"
 
-#: gui/dialogs.py:658
+#: gui/dialogs.py:667
 msgid "Confirm before deleting articles"
 msgstr "Bevestigen voordat artikelen worden verwijderd"
 
-#: gui/dialogs.py:697 gui/dialogs.py:780 gui/dialogs.py:815 gui/dialogs.py:1046
+#: gui/dialogs.py:677
+msgid "Move it to Deleted Articles (restorable)"
+msgstr "Verplaatsen naar Verwijderde artikelen (herstelbaar)"
+
+#: gui/dialogs.py:678 gui/dialogs.py:2918
+msgid "Remove it permanently"
+msgstr "Definitief verwijderen"
+
+#: gui/dialogs.py:679 gui/dialogs.py:2919
+msgid "Move it to a category"
+msgstr "Verplaatsen naar een categorie"
+
+#: gui/dialogs.py:706 gui/dialogs.py:789 gui/dialogs.py:824
+#: gui/dialogs.py:1055
 msgid "Browse..."
 msgstr "Bladeren..."
 
-#: gui/dialogs.py:719
+#: gui/dialogs.py:728
 msgid "Close to system tray"
 msgstr "Bij sluiten naar het systeemvak minimaliseren"
 
-#: gui/dialogs.py:723
+#: gui/dialogs.py:732
 msgid "Minimize to system tray"
 msgstr "Naar het systeemvak minimaliseren"
 
-#: gui/dialogs.py:728
+#: gui/dialogs.py:737
 msgid "Start BlindRSS in the system tray"
 msgstr "BlindRSS in het systeemvak starten"
 
-#: gui/dialogs.py:733
+#: gui/dialogs.py:742
 msgid "Always start maximized"
 msgstr "Altijd gemaximaliseerd starten"
 
-#: gui/dialogs.py:737
+#: gui/dialogs.py:746
 msgid "Debug mode (show console on startup)"
 msgstr "Foutopsporingsmodus (console tonen bij opstarten)"
 
-#: gui/dialogs.py:741
+#: gui/dialogs.py:750
 msgid "Check for updates on startup"
 msgstr "Bij opstarten controleren op updates"
 
-#: gui/dialogs.py:745
+#: gui/dialogs.py:754
 msgid "Automatically refresh feeds upon start"
 msgstr "Feeds automatisch vernieuwen bij opstarten"
 
-#: gui/dialogs.py:751
+#: gui/dialogs.py:760
 msgid "Always fetch full feeds in the background (ignore feed caching)"
-msgstr "Altijd volledige feeds op de achtergrond ophalen (feedcaching negeren)"
+msgstr ""
+"Altijd volledige feeds op de achtergrond ophalen (feedcaching negeren)"
 
-#: gui/dialogs.py:758
+#: gui/dialogs.py:767
 msgid ""
 "Include image alt text in articles (announces images, can override per feed)"
 msgstr ""
 "Alt-tekst van afbeeldingen opnemen in artikelen (kondigt afbeeldingen aan, "
 "kan per feed worden overschreven)"
 
-#: gui/dialogs.py:765
+#: gui/dialogs.py:774
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
-"or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
+" or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
-"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
-"Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
+" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
+"Edge Canary."
 msgstr ""
 "yt-dlp-cookiebestand (cookies.txt) — alleen nodig voor leeftijdsgebonden, "
 "privé- of alleen-voor-leden-YouTube-inhoud. Geïnstalleerde browsers worden "
 "automatisch gedetecteerd; Firefox wordt aanbevolen. Chrome, Edge en Brave "
 "kunnen op Windows mislukken omdat hun cookies op een manier versleuteld "
-"kunnen zijn die yt-dlp niet kan lezen, dus een cookies.txt is de betrouwbare "
-"terugvaloptie. LibreWolf gebruikt met Firefox compatibele cookies. Chrome "
+"kunnen zijn die yt-dlp niet kan lezen, dus een cookies.txt is de betrouwbare"
+" terugvaloptie. LibreWolf gebruikt met Firefox compatibele cookies. Chrome "
 "\"Nightly\" betekent Chrome Canary; Edge \"Nightly\" betekent Edge Canary."
 
-#: gui/dialogs.py:784
+#: gui/dialogs.py:793
 msgid "Import from browser..."
 msgstr "Importeren vanuit browser..."
 
-#: gui/dialogs.py:791
+#: gui/dialogs.py:800
 msgid ""
 "Automatically import a YouTube cookies.txt when you export one to Downloads"
 msgstr ""
 "Automatisch een YouTube-cookies.txt importeren wanneer u er een naar "
 "Downloads exporteert"
 
-#: gui/dialogs.py:798
+#: gui/dialogs.py:807
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
 msgstr ""
 "YouTube afspelen door eerst te downloaden (meest betrouwbaar; langzamer "
 "starten)"
 
-#: gui/dialogs.py:805
+#: gui/dialogs.py:814
 msgid "YouTube playback cache folder (blank = default, next to your data):"
 msgstr "Cachemap voor YouTube-afspelen (leeg = standaard, naast uw gegevens):"
 
-#: gui/dialogs.py:819
+#: gui/dialogs.py:828
 msgid "Clear cache now"
 msgstr "Cache nu wissen"
 
-#: gui/dialogs.py:838
+#: gui/dialogs.py:847
 msgid "Ask to install missing media dependencies on startup"
 msgstr "Vragen om ontbrekende mediavereisten te installeren bij opstarten"
 
-#: gui/dialogs.py:851
+#: gui/dialogs.py:860
 msgid "Remember last selected feed/folder on startup"
 msgstr "Laatst geselecteerde feed/map onthouden bij opstarten"
 
-#: gui/dialogs.py:931
+#: gui/dialogs.py:940
 msgid "Test"
 msgstr "Test"
 
-#: gui/dialogs.py:938
+#: gui/dialogs.py:947
 msgid "Use %1 for the article URL. Example: chrome --incognito %1"
 msgstr "Gebruik %1 voor de artikel-URL. Voorbeeld: chrome --incognito %1"
 
-#: gui/dialogs.py:973
+#: gui/dialogs.py:974 gui/dialogs.py:2321
+msgid "System Default"
+msgstr "Systeemstandaard"
+
+#: gui/dialogs.py:982
 msgid "Skip Silence (Experimental)"
 msgstr "Stilte overslaan (experimenteel)"
 
-#: gui/dialogs.py:1002
+#: gui/dialogs.py:1011
 msgid "Show player window when starting playback"
 msgstr "Spelervenster tonen bij starten van afspelen"
 
-#: gui/dialogs.py:1013
+#: gui/dialogs.py:1022
 msgid "Verbose range-cache proxy debug logs"
 msgstr "Uitgebreide debuglogboeken voor range-cache-proxy"
 
-#: gui/dialogs.py:1215
+#: gui/dialogs.py:1224
 msgid "Enable Sound Notifications"
 msgstr "Geluidsmeldingen inschakelen"
 
-#: gui/dialogs.py:1259
+#: gui/dialogs.py:1268
 msgid "Enable notifications for new articles"
 msgstr "Meldingen voor nieuwe artikelen inschakelen"
 
-#: gui/dialogs.py:1268
+#: gui/dialogs.py:1277
 msgid "Include feed name in notification text"
 msgstr "Feednaam opnemen in meldingstekst"
 
-#: gui/dialogs.py:1293
+#: gui/dialogs.py:1302
 msgid "Show a summary notification when notification cap is reached"
 msgstr "Samenvattingsmelding tonen wanneer meldingslimiet is bereikt"
 
-#: gui/dialogs.py:1300
+#: gui/dialogs.py:1309
 msgid "Test Notification"
 msgstr "Testmelding"
 
-#: gui/dialogs.py:1304
+#: gui/dialogs.py:1313
 msgid "Exclude Feeds..."
 msgstr "Feeds uitsluiten..."
 
-#: gui/dialogs.py:1330
+#: gui/dialogs.py:1339
 msgid "Enable automatic translation for article content"
 msgstr "Automatische vertaling van artikelinhoud inschakelen"
 
-#: gui/dialogs.py:1421
+#: gui/dialogs.py:1430
 msgid ""
 "Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select "
 "'Groq (LLaMA, Mistral)' instead."
@@ -557,379 +846,377 @@ msgstr ""
 "Grok is van xAI. Haal een sleutel op via console.x.ai. Selecteer voor Groq "
 "(LLaMA/Mistral) in plaats daarvan 'Groq (LLaMA, Mistral)'."
 
-#: gui/dialogs.py:1480
+#: gui/dialogs.py:1489
 msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
 msgstr ""
-"Groq is NIET Grok. Haal een gratis Groq-sleutel op via console.groq.com/keys "
-"(draait LLaMA- en Mistral-modellen)."
+"Groq is NIET Grok. Haal een gratis Groq-sleutel op via console.groq.com/keys"
+" (draait LLaMA- en Mistral-modellen)."
 
-#: gui/dialogs.py:1566
+#: gui/dialogs.py:1575
 msgid "Load OpenRouter Models"
 msgstr "OpenRouter-modellen laden"
 
-#: gui/dialogs.py:1570
+#: gui/dialogs.py:1579
 msgid "Loads all available model IDs from OpenRouter."
 msgstr "Laadt alle beschikbare model-ID's van OpenRouter."
 
-#: gui/dialogs.py:1673
+#: gui/dialogs.py:1682
 msgid "Data Storage Location"
 msgstr "Locatie voor gegevensopslag"
 
-#: gui/dialogs.py:1678
+#: gui/dialogs.py:1687
 msgid ""
 "Where BlindRSS stores config.json and rss.db.\n"
 "User Data Folder keeps your settings and feeds across app upgrades,\n"
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Waar BlindRSS config.json en rss.db opslaat.\n"
-"De map met gebruikersgegevens behoudt uw instellingen en feeds bij app-"
-"upgrades,\n"
+"De map met gebruikersgegevens behoudt uw instellingen en feeds bij app-upgrades,\n"
 "vooral op macOS waar de geïnstalleerde app-bundel wordt vervangen."
 
-#: gui/dialogs.py:1725 gui/mainframe.py:11070 gui/mainframe.py:11038
+#: gui/dialogs.py:1734 gui/mainframe.py:11104 gui/mainframe.py:11072
 msgid "Updates"
 msgstr "Updates"
 
-#: gui/dialogs.py:1729
+#: gui/dialogs.py:1738
 msgid "Automatically install updates without confirmation"
 msgstr "Updates automatisch installeren zonder bevestiging"
 
-#: gui/dialogs.py:1738 gui/dialogs.py:4206
+#: gui/dialogs.py:1747 gui/dialogs.py:4220
 msgid "Video Search"
 msgstr "Videozoekopdracht"
 
-#: gui/dialogs.py:1742
+#: gui/dialogs.py:1751
 msgid "Enable adult sites in Video Search"
 msgstr "Volwassenensites inschakelen in Video zoeken"
 
-#: gui/dialogs.py:1801
+#: gui/dialogs.py:1810
 msgid "Loading OpenRouter models..."
 msgstr "OpenRouter-modellen laden..."
 
-#: gui/dialogs.py:1963
+#: gui/dialogs.py:1972
 msgid "Notifications are not supported on this platform."
 msgstr "Meldingen worden niet ondersteund op dit platform."
 
-#: gui/dialogs.py:2072
+#: gui/dialogs.py:2081
 msgid "Enter your Inoreader App ID and App Key first."
 msgstr "Voer eerst uw Inoreader-app-ID en app-sleutel in."
 
-#: gui/dialogs.py:2101
+#: gui/dialogs.py:2110
 msgid "Paste the full URL from your browser address bar"
 msgstr "Plak de volledige URL uit de adresbalk van uw browser"
 
-#: gui/dialogs.py:2399
+#: gui/dialogs.py:2413
 msgid "Playback cache"
 msgstr "Afspeelcache"
 
-#: gui/dialogs.py:2476
+#: gui/dialogs.py:2490
 msgid "Choose file..."
 msgstr "Bestand kiezen..."
 
-#: gui/dialogs.py:2483
+#: gui/dialogs.py:2497
 msgid "Choose exported cookies.txt"
 msgstr "Kies geëxporteerde cookies.txt"
 
-#: gui/dialogs.py:2583
+#: gui/dialogs.py:2597
 msgid "Enter a command to test. Use %1 where the article URL should go."
 msgstr ""
 "Voer een opdracht in om te testen. Gebruik %1 op de plaats waar de artikel-"
 "URL moet komen."
 
-#: gui/dialogs.py:2584
+#: gui/dialogs.py:2598
 msgid "Nothing to test"
 msgstr "Niets om te testen"
 
-#: gui/dialogs.py:2603
+#: gui/dialogs.py:2617
 msgid "Test launched"
 msgstr "Test gestart"
 
-#: gui/dialogs.py:2608
+#: gui/dialogs.py:2622
 msgid "Test failed"
 msgstr "Test mislukt"
 
-#: gui/dialogs.py:2747
+#: gui/dialogs.py:2761
 msgid "Feed Properties"
 msgstr "Feedeigenschappen"
 
-#: gui/dialogs.py:2792
+#: gui/dialogs.py:2806 gui/dialogs.py:2916
 msgid "Use global setting"
 msgstr "Globale instelling gebruiken"
 
-#: gui/dialogs.py:2793
+#: gui/dialogs.py:2807
 msgid "Never (manual refresh only)"
 msgstr "Nooit (alleen handmatig vernieuwen)"
 
-#: gui/dialogs.py:2794
+#: gui/dialogs.py:2808
 msgid "30 seconds"
 msgstr "30 seconden"
 
-#: gui/dialogs.py:2795
+#: gui/dialogs.py:2809
 msgid "1 minute"
 msgstr "1 minuut"
 
-#: gui/dialogs.py:2796
+#: gui/dialogs.py:2810
 msgid "2 minutes"
 msgstr "2 minuten"
 
-#: gui/dialogs.py:2797
+#: gui/dialogs.py:2811
 msgid "3 minutes"
 msgstr "3 minuten"
 
-#: gui/dialogs.py:2798
+#: gui/dialogs.py:2812
 msgid "4 minutes"
 msgstr "4 minuten"
 
-#: gui/dialogs.py:2799
+#: gui/dialogs.py:2813
 msgid "5 minutes"
 msgstr "5 minuten"
 
-#: gui/dialogs.py:2800
+#: gui/dialogs.py:2814
 msgid "10 minutes"
 msgstr "10 minuten"
 
-#: gui/dialogs.py:2801
+#: gui/dialogs.py:2815
 msgid "15 minutes"
 msgstr "15 minuten"
 
-#: gui/dialogs.py:2802
+#: gui/dialogs.py:2816
 msgid "30 minutes"
 msgstr "30 minuten"
 
-#: gui/dialogs.py:2803
+#: gui/dialogs.py:2817
 msgid "60 minutes"
 msgstr "60 minuten"
 
-#: gui/dialogs.py:2804
+#: gui/dialogs.py:2818
 msgid "2 hours"
 msgstr "2 uur"
 
-#: gui/dialogs.py:2805
+#: gui/dialogs.py:2819
 msgid "3 hours"
 msgstr "3 uur"
 
-#: gui/dialogs.py:2806
+#: gui/dialogs.py:2820
 msgid "4 hours"
 msgstr "4 uur"
 
-#: gui/dialogs.py:3071
+#: gui/dialogs.py:2917
+msgid "Move it to Deleted Articles"
+msgstr "Verplaatsen naar Verwijderde artikelen"
+
+#: gui/dialogs.py:3085
 msgid "Feeds with Errors"
 msgstr "Feeds met fouten"
 
-#: gui/dialogs.py:3095
+#: gui/dialogs.py:3109
 msgid "Error &details:"
 msgstr "Fout&details:"
 
-#: gui/dialogs.py:3106
+#: gui/dialogs.py:3120
 msgid "&Refresh Selected"
 msgstr "Selectie ve&rversen"
 
-#: gui/dialogs.py:3107
+#: gui/dialogs.py:3121
 msgid "&Copy Details"
 msgstr "Details k&opiëren"
 
-#: gui/dialogs.py:3108
+#: gui/dialogs.py:3122
 msgid "Feed &Properties..."
 msgstr "Feedeigenscha&ppen..."
 
-#: gui/dialogs.py:3109
+#: gui/dialogs.py:3123
 msgid "Re&move Feed"
 msgstr "Feed ve&rwijderen"
 
-#: gui/dialogs.py:3171
+#: gui/dialogs.py:3185
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead "
-"URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Geen enkele feed meldde fouten tijdens de laatste updatepoging.\n"
 "\n"
-"Feeds verschijnen hier automatisch wanneer een update mislukt (bijvoorbeeld "
-"een dode URL, een HTTP-fout, een time-out of een ongeldig feedformaat)."
+"Feeds verschijnen hier automatisch wanneer een update mislukt (bijvoorbeeld een dode URL, een HTTP-fout, een time-out of een ongeldig feedformaat)."
 
-#: gui/dialogs.py:3303
+#: gui/dialogs.py:3317
 msgid "Editing feed properties is not available here."
 msgstr "Feedeigenschappen bewerken is hier niet beschikbaar."
 
-#: gui/dialogs.py:3304
+#: gui/dialogs.py:3318
 msgid "Not available"
 msgstr "Niet beschikbaar"
 
-#: gui/dialogs.py:3328
+#: gui/dialogs.py:3342
 msgid "Confirm Remove"
 msgstr "Verwijderen bevestigen"
 
-#: gui/dialogs.py:3381
+#: gui/dialogs.py:3395
 msgid "Find a Podcast or RSS Feed"
 msgstr "Podcast of RSS-feed zoeken"
 
-#: gui/dialogs.py:3407 gui/dialogs.py:4263
+#: gui/dialogs.py:3421 gui/dialogs.py:4277
 msgid "Search"
 msgstr "Zoeken"
 
-#: gui/dialogs.py:3413 gui/dialogs.py:4293 gui/dialogs.py:5601
+#: gui/dialogs.py:3427 gui/dialogs.py:4307 gui/dialogs.py:5615
 msgid "Ready."
 msgstr "Gereed."
 
-#: gui/dialogs.py:3542
+#: gui/dialogs.py:3556
 msgid "Searching all sources..."
 msgstr "Alle bronnen doorzoeken..."
 
-#: gui/dialogs.py:4265
+#: gui/dialogs.py:4279
 msgid "Load More Results (+80/site)"
 msgstr "Meer resultaten laden (+80/site)"
 
-#: gui/dialogs.py:5221
+#: gui/dialogs.py:5235
 msgid "No searchable sites."
 msgstr "Geen doorzoekbare sites."
 
-#: gui/dialogs.py:5673
+#: gui/dialogs.py:5687
 msgid "Parent window does not support subscribing from this dialog."
 msgstr ""
 "Bovenliggend venster ondersteunt geen abonneren vanuit dit dialoogvenster."
 
-#: gui/dialogs.py:5726
+#: gui/dialogs.py:5740
 msgid "Configure Persistent Search"
 msgstr "Permanente zoekopdracht configureren"
 
-#: gui/dialogs.py:5739
+#: gui/dialogs.py:5753
 msgid "Add..."
 msgstr "Toevoegen..."
 
-#: gui/dialogs.py:5740
+#: gui/dialogs.py:5754
 msgid "Remove"
 msgstr "Verwijderen"
 
-#: gui/dialogs.py:5794 gui/mainframe.py:2011
+#: gui/dialogs.py:5808 gui/mainframe.py:2028
 msgid "About BlindRSS"
 msgstr "Over BlindRSS"
 
-#: gui/dialogs.py:5805
+#: gui/dialogs.py:5819
 msgid "Copyright (c) 2024-2026 serrebidev and contributors"
 msgstr "Copyright (c) 2024-2026 serrebidev en bijdragers"
 
-#: gui/dialogs.py:5811
+#: gui/dialogs.py:5825
 msgid "Follow me on GitHub (@serrebidev)"
 msgstr "Volg mij op GitHub (@serrebidev)"
 
-#: gui/dialogs.py:5812
+#: gui/dialogs.py:5826
 msgid "Visit Repository"
 msgstr "Repository bezoeken"
 
-#: gui/dialogs.py:5813
+#: gui/dialogs.py:5827
 msgid "View Changelog"
 msgstr "Wijzigingslogboek bekijken"
 
-#: gui/dialogs.py:5853
+#: gui/dialogs.py:5867
 msgid "Play Queue"
 msgstr "Afspeelwachtrij"
 
-#: gui/dialogs.py:5879 gui/mainframe.py:11554
+#: gui/dialogs.py:5893 gui/mainframe.py:11588
 msgid "Move &Up"
 msgstr "Naar &boven verplaatsen"
 
-#: gui/dialogs.py:5883 gui/mainframe.py:11555
+#: gui/dialogs.py:5897 gui/mainframe.py:11589
 msgid "Move &Down"
 msgstr "Naar bene&den verplaatsen"
 
-#: gui/dialogs.py:5887
+#: gui/dialogs.py:5901
 msgid "&Remove"
 msgstr "&Verwijderen"
 
-#: gui/dialogs.py:5891
+#: gui/dialogs.py:5905
 msgid "&Clear All"
 msgstr "&Alles wissen"
 
-#: gui/dialogs.py:5958
+#: gui/dialogs.py:5972
 msgid "Untitled"
 msgstr "Zonder titel"
 
-#: gui/dialogs.py:5977
+#: gui/dialogs.py:5991
 msgid "The play queue is empty."
 msgstr "De afspeelwachtrij is leeg."
 
-#: gui/dialogs.py:6038
+#: gui/dialogs.py:6052
 msgid "Remove all items from the play queue?"
 msgstr "Alle items uit de afspeelwachtrij verwijderen?"
 
-#: gui/dialogs.py:6039
+#: gui/dialogs.py:6053
 msgid "Clear Play Queue"
 msgstr "Afspeelwachtrij leegmaken"
 
-#: gui/dialogs.py:6081
+#: gui/dialogs.py:6095
 msgid "Press Shortcut"
 msgstr "Sneltoets indrukken"
 
-#: gui/dialogs.py:6094
+#: gui/dialogs.py:6108
 msgid "Waiting for a key…"
 msgstr "Wachten op een toets…"
 
-#: gui/dialogs.py:6155
+#: gui/dialogs.py:6169
 msgid "Keyboard Shortcuts"
 msgstr "Sneltoetsen"
 
-#: gui/dialogs.py:6167
+#: gui/dialogs.py:6181
 msgid "Select a command and choose Change to set its shortcut."
-msgstr "Selecteer een opdracht en kies Wijzigen om de sneltoets in te stellen."
+msgstr ""
+"Selecteer een opdracht en kies Wijzigen om de sneltoets in te stellen."
 
-#: gui/dialogs.py:6182
+#: gui/dialogs.py:6196
 msgid "&Change Shortcut..."
 msgstr "Sneltoets &wijzigen..."
 
-#: gui/dialogs.py:6186
+#: gui/dialogs.py:6200
 msgid "&Remove Shortcut"
 msgstr "Sneltoets ve&rwijderen"
 
-#: gui/dialogs.py:6190
+#: gui/dialogs.py:6204
 msgid "Reset All to &Defaults"
 msgstr "Alles terugzetten naar stan&daardwaarden"
 
-#: gui/dialogs.py:6308
+#: gui/dialogs.py:6322
 msgid "Reset all keyboard shortcuts to their defaults?"
 msgstr "Alle sneltoetsen terugzetten naar hun standaardwaarden?"
 
-#: gui/dialogs.py:6309
+#: gui/dialogs.py:6323
 msgid "Reset Shortcuts"
 msgstr "Sneltoetsen terugzetten"
 
-#: gui/dialogs.py:6362
+#: gui/dialogs.py:6376
 msgid "Equalizer"
 msgstr "Equalizer"
 
-#: gui/dialogs.py:6387
+#: gui/dialogs.py:6401
 msgid "&Enable equalizer"
 msgstr "Equalizer &inschakelen"
 
-#: gui/dialogs.py:6424
+#: gui/dialogs.py:6438
 msgid "&Save as Preset..."
 msgstr "Op&slaan als voorinstelling..."
 
-#: gui/dialogs.py:6427
+#: gui/dialogs.py:6441
 msgid "&Delete Preset"
 msgstr "Voorinstelling verwij&deren"
 
-#: gui/dialogs.py:6430
+#: gui/dialogs.py:6444
 msgid "&Reset (Flat)"
 msgstr "&Terugzetten (vlak)"
 
-#: gui/dialogs.py:6601
+#: gui/dialogs.py:6615
 msgid "Could not save the preset."
 msgstr "Kon de voorinstelling niet opslaan."
 
-#: gui/dialogs.py:6613
+#: gui/dialogs.py:6627
 msgid "Delete Preset"
 msgstr "Voorinstelling verwijderen"
 
 #: gui/dialogs.py:56
 msgid "Feed or Media URL:"
 msgstr "Feed- of media-URL:"
-
-#: gui/dialogs.py:69 gui/dialogs.py:2782
-msgid "Category:"
-msgstr "Categorie:"
 
 #: gui/dialogs.py:185
 msgid ""
@@ -939,198 +1226,195 @@ msgstr ""
 "Feeds zijn standaard aangevinkt.\n"
 "Vink feeds uit die geen meldingen mogen versturen."
 
-#: gui/dialogs.py:557
+#: gui/dialogs.py:290
+msgid "Selected feed: {name}. {state}."
+msgstr "Geselecteerde feed: {name}. {state}."
+
+#: gui/dialogs.py:559
 msgid "Refresh Interval:"
 msgstr "Vernieuwingsinterval:"
 
-#: gui/dialogs.py:598
+#: gui/dialogs.py:600
 msgid "Search Matches:"
 msgstr "Zoekresultaten:"
 
-#: gui/dialogs.py:618
+#: gui/dialogs.py:627
 msgid "Max Concurrent Refreshes:"
 msgstr "Max. gelijktijdige vernieuwingen:"
 
-#: gui/dialogs.py:624
+#: gui/dialogs.py:633
 msgid "Max Connections Per Host:"
 msgstr "Max. verbindingen per host:"
 
-#: gui/dialogs.py:630
+#: gui/dialogs.py:639
 msgid "Feed Timeout (seconds):"
 msgstr "Time-out feed (seconden):"
 
-#: gui/dialogs.py:636
+#: gui/dialogs.py:645
 msgid "Feed Retry Attempts:"
 msgstr "Aantal nieuwe pogingen voor feed:"
 
-#: gui/dialogs.py:643
+#: gui/dialogs.py:652
 msgid "Max Cached Views:"
 msgstr "Max. gecachte weergaven:"
 
-#: gui/dialogs.py:665
+#: gui/dialogs.py:674
 msgid "When I delete an article:"
 msgstr "Wanneer ik een artikel verwijder:"
 
-#: gui/dialogs.py:693
+#: gui/dialogs.py:702
 msgid "Download Path:"
 msgstr "Downloadpad:"
 
-#: gui/dialogs.py:704
+#: gui/dialogs.py:713
 msgid "Retention Policy:"
 msgstr "Retentiebeleid:"
 
-#: gui/dialogs.py:712
+#: gui/dialogs.py:721
 msgid "Article Retention:"
 msgstr "Artikelretentie:"
 
-#: gui/dialogs.py:826
+#: gui/dialogs.py:835
 msgid "Max cache size (MB, 0 = unlimited):"
 msgstr "Max. cachegrootte (MB, 0 = onbeperkt):"
 
-#: gui/dialogs.py:860
+#: gui/dialogs.py:869
 msgid "Interface language (requires restart):"
 msgstr "Interfacetaal (herstart vereist):"
 
-#: gui/dialogs.py:884
+#: gui/dialogs.py:893
 msgid "Feed category tree on startup:"
 msgstr "Feedcategorieboom bij opstarten:"
 
-#: gui/dialogs.py:904
+#: gui/dialogs.py:913
 msgid "Article opening method:"
 msgstr "Methode voor het openen van artikelen:"
 
-#: gui/dialogs.py:923
+#: gui/dialogs.py:932
 msgid "Custom command:"
 msgstr "Aangepaste opdracht:"
 
-#: gui/dialogs.py:963
+#: gui/dialogs.py:972
 msgid "Preferred Soundcard:"
 msgstr "Voorkeurs-geluidskaart:"
 
-#: gui/dialogs.py:979
+#: gui/dialogs.py:988
 msgid "Default Playback Speed:"
 msgstr "Standaard afspeelsnelheid:"
 
-#: gui/dialogs.py:1008
+#: gui/dialogs.py:1017
 msgid "Network Cache (ms):"
 msgstr "Netwerkcache (ms):"
 
-#: gui/dialogs.py:1026
+#: gui/dialogs.py:1035
 msgid "Leave a path blank to auto-detect. A set path overrides detection."
 msgstr ""
 "Laat een pad leeg om automatisch te detecteren. Een ingesteld pad "
 "overschrijft detectie."
 
-#: gui/dialogs.py:1068
+#: gui/dialogs.py:1077
 msgid "Active Provider:"
 msgstr "Actieve provider:"
 
-#: gui/dialogs.py:1146
+#: gui/dialogs.py:1155
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
-"fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address "
-"bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
 "when prompted."
 msgstr ""
-"Opmerking: als uw omleidings-URI HTTPS gebruikt (gebruikelijk/vereist), kan "
-"uw browser localhost\n"
-"na autorisatie mogelijk niet laden. Kopieer de volledige omgeleide URL uit "
-"de adresbalk en plak deze\n"
+"Opmerking: als uw omleidings-URI HTTPS gebruikt (gebruikelijk/vereist), kan uw browser localhost\n"
+"na autorisatie mogelijk niet laden. Kopieer de volledige omgeleide URL uit de adresbalk en plak deze\n"
 "wanneer daarom wordt gevraagd."
 
-#: gui/dialogs.py:1158
+#: gui/dialogs.py:1167
 msgid "Authorize Inoreader"
 msgstr "Inoreader autoriseren"
 
-#: gui/dialogs.py:1159
+#: gui/dialogs.py:1168
 msgid "Clear Authorization"
 msgstr "Autorisatie wissen"
 
-#: gui/dialogs.py:1277
+#: gui/dialogs.py:1286
 msgid "Max notifications per refresh (0 = no limit):"
 msgstr "Max. meldingen per vernieuwing (0 = geen limiet):"
 
-#: gui/dialogs.py:1350
+#: gui/dialogs.py:1359
 msgid "Provider:"
 msgstr "Provider:"
 
-#: gui/dialogs.py:1370
+#: gui/dialogs.py:1379
 msgid "Target language:"
 msgstr "Doeltaal:"
 
-#: gui/dialogs.py:1391
+#: gui/dialogs.py:1400
 msgid "Choose a language or type a code (e.g. en, es, fr, pt-BR)."
 msgstr "Kies een taal of typ een code (bijv. en, es, fr, pt-BR)."
 
-#: gui/dialogs.py:1400
+#: gui/dialogs.py:1409
 msgid "Grok (xAI) model (optional):"
 msgstr "Grok (xAI)-model (optioneel):"
 
-#: gui/dialogs.py:1431
+#: gui/dialogs.py:1440
 msgid "Grok (xAI) API key (starts with xai-):"
 msgstr "Grok (xAI) API-sleutel (begint met xai-):"
 
-#: gui/dialogs.py:1443
+#: gui/dialogs.py:1452
 msgid "Groq model (optional) - hosts LLaMA and Mistral:"
 msgstr "Groq-model (optioneel) - host voor LLaMA en Mistral:"
 
-#: gui/dialogs.py:1465
+#: gui/dialogs.py:1474
 msgid "Groq API key (starts with gsk_):"
 msgstr "Groq API-sleutel (begint met gsk_):"
 
-#: gui/dialogs.py:1491
+#: gui/dialogs.py:1500
 msgid "OpenAI model (optional):"
 msgstr "OpenAI-model (optioneel):"
 
-#: gui/dialogs.py:1513
+#: gui/dialogs.py:1522
 msgid "OpenAI API key:"
 msgstr "OpenAI API-sleutel:"
 
-#: gui/dialogs.py:1529
+#: gui/dialogs.py:1538
 msgid "OpenRouter model (optional):"
 msgstr "OpenRouter-model (optioneel):"
 
-#: gui/dialogs.py:1551
+#: gui/dialogs.py:1560
 msgid "OpenRouter API key:"
 msgstr "OpenRouter API-sleutel:"
 
-#: gui/dialogs.py:1577
+#: gui/dialogs.py:1586
 msgid "Gemini model (optional):"
 msgstr "Gemini-model (optioneel):"
 
-#: gui/dialogs.py:1599
+#: gui/dialogs.py:1608
 msgid "Gemini API key:"
 msgstr "Gemini API-sleutel:"
 
-#: gui/dialogs.py:1615
+#: gui/dialogs.py:1624
 msgid "Qwen model (optional):"
 msgstr "Qwen-model (optioneel):"
 
-#: gui/dialogs.py:1637
+#: gui/dialogs.py:1646
 msgid "Qwen API key:"
 msgstr "Qwen API-sleutel:"
 
-#: gui/dialogs.py:1693
+#: gui/dialogs.py:1702
 msgid "Storage Location:"
 msgstr "Opslaglocatie:"
 
-#: gui/dialogs.py:1750
+#: gui/dialogs.py:1759
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to "
-"search them."
+"When on, adult sites are added and must still be selected explicitly to search them."
 msgstr ""
-"Indien uit, verschijnen volwassenensites nooit in de sitelijst van Video "
-"zoeken.\n"
-"Indien aan, worden volwassenensites toegevoegd en moeten ze nog steeds "
-"expliciet worden geselecteerd om erin te zoeken."
+"Indien uit, verschijnen volwassenensites nooit in de sitelijst van Video zoeken.\n"
+"Indien aan, worden volwassenensites toegevoegd en moeten ze nog steeds expliciet worden geselecteerd om erin te zoeken."
 
-#: gui/dialogs.py:2090
+#: gui/dialogs.py:2099
 msgid "Inoreader Authorization"
 msgstr "Inoreader-autorisatie"
 
-#: gui/dialogs.py:2227
+#: gui/dialogs.py:2236
 msgid ""
 "Inoreader authorization failed:\n"
 "{message}"
@@ -1138,150 +1422,170 @@ msgstr ""
 "Inoreader-autorisatie mislukt:\n"
 "{message}"
 
-#: gui/dialogs.py:2498 gui/dialogs.py:2505
+#: gui/dialogs.py:2512 gui/dialogs.py:2519
 msgid "Import failed"
 msgstr "Importeren mislukt"
 
-#: gui/dialogs.py:2521
+#: gui/dialogs.py:2535
 msgid "Executables"
 msgstr "Uitvoerbare bestanden"
 
-#: gui/dialogs.py:2521 gui/dialogs.py:2523 gui/dialogs.py:2367
-#: gui/dialogs.py:2484
+#: gui/dialogs.py:2535 gui/dialogs.py:2537 gui/dialogs.py:2381
+#: gui/dialogs.py:2498
 msgid "All files"
 msgstr "Alle bestanden"
 
-#: gui/dialogs.py:2594
+#: gui/dialogs.py:2608
 msgid "Invalid command"
 msgstr "Ongeldige opdracht"
 
-#: gui/dialogs.py:2764
-msgid "Title:"
-msgstr "Titel:"
-
-#: gui/dialogs.py:2771
+#: gui/dialogs.py:2785
 msgid "URL:"
 msgstr "URL:"
 
-#: gui/dialogs.py:2790
+#: gui/dialogs.py:2804
 msgid "Refresh interval for this feed:"
 msgstr "Vernieuwingsinterval voor deze feed:"
 
-#: gui/dialogs.py:2834
+#: gui/dialogs.py:2848
 msgid "Custom request headers (one per line, Name: Value):"
 msgstr "Aangepaste verzoekheaders (één per regel, Naam: Waarde):"
 
-#: gui/dialogs.py:2850
+#: gui/dialogs.py:2864
 msgid "Request timeout in seconds (blank = default):"
 msgstr "Time-out van verzoek in seconden (leeg = standaard):"
 
-#: gui/dialogs.py:2865
+#: gui/dialogs.py:2879
 msgid "Browser impersonation:"
 msgstr "Browserimitatie:"
 
-#: gui/dialogs.py:2878
+#: gui/dialogs.py:2880
+msgid "Auto"
+msgstr "Automatisch"
+
+#: gui/dialogs.py:2880
+msgid "Always"
+msgstr "Altijd"
+
+#: gui/dialogs.py:2880
+msgid "Never"
+msgstr "Nooit"
+
+#: gui/dialogs.py:2892
 msgid "Proxy URL (optional, e.g. http://host:port):"
 msgstr "Proxy-URL (optioneel, bijv. http://host:poort):"
 
-#: gui/dialogs.py:2899
+#: gui/dialogs.py:2913
 msgid "When I delete an article from this feed:"
 msgstr "Wanneer ik een artikel uit deze feed verwijder:"
 
-#: gui/dialogs.py:3391 gui/dialogs.py:4257
+#: gui/dialogs.py:3276
+msgid "Refreshing '{title}'..."
+msgstr "'{title}' wordt vernieuwd..."
+
+#: gui/dialogs.py:3405 gui/dialogs.py:4271
 msgid "Search:"
 msgstr "Zoeken:"
 
-#: gui/dialogs.py:3400
+#: gui/dialogs.py:3414
 msgid "Source:"
 msgstr "Bron:"
 
-#: gui/dialogs.py:3428
+#: gui/dialogs.py:3442
 msgid ""
 "Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedspot, Google "
-"News, Bing News, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/"
-"Mastodon/Bluesky/PieFed)"
+"News, Bing News, Feedsearch, NewsBlur, Reddit, Fediverse "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed)"
 msgstr ""
 "Bronnen: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedspot, Google "
-"News, Bing News, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/"
-"Mastodon/Bluesky/PieFed)"
+"News, Bing News, Feedsearch, NewsBlur, Reddit, Fediverse "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed)"
 
-#: gui/dialogs.py:3798 gui/dialogs.py:3823
+#: gui/dialogs.py:3812 gui/dialogs.py:3837
 msgid "News search feed"
 msgstr "Nieuwszoekfeed"
 
-#: gui/dialogs.py:4271
+#: gui/dialogs.py:4285
 msgid "Search Sites:"
 msgstr "Zoeksites:"
 
-#: gui/dialogs.py:4275
+#: gui/dialogs.py:4289
 msgid "Filter Results:"
 msgstr "Resultaten filteren:"
 
-#: gui/dialogs.py:4279
+#: gui/dialogs.py:4293
 msgid "Sort by:"
 msgstr "Sorteren op:"
 
-#: gui/dialogs.py:5681
+#: gui/dialogs.py:5695
 msgid "Subscribe Error"
 msgstr "Abonneerfout"
 
-#: gui/dialogs.py:5719
+#: gui/dialogs.py:5733
 msgid "Copied URL."
 msgstr "URL gekopieerd."
 
-#: gui/dialogs.py:5732
+#: gui/dialogs.py:5746
 msgid "Saved searches:"
 msgstr "Opgeslagen zoekopdrachten:"
 
-#: gui/dialogs.py:6218
+#: gui/dialogs.py:6232
 msgid "(none)"
 msgstr "(geen)"
 
-#: gui/dialogs.py:6348
+#: gui/dialogs.py:6362
 msgid "{sign}{v} dB"
 msgstr "{sign}{v} dB"
 
-#: gui/dialogs.py:6394
+#: gui/dialogs.py:6408
 msgid "&Preset:"
 msgstr "&Voorinstelling:"
 
-#: gui/dialogs.py:1120
+#: gui/dialogs.py:880
+msgid "Automatic (system language)"
+msgstr "Automatisch (systeemtaal)"
+
+#: gui/dialogs.py:1129
 msgid "Inoreader App ID:"
 msgstr "Inoreader-app-ID:"
 
-#: gui/dialogs.py:1127
+#: gui/dialogs.py:1136
 msgid "Inoreader App Key:"
 msgstr "Inoreader-appsleutel:"
 
-#: gui/dialogs.py:1138
+#: gui/dialogs.py:1147
 msgid "Redirect URI:"
 msgstr "Omleidings-URI:"
 
-#: gui/dialogs.py:2367 gui/dialogs.py:2484
+#: gui/dialogs.py:2381 gui/dialogs.py:2498
 msgid "Cookies"
 msgstr "Cookies"
 
-#: gui/dialogs.py:3806
+#: gui/dialogs.py:3276
+msgid "feed"
+msgstr "feed"
+
+#: gui/dialogs.py:3820
 msgid "News topic feed"
 msgstr "Nieuwsonderwerpfeed"
 
-#: gui/dialogs.py:5655
+#: gui/dialogs.py:5669
 msgid "Playback Error"
 msgstr "Afspeelfout"
 
-#: gui/dialogs.py:5961
+#: gui/dialogs.py:5975
 msgid "{index}. {title}, from {source}"
 msgstr "{index}. {title}, van {source}"
 
-#: gui/dialogs.py:5965
+#: gui/dialogs.py:5979
 msgid "{index}. {title}"
 msgstr "{index}. {title}"
 
-#: gui/dialogs.py:5971
+#: gui/dialogs.py:5985
 msgid "{count} item(s) in queue."
 msgstr "{count} item(s) in de wachtrij."
 
-#: gui/dialogs.py:6087
+#: gui/dialogs.py:6101
 msgid ""
 "Press the new shortcut for “{command}”.\n"
 "It must include Ctrl, Alt or Shift. Press Escape to cancel."
@@ -1289,36 +1593,39 @@ msgstr ""
 "Druk op de nieuwe sneltoets voor “{command}”.\n"
 "Deze moet Ctrl, Alt of Shift bevatten. Druk op Escape om te annuleren."
 
-#: gui/dialogs.py:6280
+#: gui/dialogs.py:6294
 msgid "Shortcut Conflict"
 msgstr "Sneltoetsconflict"
 
-#: gui/dialogs.py:6494
+#: gui/dialogs.py:6508
 msgid "{name} (my preset)"
 msgstr "{name} (mijn voorinstelling)"
 
-#: gui/dialogs.py:6612
+#: gui/dialogs.py:6626
 msgid "Delete the preset \"{name}\"?"
 msgstr "Voorinstelling \"{name}\" verwijderen?"
 
-#: gui/dialogs.py:5680
+#: gui/dialogs.py:5694
 msgid "Could not subscribe: {error}"
 msgstr "Kan niet abonneren: {error}"
 
-#: gui/dialogs.py:6586
+#: gui/dialogs.py:6600
 msgid "A preset named \"{name}\" already exists. Overwrite it?"
-msgstr ""
-"Er bestaat al een voorinstelling met de naam \"{name}\". Overschrijven?"
+msgstr "Er bestaat al een voorinstelling met de naam \"{name}\". Overschrijven?"
 
-#: gui/dialogs.py:1231
+#: gui/dialogs.py:1049
+msgid "{tool} path:"
+msgstr "Pad naar {tool}:"
+
+#: gui/dialogs.py:1240
 msgid "WAV files"
 msgstr "WAV-bestanden"
 
-#: gui/dialogs.py:5654
+#: gui/dialogs.py:5668
 msgid "Could not start playback: {error}"
 msgstr "Kan afspelen niet starten: {error}"
 
-#: gui/dialogs.py:6276
+#: gui/dialogs.py:6290
 msgid ""
 "{accel} is already assigned to “{other}”.\n"
 "Reassign it to “{this}”?"
@@ -1326,381 +1633,381 @@ msgstr ""
 "{accel} is al toegewezen aan “{other}”.\n"
 "Opnieuw toewijzen aan “{this}”?"
 
-#: gui/mainframe.py:412 gui/mainframe.py:395
+#: gui/mainframe.py:429 gui/mainframe.py:412
 msgid "Shortcuts"
 msgstr "Snelkoppelingen"
 
-#: gui/mainframe.py:461 gui/mainframe.py:1872
+#: gui/mainframe.py:478 gui/mainframe.py:1889
 msgid "Author"
 msgstr "Auteur"
 
-#: gui/mainframe.py:462 gui/mainframe.py:1439
+#: gui/mainframe.py:479 gui/mainframe.py:1456
 msgid "Media"
 msgstr "Media"
 
-#: gui/mainframe.py:463 gui/mainframe.py:1870
+#: gui/mainframe.py:480 gui/mainframe.py:1887
 msgid "Date"
 msgstr "Datum"
 
-#: gui/mainframe.py:465 gui/mainframe.py:1873
+#: gui/mainframe.py:482 gui/mainframe.py:1890
 msgid "Description"
 msgstr "Beschrijving"
 
-#: gui/mainframe.py:466 gui/mainframe.py:1875
+#: gui/mainframe.py:483 gui/mainframe.py:1892
 msgid "Status"
 msgstr "Status"
 
-#: gui/mainframe.py:667 gui/mainframe.py:1804
+#: gui/mainframe.py:684 gui/mainframe.py:1821
 msgid "Configure Persistent Search..."
 msgstr "Permanente zoekopdracht configureren..."
 
-#: gui/mainframe.py:1791
+#: gui/mainframe.py:1808
 msgid "Add a new RSS feed"
 msgstr "Een nieuwe RSS-feed toevoegen"
 
-#: gui/mainframe.py:1792
+#: gui/mainframe.py:1809
 msgid "&Remove Feed"
 msgstr "Feed ve&rwijderen"
 
-#: gui/mainframe.py:1792
+#: gui/mainframe.py:1809
 msgid "Remove selected feed"
 msgstr "Geselecteerde feed verwijderen"
 
-#: gui/mainframe.py:1793
+#: gui/mainframe.py:1810
 msgid "Refresh all feeds"
 msgstr "Alle feeds vernieuwen"
 
-#: gui/mainframe.py:1794
+#: gui/mainframe.py:1811
 msgid "Stop the feed refresh currently in progress"
 msgstr "De lopende feedvernieuwing stoppen"
 
-#: gui/mainframe.py:1795
+#: gui/mainframe.py:1812
 msgid "Mark All Items as &Read"
 msgstr "Alle items markeren als gelezen (&R)"
 
-#: gui/mainframe.py:1795
+#: gui/mainframe.py:1812
 msgid "Mark all items in all feeds as read"
 msgstr "Alle items in alle feeds markeren als gelezen"
 
-#: gui/mainframe.py:1796
+#: gui/mainframe.py:1813
 msgid "View Feed &Errors..."
 msgstr "Feedfout&en weergeven..."
 
-#: gui/mainframe.py:1796
+#: gui/mainframe.py:1813
 msgid "View feeds that failed to update"
 msgstr "Feeds bekijken die niet konden worden bijgewerkt"
 
-#: gui/mainframe.py:1798
+#: gui/mainframe.py:1815
 msgid "Add &Category"
 msgstr "&Categorie toevoegen"
 
-#: gui/mainframe.py:1798
+#: gui/mainframe.py:1815
 msgid "Add a new category"
 msgstr "Een nieuwe categorie toevoegen"
 
-#: gui/mainframe.py:1799
+#: gui/mainframe.py:1816
 msgid "Remove C&ategory"
 msgstr "C&ategorie verwijderen"
 
-#: gui/mainframe.py:1799
+#: gui/mainframe.py:1816
 msgid "Remove selected category"
 msgstr "Geselecteerde categorie verwijderen"
 
-#: gui/mainframe.py:1801
+#: gui/mainframe.py:1818
 msgid "&Import OPML..."
 msgstr "OPML &importeren..."
 
-#: gui/mainframe.py:1801
+#: gui/mainframe.py:1818
 msgid "Import feeds from OPML"
 msgstr "Feeds importeren vanuit OPML"
 
-#: gui/mainframe.py:1802
+#: gui/mainframe.py:1819
 msgid "E&xport OPML..."
 msgstr "OPML e&xporteren..."
 
-#: gui/mainframe.py:1802
+#: gui/mainframe.py:1819
 msgid "Export feeds to OPML"
 msgstr "Feeds exporteren naar OPML"
 
-#: gui/mainframe.py:1804
+#: gui/mainframe.py:1821
 msgid "Configure saved search queries"
 msgstr "Opgeslagen zoekopdrachten configureren"
 
-#: gui/mainframe.py:1810
+#: gui/mainframe.py:1827
 msgid "E&xit"
 msgstr "A&fsluiten"
 
-#: gui/mainframe.py:1810
+#: gui/mainframe.py:1827
 msgid "Exit application"
 msgstr "Toepassing afsluiten"
 
-#: gui/mainframe.py:1817
+#: gui/mainframe.py:1834
 msgid "Cut the selection"
 msgstr "Selectie knippen"
 
-#: gui/mainframe.py:1818
+#: gui/mainframe.py:1835
 msgid "Copy the selection"
 msgstr "Selectie kopiëren"
 
-#: gui/mainframe.py:1819
+#: gui/mainframe.py:1836
 msgid "Paste from the clipboard"
 msgstr "Plakken vanuit klembord"
 
-#: gui/mainframe.py:1820
+#: gui/mainframe.py:1837
 msgid "Select all"
 msgstr "Alles selecteren"
 
-#: gui/mainframe.py:1823
+#: gui/mainframe.py:1840
 msgid "Show &Search Field"
 msgstr "Zoekveld tonen (&S)"
 
-#: gui/mainframe.py:1823
+#: gui/mainframe.py:1840
 msgid "Show or hide the search field"
 msgstr "Zoekveld tonen of verbergen"
 
-#: gui/mainframe.py:1856
+#: gui/mainframe.py:1873
 msgid "Article &Filter"
 msgstr "Artikel&filter"
 
-#: gui/mainframe.py:1856
+#: gui/mainframe.py:1873
 msgid "Filter all views by read status and media"
 msgstr "Alle weergaven filteren op leesstatus en media"
 
-#: gui/mainframe.py:1859
+#: gui/mainframe.py:1876
 msgid "Open &Accessible Browser"
 msgstr "Toegankelijke browser &openen"
 
-#: gui/mainframe.py:1860
+#: gui/mainframe.py:1877
 msgid "Open the VoiceOver-friendly browser window"
 msgstr "Het VoiceOver-vriendelijke browservenster openen"
 
-#: gui/mainframe.py:1864
+#: gui/mainframe.py:1881
 msgid "Show/Hide &Player (Ctrl+Shift+P)"
 msgstr "S&peler tonen/verbergen (Ctrl+Shift+P)"
 
-#: gui/mainframe.py:1864 gui/mainframe.py:1910
+#: gui/mainframe.py:1881 gui/mainframe.py:1927
 msgid "Show or hide the media player window"
 msgstr "Mediaspelervenster tonen of verbergen"
 
-#: gui/mainframe.py:1887
+#: gui/mainframe.py:1904
 msgid "Ascending"
 msgstr "Oplopend"
 
-#: gui/mainframe.py:1888
+#: gui/mainframe.py:1905
 msgid "Sort in ascending order (default is descending by date)"
 msgstr "Oplopend sorteren (standaard is aflopend op datum)"
 
-#: gui/mainframe.py:1892
+#: gui/mainframe.py:1909
 msgid "Sort &By"
 msgstr "Sorteren &op"
 
-#: gui/mainframe.py:1909 gui/tray.py:97
+#: gui/mainframe.py:1926 gui/tray.py:97
 msgid "Show/Hide Player"
 msgstr "Speler tonen/verbergen"
 
-#: gui/mainframe.py:1914 gui/tray.py:104
+#: gui/mainframe.py:1931 gui/tray.py:104
 msgid "Play/Pause"
 msgstr "Afspelen/Pauzeren"
 
-#: gui/mainframe.py:1914
+#: gui/mainframe.py:1931
 msgid "Toggle play/pause"
 msgstr "Afspelen/pauzeren omschakelen"
 
-#: gui/mainframe.py:1917 gui/player.py:1859 gui/tray.py:105
+#: gui/mainframe.py:1934 gui/player.py:2006 gui/tray.py:105
 msgid "Stop"
 msgstr "Stoppen"
 
-#: gui/mainframe.py:1917
+#: gui/mainframe.py:1934
 msgid "Stop playback"
 msgstr "Afspelen stoppen"
 
-#: gui/mainframe.py:1921
+#: gui/mainframe.py:1938
 msgid "Play &Queue..."
 msgstr "Afspeel&wachtrij..."
 
-#: gui/mainframe.py:1922
+#: gui/mainframe.py:1939
 msgid "View and manage the media play queue"
 msgstr "De media-afspeelwachtrij bekijken en beheren"
 
-#: gui/mainframe.py:1925
+#: gui/mainframe.py:1942
 msgid "Play Next in Queue"
 msgstr "Volgende in wachtrij afspelen"
 
-#: gui/mainframe.py:1926
+#: gui/mainframe.py:1943
 msgid "Play the next item in the play queue"
 msgstr "Het volgende item in de afspeelwachtrij afspelen"
 
-#: gui/mainframe.py:1929
+#: gui/mainframe.py:1946
 msgid "Play Previous in Queue"
 msgstr "Vorige in wachtrij afspelen"
 
-#: gui/mainframe.py:1930
+#: gui/mainframe.py:1947
 msgid "Play the previous item in the play queue"
 msgstr "Het vorige item in de afspeelwachtrij afspelen"
 
-#: gui/mainframe.py:1936
+#: gui/mainframe.py:1953
 msgid "Increase Speed"
 msgstr "Snelheid verhogen"
 
-#: gui/mainframe.py:1936
+#: gui/mainframe.py:1953
 msgid "Play faster"
 msgstr "Sneller afspelen"
 
-#: gui/mainframe.py:1939
+#: gui/mainframe.py:1956
 msgid "Decrease Speed"
 msgstr "Snelheid verlagen"
 
-#: gui/mainframe.py:1939
+#: gui/mainframe.py:1956
 msgid "Play slower"
 msgstr "Langzamer afspelen"
 
-#: gui/mainframe.py:1942
+#: gui/mainframe.py:1959
 msgid "Normal Speed (1x)"
 msgstr "Normale snelheid (1x)"
 
-#: gui/mainframe.py:1942
+#: gui/mainframe.py:1959
 msgid "Reset to normal speed"
 msgstr "Terugzetten naar normale snelheid"
 
-#: gui/mainframe.py:1957
+#: gui/mainframe.py:1974
 msgid "Playback &Speed"
 msgstr "Afspeel&snelheid"
 
-#: gui/mainframe.py:1960
+#: gui/mainframe.py:1977
 msgid "&Equalizer..."
 msgstr "&Equalizer..."
 
-#: gui/mainframe.py:1961
+#: gui/mainframe.py:1978
 msgid "Adjust the audio equalizer"
 msgstr "De audio-equalizer aanpassen"
 
-#: gui/mainframe.py:1967
+#: gui/mainframe.py:1984
 msgid "Rewind (Ctrl+Left)"
 msgstr "Terugspoelen (Ctrl+Links)"
 
-#: gui/mainframe.py:1967 gui/tray.py:106
+#: gui/mainframe.py:1984 gui/tray.py:106
 msgid "Rewind"
 msgstr "Terugspoelen"
 
-#: gui/mainframe.py:1968
+#: gui/mainframe.py:1985
 msgid "Fast Forward (Ctrl+Right)"
 msgstr "Vooruitspoelen (Ctrl+Rechts)"
 
-#: gui/mainframe.py:1968
+#: gui/mainframe.py:1985
 msgid "Fast forward"
 msgstr "Vooruitspoelen"
 
-#: gui/mainframe.py:1970
+#: gui/mainframe.py:1987
 msgid "Volume Up (Ctrl+Up)"
 msgstr "Volume omhoog (Ctrl+Omhoog)"
 
-#: gui/mainframe.py:1970
+#: gui/mainframe.py:1987
 msgid "Increase volume"
 msgstr "Volume verhogen"
 
-#: gui/mainframe.py:1971
+#: gui/mainframe.py:1988
 msgid "Volume Down (Ctrl+Down)"
 msgstr "Volume omlaag (Ctrl+Omlaag)"
 
-#: gui/mainframe.py:1971
+#: gui/mainframe.py:1988
 msgid "Decrease volume"
 msgstr "Volume verlagen"
 
-#: gui/mainframe.py:1974 gui/player.py:1882
+#: gui/mainframe.py:1991 gui/player.py:2029
 msgid "Chapters"
 msgstr "Hoofdstukken"
 
-#: gui/mainframe.py:1988
+#: gui/mainframe.py:2005
 msgid "Find and add a podcast or RSS feed"
 msgstr "Een podcast of RSS-feed zoeken en toevoegen"
 
-#: gui/mainframe.py:1992
+#: gui/mainframe.py:2009
 msgid "&Video Search..."
 msgstr "&Videozoekopdracht..."
 
-#: gui/mainframe.py:1993
+#: gui/mainframe.py:2010
 msgid "Search all yt-dlp query-search sites"
 msgstr "Zoeken op alle door yt-dlp doorzoekbare sites"
 
-#: gui/mainframe.py:1998
+#: gui/mainframe.py:2015
 msgid "Filter &Rules..."
 msgstr "Filter&regels..."
 
-#: gui/mainframe.py:1999
+#: gui/mainframe.py:2016
 msgid "Create rules that categorize, label, or delete articles as they arrive"
 msgstr ""
 "Regels maken die binnenkomende artikelen categoriseren, labelen of "
 "verwijderen"
 
-#: gui/mainframe.py:2004
+#: gui/mainframe.py:2021
 msgid "&Keyboard Shortcuts..."
 msgstr "Snel&toetsen..."
 
-#: gui/mainframe.py:2005
+#: gui/mainframe.py:2022
 msgid "View and customize keyboard shortcuts"
 msgstr "Sneltoetsen bekijken en aanpassen"
 
-#: gui/mainframe.py:2007
+#: gui/mainframe.py:2024
 msgid "&Settings..."
 msgstr "In&stellingen..."
 
-#: gui/mainframe.py:2007
+#: gui/mainframe.py:2024
 msgid "Configure application"
 msgstr "Toepassing configureren"
 
-#: gui/mainframe.py:2010
+#: gui/mainframe.py:2027
 msgid "Check for &Updates..."
 msgstr "Controleren op &updates..."
 
-#: gui/mainframe.py:2010
+#: gui/mainframe.py:2027
 msgid "Check for new versions"
 msgstr "Controleren op nieuwe versies"
 
-#: gui/mainframe.py:2011
+#: gui/mainframe.py:2028
 msgid "&About"
 msgstr "&Over"
 
-#: gui/mainframe.py:2013
+#: gui/mainframe.py:2030
 msgid "&File"
 msgstr "&Bestand"
 
-#: gui/mainframe.py:2014
+#: gui/mainframe.py:2031
 msgid "&Edit"
 msgstr "Be&werken"
 
-#: gui/mainframe.py:2015
+#: gui/mainframe.py:2032
 msgid "&View"
 msgstr "&Beeld"
 
-#: gui/mainframe.py:2016
+#: gui/mainframe.py:2033
 msgid "&Player"
 msgstr "S&peler"
 
-#: gui/mainframe.py:2017
+#: gui/mainframe.py:2034
 msgid "&Tools"
 msgstr "Extr&a's"
 
-#: gui/mainframe.py:2018
+#: gui/mainframe.py:2035
 msgid "&Help"
 msgstr "&Help"
 
-#: gui/mainframe.py:4051
+#: gui/mainframe.py:4068
 msgid "Open Article"
 msgstr "Artikel openen"
 
-#: gui/mainframe.py:4052
+#: gui/mainframe.py:4069
 msgid "Open in Default Browser"
 msgstr "Openen in standaardbrowser"
 
-#: gui/mainframe.py:4519
+#: gui/mainframe.py:4536
 msgid "Scanning for audio... This may take a few seconds."
 msgstr "Zoeken naar audio... Dit kan enkele seconden duren."
 
-#: gui/mainframe.py:4519 gui/mainframe.py:4114
+#: gui/mainframe.py:4536 gui/mainframe.py:4131
 msgid "Detect Audio"
 msgstr "Audio detecteren"
 
-#: gui/mainframe.py:4612
+#: gui/mainframe.py:4629
 msgid ""
 "Articles cannot be deleted while feeds are refreshing. Try again after the "
 "refresh is complete."
@@ -1708,11 +2015,11 @@ msgstr ""
 "Artikelen kunnen niet worden verwijderd terwijl feeds worden vernieuwd. "
 "Probeer het opnieuw nadat het vernieuwen is voltooid."
 
-#: gui/mainframe.py:4613 gui/mainframe.py:5575
+#: gui/mainframe.py:4630 gui/mainframe.py:5592
 msgid "Refresh in Progress"
 msgstr "Vernieuwen bezig"
 
-#: gui/mainframe.py:5574
+#: gui/mainframe.py:5591
 msgid ""
 "Articles cannot be restored while feeds are refreshing. Try again after the "
 "refresh is complete."
@@ -1720,325 +2027,357 @@ msgstr ""
 "Artikelen kunnen niet worden hersteld terwijl feeds worden vernieuwd. "
 "Probeer het opnieuw nadat het vernieuwen is voltooid."
 
-#: gui/mainframe.py:5712 gui/mainframe.py:3766
+#: gui/mainframe.py:5729 gui/mainframe.py:3783
 msgid "Rename Category"
 msgstr "Categorie hernoemen"
 
-#: gui/mainframe.py:5771 gui/mainframe.py:3762
+#: gui/mainframe.py:5788 gui/mainframe.py:3779
 msgid "Add Subcategory"
 msgstr "Subcategorie toevoegen"
 
-#: gui/mainframe.py:7920
+#: gui/mainframe.py:6149
+msgid "Refresh complete"
+msgstr "Vernieuwen voltooid"
+
+#: gui/mainframe.py:7937
 msgid "Find in article:"
 msgstr "Zoeken in artikel:"
 
-#: gui/mainframe.py:7920
+#: gui/mainframe.py:7937
 msgid "Find"
 msgstr "Zoeken"
 
-#: gui/mainframe.py:9071
+#: gui/mainframe.py:9089
 msgid "Mark all items in all feeds as read?"
 msgstr "Alle items in alle feeds markeren als gelezen?"
 
-#: gui/mainframe.py:10526
+#: gui/mainframe.py:10546
 msgid "Import OPML"
 msgstr "OPML importeren"
 
-#: gui/mainframe.py:10714
+#: gui/mainframe.py:10734
 msgid "Export OPML"
 msgstr "OPML exporteren"
 
-#: gui/mainframe.py:663
+#: gui/mainframe.py:11086
+msgid "Release notes are available on GitHub."
+msgstr "Release-opmerkingen zijn beschikbaar op GitHub."
+
+#: gui/mainframe.py:680
 msgid "(No saved searches)"
 msgstr "(Geen opgeslagen zoekopdrachten)"
 
-#: gui/mainframe.py:1791
+#: gui/mainframe.py:1038 gui/mainframe.py:9059 gui/mainframe.py:9263
+msgid "Read"
+msgstr "Gelezen"
+
+#: gui/mainframe.py:1038 gui/mainframe.py:9069
+msgid "Unread"
+msgstr "Ongelezen"
+
+#: gui/mainframe.py:1518 gui/mainframe.py:9503
+msgid "Contains audio"
+msgstr "Bevat audio"
+
+#: gui/mainframe.py:1808
 msgid "&Add Feed"
 msgstr "Feed &toevoegen"
 
-#: gui/mainframe.py:1793
+#: gui/mainframe.py:1810
 msgid "&Refresh Feeds"
 msgstr "Feeds ve&rnieuwen"
 
-#: gui/mainframe.py:1794
+#: gui/mainframe.py:1811
 msgid "S&top Refresh"
 msgstr "Vernieuwen s&toppen"
 
-#: gui/mainframe.py:1808
+#: gui/mainframe.py:1825
 msgid "Add &Shortcuts..."
 msgstr "&Snelkoppelingen toevoegen..."
 
-#: gui/mainframe.py:1808
+#: gui/mainframe.py:1825
 msgid "Create desktop, taskbar, or Start Menu shortcuts"
 msgstr "Snelkoppelingen maken op bureaublad, taakbalk of startmenu"
 
-#: gui/mainframe.py:1817
+#: gui/mainframe.py:1834
 msgid "Cu&t"
 msgstr "K&nippen"
 
-#: gui/mainframe.py:1818
+#: gui/mainframe.py:1835
 msgid "&Copy"
 msgstr "&Kopiëren"
 
-#: gui/mainframe.py:1819
+#: gui/mainframe.py:1836
 msgid "&Paste"
 msgstr "&Plakken"
 
-#: gui/mainframe.py:1820
+#: gui/mainframe.py:1837
 msgid "Select &All"
 msgstr "Alles select&eren"
 
-#: gui/mainframe.py:1832
+#: gui/mainframe.py:1849
 msgid "&All Articles"
 msgstr "&Alle artikelen"
 
-#: gui/mainframe.py:1832
+#: gui/mainframe.py:1849
 msgid "Show read and unread articles in all views"
 msgstr "Gelezen en ongelezen artikelen tonen in alle weergaven"
 
-#: gui/mainframe.py:1833
+#: gui/mainframe.py:1850
 msgid "&Unread Only"
 msgstr "Alleen &ongelezen"
 
-#: gui/mainframe.py:1833
+#: gui/mainframe.py:1850
 msgid "Show only unread articles in all views"
 msgstr "Alleen ongelezen artikelen tonen in alle weergaven"
 
-#: gui/mainframe.py:1834
+#: gui/mainframe.py:1851
 msgid "&Read Only"
 msgstr "Alleen ge&lezen"
 
-#: gui/mainframe.py:1834
+#: gui/mainframe.py:1851
 msgid "Show only read articles in all views"
 msgstr "Alleen gelezen artikelen tonen in alle weergaven"
 
-#: gui/mainframe.py:1847
+#: gui/mainframe.py:1864
 msgid "Media and &Non-media"
 msgstr "Media e&n niet-media"
 
-#: gui/mainframe.py:1847
+#: gui/mainframe.py:1864
 msgid "Show articles whether or not they have media"
 msgstr "Artikelen tonen ongeacht of ze media bevatten"
 
-#: gui/mainframe.py:1848
+#: gui/mainframe.py:1865
 msgid "With &Media Only"
 msgstr "Alleen &met media"
 
-#: gui/mainframe.py:1848
+#: gui/mainframe.py:1865
 msgid "Show only articles that have playable media"
 msgstr "Alleen artikelen met afspeelbare media tonen"
 
-#: gui/mainframe.py:1849
+#: gui/mainframe.py:1866
 msgid "Wit&hout Media Only"
 msgstr "Alleen &zonder media"
 
-#: gui/mainframe.py:1849
+#: gui/mainframe.py:1866
 msgid "Show only articles that have no playable media"
 msgstr "Alleen artikelen zonder afspeelbare media tonen"
 
-#: gui/mainframe.py:1870
+#: gui/mainframe.py:1887
 msgid "Sort articles by date"
 msgstr "Artikelen sorteren op datum"
 
-#: gui/mainframe.py:1871
+#: gui/mainframe.py:1888
 msgid "Name"
 msgstr "Naam"
 
-#: gui/mainframe.py:1871
+#: gui/mainframe.py:1888
 msgid "Sort articles by name"
 msgstr "Artikelen sorteren op naam"
 
-#: gui/mainframe.py:1872
+#: gui/mainframe.py:1889
 msgid "Sort articles by author"
 msgstr "Artikelen sorteren op auteur"
 
-#: gui/mainframe.py:1873
+#: gui/mainframe.py:1890
 msgid "Sort articles by description"
 msgstr "Artikelen sorteren op beschrijving"
 
-#: gui/mainframe.py:1874
+#: gui/mainframe.py:1891
 msgid "Sort articles by feed"
 msgstr "Artikelen sorteren op feed"
 
-#: gui/mainframe.py:1875
+#: gui/mainframe.py:1892
 msgid "Sort articles by status"
 msgstr "Artikelen sorteren op status"
 
-#: gui/mainframe.py:1987
+#: gui/mainframe.py:2004
 msgid "Find a &Podcast or RSS Feed..."
 msgstr "&Podcast of RSS-feed zoeken..."
 
-#: gui/mainframe.py:2484
+#: gui/mainframe.py:2501
 msgid "Play queue is empty."
 msgstr "Afspeelwachtrij is leeg."
 
-#: gui/mainframe.py:2810
+#: gui/mainframe.py:2827
 msgid "Show Chapters..."
 msgstr "Hoofdstukken tonen..."
 
-#: gui/mainframe.py:2811
+#: gui/mainframe.py:2828
 msgid "Show chapter list"
 msgstr "Hoofdstuklijst tonen"
 
-#: gui/mainframe.py:2821
+#: gui/mainframe.py:2838
 msgid "Previous Chapter (Ctrl+Shift+Left)"
 msgstr "Vorig hoofdstuk (Ctrl+Shift+Links)"
 
-#: gui/mainframe.py:2822
+#: gui/mainframe.py:2839
 msgid "Jump to previous chapter"
 msgstr "Naar vorig hoofdstuk springen"
 
-#: gui/mainframe.py:2832
+#: gui/mainframe.py:2849
 msgid "Next Chapter (Ctrl+Shift+Right)"
 msgstr "Volgend hoofdstuk (Ctrl+Shift+Rechts)"
 
-#: gui/mainframe.py:2833
+#: gui/mainframe.py:2850
 msgid "Jump to next chapter"
 msgstr "Naar volgend hoofdstuk springen"
 
-#: gui/mainframe.py:3748
+#: gui/mainframe.py:2922
+msgid "Stopping refresh..."
+msgstr "Vernieuwen wordt gestopt..."
+
+#: gui/mainframe.py:2924
+msgid "No refresh in progress"
+msgstr "Geen vernieuwing bezig"
+
+#: gui/mainframe.py:3765
 msgid "Refresh Category"
 msgstr "Categorie vernieuwen"
 
-#: gui/mainframe.py:3751 gui/mainframe.py:3791
+#: gui/mainframe.py:3768 gui/mainframe.py:3808
 msgid "Mark All Items as Read"
 msgstr "Alle items markeren als gelezen"
 
-#: gui/mainframe.py:3775
+#: gui/mainframe.py:3792
 msgid "Import OPML Here..."
 msgstr "OPML hier importeren..."
 
-#: gui/mainframe.py:3778
+#: gui/mainframe.py:3795
 msgid "Export Category to OPML..."
 msgstr "Categorie exporteren naar OPML..."
 
-#: gui/mainframe.py:3915
+#: gui/mainframe.py:3932
 msgid "The current provider does not support filter rules."
 msgstr "De huidige provider ondersteunt geen filterregels."
 
-#: gui/mainframe.py:3916 gui/mainframe.py:5345 gui/mainframe.py:5409
+#: gui/mainframe.py:3933 gui/mainframe.py:5362 gui/mainframe.py:5426
 msgid "Not Supported"
 msgstr "Niet ondersteund"
 
-#: gui/mainframe.py:3984 gui/mainframe.py:3844
+#: gui/mainframe.py:4001 gui/mainframe.py:3861
 msgid "Delete Smart Folder"
 msgstr "Slimme map verwijderen"
 
-#: gui/mainframe.py:4058
+#: gui/mainframe.py:4075
 msgid "Mark as &Read"
 msgstr "Markeren als geleze&n"
 
-#: gui/mainframe.py:4059
+#: gui/mainframe.py:4076
 msgid "Mark as &Unread"
 msgstr "Markeren als o&ngelezen"
 
-#: gui/mainframe.py:4070
+#: gui/mainframe.py:4087
 msgid "Delete Article\tDel"
 msgstr "Artikel verwijderen\tDel"
 
-#: gui/mainframe.py:4085
+#: gui/mainframe.py:4102
 msgid "Restore Article"
 msgstr "Artikel herstellen"
 
-#: gui/mainframe.py:4089
+#: gui/mainframe.py:4106
 msgid "Copy Links"
 msgstr "Links kopiëren"
 
-#: gui/mainframe.py:4089
+#: gui/mainframe.py:4106
 msgid "Copy Link"
 msgstr "Link kopiëren"
 
-#: gui/mainframe.py:4096
+#: gui/mainframe.py:4113
 msgid "Copy Text"
 msgstr "Tekst kopiëren"
 
-#: gui/mainframe.py:4100
+#: gui/mainframe.py:4117
 msgid "View Feed Description..."
 msgstr "Feedbeschrijving weergeven..."
 
-#: gui/mainframe.py:4169
+#: gui/mainframe.py:4186
 msgid "Open Play Queue..."
 msgstr "Afspeelwachtrij openen..."
 
-#: gui/mainframe.py:4354
+#: gui/mainframe.py:4371
 msgid "Feed Description"
 msgstr "Feedbeschrijving"
 
-#: gui/mainframe.py:4745
+#: gui/mainframe.py:4762
 msgid "No change history for this article."
 msgstr "Geen wijzigingsgeschiedenis voor dit artikel."
 
-#: gui/mainframe.py:4745 gui/mainframe.py:4750
+#: gui/mainframe.py:4762 gui/mainframe.py:4767
 msgid "Article History"
 msgstr "Artikelgeschiedenis"
 
-#: gui/mainframe.py:4877
+#: gui/mainframe.py:4894
 msgid ", played"
 msgstr ", afgespeeld"
 
-#: gui/mainframe.py:4909
+#: gui/mainframe.py:4926
 msgid "played"
 msgstr "afgespeeld"
 
-#: gui/mainframe.py:5023
+#: gui/mainframe.py:5040
 msgid "Already in play queue."
 msgstr "Staat al in de afspeelwachtrij."
 
-#: gui/mainframe.py:5344
+#: gui/mainframe.py:5361
 msgid "This provider does not support deleting articles."
 msgstr "Deze provider ondersteunt het verwijderen van artikelen niet."
 
-#: gui/mainframe.py:5408
+#: gui/mainframe.py:5425
 msgid "This provider does not support permanently deleting articles."
 msgstr ""
 "Deze provider ondersteunt het permanent verwijderen van artikelen niet."
 
-#: gui/mainframe.py:5728
+#: gui/mainframe.py:5745
 msgid "Add Category"
 msgstr "Categorie toevoegen"
 
-#: gui/mainframe.py:5817 gui/mainframe.py:5809
+#: gui/mainframe.py:5834 gui/mainframe.py:5826
 msgid "Please select a category to remove."
 msgstr "Selecteer een categorie om te verwijderen."
 
-#: gui/mainframe.py:5817 gui/mainframe.py:5822 gui/mainframe.py:5809
+#: gui/mainframe.py:5834 gui/mainframe.py:5839 gui/mainframe.py:5826
 msgid "Info"
 msgstr "Info"
 
-#: gui/mainframe.py:5822
+#: gui/mainframe.py:5839
 msgid "The Uncategorized folder cannot be removed."
 msgstr "De map Niet-gecategoriseerd kan niet worden verwijderd."
 
-#: gui/mainframe.py:5844 gui/mainframe.py:5800 gui/mainframe.py:10295
+#: gui/mainframe.py:5861 gui/mainframe.py:5817 gui/mainframe.py:10315
 msgid "Confirm"
 msgstr "Bevestigen"
 
-#: gui/mainframe.py:5912
+#: gui/mainframe.py:5929
 msgid "Warning"
 msgstr "Waarschuwing"
 
-#: gui/mainframe.py:6565
-msgid "All Articles"
-msgstr "Alle artikelen"
+#: gui/mainframe.py:6147
+msgid "Refresh stopped"
+msgstr "Vernieuwen gestopt"
 
-#: gui/mainframe.py:9793
+#: gui/mainframe.py:9503 gui/mainframe.py:9510
+msgid "No audio"
+msgstr "Geen audio"
+
+#: gui/mainframe.py:9813
 msgid "No downloadable media found for this item."
 msgstr "Geen downloadbare media gevonden voor dit item."
 
-#: gui/mainframe.py:9796
+#: gui/mainframe.py:9816
 msgid "Downloads are disabled. Enable them in Settings > Downloads."
 msgstr ""
 "Downloads zijn uitgeschakeld. Schakel ze in via Instellingen > Downloads."
 
-#: gui/mainframe.py:9796
+#: gui/mainframe.py:9816
 msgid "Downloads disabled"
 msgstr "Downloads uitgeschakeld"
 
-#: gui/mainframe.py:10288
+#: gui/mainframe.py:10308
 msgid "Failed to add feed."
 msgstr "Toevoegen van feed mislukt."
 
-#: gui/mainframe.py:10435
+#: gui/mainframe.py:10455
 msgid ""
 "This provider does not support changing the feed URL.\n"
 "The title and category will be updated, but the URL will stay the same."
@@ -2046,27 +2385,41 @@ msgstr ""
 "Deze provider ondersteunt het wijzigen van de feed-URL niet.\n"
 "De titel en categorie worden bijgewerkt, maar de URL blijft hetzelfde."
 
-#: gui/mainframe.py:10439
+#: gui/mainframe.py:10459
 msgid "Feed URL not supported"
 msgstr "Feed-URL niet ondersteund"
 
-#: gui/mainframe.py:10709
+#: gui/mainframe.py:10729
 msgid "Import successful."
 msgstr "Importeren gelukt."
 
-#: gui/mainframe.py:10711
+#: gui/mainframe.py:10731
 msgid ""
 "Import failed. Please check the latest opml_debug_*.log in the temporary "
 "directory."
 msgstr ""
-"Importeren mislukt. Controleer de nieuwste opml_debug_*.log in de tijdelijke "
-"map."
+"Importeren mislukt. Controleer de nieuwste opml_debug_*.log in de tijdelijke"
+" map."
 
-#: gui/mainframe.py:11058
+#: gui/mainframe.py:11087
+msgid ""
+"A new version of BlindRSS is available ({version}).\n"
+"\n"
+"{summary}\n"
+"\n"
+"Download and install this update now?"
+msgstr ""
+"Er is een nieuwe versie van BlindRSS beschikbaar ({version}).\n"
+"\n"
+"{summary}\n"
+"\n"
+"Deze update nu downloaden en installeren?"
+
+#: gui/mainframe.py:11092
 msgid "Update Available"
 msgstr "Update beschikbaar"
 
-#: gui/mainframe.py:11066
+#: gui/mainframe.py:11100
 msgid ""
 "Auto-update is only available in the packaged app build.\n"
 "Download the latest release from GitHub."
@@ -2074,92 +2427,92 @@ msgstr ""
 "Automatisch bijwerken is alleen beschikbaar in de verpakte app-build.\n"
 "Download de nieuwste release van GitHub."
 
-#: gui/mainframe.py:11135
+#: gui/mainframe.py:11169
 msgid "Update Failed"
 msgstr "Update mislukt"
 
-#: gui/mainframe.py:11253
+#: gui/mainframe.py:11287
 msgid "Smart Folder"
 msgstr "Slimme map"
 
-#: gui/mainframe.py:11266
+#: gui/mainframe.py:11300
 msgid "Show articles that match"
 msgstr "Artikelen tonen die overeenkomen met"
 
-#: gui/mainframe.py:11375
+#: gui/mainframe.py:11409
 msgid "Filter Rule"
 msgstr "Filterregel"
 
-#: gui/mainframe.py:11389
+#: gui/mainframe.py:11423
 msgid "Apply this rule to articles that match"
 msgstr "Deze regel toepassen op artikelen die overeenkomen met"
 
-#: gui/mainframe.py:11440
+#: gui/mainframe.py:11474
 msgid "Mark as &read"
 msgstr "Markeren als geleze&n"
 
-#: gui/mainframe.py:11442
+#: gui/mainframe.py:11476
 msgid "Mark as &favorite"
 msgstr "Markeren als &favoriet"
 
-#: gui/mainframe.py:11444
+#: gui/mainframe.py:11478
 msgid "&Delete (uses the configured delete behavior)"
 msgstr "Verwij&deren (gebruikt het geconfigureerde verwijdergedrag)"
 
-#: gui/mainframe.py:11446
+#: gui/mainframe.py:11480
 msgid "Skip &notification"
 msgstr "Melding overslaa&n"
 
-#: gui/mainframe.py:11452
+#: gui/mainframe.py:11486
 msgid "&Stop processing later rules when this rule matches"
 msgstr ""
 "&Stoppen met verwerken van latere regels wanneer deze regel overeenkomt"
 
-#: gui/mainframe.py:11455
+#: gui/mainframe.py:11489
 msgid "Rule &enabled"
 msgstr "Regel ing&eschakeld"
 
-#: gui/mainframe.py:11510
+#: gui/mainframe.py:11544
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip "
-"notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip"
+" notification)."
 msgstr ""
 "Kies ten minste één actie voor deze regel (verplaatsen, labelen, markeren, "
 "verwijderen of melding overslaan)."
 
-#: gui/mainframe.py:11511
+#: gui/mainframe.py:11545
 msgid "No Actions"
 msgstr "Geen acties"
 
-#: gui/mainframe.py:11533
+#: gui/mainframe.py:11567
 msgid "Filter Rules"
 msgstr "Filterregels"
 
-#: gui/mainframe.py:11551
+#: gui/mainframe.py:11585
 msgid "&Add..."
 msgstr "&Toevoegen..."
 
-#: gui/mainframe.py:11552
+#: gui/mainframe.py:11586
 msgid "&Edit..."
 msgstr "Be&werken..."
 
-#: gui/mainframe.py:11553
+#: gui/mainframe.py:11587
 msgid "De&lete"
 msgstr "Verwijd&eren"
 
-#: gui/mainframe.py:11556
+#: gui/mainframe.py:11590
 msgid "En&able/Disable"
 msgstr "In-/uitsch&akelen"
 
-#: gui/mainframe.py:11557
+#: gui/mainframe.py:11591
 msgid "Apply to E&xisting Articles"
 msgstr "Toepassen op &bestaande artikelen"
 
-#: gui/mainframe.py:11663
+#: gui/mainframe.py:11697
 msgid "Delete Rule"
 msgstr "Regel verwijderen"
 
-#: gui/mainframe.py:11702
+#: gui/mainframe.py:11736
 msgid ""
 "Run all enabled rules against every existing article now? This may move, "
 "label, or delete articles."
@@ -2167,341 +2520,361 @@ msgstr ""
 "Nu alle ingeschakelde regels uitvoeren op elk bestaand artikel? Dit kan "
 "artikelen verplaatsen, labelen of verwijderen."
 
-#: gui/mainframe.py:11706
+#: gui/mainframe.py:11740
 msgid "Apply to Existing Articles"
 msgstr "Toepassen op bestaande artikelen"
 
-#: gui/mainframe.py:11733
+#: gui/mainframe.py:11767
 msgid "Filter Rules Applied"
 msgstr "Filterregels toegepast"
 
-#: gui/mainframe.py:1452
+#: gui/mainframe.py:1469
 msgid "Playing"
 msgstr "Bezig met afspelen"
 
-#: gui/mainframe.py:1452
+#: gui/mainframe.py:1469
 msgid "Paused"
 msgstr "Gepauzeerd"
 
-#: gui/mainframe.py:2493
+#: gui/mainframe.py:2510
 msgid "End of play queue."
 msgstr "Einde van de afspeelwachtrij."
 
-#: gui/mainframe.py:2493
+#: gui/mainframe.py:2510
 msgid "Start of play queue."
 msgstr "Begin van de afspeelwachtrij."
 
-#: gui/mainframe.py:2555
+#: gui/mainframe.py:2572
 msgid "Playback speed {speed}x"
 msgstr "Afspeelsnelheid {speed}x"
 
-#: gui/mainframe.py:2779 gui/player.py:2069
+#: gui/mainframe.py:2796 gui/player.py:2239
 msgid "No chapters available"
 msgstr "Geen hoofdstukken beschikbaar"
 
-#: gui/mainframe.py:3769
+#: gui/mainframe.py:3786
 msgid "Remove Category"
 msgstr "Categorie verwijderen"
 
-#: gui/mainframe.py:3772
+#: gui/mainframe.py:3789
 msgid "Delete Category and Feeds"
 msgstr "Categorie en feeds verwijderen"
 
-#: gui/mainframe.py:3789
+#: gui/mainframe.py:3806
 msgid "Mark all items in this feed as read?"
 msgstr "Alle items in deze feed markeren als gelezen?"
 
-#: gui/mainframe.py:3808
+#: gui/mainframe.py:3825
 msgid "Copy Feed URL"
 msgstr "Feed-URL kopiëren"
 
-#: gui/mainframe.py:3811
+#: gui/mainframe.py:3828
 msgid "Notifications for This Feed"
 msgstr "Meldingen voor deze feed"
 
-#: gui/mainframe.py:3822
+#: gui/mainframe.py:3839
 msgid "Use default setting"
 msgstr "Standaardinstelling gebruiken"
 
-#: gui/mainframe.py:3823
+#: gui/mainframe.py:3840
 msgid "Always show image alt text"
 msgstr "Alt-tekst van afbeeldingen altijd tonen"
 
-#: gui/mainframe.py:3824
+#: gui/mainframe.py:3841
 msgid "Never show image alt text"
 msgstr "Alt-tekst van afbeeldingen nooit tonen"
 
-#: gui/mainframe.py:3831
+#: gui/mainframe.py:3848
 msgid "Image Alt Text"
 msgstr "Alt-tekst van afbeelding"
 
-#: gui/mainframe.py:3833
+#: gui/mainframe.py:3850
 msgid "Remove Feed"
 msgstr "Feed verwijderen"
 
-#: gui/mainframe.py:4077
+#: gui/mainframe.py:4094
 msgid "Delete Article Permanently\tDel"
 msgstr "Artikel permanent verwijderen\tDel"
 
-#: gui/mainframe.py:4189
+#: gui/mainframe.py:4206
 msgid "Chapter Links"
 msgstr "Hoofdstuklinks"
 
-#: gui/mainframe.py:4381
+#: gui/mainframe.py:4398
 msgid "Copy"
 msgstr "Kopiëren"
 
-#: gui/mainframe.py:4913
+#: gui/mainframe.py:4930
 msgid "not played"
 msgstr "niet afgespeeld"
 
-#: gui/mainframe.py:5363
+#: gui/mainframe.py:5380
 msgid "Confirm Delete"
 msgstr "Verwijderen bevestigen"
 
-#: gui/mainframe.py:5427
+#: gui/mainframe.py:5444
 msgid "Confirm Permanent Delete"
 msgstr "Permanent verwijderen bevestigen"
 
-#: gui/mainframe.py:5711
+#: gui/mainframe.py:5728
 msgid "Rename category '{category}' to:"
 msgstr "Categorie '{category}' hernoemen naar:"
 
-#: gui/mainframe.py:5731
+#: gui/mainframe.py:5748
 msgid "Category name:"
 msgstr "Categorienaam:"
 
-#: gui/mainframe.py:5739
+#: gui/mainframe.py:5756
 msgid "(None - Top Level)"
 msgstr "(Geen - Hoogste niveau)"
 
-#: gui/mainframe.py:5770
+#: gui/mainframe.py:5787
 msgid "Enter subcategory name (under '{category}'):"
 msgstr "Voer subcategorienaam in (onder '{category}'):"
 
-#: gui/mainframe.py:9078 gui/mainframe.py:9233
+#: gui/mainframe.py:6139
+msgid "Refreshing {detail}..."
+msgstr "{detail} wordt vernieuwd..."
+
+#: gui/mainframe.py:6160
+msgid "Error checking: {title}"
+msgstr "Fout bij controleren: {title}"
+
+#: gui/mainframe.py:6162
+msgid "Checked: {title}"
+msgstr "Gecontroleerd: {title}"
+
+#: gui/mainframe.py:9096 gui/mainframe.py:9251
 msgid "Mark All as Read"
 msgstr "Alles markeren als gelezen"
 
-#: gui/mainframe.py:9233
+#: gui/mainframe.py:9251
 msgid "All items are already marked as read."
 msgstr "Alle items zijn al gemarkeerd als gelezen."
 
-#: gui/mainframe.py:9399
+#: gui/mainframe.py:9419
 msgid "Custom command failed"
 msgstr "Aangepaste opdracht mislukt"
 
-#: gui/mainframe.py:9980 gui/mainframe.py:10054 gui/mainframe.py:9943
+#: gui/mainframe.py:10000 gui/mainframe.py:10074 gui/mainframe.py:9963
 msgid "Download error"
 msgstr "Downloadfout"
 
-#: gui/mainframe.py:10398
+#: gui/mainframe.py:10004 gui/mainframe.py:10078 gui/mainframe.py:9964
+msgid "Download failed: {title}"
+msgstr "Downloaden mislukt: {title}"
+
+#: gui/mainframe.py:10029
+msgid "Downloading: {title}"
+msgstr "Downloaden: {title}"
+
+#: gui/mainframe.py:10418
 msgid "This provider does not support editing feeds."
 msgstr "Deze provider ondersteunt het bewerken van feeds niet."
 
-#: gui/mainframe.py:10398 gui/mainframe.py:10489
+#: gui/mainframe.py:10418 gui/mainframe.py:10509
 msgid "Not supported"
 msgstr "Niet ondersteund"
 
-#: gui/mainframe.py:10488
+#: gui/mainframe.py:10508
 msgid "This provider does not support resetting feed titles."
 msgstr "Deze provider ondersteunt het resetten van feedtitels niet."
 
-#: gui/mainframe.py:11028
+#: gui/mainframe.py:11062
 msgid "Update Check Failed"
 msgstr "Controleren op updates mislukt"
 
-#: gui/mainframe.py:11033
+#: gui/mainframe.py:11067
 msgid "No Updates"
 msgstr "Geen updates"
 
-#: gui/mainframe.py:11038
+#: gui/mainframe.py:11072
 msgid "Unable to determine update status."
 msgstr "Kan updatestatus niet bepalen."
 
-#: gui/mainframe.py:11258
+#: gui/mainframe.py:11292
 msgid "Folder &name:"
 msgstr "Map&naam:"
 
-#: gui/mainframe.py:11275 gui/mainframe.py:11399
+#: gui/mainframe.py:11309 gui/mainframe.py:11433
 msgid "Field"
 msgstr "Veld"
 
-#: gui/mainframe.py:11276 gui/mainframe.py:11400
+#: gui/mainframe.py:11310 gui/mainframe.py:11434
 msgid "Condition"
 msgstr "Voorwaarde"
 
-#: gui/mainframe.py:11277 gui/mainframe.py:11401
+#: gui/mainframe.py:11311 gui/mainframe.py:11435
 msgid "Value"
 msgstr "Waarde"
 
-#: gui/mainframe.py:11381
+#: gui/mainframe.py:11415
 msgid "Rule &name:"
 msgstr "Regel&naam:"
 
-#: gui/mainframe.py:11425
+#: gui/mainframe.py:11459
 msgid "&Move to category:"
 msgstr "Verplaatsen naar categorie (&M):"
 
-#: gui/mainframe.py:11433
+#: gui/mainframe.py:11467
 msgid "Also &label with category:"
 msgstr "Ook &labelen met categorie:"
 
-#: gui/mainframe.py:11540
+#: gui/mainframe.py:11574
 msgid "Rules run top to bottom for each incoming article, like email filters."
 msgstr ""
 "Regels worden van boven naar beneden uitgevoerd voor elk binnenkomend "
 "artikel, net als e-mailfilters."
 
-#: gui/mainframe.py:343
+#: gui/mainframe.py:360
 msgid "Missing Dependencies"
 msgstr "Ontbrekende vereisten"
 
-#: gui/mainframe.py:444
+#: gui/mainframe.py:461
 msgid "Filter current view (Enter)"
 msgstr "Huidige weergave filteren (Enter)"
 
-#: gui/mainframe.py:1447
+#: gui/mainframe.py:1464
 msgid "{elapsed} / {total} ({remaining} left)"
 msgstr "{elapsed} / {total} ({remaining} resterend)"
 
-#: gui/mainframe.py:1953
+#: gui/mainframe.py:1970
 msgid "{speed}x"
 msgstr "{speed}x"
 
-#: gui/mainframe.py:3783
+#: gui/mainframe.py:3800
 msgid "Refresh Feed"
 msgstr "Feed vernieuwen"
 
-#: gui/mainframe.py:3798
+#: gui/mainframe.py:3815
 msgid "Edit Feed..."
 msgstr "Feed bewerken..."
 
-#: gui/mainframe.py:3837 gui/mainframe.py:3846
+#: gui/mainframe.py:3854 gui/mainframe.py:3863
 msgid "New Smart Folder..."
 msgstr "Nieuwe slimme map..."
 
-#: gui/mainframe.py:3983
+#: gui/mainframe.py:4000
 msgid "Delete Smart Folder \"{name}\"? Your articles are not affected."
 msgstr "Slimme map \"{name}\" verwijderen? Uw artikelen worden niet beïnvloed."
 
-#: gui/mainframe.py:4055
+#: gui/mainframe.py:4072
 msgid "Mark {count} as &Read"
 msgstr "{count} markeren als geleze&n"
 
-#: gui/mainframe.py:4056
+#: gui/mainframe.py:4073
 msgid "Mark {count} as &Unread"
 msgstr "{count} markeren als o&ngelezen"
 
-#: gui/mainframe.py:4068
+#: gui/mainframe.py:4085
 msgid "Delete {count} Articles\tDel"
 msgstr "{count} artikelen verwijderen\tDel"
 
-#: gui/mainframe.py:4083
+#: gui/mainframe.py:4100
 msgid "Restore {count} Articles"
 msgstr "{count} artikelen herstellen"
 
-#: gui/mainframe.py:4094
+#: gui/mainframe.py:4111
 msgid "Copy Text ({count} articles)"
 msgstr "Tekst kopiëren ({count} artikelen)"
 
-#: gui/mainframe.py:4109
+#: gui/mainframe.py:4126
 msgid "Copy Media Link"
 msgstr "Medialink kopiëren"
 
-#: gui/mainframe.py:4118
+#: gui/mainframe.py:4135
 msgid "Copy Image Link"
 msgstr "Afbeeldingslink kopiëren"
 
-#: gui/mainframe.py:4194
+#: gui/mainframe.py:4211
 msgid "Remove from Favorites"
 msgstr "Verwijderen uit favorieten"
 
-#: gui/mainframe.py:4196
+#: gui/mainframe.py:4213
 msgid "Add to Favorites"
 msgstr "Toevoegen aan favorieten"
 
-#: gui/mainframe.py:4204
+#: gui/mainframe.py:4221
 msgid "View History..."
 msgstr "Geschiedenis weergeven..."
 
-#: gui/mainframe.py:4879
+#: gui/mainframe.py:4896
 msgid ", {position} of {total}"
 msgstr ", {position} van {total}"
 
-#: gui/mainframe.py:4883
+#: gui/mainframe.py:4900
 msgid ", {total}"
 msgstr ", {total}"
 
-#: gui/mainframe.py:4885
+#: gui/mainframe.py:4902
 msgid ", {position} played"
 msgstr ", {position} afgespeeld"
 
-#: gui/mainframe.py:5020
+#: gui/mainframe.py:5037
 msgid "Added {count} to play queue ({total} queued)."
 msgstr "{count} toegevoegd aan de afspeelwachtrij ({total} in de wachtrij)."
 
-#: gui/mainframe.py:5041
+#: gui/mainframe.py:5058
 msgid "Removed {count} from play queue ({total} queued)."
 msgstr "{count} verwijderd uit de afspeelwachtrij ({total} in de wachtrij)."
 
-#: gui/mainframe.py:5634
+#: gui/mainframe.py:5651
 msgid "Could not restore article."
 msgstr "Kan artikel niet herstellen."
 
-#: gui/mainframe.py:5721
+#: gui/mainframe.py:5738
 msgid "Could not rename category."
 msgstr "Kan categorie niet hernoemen."
 
-#: gui/mainframe.py:5740
+#: gui/mainframe.py:5757
 msgid "Parent category:"
 msgstr "Bovenliggende categorie:"
 
-#: gui/mainframe.py:5761
+#: gui/mainframe.py:5778
 msgid "Could not add category."
 msgstr "Kan categorie niet toevoegen."
 
-#: gui/mainframe.py:5779
+#: gui/mainframe.py:5796
 msgid "Could not add subcategory."
 msgstr "Kan subcategorie niet toevoegen."
 
-#: gui/mainframe.py:6574
-msgid "Favorites"
-msgstr "Favorieten"
-
-#: gui/mainframe.py:6582
+#: gui/mainframe.py:6599
 msgid "Deleted Articles"
 msgstr "Verwijderde artikelen"
 
-#: gui/mainframe.py:6594
+#: gui/mainframe.py:6611
 msgid "Smart Folders"
 msgstr "Slimme mappen"
 
-#: gui/mainframe.py:10045 gui/mainframe.py:9963
+#: gui/mainframe.py:10065 gui/mainframe.py:9983
 msgid "Download complete"
 msgstr "Download voltooid"
 
-#: gui/mainframe.py:10295
+#: gui/mainframe.py:10068 gui/mainframe.py:9986
+msgid "Download complete: {title}"
+msgstr "Download voltooid: {title}"
+
+#: gui/mainframe.py:10315
 msgid "Are you sure you want to remove this feed?"
 msgstr "Weet u zeker dat u deze feed wilt verwijderen?"
 
-#: gui/mainframe.py:10526 gui/mainframe.py:10714 gui/mainframe.py:10763
+#: gui/mainframe.py:10546 gui/mainframe.py:10734 gui/mainframe.py:10783
 msgid "OPML files"
 msgstr "OPML-bestanden"
 
-#: gui/mainframe.py:10720 gui/mainframe.py:10773
+#: gui/mainframe.py:10740 gui/mainframe.py:10793
 msgid "Export successful."
 msgstr "Exporteren gelukt."
 
-#: gui/mainframe.py:10722 gui/mainframe.py:10775
+#: gui/mainframe.py:10742 gui/mainframe.py:10795
 msgid "Export failed."
 msgstr "Exporteren mislukt."
 
-#: gui/mainframe.py:10830
+#: gui/mainframe.py:10854
 msgid "Storage Location"
 msgstr "Opslaglocatie"
 
-#: gui/mainframe.py:10835
+#: gui/mainframe.py:10859
 msgid ""
 "Config has been moved. The feed database will be migrated to the new "
 "location the next time BlindRSS starts."
@@ -2509,22 +2882,21 @@ msgstr ""
 "Configuratie is verplaatst. De feeddatabase wordt naar de nieuwe locatie "
 "gemigreerd de volgende keer dat BlindRSS start."
 
-#: gui/mainframe.py:10839
+#: gui/mainframe.py:10863
 msgid "Storage Location Changed"
 msgstr "Opslaglocatie gewijzigd"
 
-#: gui/mainframe.py:11662
-msgid ""
-"Delete filter rule \"{name}\"? Articles it already filed are not changed."
+#: gui/mainframe.py:11696
+msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
-"Filterregel \"{name}\" verwijderen? Artikelen die er al door zijn ingedeeld, "
-"worden niet gewijzigd."
+"Filterregel \"{name}\" verwijderen? Artikelen die er al door zijn ingedeeld,"
+" worden niet gewijzigd."
 
-#: gui/mainframe.py:330
+#: gui/mainframe.py:347
 msgid "Install Dependencies"
 msgstr "Vereisten installeren"
 
-#: gui/mainframe.py:394
+#: gui/mainframe.py:411
 msgid ""
 "Could not add shortcuts:\n"
 "{error}"
@@ -2532,79 +2904,93 @@ msgstr ""
 "Kan snelkoppelingen niet toevoegen:\n"
 "{error}"
 
-#: gui/mainframe.py:2502
+#: gui/mainframe.py:2519
 msgid "Playing {position} of {total}: {title}"
 msgstr "Bezig met afspelen {position} van {total}: {title}"
 
-#: gui/mainframe.py:2506
+#: gui/mainframe.py:2523
 msgid "Playing {position} of {total}"
 msgstr "Bezig met afspelen {position} van {total}"
 
-#: gui/mainframe.py:3788
+#: gui/mainframe.py:3805
 msgid "Mark all items in \"{feed}\" as read?"
 msgstr "Alle items in \"{feed}\" markeren als gelezen?"
 
-#: gui/mainframe.py:3803
+#: gui/mainframe.py:3820
 msgid "Reset Title to Feed Default"
 msgstr "Titel resetten naar feedstandaard"
 
-#: gui/mainframe.py:3842
+#: gui/mainframe.py:3859
 msgid "Edit Smart Folder..."
 msgstr "Slimme map bewerken..."
 
-#: gui/mainframe.py:3943
+#: gui/mainframe.py:3960
 msgid "Could not create the Smart Folder."
 msgstr "Kan slimme map niet maken."
 
-#: gui/mainframe.py:3967
+#: gui/mainframe.py:3984
 msgid "Could not update the Smart Folder."
 msgstr "Kan slimme map niet bijwerken."
 
-#: gui/mainframe.py:4075
+#: gui/mainframe.py:4092
 msgid "Delete {count} Articles Permanently\tDel"
 msgstr "{count} artikelen permanent verwijderen\tDel"
 
-#: gui/mainframe.py:4156
+#: gui/mainframe.py:4173
 msgid "Remove from Play Queue"
 msgstr "Verwijderen uit afspeelwachtrij"
 
-#: gui/mainframe.py:4163
+#: gui/mainframe.py:4180
 msgid "Add to Play Queue"
 msgstr "Toevoegen aan afspeelwachtrij"
 
-#: gui/mainframe.py:4180
+#: gui/mainframe.py:4197
 msgid "Open {chapter}"
 msgstr "{chapter} openen"
 
-#: gui/mainframe.py:4876
+#: gui/mainframe.py:4893
 msgid ", played, {total}"
 msgstr ", afgespeeld, {total}"
 
-#: gui/mainframe.py:4911
+#: gui/mainframe.py:4928
 msgid "played {position}"
 msgstr "afgespeeld {position}"
 
-#: gui/mainframe.py:5807
+#: gui/mainframe.py:5824
 msgid "Could not remove category."
 msgstr "Kan categorie niet verwijderen."
 
-#: gui/mainframe.py:9979
+#: gui/mainframe.py:9414
+msgid ""
+"Could not open the article with your custom command:\n"
+"\n"
+"{err}\n"
+"\n"
+"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
+msgstr ""
+"Kon het artikel niet openen met uw aangepaste opdracht:\n"
+"\n"
+"{err}\n"
+"\n"
+"Wordt in plaats daarvan geopend in de standaardbrowser. U kunt dit wijzigen in Instellingen > Algemeen > Methode voor artikelen openen."
+
+#: gui/mainframe.py:9999
 msgid "Download failed: {error}"
 msgstr "Downloaden mislukt: {error}"
 
-#: gui/mainframe.py:10829
+#: gui/mainframe.py:10853
 msgid "Could not move config file."
 msgstr "Kan configuratiebestand niet verplaatsen."
 
-#: gui/mainframe.py:11620
+#: gui/mainframe.py:11654
 msgid "Could not create the rule."
 msgstr "Kan regel niet maken."
 
-#: gui/mainframe.py:11649
+#: gui/mainframe.py:11683
 msgid "Could not update the rule."
 msgstr "Kan regel niet bijwerken."
 
-#: gui/mainframe.py:11725
+#: gui/mainframe.py:11759
 msgid ""
 "Could not apply rules.\n"
 "\n"
@@ -2614,29 +3000,29 @@ msgstr ""
 "\n"
 "{error}"
 
-#: gui/mainframe.py:3756
+#: gui/mainframe.py:3773
 msgid "Mark all items in category \"{category}\" as read?"
 msgstr "Alle items in categorie \"{category}\" markeren als gelezen?"
 
-#: gui/mainframe.py:4139
+#: gui/mainframe.py:4156
 msgid "Add {count} to Play Queue"
 msgstr "{count} toevoegen aan afspeelwachtrij"
 
-#: gui/mainframe.py:4147
+#: gui/mainframe.py:4164
 msgid "Remove {count} from Play Queue"
 msgstr "{count} verwijderen uit afspeelwachtrij"
 
-#: gui/mainframe.py:5635
+#: gui/mainframe.py:5652
 msgid "Could not restore {count} articles."
 msgstr "Kan {count} artikelen niet herstellen."
 
-#: gui/mainframe.py:5797
+#: gui/mainframe.py:5814
 msgid "Remove category '{category}'? Feeds will be moved to Uncategorized."
 msgstr ""
 "Categorie '{category}' verwijderen? Feeds worden verplaatst naar Niet-"
 "gecategoriseerd."
 
-#: gui/mainframe.py:10044 gui/mainframe.py:9962
+#: gui/mainframe.py:10064 gui/mainframe.py:9982
 msgid ""
 "Downloaded to:\n"
 "{path}"
@@ -2644,122 +3030,154 @@ msgstr ""
 "Gedownload naar:\n"
 "{path}"
 
-#: gui/mainframe.py:10777
+#: gui/mainframe.py:10797
 msgid "Export failed: {error}"
 msgstr "Exporteren mislukt: {error}"
 
-#: gui/mainframe.py:10885
+#: gui/mainframe.py:10909
 msgid "Windows notification prerequisites could not be fully configured."
 msgstr "Windows-meldingsvereisten konden niet volledig worden geconfigureerd."
 
-#: gui/mainframe.py:9942
+#: gui/mainframe.py:9962
 msgid ""
 "yt-dlp is not installed. Install it via Settings to download YouTube items."
 msgstr ""
 "yt-dlp is niet geïnstalleerd. Installeer het via Instellingen om YouTube-"
 "items te downloaden."
 
-#: gui/player.py:350
+#: gui/player.py:396
 msgid "Scanning..."
 msgstr "Scannen..."
 
-#: gui/player.py:1841
+#: gui/player.py:1988
 msgid "Playback Time"
 msgstr "Afspeeltijd"
 
-#: gui/player.py:317
-msgid "Cast to Device"
-msgstr "Casten naar apparaat"
-
-#: gui/player.py:328
-msgid "Refresh"
-msgstr "Vernieuwen"
-
-#: gui/player.py:332
-msgid "Connect"
-msgstr "Verbinden"
-
-#: gui/player.py:360
-msgid "No devices found"
-msgstr "Geen apparaten gevonden"
-
-#: gui/player.py:417
-msgid "Audio Player"
-msgstr "Audiospeler"
-
-#: gui/player.py:1802
-msgid "No Track Loaded"
-msgstr "Geen track geladen"
-
-#: gui/player.py:1838
-msgid "No media loaded"
-msgstr "Geen media geladen"
-
-#: gui/player.py:1848
-msgid "-10s"
-msgstr "-10 s"
-
-#: gui/player.py:1864
-msgid "+10s"
-msgstr "+10 s"
-
-#: gui/player.py:1877 gui/player.py:2176 gui/player.py:2294
-msgid "Cast"
-msgstr "Casten"
-
-#: gui/player.py:1891 gui/tray.py:117
-msgid "Volume"
-msgstr "Volume"
-
-#: gui/player.py:1924
-msgid "Show &Chapters\tCtrl+M"
-msgstr "Hoofdstukken tonen (&C)\tCtrl+M"
-
-#: gui/player.py:1927
-msgid "Open Chapter &Link\tCtrl+Shift+L"
-msgstr "Hoofdstuk&link openen\tCtrl+Shift+L"
-
-#: gui/player.py:1930
-msgid "&Previous Chapter\tCtrl+Shift+Left"
-msgstr "Vorig hoofdstuk (&P)\tCtrl+Shift+Links"
-
-#: gui/player.py:1931
-msgid "&Next Chapter\tCtrl+Shift+Right"
-msgstr "Volge&nd hoofdstuk\tCtrl+Shift+Rechts"
-
-#: gui/player.py:1933
-msgid "&Chapters"
-msgstr "&Hoofdstukken"
-
-#: gui/player.py:3521
-msgid "VLC is not initialized. Playback is unavailable."
-msgstr "VLC is niet geïnitialiseerd. Afspelen is niet beschikbaar."
-
-#: gui/player.py:5011
-msgid "Elapsed {elapsed}, Remaining {remaining}, Total {total}"
-msgstr "Verstreken {elapsed}, Resterend {remaining}, Totaal {total}"
-
-#: gui/player.py:395
-msgid "Connection failed: {error}"
-msgstr "Verbinding mislukt: {error}"
-
-#: gui/player.py:2248
+#: gui/player.py:2102
 msgid "Disconnect"
 msgstr "Verbinding verbreken"
 
-#: gui/player.py:3774
+#: gui/player.py:2102 gui/player.py:2024
+msgid "Cast"
+msgstr "Casten"
+
+#: gui/player.py:2103
+msgid "&Disconnect Cast"
+msgstr "Cast &verbreken"
+
+#: gui/player.py:2103 gui/player.py:2072
+msgid "&Cast to Device..."
+msgstr "&Casten naar apparaat..."
+
+#: gui/player.py:358
+msgid "Cast to Device"
+msgstr "Casten naar apparaat"
+
+#: gui/player.py:372
+msgid "Refresh"
+msgstr "Vernieuwen"
+
+#: gui/player.py:376
+msgid "Connect"
+msgstr "Verbinden"
+
+#: gui/player.py:412
+msgid "No devices found"
+msgstr "Geen apparaten gevonden"
+
+#: gui/player.py:549
+msgid "Audio Player"
+msgstr "Audiospeler"
+
+#: gui/player.py:1949
+msgid "No Track Loaded"
+msgstr "Geen track geladen"
+
+#: gui/player.py:1985
+msgid "No media loaded"
+msgstr "Geen media geladen"
+
+#: gui/player.py:1995
+msgid "-10s"
+msgstr "-10 s"
+
+#: gui/player.py:2011
+msgid "+10s"
+msgstr "+10 s"
+
+#: gui/player.py:2038 gui/tray.py:117
+msgid "Volume"
+msgstr "Volume"
+
+#: gui/player.py:2076
+msgid "Show &Chapters\tCtrl+M"
+msgstr "Hoofdstukken tonen (&C)\tCtrl+M"
+
+#: gui/player.py:2079
+msgid "Open Chapter &Link\tCtrl+Shift+L"
+msgstr "Hoofdstuk&link openen\tCtrl+Shift+L"
+
+#: gui/player.py:2082
+msgid "&Previous Chapter\tCtrl+Shift+Left"
+msgstr "Vorig hoofdstuk (&P)\tCtrl+Shift+Links"
+
+#: gui/player.py:2083
+msgid "&Next Chapter\tCtrl+Shift+Right"
+msgstr "Volge&nd hoofdstuk\tCtrl+Shift+Rechts"
+
+#: gui/player.py:2085
+msgid "&Playback"
+msgstr "Af&spelen"
+
+#: gui/player.py:2086
+msgid "&Chapters"
+msgstr "&Hoofdstukken"
+
+#: gui/player.py:2542
+msgid "Cast device disconnected; resuming local playback"
+msgstr "Cast-apparaat losgekoppeld; lokale weergave wordt hervat"
+
+#: gui/player.py:3802
+msgid "VLC is not initialized. Playback is unavailable."
+msgstr "VLC is niet geïnitialiseerd. Afspelen is niet beschikbaar."
+
+#: gui/player.py:5291
+msgid "Elapsed {elapsed}, Remaining {remaining}, Total {total}"
+msgstr "Verstreken {elapsed}, Resterend {remaining}, Totaal {total}"
+
+#: gui/player.py:503
+msgid "Enter the PIN code shown on the device:"
+msgstr "Voer de pincode in die op het apparaat wordt weergegeven:"
+
+#: gui/player.py:504
+msgid "AirPlay Pairing"
+msgstr "AirPlay-koppeling"
+
+#: gui/player.py:520
+msgid "Connection failed: {error}"
+msgstr "Verbinding mislukt: {error}"
+
+#: gui/player.py:4062
 msgid "Loading media..."
 msgstr "Media laden..."
 
-#: gui/player.py:5009
+#: gui/player.py:5289
 msgid "Elapsed {elapsed}"
 msgstr "Verstreken {elapsed}"
 
-#: gui/player.py:2076
+#: gui/player.py:472
+msgid "Could not start pairing: {error}"
+msgstr "Kon koppelen niet starten: {error}"
+
+#: gui/player.py:490
+msgid "Pairing failed: {error}"
+msgstr "Koppelen mislukt: {error}"
+
+#: gui/player.py:2246
 msgid "Open Link for {chapter}"
 msgstr "Link openen voor {chapter}"
 
-#: gui/player.py:2307
+#: gui/player.py:2430
 msgid "Casting failed: {error}"
 msgstr "Casten mislukt: {error}"
 

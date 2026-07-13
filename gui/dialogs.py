@@ -38,7 +38,7 @@ from core import inoreader_oauth
 from core import translation as translation_mod
 from core import filters as filters_mod
 from core.vlc_options import build_vlc_instance_args
-from core.i18n import _
+from core.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
 
@@ -5982,7 +5982,9 @@ class QueueDialog(wx.Dialog):
                 label = f"{label}, {time_label}"
             self.list_box.Append(label)
         if entries:
-            self.info_lbl.SetLabel(_("{count} item(s) in queue.").format(count=len(entries)))
+            self.info_lbl.SetLabel(
+                ngettext("{n} item in queue.", "{n} items in queue.", len(entries)).format(n=len(entries))
+            )
             if select is None:
                 select = 0
             select = max(0, min(int(select), len(entries) - 1))

@@ -5410,7 +5410,7 @@ class MainFrame(wx.Frame):
         except Exception:
             behavior = "deleted"
         kind, category = filters_mod.parse_delete_behavior(behavior)
-        subject = ngettext("this article", "%d articles", count)
+        subject = ngettext("this article", "{n} articles", count).format(n=count)
         if "%d" in subject:
             subject = subject % count
         if kind == "category" and category:
@@ -5522,7 +5522,7 @@ class MainFrame(wx.Frame):
         if failures:
             n = len(failures)
             first_err = next((e for _id, e in failures if e), "")
-            msg = ngettext("Could not delete article.", "Could not delete %d articles.", n)
+            msg = ngettext("Could not delete article.", "Could not delete {n} articles.", n).format(n=n)
             if "%d" in msg:
                 msg = msg % n
             if first_err:
@@ -5814,8 +5814,9 @@ class MainFrame(wx.Frame):
         count = len(feed_ids)
         sub_note = _(" (including subcategories)") if len(sub_cats) > 0 else ""
         prompt = (
-            _("Delete category '{title}'{note} and its {count} feed(s)?\n\n"
-            "This will remove the feeds and their articles.").format(title=cat_title, note=sub_note, count=count)
+            ngettext("Delete category '{title}'{note} and its {count} feed?", "Delete category '{title}'{note} and its {count} feeds?", count).format(title=cat_title, note=sub_note, count=count)
+            + "\n\n" +
+            _("This will remove the feeds and their articles.")
         )
         if wx.MessageBox(prompt, _("Confirm"), wx.YES_NO | wx.ICON_WARNING) != wx.YES:
             return
@@ -5883,7 +5884,9 @@ class MainFrame(wx.Frame):
             if category_error:
                 warnings.append(_("Error: {error}").format(error=category_error))
         if failed:
-            warnings.append(_("{count} feed(s) could not be removed.").format(count=len(failed)))
+            warnings.append(
+                ngettext("{n} feed could not be removed.", "{n} feeds could not be removed.", len(failed)).format(n=len(failed))
+            )
         if warnings:
             wx.MessageBox("\n\n".join(warnings), _("Warning"), wx.ICON_WARNING)
 

@@ -4,6 +4,12 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.97.2 - 2026-07-13
+
+- Stop refresh top-ups from starving full-text extraction, fix i18n bugs from PR #58.
+- Merge pull request #58 from tseykovets/ru.
+- Add gettext support to new strings and update Russian translation.
+
 ## v1.97.1 - 2026-07-13
 
 - Complete translations for all locales after gettext PR.

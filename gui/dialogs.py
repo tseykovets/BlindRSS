@@ -39,7 +39,7 @@ from core import inoreader_oauth
 from core import translation as translation_mod
 from core import filters as filters_mod
 from core.vlc_options import build_vlc_instance_args
-from core.i18n import _
+from core.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
 
@@ -2410,13 +2410,14 @@ class SettingsDialog(wx.Dialog):
         count = play_cache.cache_file_count(cache_dir)
         if count == 0:
             wx.MessageBox(
-                f"The playback cache is already empty.\n\n{cache_dir}",
+                f'{_("The playback cache is already empty.")}\n\n{cache_dir}',
                 _("Playback cache"),
                 wx.ICON_INFORMATION,
             )
             return
         confirm = wx.MessageBox(
-            f"Delete {count} cached file(s) ({play_cache.human_size(size)})?\n\n{cache_dir}",
+            ngettext("Delete {n} cached file ({size})?", "Delete {n} cached files ({size})?", count).format(n=count, size=play_cache.human_size(size))
+            + f"\n\n{cache_dir}",
             _("Clear playback cache"),
             wx.YES_NO | wx.ICON_QUESTION,
         )
@@ -2424,7 +2425,7 @@ class SettingsDialog(wx.Dialog):
             return
         removed, freed = play_cache.clear_cache(cache_dir)
         wx.MessageBox(
-            f"Removed {removed} file(s), freed {play_cache.human_size(freed)}.",
+            ngettext("Removed {n} file, freed {size}.", "Removed {n} files, freed {size}.", removed).format(n=removed, size=play_cache.human_size(freed)),
             _("Playback cache cleared"),
             wx.ICON_INFORMATION,
         )
@@ -6049,7 +6050,9 @@ class QueueDialog(wx.Dialog):
                 label = f"{label}, {time_label}"
             self.list_box.Append(label)
         if entries:
-            self.info_lbl.SetLabel(_("{count} item(s) in queue.").format(count=len(entries)))
+            self.info_lbl.SetLabel(
+                ngettext("{n} item in queue.", "{n} items in queue.", len(entries)).format(n=len(entries))
+            )
             if select is None:
                 select = 0
             select = max(0, min(int(select), len(entries) - 1))

@@ -3,6 +3,7 @@ import wx.adv
 import concurrent.futures
 import copy
 import queue
+import re
 import threading
 import webbrowser
 import time
@@ -3365,31 +3366,36 @@ class FeedSearchDialog(wx.Dialog):
     _SOURCE_ALL_PODCAST = "__all_podcast__"
     _SOURCE_ALL_RSS = "__all_rss__"
     _PODCAST_SOURCE_KEYS = ["itunes", "gpodder", "fyyd", "podverse", "soundcloud", "mixcloud"]
-    _RSS_SOURCE_KEYS = ["feedly", "feedspot", "googlenews", "bingnews", "youtube", "soundcloud", "mixcloud", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
+    # NewsBlur's autocomplete is the primary feed-name directory (it searches
+    # feed names AND addresses and needs no auth). Feedly is kept selectable
+    # but is no longer one of the aggregated default sources, so no single
+    # directory is relied on. Feedsearch + the local website scan cover
+    # domain/site-name discovery.
+    _RSS_SOURCE_KEYS = ["newsblur", "feedspot", "googlenews", "bingnews", "youtube", "soundcloud", "mixcloud", "reddit", "fediverse", "feedsearch", "blindrss"]
     _SOURCE_CHOICES = [
         ("All sources", _SOURCE_ALL),
         ("All podcast sources", _SOURCE_ALL_PODCAST),
         ("All RSS feed sources", _SOURCE_ALL_RSS),
+        ("NewsBlur", "newsblur"),
         ("iTunes", "itunes"),
         ("gPodder", "gpodder"),
         ("fyyd", "fyyd"),
         ("Podverse", "podverse"),
-        ("Feedly", "feedly"),
         ("Feedspot", "feedspot"),
         ("Google News", "googlenews"),
         ("Bing News", "bingnews"),
         ("YouTube", "youtube"),
         ("SoundCloud", "soundcloud"),
         ("Mixcloud", "mixcloud"),
-        ("NewsBlur", "newsblur"),
+        ("Feedly", "feedly"),
         ("Reddit", "reddit"),
         ("Fediverse (all)", "fediverse"),
         ("Mastodon", "mastodon"),
         ("Bluesky", "bluesky"),
         ("PieFed", "piefed"),
         ("Lemmy/Kbin", "lemmy"),
-        ("Feedsearch (URL/domain)", "feedsearch"),
-        ("BlindRSS discovery (URL/domain)", "blindrss"),
+        ("Feedsearch (URL or site name)", "feedsearch"),
+        ("Website scan (URL or site name)", "blindrss"),
     ]
 
     def __init__(self, parent):
@@ -3440,7 +3446,7 @@ class FeedSearchDialog(wx.Dialog):
 
         # Attribution / Help
         help_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedspot, Google News, Bing News, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
+        help_sizer.Add(wx.StaticText(self, label=_("Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source.")), 0, wx.ALL, 5)
         sizer.Add(help_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
         
         # Buttons
@@ -3491,24 +3497,27 @@ class FeedSearchDialog(wx.Dialog):
 
     def _build_search_targets(self, term, source_key):
         all_targets = [
+            ("NewsBlur", "newsblur", self._search_newsblur),
             ("iTunes", "itunes", self._search_itunes),
             ("gPodder", "gpodder", self._search_gpodder),
             ("fyyd", "fyyd", self._search_fyyd),
             ("Podverse", "podverse", self._search_podverse),
-            ("Feedly", "feedly", self._search_feedly),
             ("Feedspot", "feedspot", self._search_feedspot),
             ("Google News", "googlenews", self._search_googlenews),
             ("Bing News", "bingnews", self._search_bingnews),
             ("YouTube", "youtube", self._search_youtube_channels),
             ("SoundCloud", "soundcloud", self._search_soundcloud),
             ("Mixcloud", "mixcloud", self._search_mixcloud),
-            ("NewsBlur", "newsblur", self._search_newsblur),
             ("Reddit", "reddit", self._search_reddit),
             ("Fediverse", "fediverse", self._search_fediverse),
             ("Feedsearch", "feedsearch", self._search_feedsearch),
             ("BlindRSS", "blindrss", self._search_blindrss),
         ]
+        # Feedly is still selectable on its own but excluded from the "all"
+        # groups (NewsBlur is the primary directory now). Fediverse per-network
+        # sources are likewise explicit-only.
         specific_targets = {
+            "feedly": ("Feedly", "feedly", self._search_feedly),
             "mastodon": ("Mastodon", "mastodon", self._search_mastodon),
             "bluesky": ("Bluesky", "bluesky", self._search_bluesky),
             "piefed": ("PieFed", "piefed", self._search_piefed),
@@ -3530,11 +3539,22 @@ class FeedSearchDialog(wx.Dialog):
             target_keys = [key for _, key, _ in all_targets]
 
         url_like = self._is_url_like_term(term)
+        single_word = bool(str(term or "").strip()) and " " not in str(term or "").strip()
         filtered = []
         for key in target_keys:
             name, _, fn = by_key[key]
             if key in ("feedsearch", "blindrss") and not url_like:
-                continue
+                # Both sources scan a website rather than a directory. When the
+                # user picks one explicitly, always run it — the source guesses
+                # "<term>.com" for bare site names (e.g. "techspot"). In the
+                # grouped modes, run the local website scan for single-word
+                # terms too, but keep the external Feedsearch service URL-gated.
+                if source_key == key:
+                    pass
+                elif key == "blindrss" and single_word:
+                    pass
+                else:
+                    continue
             filtered.append((name, fn))
         return filtered
 
@@ -3972,40 +3992,55 @@ class FeedSearchDialog(wx.Dialog):
             pass
 
     def _search_newsblur(self, term, queue):
+        # NewsBlur's public discover autocomplete searches feed names AND feed
+        # addresses (falling back to a DB search when its index is empty),
+        # needs no authentication, and returns up to ~20 feeds with real feed
+        # URLs. This is BlindRSS's primary feed-name directory.
         try:
             import urllib.parse
-            # Try autocomplete first
-            url = f"https://newsblur.com/rss_feeds/feed_autocomplete?term={urllib.parse.quote(term)}"
+            url = (
+                "https://www.newsblur.com/discover/autocomplete?"
+                f"term={urllib.parse.quote(term)}&v=2"
+            )
             resp = utils.safe_requests_get(url, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json() # usually a list of dicts
-                results = []
-                for it in data:
-                    if not isinstance(it, dict): continue
-                    # NewsBlur structure: {'value': 'url', 'label': 'Title', ...} or similar
-                    # Check actual response structure. 
-                    # Assuming standard list of dicts with 'value' (ID/URL) and 'label' (Title) 
-                    # OR {'feeds': [...]}
-                    # Actually standard NewsBlur autocomplete returns list of dicts: {value, label, tagline, num_subscribers}
-                    
-                    # Also checking /search_feed endpoint if autocomplete is sparse?
-                    # sticking to autocomplete for now.
-                    
-                    feed_url = it.get("value")
-                    if not feed_url: continue
-                    
-                    # Sometimes value is integer ID, sometimes URL.
-                    # If it's an integer, we might not get the URL easily without auth.
-                    # But for 'feed_autocomplete', it often returns the feed URL in 'address' or 'value' if looking up by address.
-                    # Let's check keys carefully.
-                    u = it.get("address") or it.get("value")
-                    if str(u).isdigit(): continue # Skip internal IDs
-                    
-                    results.append({
-                        "title": it.get("label") or u,
-                        "detail": f"{it.get('tagline', '')} ({it.get('num_subscribers', 0)} subs)",
-                        "url": u
-                    })
+            if resp.status_code != 200:
+                return
+            data = resp.json()
+            # v2 returns {"feeds": [...]}; the older endpoint returned a bare
+            # list. Accept either so a response-shape change can't break search.
+            if isinstance(data, dict):
+                feeds = data.get("feeds") or []
+            elif isinstance(data, list):
+                feeds = data
+            else:
+                feeds = []
+
+            results = []
+            seen = set()
+            for it in feeds:
+                if not isinstance(it, dict):
+                    continue
+                # "value" is the feed address (URL); "id" is NewsBlur's internal
+                # numeric id, which we cannot subscribe to without auth.
+                feed_url = str(it.get("value") or it.get("address") or "").strip()
+                if not feed_url or feed_url.isdigit() or "://" not in feed_url:
+                    continue
+                if feed_url in seen:
+                    continue
+                seen.add(feed_url)
+                tagline = str(it.get("tagline") or "").strip()
+                subs = it.get("num_subscribers")
+                detail = tagline
+                if isinstance(subs, int) and subs > 0:
+                    detail = f"{tagline} ({subs} subscribers)".strip() if tagline else f"{subs} subscribers"
+                results.append({
+                    "title": str(it.get("label") or feed_url).strip(),
+                    "detail": detail or "NewsBlur",
+                    "url": feed_url,
+                })
+                if len(results) >= 20:
+                    break
+            if results:
                 queue.put(("NewsBlur", results))
         except Exception:
             pass
@@ -4078,10 +4113,48 @@ class FeedSearchDialog(wx.Dialog):
         if all_results:
             queue.put(("Fediverse", all_results))
 
+    @staticmethod
+    def _site_scan_targets(term):
+        """Normalize a search term into website URLs worth scanning for feeds.
+
+        Full URLs pass through, bare domains get https://, and single-word
+        site names are guessed as <name>.com (the "techspot" case — the site
+        has a feed at /backend.xml that no directory indexes).
+        """
+        t = str(term or "").strip()
+        if not t:
+            return []
+        if "://" in t:
+            return [t]
+        if " " not in t and "." in t:
+            return ["https://" + t]
+        if " " not in t:
+            slug = re.sub(r"[^a-z0-9-]", "", t.lower())
+            if slug:
+                return [f"https://{slug}.com"]
+        return []
+
+    @staticmethod
+    def _fetch_feed_title(feed_url, timeout=8):
+        """Best-effort feed title so results read as names, not raw URLs."""
+        try:
+            resp = utils.safe_requests_get(feed_url, timeout=timeout)
+            if int(getattr(resp, "status_code", 0) or 0) != 200:
+                return ""
+            import feedparser
+            parsed = feedparser.parse(resp.text or "")
+            return str(getattr(parsed.feed, "title", "") or "").strip()
+        except Exception:
+            return ""
+
     def _search_feedsearch(self, term, queue):
         try:
             import urllib.parse
-            url = f"https://feedsearch.dev/api/v1/search?url={urllib.parse.quote(term)}"
+            t = str(term or "").strip()
+            if t and "://" not in t and "." not in t and " " not in t:
+                # Bare site name (explicit source selection): guess <name>.com.
+                t = re.sub(r"[^a-z0-9-]", "", t.lower()) + ".com"
+            url = f"https://feedsearch.dev/api/v1/search?url={urllib.parse.quote(t)}"
             resp = utils.safe_requests_get(url, timeout=15)
             if resp.status_code == 200:
                 data = resp.json()
@@ -4097,42 +4170,36 @@ class FeedSearchDialog(wx.Dialog):
             pass
 
     def _search_blindrss(self, term, queue):
-        # Local discovery
+        # Local website scan: fetch the site itself and discover its feeds
+        # (link rel=alternate, on-page links, well-known paths like /feed and
+        # /backend.xml, with WAF-impersonation retries). The only source that
+        # can surface feeds no directory indexes — e.g. techspot.com/backend.xml.
         try:
-            from core.discovery import discover_feeds, discover_feed
-            
+            from core.discovery import discover_feeds
+
             candidates = []
-            
-            # 1. discover_feeds (list)
-            try:
-                c1 = discover_feeds(term)
-                candidates.extend(c1)
-            except: pass
-            
-            # 2. discover_feed (single, maybe different logic)
-            if not candidates:
-                 try:
-                    c2 = discover_feed(term)
-                    if c2: candidates.append(c2)
-                 except: pass
-                 
-            # 3. Try with https:// if missing
-            if not candidates and "://" not in term:
-                 try:
-                    c3 = discover_feeds("https://" + term)
-                    candidates.extend(c3)
-                 except: pass
+            for target in self._site_scan_targets(term):
+                try:
+                    candidates = discover_feeds(target)
+                except Exception:
+                    candidates = []
+                if candidates:
+                    break
 
             results = []
             seen = set()
             for c in candidates:
-                if c not in seen:
-                    seen.add(c)
-                    results.append({
-                        "title": c,
-                        "detail": "Local Discovery",
-                        "url": c
-                    })
+                if not c or c in seen:
+                    continue
+                seen.add(c)
+                # Titles make results readable for screen readers; cap the
+                # extra fetches so a long candidate list stays fast.
+                title = self._fetch_feed_title(c) if len(results) < 5 else ""
+                results.append({
+                    "title": title or c,
+                    "detail": "Website scan",
+                    "url": c
+                })
             if results:
                 queue.put(("BlindRSS", results))
 

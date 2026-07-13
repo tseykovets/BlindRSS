@@ -200,6 +200,53 @@ class DiscoverFeedsTests(unittest.TestCase):
                 mock_get.assert_called_once()
 
 
+class CommonPathProbeTests(unittest.TestCase):
+    _RSS_BODY = "<?xml version='1.0'?><rss version='2.0'><channel><title>TechSpot</title></channel></rss>"
+
+    def test_head_blocked_backend_xml_is_confirmed_via_get(self) -> None:
+        # TechSpot shape: the WAF 403s HEAD requests but serves the feed to
+        # GET, and the feed lives at the old-school /backend.xml path that no
+        # feed directory indexes.
+        homepage = _DummyResp(
+            "<html><head></head><body>no advertised feeds</body></html>",
+            url="https://www.techspot.com/",
+        )
+
+        def get_side_effect(url: str, **_kwargs):
+            if url == "https://www.techspot.com/backend.xml":
+                resp = _DummyResp(self._RSS_BODY, url=url)
+                resp.headers = {"Content-Type": "text/xml;charset=UTF-8"}
+                return resp
+            if url.rstrip("/") == "https://www.techspot.com":
+                return homepage
+            resp = _DummyResp("<html>403</html>", url=url)
+            resp.status_code = 403
+            return resp
+
+        with patch("core.discovery.utils.safe_requests_get", side_effect=get_side_effect), patch(
+            "core.discovery.utils.safe_requests_head",
+            return_value=_DummyHeadResp(403, "text/html"),
+        ):
+            feeds = discovery.discover_feeds("https://www.techspot.com/")
+
+        self.assertIn("https://www.techspot.com/backend.xml", feeds)
+
+    def test_clean_head_404_paths_are_not_refetched_via_get(self) -> None:
+        get_urls = []
+
+        def get_side_effect(url: str, **_kwargs):
+            get_urls.append(url)
+            return _DummyResp("<html><body>page</body></html>", url=url)
+
+        with patch("core.discovery.utils.safe_requests_get", side_effect=get_side_effect), patch(
+            "core.discovery.utils.safe_requests_head",
+            return_value=_DummyHeadResp(404, "text/html"),
+        ):
+            discovery._probe_common_feed_paths("https://example.com")
+
+        self.assertEqual(get_urls, [])
+
+
 class OpenRssFallbackTests(unittest.TestCase):
     _RSS_BODY = "<?xml version='1.0'?><rss version='2.0'><channel><title>T</title></channel></rss>"
 

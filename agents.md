@@ -326,7 +326,9 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-filter-and-i18n.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\category-identity-model.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\curl-cffi-impersonation-transport.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\delete-restore-refresh-unguarded.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\deleted-purge-design.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\feed-discovery-website-scan.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\feed-title-custom-vs-upstream.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\filter-rules-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-fetch-fallback-chain.md

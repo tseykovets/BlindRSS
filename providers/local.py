@@ -2833,15 +2833,12 @@ class LocalProvider(RSSProvider):
                     feed_title, title_is_custom, upstream_title, final_title, feed_url
                 )
                 upstream_to_store = str(final_title or "").strip()
-                if canonical_feed_url:
-                    c.execute(
-                        "UPDATE feeds SET url = ?, title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                        (canonical_feed_url, title_to_store, custom_to_store, upstream_to_store, new_etag, new_last_modified, feed_id),
-                    )
-                else:
-                    c.execute("UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                              (title_to_store, custom_to_store, upstream_to_store, new_etag, new_last_modified, feed_id))
-                
+                # The feeds UPDATE is deferred to the write phase below: it is
+                # the statement that opens the write transaction, and SQLite has
+                # a single writer, so nothing may be written until all per-entry
+                # parsing/network work is done.
+
+
                 # Pre-fetch existing articles to avoid N+1 SELECTs
                 c.execute(
                     "SELECT id, date, chapter_url, media_url, media_type, url "
@@ -2900,12 +2897,21 @@ class LocalProvider(RSSProvider):
                                 conflicting_ids.add(row[0])
                 
                 total_entries = len(d.entries)
-                for i, entry in enumerate(d.entries):
+
+                # Shared extension filters for enclosure/media tags
+                image_exts = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
+                audio_exts = (".mp3", ".m4a", ".m4b", ".aac", ".ogg", ".opus", ".wav", ".flac")
+
+                # Phase 1: prepare every entry BEFORE any row is written, so the
+                # write transaction below never spans per-entry parsing or the
+                # NPR media-page fetch (a network call). SQLite has a single
+                # writer; holding the write lock across that work starved every
+                # concurrent writer (delete/restore, full-text metadata
+                # enrichment) for the duration of a feed's save.
+                prepared_entries = []
+                for entry in d.entries:
                     if self._refresh_cancelled(cancel_event):
                         return
-                    # Shared extension filters for enclosure/media tags
-                    image_exts = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
-                    audio_exts = (".mp3", ".m4a", ".m4b", ".aac", ".ogg", ".opus", ".wav", ".flac")
 
                     content = _entry_content(entry)
                     description = _entry_description(entry)
@@ -3066,13 +3072,84 @@ class LocalProvider(RSSProvider):
                         inline_chapters = raw_metadata.get("chapters") or []
                         break
 
+                    prepared_entries.append({
+                        "base_id": base_id,
+                        "scoped_id": scoped_id,
+                        "article_id": article_id,
+                        "title": title,
+                        "url": url,
+                        "content": content,
+                        "description": description,
+                        "date": date,
+                        "author": author,
+                        "tags": tags,
+                        "media_url": media_url,
+                        "media_type": media_type,
+                        "chapter_url": chapter_url,
+                        "inline_chapters": inline_chapters,
+                        "existing_article_id": existing_article_id,
+                        "existing_stored_url": str((existing_metadata or {}).get("url") or ""),
+                        "notify_preview": _preview_for_notification(content),
+                    })
+
+                # Phase 2: all row changes in one short write transaction. The
+                # feeds UPDATE is the first write statement, so this is where
+                # the write lock is taken — after all parsing and network work.
+                if canonical_feed_url:
+                    c.execute(
+                        "UPDATE feeds SET url = ?, title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                        (canonical_feed_url, title_to_store, custom_to_store, upstream_to_store, new_etag, new_last_modified, feed_id),
+                    )
+                else:
+                    c.execute("UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                              (title_to_store, custom_to_store, upstream_to_store, new_etag, new_last_modified, feed_id))
+
+                # Re-read tombstones now that the write lock is held: a delete
+                # committed while phase 1 was busy (e.g. fetching NPR pages)
+                # must not be resurrected by an insert prepared from the stale
+                # pre-phase-1 snapshot.
+                deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
+                    feed_id,
+                    cursor=c,
+                )
+
+                for prep in prepared_entries:
+                    if self._refresh_cancelled(cancel_event):
+                        return
+                    base_id = prep["base_id"]
+                    scoped_id = prep["scoped_id"]
+                    article_id = prep["article_id"]
+                    title = prep["title"]
+                    url = prep["url"]
+                    content = prep["content"]
+                    description = prep["description"]
+                    date = prep["date"]
+                    author = prep["author"]
+                    tags = prep["tags"]
+                    media_url = prep["media_url"]
+                    media_type = prep["media_type"]
+                    chapter_url = prep["chapter_url"]
+                    inline_chapters = prep["inline_chapters"]
+                    existing_article_id = prep["existing_article_id"]
+                    notify_preview = prep["notify_preview"]
+
+                    if _article_matches_deleted_tombstone(
+                        deleted_article_ids,
+                        deleted_article_urls,
+                        base_id,
+                        scoped_id,
+                        article_id,
+                        url=url,
+                    ):
+                        continue
+
                     if existing_article_id is not None:
                         # Self-heal stored webpage URLs: adopt the feed's current
                         # link, and clear stale values that were really the media
                         # enclosure (older builds stored the mp3 as the article
                         # URL). Never wipe a good URL just because the feed
                         # temporarily omits its link.
-                        stored_url = str(existing_metadata.get("url") or "")
+                        stored_url = prep["existing_stored_url"]
                         url_to_store = stored_url
                         if url and url != stored_url:
                             url_to_store = url
@@ -3121,7 +3198,7 @@ class LocalProvider(RSSProvider):
                             article_id,
                             title,
                             author,
-                            _preview_for_notification(content),
+                            notify_preview,
                             url=url,
                             media_url=media_url,
                             media_type=media_type,
@@ -3187,7 +3264,7 @@ class LocalProvider(RSSProvider):
                                         article_id,
                                         title,
                                         author,
-                                        _preview_for_notification(content),
+                                        notify_preview,
                                         url=url,
                                         media_url=media_url,
                                         media_type=media_type,

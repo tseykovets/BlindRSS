@@ -107,6 +107,25 @@ def test_russian_relative_date_plural_forms(tmp_path, monkeypatch):
     assert i18n._("Articles loaded: {count}.").format(count=1) == "Загружено статей: 1."
 
 
+def test_russian_ui_plural_forms(tmp_path, monkeypatch):
+    messages = compile_translations.read_po(
+        Path("locale/ru/LC_MESSAGES/blindrss.po")
+    )
+    mo_path = tmp_path / "ru" / "LC_MESSAGES" / "blindrss.mo"
+    compile_translations.write_mo(messages, mo_path)
+    monkeypatch.setattr(i18n, "locale_dir", lambda: str(tmp_path))
+    i18n.setup("ru")
+
+    singular = "Could not delete article."
+    plural = "Could not delete {n} articles."
+    forms = messages[f"{singular}\0{plural}"].split("\0")
+
+    assert len(forms) == 3
+    assert i18n.ngettext(singular, plural, 1) == forms[0]
+    assert i18n.ngettext(singular, plural, 2) == forms[1]
+    assert i18n.ngettext(singular, plural, 5) == forms[2]
+
+
 def test_extractor_resolves_deferred_module_string_constants(tmp_path):
     source = tmp_path / "deferred.py"
     source.write_text(

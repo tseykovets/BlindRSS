@@ -258,6 +258,14 @@ def enrich_stored_article(article_id, html, url: str = "") -> bool:
         from core.db import get_connection
         conn = get_connection()
         try:
+            # Best-effort enrichment: don't inherit the 60s default busy
+            # timeout. During a refresh the write lock is held nearly
+            # continuously and waiting that long just stacks threads — a
+            # missed enrichment is retried on the article's next extraction.
+            try:
+                conn.execute("PRAGMA busy_timeout=5000")
+            except Exception:
+                pass
             c = conn.cursor()
             row = c.execute("SELECT author, tags FROM articles WHERE id = ?", (aid,)).fetchone()
             if not row:

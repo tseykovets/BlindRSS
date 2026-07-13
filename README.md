@@ -59,6 +59,12 @@ Enable debug mode in Settings to write a rotating `blindrss.log` (DEBUG and abov
 
 Pull requests are welcome. If BlindRSS has been useful to you, open a PR with a fix or feature and I'll review it.
 
+## Translations
+
+I only speak English, so I got several languages started with AI-assisted translation rather than leaving them untranslated. Human translation is always preferred, and I'd rather have a native speaker's review than a machine's best guess.
+
+If you speak one of the supported languages and something reads wrong, awkward, or just off, please open a PR to fix it — I can't judge the wording myself, so I'll almost certainly accept it. See [`locale/README.md`](locale/README.md) for how the translation files are laid out and how to update them.
+
 ## Community and support
 
 Report bugs and request features in [Issues](https://github.com/serrebidev/BlindRSS/issues). For questions, feedback, and release news, join the [SerrebiProjects Telegram group](https://t.me/SerrebiProjects).

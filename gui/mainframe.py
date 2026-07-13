@@ -5416,6 +5416,8 @@ class MainFrame(wx.Frame):
             behavior = "deleted"
         kind, category = filters_mod.parse_delete_behavior(behavior)
         subject = ngettext("this article", "%d articles", count)
+        if "%d" in subject:
+            subject = subject % count
         if kind == "category" and category:
             return _("Move {subject} to the '{category}' category?").format(subject=subject, category=category)
         if kind == "purge":
@@ -5543,6 +5545,8 @@ class MainFrame(wx.Frame):
             n = len(failures)
             first_err = next((e for _id, e in failures if e), "")
             msg = ngettext("Could not delete article.", "Could not delete %d articles.", n)
+            if "%d" in msg:
+                msg = msg % n
             if first_err:
                 msg += f"\n\n{first_err}"
             try:
@@ -7640,7 +7644,12 @@ class MainFrame(wx.Frame):
             st['last_access'] = time.time()
 
         try:
-            self._reset_fulltext_prefetch(self.current_articles)
+            # Incremental queue only (not _reset_fulltext_prefetch): a full reset here
+            # would re-scan the whole list on every refresh top-up, starving on-demand
+            # reads behind repeated slow prefetch re-attempts for the whole session.
+            new_ids = {self._article_cache_id(a) for a in new_entries}
+            visible_new = [a for a in self.current_articles if self._article_cache_id(a) in new_ids]
+            self._queue_fulltext_prefetch(visible_new)
         except Exception:
             pass
 

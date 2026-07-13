@@ -66,7 +66,7 @@ def format_accessible_chapters(chapters) -> str:
         timestamp = format_accessible_chapter_timestamp(chapter["start"])
         line = _("Chapter {index}: {timestamp}, {title}.").format(index=index, timestamp=timestamp, title=chapter['title'])
         if chapter["href"]:
-            line += _(" Link: {url}").format(chapter['href'])
+            line += _(" Link: {url}").format(url=chapter['href'])
         lines.append(line)
     return "\n".join(lines)
 

@@ -1849,12 +1849,17 @@ class MainFrame(wx.Frame):
         # not "All", the category tree hides branches with no matching articles.
         filter_menu = wx.Menu()
         self._article_filter_menu_items = {}
+        # Issue #60: sequential Ctrl+1..Ctrl+9 shortcuts, numbered by position
+        # across the whole submenu (both radio groups), so users can jump to any
+        # filter without opening the menu.
+        filter_shortcut_num = 1
         for mode, label, help_text in (
             ("all", _("&All Articles"), _("Show read and unread articles in all views")),
             ("unread", _("&Unread Only"), _("Show only unread articles in all views")),
             ("read", _("&Read Only"), _("Show only read articles in all views")),
         ):
-            item = filter_menu.AppendRadioItem(wx.ID_ANY, label, help_text)
+            item = filter_menu.AppendRadioItem(wx.ID_ANY, f"{label}\tCtrl+{filter_shortcut_num}", help_text)
+            filter_shortcut_num += 1
             self._article_filter_menu_items[mode] = item
             if mode == getattr(self, "_article_read_filter", "all"):
                 item.Check(True)
@@ -1869,7 +1874,8 @@ class MainFrame(wx.Frame):
             ("with", _("With &Media Only"), _("Show only articles that have playable media")),
             ("without", _("Wit&hout Media Only"), _("Show only articles that have no playable media")),
         ):
-            item = filter_menu.AppendRadioItem(wx.ID_ANY, label, help_text)
+            item = filter_menu.AppendRadioItem(wx.ID_ANY, f"{label}\tCtrl+{filter_shortcut_num}", help_text)
+            filter_shortcut_num += 1
             self._article_media_filter_menu_items[mode] = item
             if mode == getattr(self, "_article_media_filter", "all"):
                 item.Check(True)
@@ -4083,7 +4089,6 @@ class MainFrame(wx.Frame):
             valid_article_idx
             and not in_deleted_view
             and self._supports_article_delete()
-            and not MainFrame._is_feed_refresh_active(self)
         ):
             delete_label = (
                 _("Delete {count} Articles\tDel").format(count=count)
@@ -4628,12 +4633,6 @@ class MainFrame(wx.Frame):
         except Exception:
             return False
 
-    def _show_delete_blocked_by_refresh_message(self) -> None:
-        wx.MessageBox(
-            _("Articles cannot be deleted while feeds are refreshing. Try again after the refresh is complete."),
-            _("Refresh in Progress"),
-            wx.ICON_INFORMATION,
-        )
 
     def _get_selected_article_index(self) -> int:
         idx = wx.NOT_FOUND
@@ -5368,10 +5367,6 @@ class MainFrame(wx.Frame):
             )
             return
 
-        if MainFrame._is_feed_refresh_active(self):
-            MainFrame._show_delete_blocked_by_refresh_message(self)
-            return
-
         count = len(indices)
         if confirm is None:
             try:
@@ -5483,37 +5478,20 @@ class MainFrame(wx.Frame):
         wx.CallAfter(self._post_delete_articles, results, anchor_idx)
 
     def _delete_articles_thread(self, items, anchor_idx: int) -> None:
-        refresh_guard = getattr(self, "_refresh_guard", None)
-        guard_acquired = False
-        acquire = getattr(refresh_guard, "acquire", None)
-        if callable(acquire):
-            try:
-                guard_acquired = bool(acquire(blocking=False))
-            except TypeError:
-                guard_acquired = bool(acquire(False))
-            except Exception:
-                guard_acquired = False
-            if not guard_acquired:
-                wx.CallAfter(MainFrame._show_delete_blocked_by_refresh_message, self)
-                return
-
+        # No refresh guard needed: delete_article() tombstones the article (so a
+        # concurrent refresh can't recreate it) and uses its own short busy-timeout
+        # transaction, mirroring purge (_purge_deleted_articles_thread) which
+        # already runs unguarded.
         results = []
-        try:
-            for article_id, article_cache_id, cache_key in items:
-                ok = False
-                err = ""
-                try:
-                    ok = bool(self.provider.delete_article(article_id))
-                except Exception as e:
-                    err = str(e) or "Unknown error"
-                results.append((article_id, article_cache_id, cache_key, ok, err))
-            wx.CallAfter(self._post_delete_articles, results, anchor_idx)
-        finally:
-            if guard_acquired:
-                try:
-                    refresh_guard.release()
-                except Exception:
-                    pass
+        for article_id, article_cache_id, cache_key in items:
+            ok = False
+            err = ""
+            try:
+                ok = bool(self.provider.delete_article(article_id))
+            except Exception as e:
+                err = str(e) or "Unknown error"
+            results.append((article_id, article_cache_id, cache_key, ok, err))
+        wx.CallAfter(self._post_delete_articles, results, anchor_idx)
 
     def _post_delete_articles(self, results, anchor_idx: int = 0) -> None:
         deleted_any = False
@@ -5594,46 +5572,19 @@ class MainFrame(wx.Frame):
             return
         threading.Thread(target=self._restore_articles_thread, args=(items,), daemon=True).start()
 
-    def _show_restore_blocked_by_refresh_message(self) -> None:
-        wx.MessageBox(
-            _("Articles cannot be restored while feeds are refreshing. Try again after the refresh is complete."),
-            _("Refresh in Progress"),
-            wx.ICON_INFORMATION,
-        )
-
     def _restore_articles_thread(self, items) -> None:
-        # Mirror delete: restoring writes to the DB, so don't fight an active
-        # refresh for the SQLite lock -- bail with a friendly message instead.
-        refresh_guard = getattr(self, "_refresh_guard", None)
-        guard_acquired = False
-        acquire = getattr(refresh_guard, "acquire", None)
-        if callable(acquire):
-            try:
-                guard_acquired = bool(acquire(blocking=False))
-            except TypeError:
-                guard_acquired = bool(acquire(False))
-            except Exception:
-                guard_acquired = False
-            if not guard_acquired:
-                wx.CallAfter(MainFrame._show_restore_blocked_by_refresh_message, self)
-                return
-
+        # No refresh guard needed (mirrors delete/purge): restore_deleted_article()
+        # is a single short transaction under the DB's own busy-timeout, and a
+        # failed restore already surfaces through _post_restore_articles.
         results = []
-        try:
-            for article_id, feed_id, cache_id in items:
-                ok = False
-                try:
-                    ok = bool(self.provider.restore_article(article_id, feed_id=feed_id))
-                except Exception:
-                    log.exception("Error restoring article %s", article_id)
-                results.append((article_id, cache_id, ok))
-            wx.CallAfter(self._post_restore_articles, results)
-        finally:
-            if guard_acquired:
-                try:
-                    refresh_guard.release()
-                except Exception:
-                    pass
+        for article_id, feed_id, cache_id in items:
+            ok = False
+            try:
+                ok = bool(self.provider.restore_article(article_id, feed_id=feed_id))
+            except Exception:
+                log.exception("Error restoring article %s", article_id)
+            results.append((article_id, cache_id, ok))
+        wx.CallAfter(self._post_restore_articles, results)
 
     def _post_restore_articles(self, results) -> None:
         restored_any = any(ok for _aid, _cid, ok in results)

@@ -953,7 +953,10 @@ def test_delete_in_deleted_view_routes_to_purge():
     assert not hasattr(host, "delete_thread_args")
 
 
-def test_delete_article_is_blocked_while_refresh_is_active(monkeypatch):
+def test_delete_article_proceeds_while_refresh_is_active(monkeypatch):
+    # Issue #59: delete must not be blocked by an in-progress refresh.
+    # delete_article() tombstones the row so a concurrent refresh can't
+    # resurrect it, so the old refresh_guard pre-check was unnecessary.
     started = []
     prompts = []
 
@@ -981,21 +984,19 @@ def test_delete_article_is_blocked_while_refresh_is_active(monkeypatch):
     finally:
         host._refresh_guard.release()
 
-    assert not started
+    assert len(started) == 1
+    assert started[0][1] == ([("article-1", "article-1", "article:0")], 0)
+    # Only the delete confirmation prompt fires, never a refresh-blocked message.
     assert len(prompts) == 1
-    assert prompts[0][1] == "Refresh in Progress"
+    assert prompts[0][1] == "Confirm Delete"
 
 
-def test_delete_worker_does_not_wait_if_refresh_starts_after_confirmation(monkeypatch):
-    prompts = []
+def test_delete_worker_runs_while_refresh_is_active(monkeypatch):
     provider_calls = []
+    posted = []
 
     def call_after(func, *args, **kwargs):
-        return func(*args, **kwargs)
-
-    def message_box(*args, **_kwargs):
-        prompts.append(args)
-        return mainframe.wx.YES
+        posted.append((func, args, kwargs))
 
     class Provider:
         def delete_article(self, article_id):
@@ -1005,18 +1006,18 @@ def test_delete_worker_does_not_wait_if_refresh_starts_after_confirmation(monkey
     class Host:
         provider = Provider()
 
+        def _post_delete_articles(self, results, anchor_idx=0):
+            posted.append(("_post_delete_articles", results, anchor_idx))
+
     host = Host()
     host._refresh_guard = mainframe.threading.Lock()
     host._refresh_guard.acquire()
 
     monkeypatch.setattr(mainframe.wx, "CallAfter", call_after)
-    monkeypatch.setattr(mainframe.wx, "MessageBox", message_box)
 
     try:
         mainframe.MainFrame._delete_articles_thread(host, [("article-1", "article-1", "article:0")], 0)
     finally:
         host._refresh_guard.release()
 
-    assert provider_calls == []
-    assert len(prompts) == 1
-    assert prompts[0][1] == "Refresh in Progress"
+    assert provider_calls == ["article-1"]

@@ -204,19 +204,21 @@ class GlobalMediaKeyFilter(wx.EventFilter):
 
 class RSSApp(wx.App):
     def OnInit(self):
-        self.instance_checker = wx.SingleInstanceChecker("BlindRSS-Instance-Lock")
-        if self.instance_checker.IsAnotherRunning():
-            wx.MessageBox(_("BlindRSS is already running."), "BlindRSS", wx.ICON_ERROR)
-            return False
-
         self.config_manager = ConfigManager()
-        # Install UI translations before any window/menu builds its labels
-        # (issue #44). "auto" follows the OS locale; English is the fallback.
+        # Install UI translations before any UI message is shown, including the
+        # single-instance check below (issues #44, #61). "auto" follows the OS
+        # locale; English is the fallback.
         try:
             from core import i18n
             i18n.setup(self.config_manager.get("language", "auto"))
         except Exception:
             log.debug("Failed to initialize translations", exc_info=True)
+
+        self.instance_checker = wx.SingleInstanceChecker("BlindRSS-Instance-Lock")
+        if self.instance_checker.IsAnotherRunning():
+            wx.MessageBox(_("BlindRSS is already running."), "BlindRSS", wx.ICON_ERROR)
+            return False
+
         try:
             set_user_tool_paths({
                 "ffmpeg": self.config_manager.get("custom_ffmpeg_path", ""),

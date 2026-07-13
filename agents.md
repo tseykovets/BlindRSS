@@ -245,7 +245,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 - When startup refresh is enabled, the first background refresh runs immediately. Whether it forces is decided per provider via `RSSProvider.should_force_startup_refresh()`: the local provider returns True (forcing is just one full GET per feed, so a fresh launch is never left stale by servers that return a spurious 304), while hosted providers such as Miniflux return False to avoid an expensive per-feed fan-out on startup. Manual full refresh remains `force=True`.
 - The `ignore_feed_cache` config (default False) makes the local provider treat every refresh (including periodic/background) as forced, so feeds whose servers return spurious 304s keep updating in the background. The startup refresh fetches fresh regardless; this setting only affects periodic refreshes. Exposed in Settings as "Always fetch full feeds in the background (ignore feed caching)".
 - Feed-format compatibility is part of refresh, not discovery only. Keep tests for legacy RSS/RDF, Atom, JSON Feed, WordPress `content:encoded`, 406 retry, and generated entry IDs when touching parser code.
-- Local provider refresh must honor `deleted_articles` tombstones for RSS items and listing feeds (YouTube search, Rumble, Odysee). Deleting while a refresh is active is blocked in the UI to avoid long SQLite/provider waits and inconsistent list updates.
+- Local provider refresh must honor `deleted_articles` tombstones for RSS items and listing feeds (YouTube search, Rumble, Odysee). Delete/restore/purge run unguarded during an active refresh (issue #59): each is its own short, tombstone-safe transaction with its own busy-timeout, so there's nothing left for a UI-level refresh lock to protect against.
 
 ### 2. UI & Threading
 - Startup refresh is backgrounded; tree/list updates are marshaled to main thread via `wx.CallAfter`.
@@ -330,6 +330,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\feed-title-custom-vs-upstream.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\filter-rules-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-fetch-fallback-chain.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-prefetch-refresh-starvation.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\playback-rate-gap-and-render-lag.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\podcast-signed-url-reresolve.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\provider-flat-vs-nested.md

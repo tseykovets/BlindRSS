@@ -61,12 +61,12 @@ def format_accessible_chapter_timestamp(start) -> str:
 
 def format_accessible_chapters(chapters) -> str:
     chapter_list = normalize_accessible_chapters(chapters)
-    lines = [f"Chapters available: {len(chapter_list)}."]
+    lines = [_("Chapters available: {count}.").format(count=len(chapter_list))]
     for index, chapter in enumerate(chapter_list, start=1):
         timestamp = format_accessible_chapter_timestamp(chapter["start"])
-        line = f"Chapter {index}: {timestamp}, {chapter['title']}."
+        line = _("Chapter {index}: {timestamp}, {title}.").format(index=index, timestamp=timestamp, title=chapter['title'])
         if chapter["href"]:
-            line += f" Link: {chapter['href']}"
+            line += _(" Link: {url}").format(chapter['href'])
         lines.append(line)
     return "\n".join(lines)
 
@@ -735,8 +735,8 @@ class AccessibleBrowserFrame(wx.Frame):
         if view_id != self.current_view_id:
             return
         self._loading = False
-        self.article_list.Set(["Failed to load articles."])
-        self.status_lbl.SetLabel(f"Failed to load articles: {error_msg}")
+        self.article_list.Set([_("Failed to load articles.")])
+        self.status_lbl.SetLabel(_("Failed to load articles: {error}").format(error=error_msg))
 
     def _finish_load_articles_page(self, view_id, offset, page, total):
         if view_id != self.current_view_id:

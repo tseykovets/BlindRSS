@@ -2172,7 +2172,7 @@ class PlayerFrame(wx.Frame):
         href = self._chapter_href_at_index(idx)
         if href is None:
             try:
-                self._set_status("Chapter link unavailable")
+                self._set_status(_("Chapter link unavailable"))
             except Exception:
                 pass
             return False
@@ -2183,7 +2183,7 @@ class PlayerFrame(wx.Frame):
             opened = False
         if opened is False:
             try:
-                self._set_status("Could not open chapter link")
+                self._set_status(_("Could not open chapter link"))
             except Exception:
                 pass
             return False
@@ -3276,7 +3276,7 @@ class PlayerFrame(wx.Frame):
         except Exception:
             pass
         try:
-            self._set_status("Failed to load media")
+            self._set_status(_("Failed to load media"))
         except Exception:
             pass
         if open_browser and url:
@@ -3797,7 +3797,7 @@ class PlayerFrame(wx.Frame):
         # The resolve worker already waited for the shared instance, so this
         # either adopts it instantly or fails fast when VLC is unavailable.
         if not self.is_casting and not self._ensure_vlc_ready():
-            self._set_status("Failed to load media")
+            self._set_status(_("Failed to load media"))
             wx.MessageBox(
                 _("VLC is not initialized. Playback is unavailable."),
                 _("Error"),
@@ -3882,7 +3882,7 @@ class PlayerFrame(wx.Frame):
             else:
                 self.casting_manager.play(final_url, self.current_title, content_type="audio/mpeg")
             self.is_playing = True
-            self._set_status("Playing")
+            self._set_status(_("Playing"))
         else:
             try:
                 low = str(final_url or "").lower()
@@ -3943,7 +3943,7 @@ class PlayerFrame(wx.Frame):
             self._last_load_title = self.current_title
             if not vlc_direct:
                 self._queue_silence_scan(final_url, int(getattr(self, "_active_load_seq", 0)), headers=ytdlp_headers)
-            self._set_status("Buffering...")
+            self._set_status(_("Buffering..."))
             self._load_vlc_url(
                 final_url,
                 load_seq=int(getattr(self, "_active_load_seq", 0)),
@@ -4080,7 +4080,7 @@ class PlayerFrame(wx.Frame):
         except Exception:
             pass
 
-        self._set_status("Connecting...")
+        self._set_status(_("Connecting..."))
         try:
             self._load_start_ts = float(time.monotonic())
         except Exception:
@@ -4140,7 +4140,7 @@ class PlayerFrame(wx.Frame):
         self._ytdlp_download_fallback_tried = True
         _log(f"YouTube stream playback failed ({reason or 'unknown'}); downloading audio to play locally")
         try:
-            wx.CallAfter(self._set_status, "Downloading for playback...")
+            wx.CallAfter(self._set_status, _("Downloading for playback..."))
         except Exception:
             pass
         threading.Thread(
@@ -5949,7 +5949,7 @@ class PlayerFrame(wx.Frame):
                 self.player.play()
                 self.is_playing = True
                 self._set_play_button_label(True)
-                self._set_status("Playing")
+                self._set_status(_("Playing"))
                 self._apply_volume_when_ready()
             except Exception:
                 pass
@@ -6257,7 +6257,7 @@ class PlayerFrame(wx.Frame):
                 pass
             self.is_playing = True
             self._set_play_button_label(True)
-            self._set_status("Playing")
+            self._set_status(_("Playing"))
         else:
             try:
                 try:
@@ -6282,7 +6282,7 @@ class PlayerFrame(wx.Frame):
                 self._apply_volume_when_ready()
 
                 self._set_play_button_label(True)
-                self._set_status("Playing")
+                self._set_status(_("Playing"))
                 if not self.timer.IsRunning():
                     interval = 500
                     try:
@@ -6313,7 +6313,7 @@ class PlayerFrame(wx.Frame):
                 self.casting_manager.pause_async()
                 self.is_playing = False
                 self._set_play_button_label(False)
-                self._set_status("Paused")
+                self._set_status(_("Paused"))
             except Exception:
                 pass
         else:
@@ -6330,7 +6330,7 @@ class PlayerFrame(wx.Frame):
                         return
                 self.is_playing = False
                 self._set_play_button_label(False)
-                self._set_status("Paused")
+                self._set_status(_("Paused"))
             except Exception:
                 log.exception("Failed to pause player")
 
@@ -6369,7 +6369,7 @@ class PlayerFrame(wx.Frame):
         self._cancel_silence_scan()
         self.is_playing = False
         self._set_play_button_label(False)
-        self._set_status("Stopped")
+        self._set_status(_("Stopped"))
 
         try:
             self.slider.SetValue(0)
@@ -6481,7 +6481,7 @@ class PlayerFrame(wx.Frame):
         except Exception:
             log.exception("Error during player shutdown")
         try:
-            self._set_status("Stopped")
+            self._set_status(_("Stopped"))
         except Exception:
             pass
         try:

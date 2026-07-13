@@ -4158,6 +4158,112 @@ def _impersonated_discovery_retry(url: str, timeout: float):
     return resp
 
 
+# Well-known feed locations probed when a page doesn't advertise its feed.
+# Ordered by how common each convention is; includes the old-school
+# /backend.xml (TechSpot, classic Slashdot-era sites) and the WordPress
+# query-string fallbacks, which some sites serve even when /feed is blocked.
+_COMMON_FEED_PROBE_PATHS = (
+    "/feed",
+    "/rss",
+    "/feed.xml",
+    "/rss.xml",
+    "/atom.xml",
+    "/index.xml",
+    "/backend.xml",
+    "/index.rss",
+    "/index.atom",
+    "/atom",
+    "/feeds",
+    "?feed=rss2",
+    "?rss=1",
+)
+_FEED_PROBE_MAX_WORKERS = 6
+
+
+def _probe_feed_path_candidate(candidate: str, timeout: float) -> bool:
+    """True when `candidate` serves a real feed.
+
+    HEAD first (cheap); when HEAD is blocked or ambiguous, confirm with a GET
+    and structural validation. WAFs on sites like techspot.com reject HEAD
+    (403) but serve the feed to GET, so a blocked HEAD must not end the probe.
+    """
+    head_status = None
+    try:
+        head = utils.safe_requests_head(candidate, timeout=timeout, allow_redirects=True)
+        head_status = int(getattr(head, "status_code", 0) or 0)
+        if head_status == 200:
+            ct = (head.headers.get("Content-Type", "") or "").lower()
+            if any(x in ct for x in ("xml", "rss", "atom", "json")):
+                return True
+    except Exception:
+        head_status = None
+    if head_status in (404, 410):
+        # A clean miss; no point re-fetching.
+        return False
+    try:
+        got = utils.safe_requests_get(candidate, timeout=timeout)
+        if int(getattr(got, "status_code", 0) or 0) != 200:
+            return False
+        return _body_looks_like_feed(
+            got.text or "", str(got.headers.get("Content-Type", "") or "")
+        )
+    except Exception:
+        return False
+
+
+def _probe_common_feed_paths(effective_url: str, timeout: float = 5.0) -> list[str]:
+    """Probe well-known feed paths for a page, returning confirmed feed URLs.
+
+    Probes relative to the page's own path and, when the page isn't the site
+    root, relative to the root as well (a subpage's feed often lives at the
+    root). Candidates are checked concurrently; results keep candidate order.
+    """
+    page_base = str(effective_url or "").rstrip("/")
+    if not page_base:
+        return []
+    bases = [page_base]
+    try:
+        parsed = urlparse(page_base)
+        root = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+        if root and root.rstrip("/") != page_base:
+            bases.append(root.rstrip("/"))
+    except Exception:
+        pass
+
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for base in bases:
+        for path in _COMMON_FEED_PROBE_PATHS:
+            candidate = base + path
+            if candidate not in seen:
+                seen.add(candidate)
+                candidates.append(candidate)
+    if not candidates:
+        return []
+
+    confirmed: dict[str, bool] = {}
+    max_workers = max(1, min(_FEED_PROBE_MAX_WORKERS, len(candidates)))
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+            future_map = {
+                pool.submit(_probe_feed_path_candidate, c, timeout): c for c in candidates
+            }
+            for fut in concurrent.futures.as_completed(list(future_map.keys())):
+                c = future_map.get(fut) or ""
+                try:
+                    confirmed[c] = bool(fut.result())
+                except Exception:
+                    confirmed[c] = False
+    except Exception:
+        for c in candidates:
+            try:
+                confirmed[c] = _probe_feed_path_candidate(c, timeout)
+            except Exception:
+                confirmed[c] = False
+
+    return [c for c in candidates if confirmed.get(c)]
+
+
 def discover_feed(url: str, request_timeout: float = 10.0, probe_timeout: float = 5.0) -> str:
     """
     Given a URL, try to find the RSS/Atom feed URL.
@@ -4232,20 +4338,10 @@ def discover_feed(url: str, request_timeout: float = 10.0, probe_timeout: float 
         if candidates:
             return candidates[0]
                     
-        # 2. Check for common patterns if no link tag
-        # e.g. /feed, /rss, /atom.xml
-        # This is a bit brute force but helpful
-        common_paths = ["/feed", "/rss", "/rss.xml", "/atom.xml", "/feed.xml"]
-        base = effective_url.rstrip("/")
-        for path in common_paths:
-            # Avoid re-checking
-            candidate = base + path
-            try:
-                head = utils.safe_requests_head(candidate, timeout=head_timeout, allow_redirects=True)
-                if head.status_code == 200 and "xml" in head.headers.get("Content-Type", ""):
-                    return candidate
-            except Exception:
-                pass
+        # 2. Check well-known feed locations if no link tag advertised one.
+        probed = _probe_common_feed_paths(effective_url, timeout=head_timeout)
+        if probed:
+            return probed[0]
 
     except Exception:
         pass
@@ -4370,19 +4466,9 @@ def discover_feeds(url: str) -> list[str]:
             except Exception:
                 continue
 
-        # 3) Common paths (HEAD check)
-        common_paths = ["/feed", "/rss", "/rss.xml", "/atom.xml", "/feed.xml", "/index.xml"]
-        base = effective_url.rstrip("/")
-        for path in common_paths:
-            candidate = base + path
-            try:
-                head = utils.safe_requests_head(candidate, timeout=5, allow_redirects=True)
-                if head.status_code == 200:
-                    ct = (head.headers.get("Content-Type", "") or "").lower()
-                    if any(x in ct for x in ("xml", "rss", "atom", "json")):
-                        _add(candidate)
-            except Exception:
-                continue
+        # 3) Well-known feed locations (validated probe; tolerates HEAD-blocking WAFs)
+        for candidate in _probe_common_feed_paths(effective_url, timeout=5):
+            _add(candidate)
 
     except Exception:
         pass

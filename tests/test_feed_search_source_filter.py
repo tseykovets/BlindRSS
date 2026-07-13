@@ -178,8 +178,48 @@ def test_feed_search_bluesky_only_source_is_supported():
     assert _target_names(targets) == ["Bluesky"]
 
 
-def test_feed_search_feedsearch_selection_still_applies_url_term_guard():
+def test_feed_search_explicit_feedsearch_selection_runs_for_keyword():
+    # Explicitly picking a website-scan source must always run it: the source
+    # itself guesses "<term>.com" for bare site names (the "techspot" case).
     host = _Host()
     targets = host._build_search_targets("keyword", "feedsearch")
 
-    assert targets == []
+    assert _target_names(targets) == ["Feedsearch"]
+
+
+def test_feed_search_explicit_blindrss_selection_runs_for_keyword():
+    host = _Host()
+    targets = host._build_search_targets("techspot", "blindrss")
+
+    assert _target_names(targets) == ["BlindRSS"]
+
+
+def test_feed_search_all_sources_single_word_includes_local_site_scan():
+    # A single-word term ("techspot") runs the local website scan (which tries
+    # techspot.com) but keeps the external Feedsearch service URL-gated.
+    host = _Host()
+    targets = host._build_search_targets("techspot", host._SOURCE_ALL)
+
+    names = _target_names(targets)
+    assert "BlindRSS" in names
+    assert "Feedsearch" not in names
+
+
+def test_feed_search_all_rss_single_word_includes_local_site_scan():
+    host = _Host()
+    targets = host._build_search_targets("techspot", host._SOURCE_ALL_RSS)
+
+    names = _target_names(targets)
+    assert "BlindRSS" in names
+    assert "Feedsearch" not in names
+
+
+def test_site_scan_targets_normalization():
+    fn = dialogs.FeedSearchDialog._site_scan_targets
+
+    assert fn("https://www.techspot.com") == ["https://www.techspot.com"]
+    assert fn("techspot.com") == ["https://techspot.com"]
+    assert fn("techspot") == ["https://techspot.com"]
+    assert fn("TechSpot") == ["https://techspot.com"]
+    assert fn("blue sky") == []
+    assert fn("") == []

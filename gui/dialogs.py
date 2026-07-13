@@ -3,6 +3,7 @@ import wx.adv
 import concurrent.futures
 import copy
 import queue
+import re
 import threading
 import webbrowser
 import time
@@ -3387,8 +3388,8 @@ class FeedSearchDialog(wx.Dialog):
         ("Bluesky", "bluesky"),
         ("PieFed", "piefed"),
         ("Lemmy/Kbin", "lemmy"),
-        ("Feedsearch (URL/domain)", "feedsearch"),
-        ("BlindRSS discovery (URL/domain)", "blindrss"),
+        ("Feedsearch (URL or site name)", "feedsearch"),
+        ("Website scan (URL or site name)", "blindrss"),
     ]
 
     def __init__(self, parent):
@@ -3529,11 +3530,22 @@ class FeedSearchDialog(wx.Dialog):
             target_keys = [key for _, key, _ in all_targets]
 
         url_like = self._is_url_like_term(term)
+        single_word = bool(str(term or "").strip()) and " " not in str(term or "").strip()
         filtered = []
         for key in target_keys:
             name, _, fn = by_key[key]
             if key in ("feedsearch", "blindrss") and not url_like:
-                continue
+                # Both sources scan a website rather than a directory. When the
+                # user picks one explicitly, always run it — the source guesses
+                # "<term>.com" for bare site names (e.g. "techspot"). In the
+                # grouped modes, run the local website scan for single-word
+                # terms too, but keep the external Feedsearch service URL-gated.
+                if source_key == key:
+                    pass
+                elif key == "blindrss" and single_word:
+                    pass
+                else:
+                    continue
             filtered.append((name, fn))
         return filtered
 
@@ -4077,10 +4089,48 @@ class FeedSearchDialog(wx.Dialog):
         if all_results:
             queue.put(("Fediverse", all_results))
 
+    @staticmethod
+    def _site_scan_targets(term):
+        """Normalize a search term into website URLs worth scanning for feeds.
+
+        Full URLs pass through, bare domains get https://, and single-word
+        site names are guessed as <name>.com (the "techspot" case — the site
+        has a feed at /backend.xml that no directory indexes).
+        """
+        t = str(term or "").strip()
+        if not t:
+            return []
+        if "://" in t:
+            return [t]
+        if " " not in t and "." in t:
+            return ["https://" + t]
+        if " " not in t:
+            slug = re.sub(r"[^a-z0-9-]", "", t.lower())
+            if slug:
+                return [f"https://{slug}.com"]
+        return []
+
+    @staticmethod
+    def _fetch_feed_title(feed_url, timeout=8):
+        """Best-effort feed title so results read as names, not raw URLs."""
+        try:
+            resp = utils.safe_requests_get(feed_url, timeout=timeout)
+            if int(getattr(resp, "status_code", 0) or 0) != 200:
+                return ""
+            import feedparser
+            parsed = feedparser.parse(resp.text or "")
+            return str(getattr(parsed.feed, "title", "") or "").strip()
+        except Exception:
+            return ""
+
     def _search_feedsearch(self, term, queue):
         try:
             import urllib.parse
-            url = f"https://feedsearch.dev/api/v1/search?url={urllib.parse.quote(term)}"
+            t = str(term or "").strip()
+            if t and "://" not in t and "." not in t and " " not in t:
+                # Bare site name (explicit source selection): guess <name>.com.
+                t = re.sub(r"[^a-z0-9-]", "", t.lower()) + ".com"
+            url = f"https://feedsearch.dev/api/v1/search?url={urllib.parse.quote(t)}"
             resp = utils.safe_requests_get(url, timeout=15)
             if resp.status_code == 200:
                 data = resp.json()
@@ -4096,42 +4146,36 @@ class FeedSearchDialog(wx.Dialog):
             pass
 
     def _search_blindrss(self, term, queue):
-        # Local discovery
+        # Local website scan: fetch the site itself and discover its feeds
+        # (link rel=alternate, on-page links, well-known paths like /feed and
+        # /backend.xml, with WAF-impersonation retries). The only source that
+        # can surface feeds no directory indexes — e.g. techspot.com/backend.xml.
         try:
-            from core.discovery import discover_feeds, discover_feed
-            
+            from core.discovery import discover_feeds
+
             candidates = []
-            
-            # 1. discover_feeds (list)
-            try:
-                c1 = discover_feeds(term)
-                candidates.extend(c1)
-            except: pass
-            
-            # 2. discover_feed (single, maybe different logic)
-            if not candidates:
-                 try:
-                    c2 = discover_feed(term)
-                    if c2: candidates.append(c2)
-                 except: pass
-                 
-            # 3. Try with https:// if missing
-            if not candidates and "://" not in term:
-                 try:
-                    c3 = discover_feeds("https://" + term)
-                    candidates.extend(c3)
-                 except: pass
+            for target in self._site_scan_targets(term):
+                try:
+                    candidates = discover_feeds(target)
+                except Exception:
+                    candidates = []
+                if candidates:
+                    break
 
             results = []
             seen = set()
             for c in candidates:
-                if c not in seen:
-                    seen.add(c)
-                    results.append({
-                        "title": c,
-                        "detail": "Local Discovery",
-                        "url": c
-                    })
+                if not c or c in seen:
+                    continue
+                seen.add(c)
+                # Titles make results readable for screen readers; cap the
+                # extra fetches so a long candidate list stays fast.
+                title = self._fetch_feed_title(c) if len(results) < 5 else ""
+                results.append({
+                    "title": title or c,
+                    "detail": "Website scan",
+                    "url": c
+                })
             if results:
                 queue.put(("BlindRSS", results))
 

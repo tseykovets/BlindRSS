@@ -4,6 +4,11 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.98.1 - 2026-07-13
+
+- Stop refresh from holding the SQLite write lock across per-entry work.
+- Stop refresh churn from starving on-demand full-text extraction.
+
 ## v1.98.0 - 2026-07-13
 
 - Allow delete/restore during refresh, add filter shortcuts, fix i18n init order.

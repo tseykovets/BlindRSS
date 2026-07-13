@@ -4,6 +4,16 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.99.0 - 2026-07-13
+
+- Make NewsBlur the primary feed directory.
+- Website scan in Find-a-Feed finds unadvertised feeds like TechSpot's backend.xml.
+- Merge pull request #62 from tseykovets/ru.
+- Merge main into ru and regenerate translations.
+- Update Russian translation.
+- Add gettext support to new strings.
+- Add plural forms with ngettext.
+
 ## v1.98.1 - 2026-07-13
 
 - Stop refresh from holding the SQLite write lock across per-entry work.

@@ -50,6 +50,82 @@ msgstr ""
 msgid "Could not register BlindRSS to start at login: {error} (the failed plist could not be removed: {cleanup_error})"
 msgstr ""
 
+#: core/updater.py:293
+msgid "Update available."
+msgstr ""
+
+#: core/updater.py:193
+msgid "No release data from GitHub."
+msgstr ""
+
+#: core/updater.py:218
+msgid "Update manifest is empty."
+msgstr ""
+
+#: core/updater.py:222
+msgid "Update manifest has invalid version."
+msgstr ""
+
+#: core/updater.py:224
+msgid "Update manifest version does not match the latest release."
+msgstr ""
+
+#: core/updater.py:228
+msgid "Update manifest is missing asset name."
+msgstr ""
+
+#: core/updater.py:238
+msgid "Update manifest is missing a download URL."
+msgstr ""
+
+#: core/updater.py:242
+msgid "Update manifest has an invalid SHA-256 hash."
+msgstr ""
+
+#: core/updater.py:187
+msgid "Invalid current version: {version}"
+msgstr ""
+
+#: core/updater.py:198
+msgid "Latest release tag is not semver: {tag}"
+msgstr ""
+
+#: core/updater.py:201
+msgid "BlindRSS is up to date ({version})."
+msgstr ""
+
+#: core/updater.py:205
+msgid "Auto-update is not supported on this platform ({platform})."
+msgstr ""
+
+#: core/updater.py:212
+msgid "Update manifest '{manifest}' not found in release assets."
+msgstr ""
+
+#: core/updater.py:230
+msgid "Update asset must be a {extension} file."
+msgstr ""
+
+#: core/updater.py:234
+msgid "Update asset '{name}' not found in release assets."
+msgstr ""
+
+#: core/updater.py:260
+msgid "Windows installer asset must be an .exe file."
+msgstr ""
+
+#: core/updater.py:269
+msgid "Update installer has an invalid SHA-256 hash."
+msgstr ""
+
+#: core/updater.py:276
+msgid "Update installer is missing a download URL."
+msgstr ""
+
+#: core/updater.py:265
+msgid "Update installer '{name}' not found in release assets."
+msgstr ""
+
 #: core/utils.py:801
 msgid "Just now"
 msgstr ""
@@ -115,7 +191,14 @@ msgstr ""
 msgid "Read Articles"
 msgstr ""
 
+#: gui/accessibility.py:378
+#: gui/accessibility.py:377
+#: gui/tray.py:100
+msgid "Refresh Feeds"
+msgstr ""
+
 #: gui/accessibility.py:579
+#: gui/mainframe.py:6139
 msgid "Refreshing feeds..."
 msgstr ""
 
@@ -138,11 +221,6 @@ msgstr ""
 
 #: gui/accessibility.py:369
 msgid "VoiceOver-friendly browser for feeds, articles, and content. Use the lists below to choose a view and article."
-msgstr ""
-
-#: gui/accessibility.py:377
-#: gui/tray.py:100
-msgid "Refresh Feeds"
 msgstr ""
 
 #: gui/accessibility.py:380
@@ -405,6 +483,10 @@ msgstr ""
 
 #: gui/dialogs.py:2529
 msgid "Cookies imported"
+msgstr ""
+
+#: gui/dialogs.py:2823
+msgid "Refresh interval for this feed"
 msgstr ""
 
 #: gui/dialogs.py:3103
@@ -1376,6 +1458,10 @@ msgstr ""
 msgid "When I delete an article from this feed:"
 msgstr ""
 
+#: gui/dialogs.py:3276
+msgid "Refreshing '{title}'..."
+msgstr ""
+
 #: gui/dialogs.py:3405
 #: gui/dialogs.py:4271
 msgid "Search:"
@@ -1449,6 +1535,10 @@ msgstr ""
 #: gui/dialogs.py:2381
 #: gui/dialogs.py:2498
 msgid "Cookies"
+msgstr ""
+
+#: gui/dialogs.py:3276
+msgid "feed"
 msgstr ""
 
 #: gui/dialogs.py:3820
@@ -1921,6 +2011,10 @@ msgstr ""
 msgid "Add Subcategory"
 msgstr ""
 
+#: gui/mainframe.py:6149
+msgid "Refresh complete"
+msgstr ""
+
 #: gui/mainframe.py:7937
 msgid "Find in article:"
 msgstr ""
@@ -1947,6 +2041,17 @@ msgstr ""
 
 #: gui/mainframe.py:680
 msgid "(No saved searches)"
+msgstr ""
+
+#: gui/mainframe.py:1038
+#: gui/mainframe.py:9059
+#: gui/mainframe.py:9263
+msgid "Read"
+msgstr ""
+
+#: gui/mainframe.py:1038
+#: gui/mainframe.py:9069
+msgid "Unread"
 msgstr ""
 
 #: gui/mainframe.py:1518
@@ -2098,6 +2203,14 @@ msgstr ""
 msgid "Jump to next chapter"
 msgstr ""
 
+#: gui/mainframe.py:2922
+msgid "Stopping refresh..."
+msgstr ""
+
+#: gui/mainframe.py:2924
+msgid "No refresh in progress"
+msgstr ""
+
 #: gui/mainframe.py:3765
 msgid "Refresh Category"
 msgstr ""
@@ -2226,6 +2339,10 @@ msgstr ""
 
 #: gui/mainframe.py:5929
 msgid "Warning"
+msgstr ""
+
+#: gui/mainframe.py:6147
+msgid "Refresh stopped"
 msgstr ""
 
 #: gui/mainframe.py:9503
@@ -2474,6 +2591,18 @@ msgstr ""
 msgid "Enter subcategory name (under '{category}'):"
 msgstr ""
 
+#: gui/mainframe.py:6139
+msgid "Refreshing {detail}..."
+msgstr ""
+
+#: gui/mainframe.py:6160
+msgid "Error checking: {title}"
+msgstr ""
+
+#: gui/mainframe.py:6162
+msgid "Checked: {title}"
+msgstr ""
+
 #: gui/mainframe.py:9096
 #: gui/mainframe.py:9251
 msgid "Mark All as Read"
@@ -2491,6 +2620,16 @@ msgstr ""
 #: gui/mainframe.py:10074
 #: gui/mainframe.py:9963
 msgid "Download error"
+msgstr ""
+
+#: gui/mainframe.py:10004
+#: gui/mainframe.py:10078
+#: gui/mainframe.py:9964
+msgid "Download failed: {title}"
+msgstr ""
+
+#: gui/mainframe.py:10029
+msgid "Downloading: {title}"
 msgstr ""
 
 #: gui/mainframe.py:10418
@@ -2677,6 +2816,11 @@ msgstr ""
 #: gui/mainframe.py:10065
 #: gui/mainframe.py:9983
 msgid "Download complete"
+msgstr ""
+
+#: gui/mainframe.py:10068
+#: gui/mainframe.py:9986
+msgid "Download complete: {title}"
 msgstr ""
 
 #: gui/mainframe.py:10315

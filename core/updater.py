@@ -16,6 +16,8 @@ from typing import Iterable, Optional, Tuple
 
 from packaging.version import Version, InvalidVersion
 
+from core.i18n import _
+
 from core.config import APP_DIR, is_windows_installed_build
 from core.utils import safe_requests_get
 from core.version import APP_VERSION
@@ -182,62 +184,62 @@ def _download_json(url: str, timeout: int = 20) -> Tuple[Optional[dict], Optiona
 def check_for_updates() -> UpdateCheckResult:
     current = _parse_version(APP_VERSION)
     if not current:
-        return UpdateCheckResult("error", f"Invalid current version: {APP_VERSION}")
+        return UpdateCheckResult("error", _("Invalid current version: {version}").format(version=APP_VERSION))
 
     release, err = _fetch_latest_release()
     if err:
         return UpdateCheckResult("error", err)
     if not release:
-        return UpdateCheckResult("error", "No release data from GitHub.")
+        return UpdateCheckResult("error", _("No release data from GitHub."))
 
     tag = str(release.get("tag_name") or "").strip()
     latest = _parse_version(tag)
     if not latest:
-        return UpdateCheckResult("error", f"Latest release tag is not semver: {tag}")
+        return UpdateCheckResult("error", _("Latest release tag is not semver: {tag}").format(tag=tag))
 
     if latest <= current:
-        return UpdateCheckResult("up_to_date", f"BlindRSS is up to date ({_format_version_tag(current)}).")
+        return UpdateCheckResult("up_to_date", _("BlindRSS is up to date ({version}).").format(version=_format_version_tag(current)))
 
     platform = current_platform()
     if not platform:
-        return UpdateCheckResult("error", f"Auto-update is not supported on this platform ({sys.platform}).")
+        return UpdateCheckResult("error", _("Auto-update is not supported on this platform ({platform}).").format(platform=sys.platform))
 
     manifest_name = platform_manifest_name(platform)
     asset_extension = platform_asset_extension(platform)
 
     manifest_asset = _find_release_asset(release, manifest_name)
     if not manifest_asset:
-        return UpdateCheckResult("error", f"Update manifest '{manifest_name}' not found in release assets.")
+        return UpdateCheckResult("error", _("Update manifest '{manifest}' not found in release assets.").format(manifest=manifest_name))
 
     manifest, err = _download_json(manifest_asset.get("browser_download_url", ""))
     if err:
         return UpdateCheckResult("error", err)
     if not manifest:
-        return UpdateCheckResult("error", "Update manifest is empty.")
+        return UpdateCheckResult("error", _("Update manifest is empty."))
 
     manifest_version = _parse_version(str(manifest.get("version") or ""))
     if not manifest_version:
-        return UpdateCheckResult("error", "Update manifest has invalid version.")
+        return UpdateCheckResult("error", _("Update manifest has invalid version."))
     if manifest_version != latest:
-        return UpdateCheckResult("error", "Update manifest version does not match the latest release.")
+        return UpdateCheckResult("error", _("Update manifest version does not match the latest release."))
 
     asset_name = manifest.get("asset") or manifest.get("asset_name") or ""
     if not asset_name:
-        return UpdateCheckResult("error", "Update manifest is missing asset name.")
+        return UpdateCheckResult("error", _("Update manifest is missing asset name."))
     if not asset_name.endswith(asset_extension):
-        return UpdateCheckResult("error", f"Update asset must be a {asset_extension} file.")
+        return UpdateCheckResult("error", _("Update asset must be a {extension} file.").format(extension=asset_extension))
 
     asset = _find_release_asset(release, asset_name)
     if not asset:
-        return UpdateCheckResult("error", f"Update asset '{asset_name}' not found in release assets.")
+        return UpdateCheckResult("error", _("Update asset '{name}' not found in release assets.").format(name=asset_name))
 
     download_url = asset.get("browser_download_url") or manifest.get("download_url") or ""
     if not download_url:
-        return UpdateCheckResult("error", "Update manifest is missing a download URL.")
+        return UpdateCheckResult("error", _("Update manifest is missing a download URL."))
 
     sha256 = str(manifest.get("sha256") or "").strip().lower()
     if not re.fullmatch(r"[0-9a-f]{64}", sha256):
-        return UpdateCheckResult("error", "Update manifest has an invalid SHA-256 hash.")
+        return UpdateCheckResult("error", _("Update manifest has an invalid SHA-256 hash."))
 
     notes_summary = str(manifest.get("notes_summary") or "").strip()
     published_at = str(release.get("published_at") or manifest.get("published_at") or "")
@@ -255,23 +257,23 @@ def check_for_updates() -> UpdateCheckResult:
                 installer.get("asset") or installer.get("asset_name") or ""
             ).strip()
             if not installer_name.lower().endswith(".exe"):
-                return UpdateCheckResult("error", "Windows installer asset must be an .exe file.")
+                return UpdateCheckResult("error", _("Windows installer asset must be an .exe file."))
             installer_asset = _find_release_asset(release, installer_name)
             if not installer_asset:
                 return UpdateCheckResult(
                     "error",
-                    f"Update installer '{installer_name}' not found in release assets.",
+                    _("Update installer '{name}' not found in release assets.").format(name=installer_name),
                 )
             installer_sha256 = str(installer.get("sha256") or "").strip().lower()
             if not re.fullmatch(r"[0-9a-f]{64}", installer_sha256):
-                return UpdateCheckResult("error", "Update installer has an invalid SHA-256 hash.")
+                return UpdateCheckResult("error", _("Update installer has an invalid SHA-256 hash."))
             installer_url = (
                 installer_asset.get("browser_download_url")
                 or installer.get("download_url")
                 or ""
             )
             if not installer_url:
-                return UpdateCheckResult("error", "Update installer is missing a download URL.")
+                return UpdateCheckResult("error", _("Update installer is missing a download URL."))
             asset_name = installer_name
             download_url = installer_url
             sha256 = installer_sha256
@@ -288,7 +290,7 @@ def check_for_updates() -> UpdateCheckResult:
         signing_thumbprints=allowed_thumbprints,
         asset_kind=asset_kind,
     )
-    return UpdateCheckResult("update_available", "Update available.", info)
+    return UpdateCheckResult("update_available", _("Update available."), info)
 
 
 def _macos_app_bundle_root() -> Optional[str]:

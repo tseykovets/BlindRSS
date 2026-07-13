@@ -2820,7 +2820,7 @@ class FeedPropertiesDialog(wx.Dialog):
             (14400, _("4 hours")),
         ]
         self.refresh_interval_ctrl = wx.Choice(self, choices=[lbl for _v, lbl in self._refresh_interval_choices])
-        self.refresh_interval_ctrl.SetName("Refresh interval for this feed")
+        self.refresh_interval_ctrl.SetName(_("Refresh interval for this feed"))
         try:
             current_interval = self._feed_settings.get("refresh_interval_seconds")
         except Exception:
@@ -3273,7 +3273,7 @@ class FeedErrorsDialog(wx.Dialog):
             return
         prior_index = self._selected_index()
         self._busy = True
-        self.heading.SetLabel(f"Refreshing “{err.get('title') or 'feed'}”…")
+        self.heading.SetLabel(_("Refreshing '{title}'...").format(title=err.get('title') or _("feed")))
 
         def worker():
             try:

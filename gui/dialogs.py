@@ -3365,23 +3365,28 @@ class FeedSearchDialog(wx.Dialog):
     _SOURCE_ALL_PODCAST = "__all_podcast__"
     _SOURCE_ALL_RSS = "__all_rss__"
     _PODCAST_SOURCE_KEYS = ["itunes", "gpodder", "fyyd", "podverse", "soundcloud", "mixcloud"]
-    _RSS_SOURCE_KEYS = ["feedly", "feedspot", "googlenews", "bingnews", "youtube", "soundcloud", "mixcloud", "newsblur", "reddit", "fediverse", "feedsearch", "blindrss"]
+    # NewsBlur's autocomplete is the primary feed-name directory (it searches
+    # feed names AND addresses and needs no auth). Feedly is kept selectable
+    # but is no longer one of the aggregated default sources, so no single
+    # directory is relied on. Feedsearch + the local website scan cover
+    # domain/site-name discovery.
+    _RSS_SOURCE_KEYS = ["newsblur", "feedspot", "googlenews", "bingnews", "youtube", "soundcloud", "mixcloud", "reddit", "fediverse", "feedsearch", "blindrss"]
     _SOURCE_CHOICES = [
         ("All sources", _SOURCE_ALL),
         ("All podcast sources", _SOURCE_ALL_PODCAST),
         ("All RSS feed sources", _SOURCE_ALL_RSS),
+        ("NewsBlur", "newsblur"),
         ("iTunes", "itunes"),
         ("gPodder", "gpodder"),
         ("fyyd", "fyyd"),
         ("Podverse", "podverse"),
-        ("Feedly", "feedly"),
         ("Feedspot", "feedspot"),
         ("Google News", "googlenews"),
         ("Bing News", "bingnews"),
         ("YouTube", "youtube"),
         ("SoundCloud", "soundcloud"),
         ("Mixcloud", "mixcloud"),
-        ("NewsBlur", "newsblur"),
+        ("Feedly", "feedly"),
         ("Reddit", "reddit"),
         ("Fediverse (all)", "fediverse"),
         ("Mastodon", "mastodon"),
@@ -3440,7 +3445,7 @@ class FeedSearchDialog(wx.Dialog):
 
         # Attribution / Help
         help_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        help_sizer.Add(wx.StaticText(self, label=_("Sources: iTunes, gPodder, fyyd, Podverse, YouTube, Feedly, Feedspot, Google News, Bing News, Feedsearch, NewsBlur, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed)")), 0, wx.ALL, 5)
+        help_sizer.Add(wx.StaticText(self, label=_("Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source.")), 0, wx.ALL, 5)
         sizer.Add(help_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
         
         # Buttons
@@ -3491,24 +3496,27 @@ class FeedSearchDialog(wx.Dialog):
 
     def _build_search_targets(self, term, source_key):
         all_targets = [
+            ("NewsBlur", "newsblur", self._search_newsblur),
             ("iTunes", "itunes", self._search_itunes),
             ("gPodder", "gpodder", self._search_gpodder),
             ("fyyd", "fyyd", self._search_fyyd),
             ("Podverse", "podverse", self._search_podverse),
-            ("Feedly", "feedly", self._search_feedly),
             ("Feedspot", "feedspot", self._search_feedspot),
             ("Google News", "googlenews", self._search_googlenews),
             ("Bing News", "bingnews", self._search_bingnews),
             ("YouTube", "youtube", self._search_youtube_channels),
             ("SoundCloud", "soundcloud", self._search_soundcloud),
             ("Mixcloud", "mixcloud", self._search_mixcloud),
-            ("NewsBlur", "newsblur", self._search_newsblur),
             ("Reddit", "reddit", self._search_reddit),
             ("Fediverse", "fediverse", self._search_fediverse),
             ("Feedsearch", "feedsearch", self._search_feedsearch),
             ("BlindRSS", "blindrss", self._search_blindrss),
         ]
+        # Feedly is still selectable on its own but excluded from the "all"
+        # groups (NewsBlur is the primary directory now). Fediverse per-network
+        # sources are likewise explicit-only.
         specific_targets = {
+            "feedly": ("Feedly", "feedly", self._search_feedly),
             "mastodon": ("Mastodon", "mastodon", self._search_mastodon),
             "bluesky": ("Bluesky", "bluesky", self._search_bluesky),
             "piefed": ("PieFed", "piefed", self._search_piefed),
@@ -3983,40 +3991,55 @@ class FeedSearchDialog(wx.Dialog):
             pass
 
     def _search_newsblur(self, term, queue):
+        # NewsBlur's public discover autocomplete searches feed names AND feed
+        # addresses (falling back to a DB search when its index is empty),
+        # needs no authentication, and returns up to ~20 feeds with real feed
+        # URLs. This is BlindRSS's primary feed-name directory.
         try:
             import urllib.parse
-            # Try autocomplete first
-            url = f"https://newsblur.com/rss_feeds/feed_autocomplete?term={urllib.parse.quote(term)}"
+            url = (
+                "https://www.newsblur.com/discover/autocomplete?"
+                f"term={urllib.parse.quote(term)}&v=2"
+            )
             resp = utils.safe_requests_get(url, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json() # usually a list of dicts
-                results = []
-                for it in data:
-                    if not isinstance(it, dict): continue
-                    # NewsBlur structure: {'value': 'url', 'label': 'Title', ...} or similar
-                    # Check actual response structure. 
-                    # Assuming standard list of dicts with 'value' (ID/URL) and 'label' (Title) 
-                    # OR {'feeds': [...]}
-                    # Actually standard NewsBlur autocomplete returns list of dicts: {value, label, tagline, num_subscribers}
-                    
-                    # Also checking /search_feed endpoint if autocomplete is sparse?
-                    # sticking to autocomplete for now.
-                    
-                    feed_url = it.get("value")
-                    if not feed_url: continue
-                    
-                    # Sometimes value is integer ID, sometimes URL.
-                    # If it's an integer, we might not get the URL easily without auth.
-                    # But for 'feed_autocomplete', it often returns the feed URL in 'address' or 'value' if looking up by address.
-                    # Let's check keys carefully.
-                    u = it.get("address") or it.get("value")
-                    if str(u).isdigit(): continue # Skip internal IDs
-                    
-                    results.append({
-                        "title": it.get("label") or u,
-                        "detail": f"{it.get('tagline', '')} ({it.get('num_subscribers', 0)} subs)",
-                        "url": u
-                    })
+            if resp.status_code != 200:
+                return
+            data = resp.json()
+            # v2 returns {"feeds": [...]}; the older endpoint returned a bare
+            # list. Accept either so a response-shape change can't break search.
+            if isinstance(data, dict):
+                feeds = data.get("feeds") or []
+            elif isinstance(data, list):
+                feeds = data
+            else:
+                feeds = []
+
+            results = []
+            seen = set()
+            for it in feeds:
+                if not isinstance(it, dict):
+                    continue
+                # "value" is the feed address (URL); "id" is NewsBlur's internal
+                # numeric id, which we cannot subscribe to without auth.
+                feed_url = str(it.get("value") or it.get("address") or "").strip()
+                if not feed_url or feed_url.isdigit() or "://" not in feed_url:
+                    continue
+                if feed_url in seen:
+                    continue
+                seen.add(feed_url)
+                tagline = str(it.get("tagline") or "").strip()
+                subs = it.get("num_subscribers")
+                detail = tagline
+                if isinstance(subs, int) and subs > 0:
+                    detail = f"{tagline} ({subs} subscribers)".strip() if tagline else f"{subs} subscribers"
+                results.append({
+                    "title": str(it.get("label") or feed_url).strip(),
+                    "detail": detail or "NewsBlur",
+                    "url": feed_url,
+                })
+                if len(results) >= 20:
+                    break
+            if results:
                 queue.put(("NewsBlur", results))
         except Exception:
             pass

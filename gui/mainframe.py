@@ -7691,7 +7691,12 @@ class MainFrame(wx.Frame):
             idx = -1
 
         if idx is None or idx < 0 or idx >= len(self.current_articles):
-            return
+            # A refresh top-up merge may be mid-rebuild with the physical
+            # selection transiently vacant; fall back to the logical selection
+            # so focusing the reader still starts the full-text load.
+            idx = self._index_of_selected_article()
+            if idx is None:
+                return
 
         self.mark_article_read(idx)
         try:
@@ -7970,6 +7975,25 @@ class MainFrame(wx.Frame):
         if suffix:
             cache_key = f"{cache_key}{suffix}"
         return cache_key, url, str(article_id)
+
+    def _index_of_selected_article(self) -> int | None:
+        """Index of the logically selected article in current_articles.
+
+        During a refresh top-up merge the list control is rebuilt in timer
+        batches and the physical selection stays vacant until the deferred
+        restore runs, so callers that need "the article the user is on" must
+        fall back to selected_article_id rather than GetFirstSelected().
+        """
+        target_id = getattr(self, "selected_article_id", None)
+        if not target_id:
+            return None
+        try:
+            for i, article in enumerate(getattr(self, "current_articles", []) or []):
+                if self._article_cache_id(article) == target_id:
+                    return i
+        except Exception:
+            pass
+        return None
 
     def _translation_enabled_for_content_view(self) -> bool:
         cfg = self._translation_runtime_config()
@@ -8396,16 +8420,27 @@ class MainFrame(wx.Frame):
         if token_snapshot != int(getattr(self, "_fulltext_token", 0)):
             return
 
-        if idx is None or idx < 0 or idx >= len(self.current_articles):
-            return
-
-        try:
-            sel = self.list_ctrl.GetFirstSelected()
-        except Exception:
-            sel = idx
-        if sel is not None and sel >= 0 and sel != idx:
-            # User selection moved; don't start a load for the old index.
-            return
+        # A refresh top-up merge can rebuild the list between scheduling and
+        # now, shifting rows (the scheduled index would fetch the wrong
+        # article) or leaving the physical selection vacant mid-rebuild.
+        # Resolve the target by the logical selection id; fall back to the
+        # positional checks only when no logical selection exists.
+        if getattr(self, "selected_article_id", None):
+            resolved = self._index_of_selected_article()
+            if resolved is None:
+                # Selected article is no longer in the (possibly truncated) view.
+                return
+            idx = resolved
+        else:
+            if idx is None or idx < 0 or idx >= len(self.current_articles):
+                return
+            try:
+                sel = self.list_ctrl.GetFirstSelected()
+            except Exception:
+                sel = idx
+            if sel is not None and sel >= 0 and sel != idx:
+                # User selection moved; don't start a load for the old index.
+                return
 
         article = self.current_articles[idx]
         cache_key, url, _article_id = self._fulltext_cache_key_for_article(article, idx)
@@ -8460,6 +8495,53 @@ class MainFrame(wx.Frame):
                 else:
                     self._fulltext_worker_queue.append(req)
                 self._fulltext_worker_event.set()
+        except Exception:
+            pass
+
+    def _fulltext_apply_result(self, cache_key, rendered, cacheable, cache_source, token_snapshot):
+        """Deliver a finished on-demand extraction on the UI thread.
+
+        Cache upkeep and the in-flight guard release must not depend on the
+        list control's physical selection: refresh top-up merges rebuild the
+        list every ~120ms and leave it selection-less while row batches are
+        re-inserted. Discarding the result here (uncached, guard still set)
+        used to lock the article out of full text until the refresh stopped
+        churning, because the stale guard turned every retry into a silent
+        no-op in _start_fulltext_load.
+        """
+        if cacheable:
+            try:
+                self._fulltext_cache[cache_key] = rendered
+                self._fulltext_cache_source[cache_key] = cache_source
+            except Exception:
+                pass
+        else:
+            try:
+                self._fulltext_cache.pop(cache_key, None)
+                self._fulltext_cache_source.pop(cache_key, None)
+            except Exception:
+                pass
+        if getattr(self, "_fulltext_loading_url", None) == cache_key:
+            self._fulltext_loading_url = None
+
+        # Apply to the reader only if the user is still on this article.
+        if token_snapshot is not None and token_snapshot != int(getattr(self, "_fulltext_token", 0)):
+            return
+        try:
+            idx_now = self.list_ctrl.GetFirstSelected()
+        except Exception:
+            idx_now = -1
+        if idx_now is None or idx_now < 0 or idx_now >= len(self.current_articles):
+            # Mid-rebuild vacancy: resolve by the logical selection instead.
+            idx_now = self._index_of_selected_article()
+            if idx_now is None:
+                return
+        article_now = self.current_articles[idx_now]
+        cur_key, _cur_url, _aid = self._fulltext_cache_key_for_article(article_now, idx_now)
+        if cur_key != cache_key:
+            return
+        try:
+            self._set_article_reader_text(article_now, rendered, reset_insertion=True)
         except Exception:
             pass
 
@@ -8560,9 +8642,20 @@ class MainFrame(wx.Frame):
             def _metadata_sink(html, page_url, _aid=article_id_for_meta):
                 if not _aid:
                     return
+
+                def _enrich():
+                    try:
+                        from core import metadata_enrich
+                        metadata_enrich.enrich_stored_article(_aid, html, page_url)
+                    except Exception:
+                        pass
+
+                # Off the extraction worker: the enrichment UPDATE can wait on
+                # SQLite's write lock while a refresh is saving feeds, and the
+                # sink runs between page download and text extraction — doing
+                # it inline stalled rendering for the duration of the refresh.
                 try:
-                    from core import metadata_enrich
-                    metadata_enrich.enrich_stored_article(_aid, html, page_url)
+                    threading.Thread(target=_enrich, daemon=True).start()
                 except Exception:
                     pass
 
@@ -8677,42 +8770,15 @@ class MainFrame(wx.Frame):
                 pass
 
             if apply_to_ui:
-                def apply():
-                    # Only apply if selection still matches.
-                    if token_snapshot is not None and token_snapshot != int(getattr(self, "_fulltext_token", 0)):
-                        return
-                    try:
-                        idx_now = self.list_ctrl.GetFirstSelected()
-                    except Exception:
-                        idx_now = -1
-                    if idx_now is None or idx_now < 0 or idx_now >= len(self.current_articles):
-                        return
-                    article_now = self.current_articles[idx_now]
-                    cur_key, _cur_url, _aid = self._fulltext_cache_key_for_article(article_now, idx_now)
-                    if cur_key != cache_key:
-                        return
-
-                    if cacheable:
-                        try:
-                            self._fulltext_cache[cache_key] = rendered
-                            self._fulltext_cache_source[cache_key] = cache_source
-                        except Exception:
-                            pass
-                    else:
-                        try:
-                            self._fulltext_cache.pop(cache_key, None)
-                            self._fulltext_cache_source.pop(cache_key, None)
-                        except Exception:
-                            pass
-
-                    try:
-                        self._fulltext_loading_url = None
-                        self._set_article_reader_text(article_now, rendered, reset_insertion=True)
-                    except Exception:
-                        pass
-
                 try:
-                    wx.CallAfter(apply)
+                    wx.CallAfter(
+                        self._fulltext_apply_result,
+                        cache_key,
+                        rendered,
+                        cacheable,
+                        cache_source,
+                        token_snapshot,
+                    )
                 except Exception:
                     pass
             else:
@@ -9020,7 +9086,13 @@ class MainFrame(wx.Frame):
         if not article.is_read:
             threading.Thread(target=self.provider.mark_read, args=(article.id,), daemon=True).start()
             article.is_read = True
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Read"))
+            try:
+                # Mid-rebuild the row may not be inserted yet; the pending
+                # render batch will pick the status up from the article model.
+                if idx < self.list_ctrl.GetItemCount():
+                    self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Read"))
+            except Exception:
+                pass
             self._update_feed_unread_count_ui(article.feed_id, -1)
 
     def mark_article_unread(self, idx):
@@ -9030,7 +9102,11 @@ class MainFrame(wx.Frame):
         if article.is_read:
             threading.Thread(target=self.provider.mark_unread, args=(article.id,), daemon=True).start()
             article.is_read = False
-            self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Unread"))
+            try:
+                if idx < self.list_ctrl.GetItemCount():
+                    self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Unread"))
+            except Exception:
+                pass
             self._update_feed_unread_count_ui(article.feed_id, 1)
 
     def toggle_selected_article_read_status(self):

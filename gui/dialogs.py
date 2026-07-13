@@ -2409,13 +2409,14 @@ class SettingsDialog(wx.Dialog):
         count = play_cache.cache_file_count(cache_dir)
         if count == 0:
             wx.MessageBox(
-                f"The playback cache is already empty.\n\n{cache_dir}",
+                f'{_("The playback cache is already empty.")}\n\n{cache_dir}',
                 _("Playback cache"),
                 wx.ICON_INFORMATION,
             )
             return
         confirm = wx.MessageBox(
-            f"Delete {count} cached file(s) ({play_cache.human_size(size)})?\n\n{cache_dir}",
+            ngettext("Delete {n} cached file ({size})?", "Delete {n} cached files ({size})?", count).format(n=count, size=play_cache.human_size(size))
+            + f"\n\n{cache_dir}",
             _("Clear playback cache"),
             wx.YES_NO | wx.ICON_QUESTION,
         )
@@ -2423,7 +2424,7 @@ class SettingsDialog(wx.Dialog):
             return
         removed, freed = play_cache.clear_cache(cache_dir)
         wx.MessageBox(
-            f"Removed {removed} file(s), freed {play_cache.human_size(freed)}.",
+            ngettext("Removed {n} file, freed {size}.", "Removed {n} files, freed {size}.", removed).format(n=removed, size=play_cache.human_size(freed)),
             _("Playback cache cleared"),
             wx.ICON_INFORMATION,
         )

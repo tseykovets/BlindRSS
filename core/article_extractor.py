@@ -142,6 +142,21 @@ _BLOCKED_INTERSTITIAL_MESSAGE = (
     "automatically. Open the original link in your browser to read it."
 )
 
+# Video-only and index pages have no article body, so extraction returns the page's navigation
+# and related-story headlines instead (e.g. local-TV video pages reached via Google News). Such
+# text is a stack of short, punctuation-free link captions; real articles are sentences. Only
+# small bodies are checked so a long article containing a headline list is never discarded.
+_LINK_LIST_MAX_BODY_LEN = 1500
+_LINK_LIST_MIN_LINES = 4
+_LINK_LIST_MAX_LINE_LEN = 90
+_LINK_LIST_MIN_FRACTION = 0.6
+_LINK_LIST_SENTENCE_END_RE = re.compile(r"[.!?…](\s|$)")
+
+_LINK_LIST_ONLY_MESSAGE = (
+    "The page has no readable article text — only navigation or related-story links were "
+    "found (common for video-only pages). Open the original link in your browser to view it."
+)
+
 
 def _looks_like_bot_interstitial(content: str) -> bool:
     """Return True if `content` (HTML or already-extracted text) is an anti-bot/verification gate."""
@@ -157,6 +172,21 @@ def _looks_like_bot_interstitial(content: str) -> bool:
     if len(low) < 2000 and "powered and protected by" in low and "akamai" in low:
         return True
     return any(marker in low for marker in _BOT_INTERSTITIAL_MARKERS)
+
+
+def _looks_like_link_list(text: str) -> bool:
+    """Return True if short extracted `text` is mostly navigation/headline-like link captions."""
+    if not text or len(text) > _LINK_LIST_MAX_BODY_LEN:
+        return False
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) < _LINK_LIST_MIN_LINES:
+        return False
+    linky = sum(
+        1
+        for line in lines
+        if len(line) <= _LINK_LIST_MAX_LINE_LEN and not _LINK_LIST_SENTENCE_END_RE.search(line)
+    )
+    return linky / len(lines) >= _LINK_LIST_MIN_FRACTION
 
 
 def _lead_recovery_enabled(url: str) -> bool:
@@ -2214,6 +2244,11 @@ def extract_full_article(
     # Guard against gate text that slipped through extraction (e.g. a short verification body).
     if merged and len(merged) < _BOT_INTERSTITIAL_MAX_BODY_LEN and _looks_like_bot_interstitial(merged):
         raise ExtractionError(_BLOCKED_INTERSTITIAL_MESSAGE)
+    # Guard against pages with no article body (video-only/index pages): extraction "succeeds"
+    # but yields only the page's navigation or related-story headlines, which would be shown
+    # (and read aloud) as if they were the story. Raising lets callers fall back to feed content.
+    if merged and _looks_like_link_list(merged):
+        raise ExtractionError(_LINK_LIST_ONLY_MESSAGE)
     if not merged:
         raise ExtractionError("Downloaded page, but could not extract readable text (empty result).")
 

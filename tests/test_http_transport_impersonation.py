@@ -25,13 +25,17 @@ class _Recorder:
         self.calls = []
 
     def Session(self):
-        # safe_requests_get/head fetch a (thread-local, cached-by-identity) Session
-        # object and call .get/.head on it; returning self keeps every call
+        # safe_requests_get/post/head fetch a (thread-local, cached-by-identity) Session
+        # object and call its matching method; returning self keeps every call
         # recorded in the same self.calls list the tests assert against.
         return self
 
     def get(self, url, **kwargs):
         self.calls.append(("get", url, kwargs))
+        return _FakeResp(self.tag)
+
+    def post(self, url, **kwargs):
+        self.calls.append(("post", url, kwargs))
         return _FakeResp(self.tag)
 
     def head(self, url, **kwargs):
@@ -77,6 +81,24 @@ def test_plain_get_merges_default_headers(monkeypatch):
     # Default fingerprint headers are merged in, caller header preserved.
     assert sent["User-Agent"] == utils.HEADERS["User-Agent"]
     assert sent["Referer"] == "https://example.com/"
+
+
+def test_plain_post_merges_default_headers_and_payload(monkeypatch):
+    rec = _Recorder("requests")
+    monkeypatch.setattr(utils, "requests", rec)
+
+    resp = utils.safe_requests_post(
+        "https://example.com/form",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        data={"f.req": "payload"},
+    )
+
+    assert resp.tag == "requests"
+    method, url, kwargs = rec.calls[0]
+    assert method == "post" and url == "https://example.com/form"
+    assert kwargs["data"] == {"f.req": "payload"}
+    assert kwargs["headers"]["User-Agent"] == utils.HEADERS["User-Agent"]
+    assert kwargs["headers"]["Content-Type"] == "application/x-www-form-urlencoded"
 
 
 def test_impersonate_routes_to_curl_cffi_without_static_ua(monkeypatch):

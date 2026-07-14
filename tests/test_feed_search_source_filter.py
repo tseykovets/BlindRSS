@@ -195,6 +195,33 @@ def test_feed_search_feedly_still_selectable_explicitly():
     assert _target_names(targets) == ["Feedly"]
 
 
+def test_google_news_remains_selectable_explicitly():
+    host = _Host()
+    targets = host._build_search_targets("tech news", "googlenews")
+
+    assert _target_names(targets) == ["Google News"]
+
+
+def test_google_news_merged_results_sort_below_direct_feed_matches():
+    results = [
+        {"provider": "Google News", "title": "Broad query subscription"},
+        {"provider": "NewsBlur", "title": "Publisher feed"},
+        {"provider": "Feedspot", "title": "Curated publisher feed"},
+        {"provider": "YouTube", "title": "YouTube channel"},
+    ]
+
+    results.sort(key=dialogs.FeedSearchDialog._merged_result_sort_key)
+
+    # YouTube deliberately keeps its existing convenience placement; direct feed matches preserve
+    # their stable arrival order ahead of Google News' broad search subscription.
+    assert [item["provider"] for item in results] == [
+        "YouTube",
+        "NewsBlur",
+        "Feedspot",
+        "Google News",
+    ]
+
+
 _NEWSBLUR_FEEDS = [
     {"id": 11145, "value": "https://feeds.feedburner.com/techspot/news",
      "label": "TechSpot", "tagline": "TechSpot News - All Stories", "num_subscribers": 802},

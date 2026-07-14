@@ -1,5 +1,7 @@
 import os
 import sys
+import threading
+import inspect
 
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -113,3 +115,136 @@ def test_refresh_loop_falls_back_to_global_interval_without_provider_support():
     host.refresh_loop()
 
     assert host.stop_event.wait_intervals == [45]
+
+
+class _StartupWorkHost:
+    _start_startup_background_work = mainframe.MainFrame._start_startup_background_work
+
+    def __init__(self):
+        self._startup_background_work_started = False
+        self.stop_event = threading.Event()
+        self.refresh_thread = None
+        self.config_manager = _Config({"refresh_on_startup": True, "refresh_interval": 30})
+        self.provider = _TickProvider()
+        self.tree_loads = 0
+
+    def refresh_loop(self):
+        return None
+
+    def refresh_feeds(self):
+        self.tree_loads += 1
+
+
+def test_startup_background_work_starts_once_after_queued_first_turn(monkeypatch):
+    started = []
+
+    class _Thread:
+        def __init__(self, *, target, daemon, name):
+            self.target = target
+            self.daemon = daemon
+            self.name = name
+
+        def start(self):
+            started.append(self)
+
+    monkeypatch.setattr(mainframe.threading, "Thread", _Thread)
+    host = _StartupWorkHost()
+
+    host._start_startup_background_work()
+    host._start_startup_background_work()
+
+    assert host._startup_background_work_started is True
+    assert host.tree_loads == 1
+    assert len(started) == 1
+    assert started[0].daemon is True
+    assert started[0].name == "BlindRSSRefreshLoop"
+
+
+def test_mainframe_queues_startup_workers_for_first_event_loop_turn():
+    source = inspect.getsource(mainframe.MainFrame.__init__)
+
+    assert "wx.CallLater(1, self._start_startup_background_work)" in source
+    assert "self.refresh_thread = None" in source
+
+
+def test_startup_background_work_does_nothing_after_shutdown_begins(monkeypatch):
+    monkeypatch.setattr(
+        mainframe.threading,
+        "Thread",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("refresh thread must not start")),
+    )
+    host = _StartupWorkHost()
+    host.stop_event.set()
+
+    host._start_startup_background_work()
+
+    assert host._startup_background_work_started is False
+    assert host.tree_loads == 0
+
+
+class _RefreshUiBatchHost:
+    _begin_refresh_ui_batch = mainframe.MainFrame._begin_refresh_ui_batch
+    _finish_refresh_ui_batch = mainframe.MainFrame._finish_refresh_ui_batch
+    _maybe_finish_refresh_ui_batch = mainframe.MainFrame._maybe_finish_refresh_ui_batch
+    _request_article_reload = mainframe.MainFrame._request_article_reload
+    _schedule_article_reload = mainframe.MainFrame._schedule_article_reload
+
+    def __init__(self):
+        self._refresh_progress_lock = threading.Lock()
+        self._refresh_progress_pending = {}
+        self._refresh_progress_flush_scheduled = False
+        self._refresh_ui_batch_active = False
+        self._refresh_ui_batch_ending = False
+        self._refresh_ui_batch_refresh_tree = False
+        self._refresh_ui_batch_end_activity = False
+        self._refresh_ui_batch_token = 0
+        self._article_refresh_dirty = False
+        self._article_refresh_pending = False
+        self._article_refresh_debounce_ms = 250
+        self.tree_loads = 0
+
+    def refresh_feeds(self):
+        self.tree_loads += 1
+
+    def _end_refresh_activity(self):
+        return None
+
+
+def test_full_refresh_defers_selected_list_reload_until_final_tree_update(monkeypatch):
+    timers = []
+    monkeypatch.setattr(
+        mainframe.wx,
+        "CallLater",
+        lambda delay, callback, *args, **kwargs: timers.append((delay, callback, args, kwargs)),
+    )
+    host = _RefreshUiBatchHost()
+
+    host._begin_refresh_ui_batch()
+    host._request_article_reload()
+
+    # Per-feed progress has only marked the currently visible view dirty; it
+    # has not started another list loader while the refresh is in flight.
+    assert host._article_refresh_dirty is True
+    assert host._article_refresh_pending is False
+    assert timers == []
+
+    host._finish_refresh_ui_batch(refresh_tree=True)
+
+    assert host.tree_loads == 1
+    assert host._article_refresh_dirty is False
+    assert host._refresh_ui_batch_active is False
+
+
+def test_stale_refresh_completion_cannot_finish_a_newer_ui_batch():
+    host = _RefreshUiBatchHost()
+
+    first_token = host._begin_refresh_ui_batch()
+    second_token = host._begin_refresh_ui_batch()
+
+    host._finish_refresh_ui_batch(refresh_tree=True, batch_token=first_token)
+    assert host.tree_loads == 0
+    assert host._refresh_ui_batch_active is True
+
+    host._finish_refresh_ui_batch(refresh_tree=True, batch_token=second_token)
+    assert host.tree_loads == 1
+    assert host._refresh_ui_batch_active is False

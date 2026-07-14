@@ -135,7 +135,19 @@ class MainFrame(wx.Frame):
         # every settled article selection. Cache the nullable override so arrow-key
         # navigation does not perform a synchronous SQLite read for each article.
         self._feed_show_images_cache = {}
+        # A full feed refresh can complete many feeds in parallel.  Keep its
+        # progress visible in the tree, but defer the selected article-list
+        # reload until the batch has settled: repeatedly rebuilding a 400-row
+        # list while the user is trying to navigate it makes the whole app feel
+        # unresponsive even though the HTTP work is off-thread.
         self._article_refresh_pending = False
+        self._article_refresh_dirty = False
+        self._article_refresh_debounce_ms = 250
+        self._refresh_ui_batch_active = False
+        self._refresh_ui_batch_ending = False
+        self._refresh_ui_batch_refresh_tree = False
+        self._refresh_ui_batch_end_activity = False
+        self._refresh_ui_batch_token = 0
         # View/article cache so switching between nodes doesn't re-index history every time.
         # Keys are feed_id values like: "all", "<feed_id>", "category:<id>".
         self.view_cache = {}
@@ -257,25 +269,66 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.Bind(wx.EVT_ICONIZE, self.on_iconize)
         
-        # Start background refresh loop (daemon so it can't keep the app alive)
+        # Startup workers are deliberately deferred until the first event-loop
+        # turn.  MainFrame is constructed before main.py calls Show(), and
+        # starting a 16-worker refresh here can otherwise contend for the GIL
+        # while Windows is trying to create/activate the first window.
         self.stop_event = threading.Event()
-        self.refresh_thread = threading.Thread(target=self.refresh_loop, daemon=True)
-        self.refresh_thread.start()
-        log.info(
-            "Refresh loop started refresh_on_startup=%s interval_s=%s provider=%s",
-            bool(self.config_manager.get("refresh_on_startup", True)),
-            self.config_manager.get("refresh_interval", 300),
-            type(self.provider).__name__,
-        )
-        
-        # Initial load
-        log.info("Scheduling initial feed tree load")
-        self.refresh_feeds()
+        self.refresh_thread = None
+        self._startup_background_work_started = False
+        # Timers do not dispatch until the main loop is running, by which time
+        # main.py has shown the frame (or intentionally launched tray-only).
+        # A tiny delay lets the show/activation and initial focus events run
+        # first without materially delaying the immediate startup refresh.
+        wx.CallLater(1, self._start_startup_background_work)
         wx.CallAfter(self._apply_startup_window_state)
         wx.CallAfter(self._focus_default_control)
         wx.CallLater(900, self._maybe_open_accessible_browser_for_voiceover)
         wx.CallLater(15000, self._maybe_auto_check_updates)
         wx.CallLater(4000, self._check_media_dependencies)
+
+    def _start_startup_background_work(self) -> None:
+        """Start initial tree loading and feed refresh after the window gets an
+        event-loop turn.
+
+        This remains valid for a tray-only launch: there is no ``IsShown``
+        gate, because those launches must still refresh in the background.
+        The guard also makes a queued timer harmless if shutdown begins before
+        it fires.
+        """
+        if getattr(self, "_startup_background_work_started", False):
+            return
+        stop_event = getattr(self, "stop_event", None)
+        try:
+            if stop_event is not None and stop_event.is_set():
+                return
+        except Exception:
+            return
+
+        self._startup_background_work_started = True
+        try:
+            self.refresh_thread = threading.Thread(
+                target=self.refresh_loop,
+                daemon=True,
+                name="BlindRSSRefreshLoop",
+            )
+            self.refresh_thread.start()
+            log.info(
+                "Refresh loop started refresh_on_startup=%s interval_s=%s provider=%s",
+                bool(self.config_manager.get("refresh_on_startup", True)),
+                self.config_manager.get("refresh_interval", 300),
+                type(self.provider).__name__,
+            )
+        except Exception:
+            # The tree can still load from the local cache even if a worker
+            # cannot be created, so do not let this suppress the initial UI.
+            log.exception("Failed to start refresh loop")
+
+        try:
+            log.info("Scheduling initial feed tree load")
+            self.refresh_feeds()
+        except Exception:
+            log.exception("Failed to schedule initial feed tree load")
 
     def _start_critical_worker(self, target, args=(), *, name: str | None = None) -> None:
         """Start a tracked daemon thread for critical operations (e.g. destructive DB work).
@@ -3596,6 +3649,12 @@ class MainFrame(wx.Frame):
             )
             return False
         self._begin_refresh_activity()
+        # Keep tree/count progress live, but do not repeatedly reload the
+        # selected article list while many feeds finish in parallel.  The final
+        # tree refresh below performs one coherent list update after the
+        # progress queue has drained.
+        refresh_ui_batch_token = self._begin_refresh_ui_batch()
+        provider_result = False
         try:
             log.info("Refresh run acquired guard provider=%s force=%s", provider_name, force)
             # Perform retention cleanup before refresh to avoid resurrecting old articles
@@ -3624,7 +3683,7 @@ class MainFrame(wx.Frame):
                         suppressed,
                         fallback_new_count=detected_new_items,
                     )
-                self._on_feed_refresh_progress(state)
+                self._on_feed_refresh_progress(state, batch_token=refresh_ui_batch_token)
 
             provider_result = self.provider.refresh(progress_cb, force=force, scheduled=scheduled)
             log.info(
@@ -3635,8 +3694,6 @@ class MainFrame(wx.Frame):
                 time.monotonic() - started_at,
                 new_items_total,
             )
-            if provider_result:
-                wx.CallAfter(self.refresh_feeds)
             if (
                 suppressed.get("count", 0) > 0
                 and bool(self.config_manager.get("windows_notifications_show_summary_when_capped", True))
@@ -3668,7 +3725,18 @@ class MainFrame(wx.Frame):
             self._play_sound("sound_refresh_error")
             return False
         finally:
-            self._end_refresh_activity()
+            try:
+                # This must run on the wx thread.  It waits for the bounded
+                # progress flushes already queued by worker threads, then runs
+                # the one final tree/list refresh (or a single selected-view
+                # reload when the provider did not request a tree refresh).
+                wx.CallAfter(
+                    self._finish_refresh_ui_batch,
+                    bool(provider_result),
+                    refresh_ui_batch_token,
+                )
+            except Exception:
+                log.debug("Failed to finish refresh UI batch", exc_info=True)
             try:
                 self._refresh_guard.release()
                 log.info("Refresh run released guard provider=%s force=%s", provider_name, force)
@@ -6036,15 +6104,21 @@ class MainFrame(wx.Frame):
     # (filter-match counts and other existing transient messages). Last-write-wins
     # if two background operations overlap; no queue/tracker is maintained.
 
-    def _set_activity_status(self, text: str) -> None:
+    def _set_activity_status(self, text: str, *, update_tray: bool = True) -> None:
         """Set the activity-status field. UI-thread only.
 
         Background-thread callers must use _post_activity_status instead.
+        ``update_tray=False`` is used while a progress flush is applying many
+        feeds: updating a native tray icon walks every feed to recompute the
+        unread total, so doing it for each state turns one refresh chunk into
+        an avoidable O(feeds * completed-feeds) burst on the UI thread.
         """
         try:
             self.SetStatusText(text or "", 1)
         except Exception:
             log.debug("Failed to set activity status text", exc_info=True)
+        if not update_tray:
+            return
         update_tray = getattr(self, "_set_tray_activity_label", None)
         if callable(update_tray):
             try:
@@ -6062,12 +6136,13 @@ class MainFrame(wx.Frame):
             return 0
         return total
 
-    def _set_tray_activity_label(self, text: str | None) -> None:
+    def _set_tray_activity_label(self, text: str | None, *, update: bool = True) -> None:
         activity = " ".join(str(text or "").split())
         if activity == "Refresh complete":
             activity = ""
         self._tray_activity_label = activity
-        self._update_tray_status_label()
+        if update:
+            self._update_tray_status_label()
 
     def _update_tray_status_label(self) -> None:
         tray = getattr(self, "tray_icon", None)
@@ -6122,9 +6197,86 @@ class MainFrame(wx.Frame):
             message = _("Error checking: {title}").format(title=title)
         else:
             message = _("Checked: {title}").format(title=title)
-        self._set_activity_status(message)
+        # The enclosing _flush_feed_refresh_progress updates the tray exactly
+        # once per bounded chunk.  The status bar still tracks the latest feed
+        # immediately so screen-reader users retain useful progress feedback.
+        self._set_activity_status(message, update_tray=False)
+        # Preserve the most recent activity for the chunk without asking the
+        # native tray icon to redraw yet.  The flusher performs that redraw once
+        # after all states in the chunk have been applied.
+        self._set_tray_activity_label(message, update=False)
 
-    def _on_feed_refresh_progress(self, state):
+    def _begin_refresh_ui_batch(self) -> int:
+        """Mark a full refresh as active for selected-list coalescing.
+
+        This is set by the worker before it can emit per-feed progress.  The
+        values are simple flags guarded by the GIL; all UI work remains on the
+        wx thread in ``_finish_refresh_ui_batch`` / the progress flusher.
+        """
+        # The provider guard prevents overlapping fetches, but it is released
+        # before wx drains all posted progress.  Tokenize each run so a stale
+        # completion callback can never finish a newer batch's UI state.
+        self._refresh_ui_batch_token = int(getattr(self, "_refresh_ui_batch_token", 0) or 0) + 1
+        self._refresh_ui_batch_active = True
+        self._refresh_ui_batch_ending = False
+        self._refresh_ui_batch_refresh_tree = False
+        self._refresh_ui_batch_end_activity = False
+        return self._refresh_ui_batch_token
+
+    def _finish_refresh_ui_batch(self, refresh_tree: bool, batch_token: int | None = None) -> None:
+        """Finish a full refresh after its already-posted progress drains."""
+        if batch_token is not None and int(batch_token) != int(getattr(self, "_refresh_ui_batch_token", 0) or 0):
+            log.debug("Ignoring stale refresh UI completion token=%s", batch_token)
+            return
+        self._refresh_ui_batch_ending = True
+        self._refresh_ui_batch_refresh_tree = bool(refresh_tree)
+        self._refresh_ui_batch_end_activity = True
+        self._maybe_finish_refresh_ui_batch(batch_token=batch_token)
+
+    def _maybe_finish_refresh_ui_batch(self, batch_token: int | None = None) -> None:
+        """Complete the deferred final UI update once no progress callback is
+        still queued.
+
+        A full refresh can finish while `_flush_feed_refresh_progress` has
+        scheduled its next 40-state timer batch.  Starting the final tree load
+        before those batches complete would reintroduce list churn, so wait for
+        the queue to become idle rather than polling it with ``wx.CallAfter``.
+        """
+        if batch_token is not None and int(batch_token) != int(getattr(self, "_refresh_ui_batch_token", 0) or 0):
+            return
+        if not getattr(self, "_refresh_ui_batch_ending", False):
+            return
+        try:
+            with self._refresh_progress_lock:
+                progress_pending = bool(self._refresh_progress_pending)
+                flush_scheduled = bool(self._refresh_progress_flush_scheduled)
+        except Exception:
+            progress_pending = False
+            flush_scheduled = False
+        if progress_pending or flush_scheduled:
+            return
+
+        refresh_tree = bool(getattr(self, "_refresh_ui_batch_refresh_tree", False))
+        end_activity = bool(getattr(self, "_refresh_ui_batch_end_activity", False))
+        self._refresh_ui_batch_active = False
+        self._refresh_ui_batch_ending = False
+        self._refresh_ui_batch_refresh_tree = False
+        self._refresh_ui_batch_end_activity = False
+
+        # Do this after the final per-feed status update, otherwise a timer
+        # chunk can overwrite "Refresh complete" with a stale feed title.
+        if end_activity:
+            self._end_refresh_activity()
+
+        if refresh_tree:
+            # _update_tree always reloads the selected view once; clear this
+            # marker so a stale debounce timer cannot issue a duplicate load.
+            self._article_refresh_dirty = False
+            self.refresh_feeds()
+        elif getattr(self, "_article_refresh_dirty", False):
+            self._schedule_article_reload()
+
+    def _on_feed_refresh_progress(self, state, batch_token: int | None = None):
         # Called from worker threads inside provider.refresh; batch and marshal to UI thread.
         if not isinstance(state, dict):
             return
@@ -6133,7 +6285,17 @@ class MainFrame(wx.Frame):
             return
 
         with self._refresh_progress_lock:
-            self._refresh_progress_pending[str(feed_id)] = state
+            # Keep the latest state per feed per batch.  The token allows a
+            # stale posted state from a just-finished refresh to be dropped if
+            # the user starts another refresh before wx drains it.
+            queue_key = (
+                (int(batch_token), str(feed_id))
+                if batch_token is not None
+                else str(feed_id)
+            )
+            self._refresh_progress_pending[queue_key] = (
+                int(batch_token), state
+            ) if batch_token is not None else state
             if self._refresh_progress_flush_scheduled:
                 return
             self._refresh_progress_flush_scheduled = True
@@ -6160,15 +6322,28 @@ class MainFrame(wx.Frame):
             more = bool(self._refresh_progress_pending)
             self._refresh_progress_flush_scheduled = more
 
-        for st in pending:
+        applied_any = False
+        for pending_state in pending:
+            state_token = None
+            st = pending_state
+            if (
+                isinstance(pending_state, tuple)
+                and len(pending_state) == 2
+                and isinstance(pending_state[0], int)
+                and isinstance(pending_state[1], dict)
+            ):
+                state_token, st = pending_state
+            if state_token is not None and state_token != int(getattr(self, "_refresh_ui_batch_token", 0) or 0):
+                continue
             try:
                 self._apply_feed_refresh_progress(st)
+                applied_any = True
             except Exception:
                 log.debug("Failed to apply feed refresh progress update", exc_info=True)
 
         # One tray/unread-total update per chunk, not per feed: the total walks
         # every feed, so doing it per progress state is quadratic in feed count.
-        if pending:
+        if applied_any:
             update_tray = getattr(self, "_update_tray_status_label", None)
             if callable(update_tray):
                 try:
@@ -6184,6 +6359,16 @@ class MainFrame(wx.Frame):
                     self._refresh_progress_pending.clear()
                     self._refresh_progress_flush_scheduled = False
                 log.debug("Failed to reschedule feed refresh progress flush", exc_info=True)
+                finish_ui_batch = getattr(self, "_maybe_finish_refresh_ui_batch", None)
+                if callable(finish_ui_batch):
+                    finish_ui_batch()
+        else:
+            # A full refresh may have already completed on its worker thread.
+            # Let its final tree/list update run only after this last bounded
+            # UI chunk, never in the middle of a progress storm.
+            finish_ui_batch = getattr(self, "_maybe_finish_refresh_ui_batch", None)
+            if callable(finish_ui_batch):
+                finish_ui_batch()
 
     def _apply_feed_refresh_progress(self, state):
         if not state:
@@ -6232,9 +6417,9 @@ class MainFrame(wx.Frame):
             if data:
                 typ = data.get("type")
                 if typ == "all":
-                    self._schedule_article_reload()
+                    self._request_article_reload()
                 elif typ == "feed" and data.get("id") == feed_id:
-                    self._schedule_article_reload()
+                    self._request_article_reload()
                 elif typ == "category":
                     # Category views aggregate nested subcategories (path-based
                     # identity, CATEGORY_PATH_SEP-joined), so a parent view must
@@ -6246,16 +6431,44 @@ class MainFrame(wx.Frame):
                         feed_cat == sel_cat
                         or feed_cat.startswith(sel_cat + CATEGORY_PATH_SEP)
                     ):
-                        self._schedule_article_reload()
+                        self._request_article_reload()
+
+    def _request_article_reload(self):
+        """Remember that the selected view changed during a refresh.
+
+        Full refreshes keep this marker until their final tree update.  Targeted
+        refreshes still use the normal short debounce below, so a single-feed
+        refresh remains visibly current without spawning one loader per feed
+        completion.
+        """
+        self._article_refresh_dirty = True
+        if (
+            getattr(self, "_refresh_ui_batch_active", False)
+            or getattr(self, "_refresh_ui_batch_ending", False)
+        ):
+            return
+        self._schedule_article_reload()
 
     def _schedule_article_reload(self):
+        self._article_refresh_dirty = True
         if self._article_refresh_pending:
             return
         self._article_refresh_pending = True
-        wx.CallLater(120, self._run_pending_article_reload)
+        wx.CallLater(
+            max(1, int(getattr(self, "_article_refresh_debounce_ms", 250))),
+            self._run_pending_article_reload,
+        )
 
     def _run_pending_article_reload(self):
         self._article_refresh_pending = False
+        if (
+            getattr(self, "_refresh_ui_batch_active", False)
+            or getattr(self, "_refresh_ui_batch_ending", False)
+        ):
+            return
+        if not getattr(self, "_article_refresh_dirty", False):
+            return
+        self._article_refresh_dirty = False
         self._reload_selected_articles()
 
     def on_tree_item_expanded(self, event):

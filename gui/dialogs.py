@@ -3398,6 +3398,21 @@ class FeedSearchDialog(wx.Dialog):
         ("Website scan (URL or site name)", "blindrss"),
     ]
 
+    @staticmethod
+    def _merged_result_sort_key(item):
+        """Keep broad Google News query feeds below direct feed-discovery results.
+
+        Search providers run concurrently, so their queue-arrival order is not a relevance signal.
+        An explicitly selected Google News search remains untouched; this key is used only by the
+        combined All sources / All RSS views.  Preserve the existing YouTube-first convenience.
+        """
+        provider = str((item or {}).get("provider") or "").strip().lower()
+        if provider == "youtube":
+            return 0
+        if provider == "google news":
+            return 2
+        return 1
+
     def __init__(self, parent):
         super().__init__(parent, title=_("Find a Podcast or RSS Feed"), size=(800, 600))
         
@@ -3658,9 +3673,14 @@ class FeedSearchDialog(wx.Dialog):
             except Exception:
                 break
 
-        if source_key == self._SOURCE_ALL and all_results:
-            # Keep YouTube results at the top of the merged list for easier discovery.
-            all_results.sort(key=lambda item: 0 if str(item.get("provider") or "").strip().lower() == "youtube" else 1)
+        # Use class-level fallbacks here: lightweight test/search hosts can
+        # intentionally implement only the selected-source constants and the
+        # manager method itself.
+        all_rss_source = getattr(self, "_SOURCE_ALL_RSS", FeedSearchDialog._SOURCE_ALL_RSS)
+        if source_key in (self._SOURCE_ALL, all_rss_source) and all_results:
+            # Google News creates a broad query subscription rather than finding the publisher's
+            # own feed.  Do not let its typically fast response jump ahead of direct matches.
+            all_results.sort(key=FeedSearchDialog._merged_result_sort_key)
 
         if self._stop_event.is_set():
             return

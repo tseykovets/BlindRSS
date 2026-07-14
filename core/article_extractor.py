@@ -148,6 +148,12 @@ def _looks_like_bot_interstitial(content: str) -> bool:
     if not content:
         return False
     low = content.replace("’", "'").lower()
+    # Google News' redirect endpoint can hand a non-consenting client Google's generic consent
+    # document instead of the publisher URL.  This is not article content; keep it out of the
+    # reader just like a WAF page.  Require both phrases so an article merely discussing one of
+    # them is never misclassified.
+    if "before you continue to google" in low and "we use cookies and data" in low:
+        return True
     if len(low) < 2000 and "powered and protected by" in low and "akamai" in low:
         return True
     return any(marker in low for marker in _BOT_INTERSTITIAL_MARKERS)
@@ -1171,6 +1177,177 @@ _HTML_ACCEPT_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
+# Google News RSS article links are JavaScript-wrapped, signed redirect URLs rather than publisher
+# URLs.  Following them as a normal HTTP redirect can return Google's consent page, which
+# trafilatura then quite reasonably (but incorrectly) treats as the article.  Google exposes the
+# target through the same short-lived signed RPC used by its own article page.  Resolve only this
+# narrowly-recognized URL form, and only from the already-background full-text extraction path.
+_GOOGLE_NEWS_HOSTS = {"news.google.com", "www.news.google.com"}
+_GOOGLE_NEWS_BATCH_EXECUTE_URL = (
+    "https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=Fbv4je"
+)
+_GOOGLE_NEWS_RPC_ID = "Fbv4je"
+_GOOGLE_NEWS_DATA_PREFIX = "%.@."
+_GOOGLE_NEWS_LOCALE_QUERY = "hl=en-US&gl=US&ceid=US:en"
+_GOOGLE_NEWS_RESOLUTION_MESSAGE = (
+    "Google News could not resolve the original publisher link. "
+    "Open the original link in your browser to read it."
+)
+
+
+def _is_google_news_article_url(url: str) -> bool:
+    """Whether ``url`` has Google News' article-redirect path shape."""
+    try:
+        parts = urlsplit((url or "").strip())
+        if (parts.hostname or "").lower() not in _GOOGLE_NEWS_HOSTS:
+            return False
+        path_parts = [part for part in (parts.path or "").split("/") if part]
+        article_index = path_parts.index("articles")
+        return article_index + 2 == len(path_parts)
+    except (AttributeError, ValueError):
+        return False
+
+
+def _google_news_article_token(url: str) -> Optional[str]:
+    """Return the opaque token from a Google News article URL, if it has one."""
+    try:
+        parts = urlsplit((url or "").strip())
+        if not _is_google_news_article_url(url):
+            return None
+        path_parts = [part for part in (parts.path or "").split("/") if part]
+        article_index = path_parts.index("articles")
+        token = path_parts[article_index + 1]
+    except (AttributeError, IndexError, ValueError):
+        return None
+    # Google currently uses URL-safe base64-like opaque tokens.  Reject anything else before it
+    # reaches the signed RPC so an arbitrary news.google.com URL cannot become a resolver request.
+    if not re.fullmatch(r"[A-Za-z0-9_-]{12,}", token or ""):
+        return None
+    return token
+
+
+def _google_news_decoder_page_url(url: str) -> str:
+    """Add a stable English locale to a Google News redirect page without dropping its token."""
+    parts = urlsplit(url)
+    query = f"{parts.query}&{_GOOGLE_NEWS_LOCALE_QUERY}" if parts.query else _GOOGLE_NEWS_LOCALE_QUERY
+    return parts._replace(query=query, fragment="").geturl()
+
+
+def _parse_google_news_batch_response(body: str) -> Optional[str]:
+    """Extract the publisher URL from Google News' line-oriented batchexecute response."""
+    for line in (body or "").splitlines():
+        candidate = line.strip()
+        if not candidate or candidate.startswith(")]}'"):
+            continue
+        try:
+            rows = json.loads(candidate)
+        except Exception:
+            continue
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, list) or len(row) < 3 or not isinstance(row[2], str):
+                continue
+            try:
+                result = json.loads(row[2])
+            except Exception:
+                continue
+            if not isinstance(result, list) or len(result) < 2 or result[0] != "garturlres":
+                continue
+            resolved = str(result[1] or "").strip()
+            try:
+                destination = urlsplit(resolved)
+            except (AttributeError, TypeError, ValueError):
+                continue
+            if destination.scheme in {"http", "https"} and destination.hostname:
+                return resolved
+    return None
+
+
+def _resolve_google_news_article_url(url: str, timeout: int) -> Optional[str]:
+    """Resolve one Google News RSS redirect to its publisher URL, failing closed on any change."""
+    token = _google_news_article_token(url)
+    if not token:
+        return None
+
+    # This happens in a full-text worker, never in refresh/startup.  Keep each network operation
+    # bounded even if a caller supplied a very large extraction timeout.
+    try:
+        request_timeout = max(1.0, min(float(timeout or 10), 10.0))
+    except (TypeError, ValueError):
+        request_timeout = 10.0
+
+    try:
+        page_response = utils.safe_requests_get(
+            _google_news_decoder_page_url(url),
+            timeout=request_timeout,
+            headers=dict(_HTML_ACCEPT_HEADERS),
+            allow_redirects=True,
+        )
+        page_html = _response_text(page_response)
+    except Exception:
+        return None
+    if not (200 <= getattr(page_response, "status_code", 0) < 400) or not page_html:
+        return None
+    if _looks_like_bot_interstitial(page_html):
+        return None
+
+    try:
+        page = BeautifulSoup(page_html, "html.parser")
+        request_node = page.select_one("c-wiz[data-p]")
+        raw_request = str(request_node.get("data-p") or "") if request_node else ""
+        if not raw_request.startswith(_GOOGLE_NEWS_DATA_PREFIX):
+            return None
+        encoded_args = '["garturlreq",' + raw_request[len(_GOOGLE_NEWS_DATA_PREFIX):]
+        try:
+            rpc_args = json.loads(encoded_args)
+        except json.JSONDecodeError:
+            # Current pages include the wrapper's closing bracket in data-p.  Accept a plain
+            # argument-array variant too so a harmless markup serialization change fails less
+            # often, while all of the token/signature validation below still applies.
+            rpc_args = json.loads(encoded_args + "]")
+        if (
+            isinstance(rpc_args, list)
+            and len(rpc_args) == 2
+            and rpc_args[0] == "garturlreq"
+            and isinstance(rpc_args[1], list)
+        ):
+            # The fallback serialization above nests the original arguments one level deeper.
+            rpc_args = [rpc_args[0], *rpc_args[1]]
+        # The signed page request has the shape [garturlreq, context, token, transient...,
+        # timestamp, signature].  The RPC accepts its stable prefix plus those final two values.
+        if (
+            not isinstance(rpc_args, list)
+            or len(rpc_args) < 8
+            or rpc_args[2] != token
+            or not isinstance(rpc_args[-1], str)
+        ):
+            return None
+        signed_request = rpc_args[:-6] + rpc_args[-2:]
+        batch_payload = [[[
+            _GOOGLE_NEWS_RPC_ID,
+            json.dumps(signed_request, separators=(",", ":")),
+            None,
+            "generic",
+        ]]]
+        response = utils.safe_requests_post(
+            _GOOGLE_NEWS_BATCH_EXECUTE_URL,
+            timeout=request_timeout,
+            data={"f.req": json.dumps(batch_payload, separators=(",", ":"))},
+            headers={
+                **_HTML_ACCEPT_HEADERS,
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                "Referer": "https://news.google.com/",
+            },
+            allow_redirects=True,
+        )
+        response_body = _response_text(response)
+    except Exception:
+        return None
+    if not (200 <= getattr(response, "status_code", 0) < 400):
+        return None
+    return _parse_google_news_batch_response(response_body)
+
 
 def _response_text(r) -> str:
     """Read a response body as text, tolerating curl_cffi's read-once encoding rule.
@@ -1775,7 +1952,16 @@ def extract_full_article(
     visited: Set[str] = set()
     page_texts: List[str] = []
 
-    current = url
+    # Google News RSS items point to a signed JavaScript redirect, not the publisher.  Resolve it
+    # before any normal page fetch so the reader never extracts Google's consent document.  This
+    # function is called by the application's background full-text workers, not feed refresh.
+    extraction_url = url
+    if _is_google_news_article_url(url):
+        extraction_url = _resolve_google_news_article_url(url, timeout)
+        if not extraction_url:
+            raise ExtractionError(_GOOGLE_NEWS_RESOLUTION_MESSAGE)
+
+    current = extraction_url
     title = ""
     author = ""
 
@@ -1822,7 +2008,7 @@ def extract_full_article(
         raise ExtractionError("Download failed (site blocked, offline, or connection problem).")
 
     merged = _merge_texts(page_texts)
-    merged = _postprocess_extracted_text(merged, url)
+    merged = _postprocess_extracted_text(merged, extraction_url)
     # Guard against gate text that slipped through extraction (e.g. a short verification body).
     if merged and len(merged) < _BOT_INTERSTITIAL_MAX_BODY_LEN and _looks_like_bot_interstitial(merged):
         raise ExtractionError(_BLOCKED_INTERSTITIAL_MESSAGE)

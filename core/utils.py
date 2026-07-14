@@ -544,6 +544,28 @@ def safe_requests_get(url, *, impersonate: bool = False, impersonate_target: str
     return _get_plain_session().get(url, headers=final_headers, **kwargs)
 
 
+def safe_requests_post(url, *, impersonate: bool = False, impersonate_target: str | None = None, **kwargs):
+    """Wrapper for requests.post with the same safe browser headers as ``safe_requests_get``.
+
+    Use this for form/API POSTs that need to share the per-thread HTTP session with a preceding
+    safe GET (for example, a page-derived follow-up request).  It deliberately mirrors the GET
+    helper so callers retain the normal header sanitizing, diagnostics, and optional browser TLS
+    impersonation behavior.
+    """
+    url = encode_non_ascii_url(url)
+    headers = kwargs.pop("headers", {})
+    if impersonate and CURL_CFFI_AVAILABLE:
+        target = impersonate_target or IMPERSONATE_TARGET
+        final_headers = _request_safe_headers(_impersonated_headers(headers))
+        _log_http_request("POST", url, final_headers, f"curl_cffi:{target}")
+        return _get_curl_session().post(url, headers=final_headers, impersonate=target, **kwargs)
+    final_headers = HEADERS.copy()
+    final_headers.update(headers)
+    final_headers = _request_safe_headers(final_headers)
+    _log_http_request("POST", url, final_headers, "requests")
+    return _get_plain_session().post(url, headers=final_headers, **kwargs)
+
+
 def safe_requests_head(url, *, impersonate: bool = False, **kwargs):
     """Wrapper for requests.head with default browser headers (see safe_requests_get)."""
     url = encode_non_ascii_url(url)

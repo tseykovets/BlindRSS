@@ -63,7 +63,12 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 - `main.py`
   - App bootstrap, dependency checks, provider creation, and main frame startup.
   - Startup work scheduled via `wx.CallLater` (`MainFrame` init: accessible-browser check, update check, `_check_media_dependencies`) must do its real work on a background thread and marshal only UI back via `wx.CallAfter`. `check_media_tools_status()` walks PATH/Scoop/Chocolatey layouts and can shell out to winget — it ran on the UI thread for years and froze the app ~0.8s warm (seconds on a cold first launch) right as users started navigating.
-  - Starts UI and refresh work without blocking startup.
+  - Starts UI and refresh work without blocking startup. `MainFrame` must defer
+    its initial feed-tree load and refresh-loop thread with `wx.CallLater` until
+    the first event-loop turn (after `main.py` has shown the frame); starting a
+    large refresh inside the frame constructor can starve Windows activation/
+    ALT+Tab before the window first appears. Do not gate this on `IsShown()`:
+    tray-only launches still need their background refresh.
   - The start_in_system_tray setting suppresses the initial main-window show
     while leaving the tray icon and background refresh active. It applies to
     manual and start-at-login launches and takes precedence over
@@ -96,6 +101,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
     - Ning handling: avoid pagination-follow on `*.ning.com`; prefer web full-text for forum/topic/article links, and prefer feed fragments only for profile-style activity links.
     - Pagination-follow is suppressed per-host in `_find_next_page` (`_NO_PAGINATION_FOLLOW_HOSTS`: wired.com, ning.com, neowin.net, bloomberg.com) for sites whose articles are single-page and whose "next" control points at a DIFFERENT story. Neowin specifically abuses `<link rel="next">` to link the next article, so following it merged an unrelated piece onto the story.
     - Bot/interstitial handling should return the clear "open in browser" style failure rather than replacing good feed content with anti-bot boilerplate.
+    - Google News RSS article URLs (`news.google.com/rss/articles/...`) are signed JavaScript redirects, not publisher pages. Resolve their page-provided signed `Fbv4je` request to the publisher URL in the background full-text path before extraction; never treat Google's "Before you continue" consent page as article content, and fail closed with the original-link guidance when resolution changes or fails.
     - Fetch fallback chain in `_fetch_page` when the direct fetch gates or fails (live sources first — the user wants CURRENT text, not a stale copy): (1) impersonated live refetch via curl_cffi trying Chrome then `safari184` — some Cloudflare-managed challenges 403 the Chrome TLS hello but pass Safari's (verified live on neowin.net); (2) Jina read-proxy (`r.jina.ai`, gates only); (3) Smry.ai reader SSE endpoint (`/api/article/auto/stream`, parses the `event: article` JSON body); (4) Wayback Machine (`archive.org/wayback/available` → raw `id_/` snapshot). Every fallback body is re-checked for interstitials so a gate served/archived by a fallback is never stored. Services verified NON-working 2026-07 and intentionally excluded: Archive.today (own CAPTCHA even with TLS impersonation), Google Cache (discontinued 2024), 12ft.io (dead) — do not re-add without re-verifying.
     - curl_cffi read-once gotcha: setting `response.encoding` AFTER `response.text` has been accessed raises `ValueError`; read bodies through `_response_text` (sets encoding first, best-effort) so a successful impersonated 200 isn't silently discarded by the surrounding `except`.
     - `safe_requests_get`/`safe_requests_head` accept `impersonate_target` to override the default Chrome fingerprint (e.g. `"safari184"`).

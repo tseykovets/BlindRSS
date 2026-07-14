@@ -226,6 +226,27 @@ def test_refresh_activity_updates_and_clears_tray_label(monkeypatch):
     assert host.tray_icon.label == "Unread: 6"
 
 
+def test_progress_flush_updates_native_tray_once_for_multiple_feed_states():
+    """A progress chunk keeps its final activity text but performs only one
+    feed-total/native-tray update, rather than one expensive update per feed.
+    """
+    host = _StatusBarHost()
+    host.feed_map = {
+        "feed-1": SimpleNamespace(id="feed-1", title="First", category="News", unread_count=1),
+        "feed-2": SimpleNamespace(id="feed-2", title="Second", category="News", unread_count=2),
+    }
+    host._refresh_progress_pending = {
+        "feed-1": {"id": "feed-1", "title": "First", "unread_count": 4, "category": "News", "status": "ok"},
+        "feed-2": {"id": "feed-2", "title": "Second", "unread_count": 6, "category": "News", "status": "ok"},
+    }
+    host._refresh_progress_flush_scheduled = True
+
+    host._flush_feed_refresh_progress()
+
+    assert host.fields[1] == "Checked: Second"
+    assert host.tray_icon.updates == [(10, "Checked: Second")]
+
+
 # --- (c) downloads: begin -> success / begin -> failure ---------------------
 
 

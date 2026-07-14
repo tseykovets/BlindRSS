@@ -717,14 +717,13 @@ class MainFrame(wx.Frame):
         self._apply_persistent_search_menu()
 
     def _apply_persistent_search_menu(self):
-        try:
-            if getattr(self, "_persistent_search_menu", None):
-                try:
-                    self._persistent_search_menu.Destroy()
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        # SetMenu transfers menu ownership to the wx.SearchCtrl: the control
+        # frees the previous menu itself when a new one is set.  Only destroy
+        # the old menu here if it was never attached (a second free of an
+        # attached menu crashes the whole app — the saved-search dialog's OK
+        # rebuilds this menu).
+        old_menu = getattr(self, "_persistent_search_menu", None)
+        old_attached = bool(getattr(self, "_persistent_search_menu_attached", False))
         menu = wx.Menu()
         self._persistent_search_items = {}
 
@@ -741,11 +740,19 @@ class MainFrame(wx.Frame):
         manage_item = menu.Append(wx.ID_ANY, _("Configure Persistent Search..."))
         self.Bind(wx.EVT_MENU, self.on_configure_persistent_search, manage_item)
 
+        attached = False
         try:
             self.search_ctrl.SetMenu(menu)
+            attached = True
         except Exception:
             pass
+        if old_menu is not None and not old_attached:
+            try:
+                old_menu.Destroy()
+            except Exception:
+                pass
         self._persistent_search_menu = menu
+        self._persistent_search_menu_attached = attached
 
     def _set_base_articles(self, articles, view_id=None) -> None:
         self._base_articles = list(articles or [])

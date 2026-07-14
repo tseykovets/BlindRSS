@@ -12,6 +12,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from providers.local import LocalProvider
+from core.config import ConfigManager, DEFAULT_CONFIG
 from core.db import init_db, get_connection
 
 
@@ -69,6 +70,12 @@ class StaleCacheHandler(BaseHTTPRequestHandler):
     saw_conditional = False
 
     def do_GET(self):
+        if self.path == "/redirect":
+            self.send_response(302)
+            self.send_header("Location", "/rss")
+            self.end_headers()
+            return
+
         cache_control = (self.headers.get("Cache-Control") or "").lower()
         pragma = (self.headers.get("Pragma") or "").lower()
         no_cache = ("no-cache" in cache_control) or ("no-cache" in pragma)
@@ -208,13 +215,59 @@ class FeedCacheRevalidationTests(unittest.TestCase):
         self.assertTrue(StaleCacheHandler.saw_no_cache)
         self.assertFalse(StaleCacheHandler.saw_conditional)
 
-    def test_local_provider_forces_startup_refresh(self):
+    def test_conditional_redirect_persists_canonical_feed_url_and_marks_ui_dirty(self):
         provider = LocalProvider(self.config)
-        # The local provider opts into a forced first refresh so a fresh launch is
-        # never left stale by servers that return a spurious 304.
+        # Seed one stored item first so the normal refresh path does not run
+        # its first-run URL-discovery probe (which intentionally clears
+        # validators before fetching).
+        provider.refresh(force=False)
+        redirect_url = f"http://127.0.0.1:{self.port}/redirect"
+        conn = get_connection()
+        try:
+            conn.execute(
+                "UPDATE feeds SET url = ?, etag = ?, last_modified = NULL WHERE id = ?",
+                (redirect_url, "v1", self.feed_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        StaleCacheHandler.saw_conditional = False
+        states = []
+        provider.refresh(force=False, progress_cb=states.append)
+
+        conn = get_connection()
+        try:
+            row = conn.execute("SELECT url FROM feeds WHERE id = ?", (self.feed_id,)).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(row[0], self.feed_url)
+        self.assertTrue(StaleCacheHandler.saw_conditional)
+        self.assertEqual(len(states), 1)
+        self.assertTrue(states[0]["feed_metadata_changed"])
+
+    def test_default_workload_fully_refreshes_at_startup(self):
+        provider = LocalProvider(self.config)
+        self.assertEqual(DEFAULT_CONFIG["automatic_feed_refresh_workload"], "startup_full")
         self.assertTrue(provider.should_force_startup_refresh())
 
-    def test_ignore_feed_cache_bypasses_conditional_on_auto_refresh(self):
+    def test_cached_workload_does_not_force_startup_refresh(self):
+        self.config["automatic_feed_refresh_workload"] = "cached"
+        provider = LocalProvider(self.config)
+
+        self.assertFalse(provider.should_force_startup_refresh())
+        self.assertFalse(provider._cache_ignore_enabled())
+
+    def test_legacy_ignore_feed_cache_maps_to_always_full(self):
+        config = ConfigManager.__new__(ConfigManager)._apply_defaults({"ignore_feed_cache": True})
+        self.assertEqual(config["automatic_feed_refresh_workload"], "always_full")
+
+        provider = LocalProvider({"ignore_feed_cache": True})
+        self.assertEqual(provider._automatic_feed_refresh_workload(), "always_full")
+        self.assertTrue(provider.should_force_startup_refresh())
+
+    def test_always_full_workload_bypasses_conditional_on_auto_refresh(self):
         provider = LocalProvider(self.config)
 
         # Initial refresh stores the v1 ETag.
@@ -226,9 +279,9 @@ class FeedCacheRevalidationTests(unittest.TestCase):
         StaleCacheHandler.saw_no_cache = False
         StaleCacheHandler.saw_conditional = False
 
-        # A non-forced (periodic/background) refresh with the user opt-in enabled must
-        # still pull fresh content without sending conditional validators.
-        provider.config["ignore_feed_cache"] = True
+        # A non-forced periodic refresh with the explicit always-full workload
+        # must still pull fresh content without conditional validators.
+        provider.config["automatic_feed_refresh_workload"] = "always_full"
         provider.refresh(force=False)
 
         conn = get_connection()

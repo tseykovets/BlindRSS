@@ -3,13 +3,15 @@ import pytest
 import time
 import os
 import sys
+import sqlite3
 from unittest.mock import MagicMock, patch
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from providers.local import LocalProvider
+from providers import local as local_provider
+from providers.local import LocalProvider, _load_current_feed_articles_for_entries
 from core.db import init_db, get_connection
 
 # Mock feedparser response
@@ -95,6 +97,112 @@ def test_refresh_performance(provider):
         
         # No chapter URL in the mock feed => chapter fetch path should be skipped.
         assert mock_chapters.call_count == 0
+
+
+def test_refresh_existing_article_lookup_reads_only_current_feed_candidates():
+    """A short feed response must not hydrate years of retained history into Python."""
+    conn = sqlite3.connect(":memory:")
+    try:
+        conn.execute(
+            "CREATE TABLE articles (id TEXT PRIMARY KEY, feed_id TEXT, date TEXT, chapter_url TEXT, "
+            "media_url TEXT, media_type TEXT, url TEXT, description TEXT)"
+        )
+        conn.executemany(
+            "INSERT INTO articles (id, feed_id, date, chapter_url, media_url, media_type, url, description) "
+            "VALUES (?, ?, '', NULL, NULL, NULL, '', '')",
+            [(f"old-{index}", "feed-1") for index in range(2000)]
+            + [
+                ("current", "feed-1"),
+                ("feed-1:collision", "feed-1"),
+                ("other-feed-current", "feed-2"),
+            ],
+        )
+        statements = []
+        conn.set_trace_callback(statements.append)
+
+        existing = _load_current_feed_articles_for_entries(
+            conn.cursor(),
+            "feed-1",
+            ["current", "collision", "missing"],
+        )
+
+        assert set(existing) == {"current", "feed-1:collision"}
+        article_queries = [statement for statement in statements if "FROM articles" in statement]
+        assert len(article_queries) == 1
+        assert "feed_id = 'feed-1' AND id IN" in article_queries[0]
+    finally:
+        conn.close()
+
+
+def test_identical_refresh_skips_noop_existing_article_updates(provider, monkeypatch):
+    """Forced refreshes still check version history, but do not rewrite unchanged article rows."""
+    feed_id = _add_test_feed(provider)
+    statements = []
+
+    class RecordingCursor:
+        def __init__(self, cursor):
+            self._cursor = cursor
+
+        def execute(self, statement, parameters=()):
+            statements.append(str(statement))
+            self._cursor.execute(statement, parameters)
+            return self
+
+        def __getattr__(self, name):
+            return getattr(self._cursor, name)
+
+    class RecordingConnection:
+        def __init__(self, connection):
+            self._connection = connection
+
+        def cursor(self):
+            return RecordingCursor(self._connection.cursor())
+
+        def __getattr__(self, name):
+            return getattr(self._connection, name)
+
+    with patch("core.utils.safe_requests_get") as mock_get, patch("feedparser.parse") as mock_parse:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.content = b"xml"
+        mock_resp.text = "xml"
+        mock_resp.headers = {}
+        mock_get.return_value = mock_resp
+        mock_parse.return_value = MockFeed(count=3)
+
+        provider.refresh_feed(feed_id)
+
+        original_get_connection = local_provider.get_connection
+        monkeypatch.setattr(
+            local_provider,
+            "get_connection",
+            lambda: RecordingConnection(original_get_connection()),
+        )
+        provider.refresh_feed(feed_id)
+
+    assert not any("UPDATE articles SET date" in statement for statement in statements)
+
+
+def test_progress_state_reuses_worker_unread_count_without_opening_another_connection(provider, monkeypatch):
+    monkeypatch.setattr(
+        local_provider,
+        "get_connection",
+        lambda: (_ for _ in ()).throw(AssertionError("must reuse the worker count")),
+    )
+
+    state = provider._collect_feed_state(
+        "feed-1",
+        "Feed title",
+        "News",
+        "ok",
+        0,
+        None,
+        known_unread_count=7,
+    )
+
+    assert state["title"] == "Feed title"
+    assert state["category"] == "News"
+    assert state["unread_count"] == 7
 
 
 def test_refresh_defers_chapter_fetch_when_chapter_url_present(provider):

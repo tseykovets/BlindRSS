@@ -1189,10 +1189,49 @@ _GOOGLE_NEWS_BATCH_EXECUTE_URL = (
 _GOOGLE_NEWS_RPC_ID = "Fbv4je"
 _GOOGLE_NEWS_DATA_PREFIX = "%.@."
 _GOOGLE_NEWS_LOCALE_QUERY = "hl=en-US&gl=US&ceid=US:en"
+_GOOGLE_NEWS_OPAQUE_ID_RE = re.compile(r"[A-Za-z0-9_-]{12,}")
+_GOOGLE_NEWS_MAX_TIMESTAMP = 99_999_999_999
+_GOOGLE_NEWS_MAX_SIGNATURE_LENGTH = 4096
 _GOOGLE_NEWS_RESOLUTION_MESSAGE = (
     "Google News could not resolve the original publisher link. "
     "Open the original link in your browser to read it."
 )
+
+# The page's preferred ``data-p`` signed request remains the first decoder path.  Some Google
+# News variants instead expose these three data-n-a-* fields.  The Fbv4je endpoint accepts this
+# generic request context with the page-provided opaque id, timestamp, and signature.
+_GOOGLE_NEWS_GENERIC_REQUEST_CONTEXT = [
+    [
+        "X",
+        "X",
+        ["X", "X"],
+        None,
+        None,
+        1,
+        1,
+        "US:en",
+        None,
+        1,
+        None,
+        None,
+        None,
+        None,
+        None,
+        0,
+        1,
+    ],
+    "X",
+    "X",
+    1,
+    [1, 1, 1],
+    1,
+    1,
+    None,
+    0,
+    0,
+    None,
+    0,
+]
 
 
 def _is_google_news_article_url(url: str) -> bool:
@@ -1221,7 +1260,7 @@ def _google_news_article_token(url: str) -> Optional[str]:
         return None
     # Google currently uses URL-safe base64-like opaque tokens.  Reject anything else before it
     # reaches the signed RPC so an arbitrary news.google.com URL cannot become a resolver request.
-    if not re.fullmatch(r"[A-Za-z0-9_-]{12,}", token or ""):
+    if not _GOOGLE_NEWS_OPAQUE_ID_RE.fullmatch(token or ""):
         return None
     return token
 
@@ -1233,16 +1272,57 @@ def _google_news_decoder_page_url(url: str) -> str:
     return parts._replace(query=query, fragment="").geturl()
 
 
+def _google_news_publisher_url(value: object) -> Optional[str]:
+    """Return a safe non-Google publisher URL, or ``None`` for another Google wrapper."""
+    if not isinstance(value, str):
+        return None
+    resolved = value.strip()
+    try:
+        destination = urlsplit(resolved)
+    except (AttributeError, TypeError, ValueError):
+        return None
+    host = (destination.hostname or "").lower().rstrip(".")
+    if (
+        destination.scheme not in {"http", "https"}
+        or not host
+        or host == "google.com"
+        or host.endswith(".google.com")
+    ):
+        return None
+    return resolved
+
+
 def _parse_google_news_batch_response(body: str) -> Optional[str]:
-    """Extract the publisher URL from Google News' line-oriented batchexecute response."""
+    """Extract the publisher URL from Google's line-oriented or split batchexecute response."""
+    candidates = []
     for line in (body or "").splitlines():
         candidate = line.strip()
         if not candidate or candidate.startswith(")]}'"):
             continue
         try:
-            rows = json.loads(candidate)
+            candidates.append(json.loads(candidate))
         except Exception:
             continue
+
+    # Google normally puts one JSON value per line, but occasionally splits a response value
+    # across lines.  A bounded raw-decode scan accepts that transport variation without treating
+    # untrusted text as a publisher URL.
+    decoder = json.JSONDecoder()
+    raw_body = body or ""
+    index = 0
+    while index < len(raw_body):
+        start = raw_body.find("[", index)
+        if start < 0:
+            break
+        try:
+            rows, end = decoder.raw_decode(raw_body, start)
+        except Exception:
+            index = start + 1
+            continue
+        candidates.append(rows)
+        index = end
+
+    for rows in candidates:
         if not isinstance(rows, list):
             continue
         for row in rows:
@@ -1254,14 +1334,194 @@ def _parse_google_news_batch_response(body: str) -> Optional[str]:
                 continue
             if not isinstance(result, list) or len(result) < 2 or result[0] != "garturlres":
                 continue
-            resolved = str(result[1] or "").strip()
-            try:
-                destination = urlsplit(resolved)
-            except (AttributeError, TypeError, ValueError):
-                continue
-            if destination.scheme in {"http", "https"} and destination.hostname:
+            resolved = _google_news_publisher_url(result[1])
+            if resolved:
                 return resolved
     return None
+
+
+def _google_news_timestamp(value: object) -> Optional[int]:
+    """Validate the short-lived Google timestamp before using it in a signed request."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        timestamp = value
+    elif isinstance(value, str) and value.strip().isdigit():
+        try:
+            timestamp = int(value.strip())
+        except ValueError:
+            return None
+    else:
+        return None
+    if 0 < timestamp <= _GOOGLE_NEWS_MAX_TIMESTAMP:
+        return timestamp
+    return None
+
+
+def _google_news_signature(value: object) -> Optional[str]:
+    """Validate the opaque Google signature without logging or altering it."""
+    if not isinstance(value, str) or not value or len(value) > _GOOGLE_NEWS_MAX_SIGNATURE_LENGTH:
+        return None
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        return None
+    return value
+
+
+def _google_news_signed_request_from_data_p(raw_request: object, token: str) -> Optional[list]:
+    """Rebuild a stable signed garturlreq from Google's preferred ``c-wiz[data-p]`` field."""
+    if not isinstance(raw_request, str) or not raw_request.startswith(_GOOGLE_NEWS_DATA_PREFIX):
+        return None
+    encoded_args = '["garturlreq",' + raw_request[len(_GOOGLE_NEWS_DATA_PREFIX):]
+    rpc_args = None
+    for candidate in (encoded_args, encoded_args + "]"):
+        try:
+            rpc_args = json.loads(candidate)
+            break
+        except json.JSONDecodeError:
+            continue
+    if (
+        isinstance(rpc_args, list)
+        and len(rpc_args) == 2
+        and rpc_args[0] == "garturlreq"
+        and isinstance(rpc_args[1], list)
+    ):
+        # The fallback serialization above nests the original arguments one level deeper.
+        rpc_args = [rpc_args[0], *rpc_args[1]]
+    # The signed page request has the shape [garturlreq, context, token, transient...,
+    # timestamp, signature].  The RPC accepts its stable prefix plus those final two values.
+    if (
+        not isinstance(rpc_args, list)
+        or len(rpc_args) < 9
+        or rpc_args[0] != "garturlreq"
+        or rpc_args[2] != token
+    ):
+        return None
+    timestamp = _google_news_timestamp(rpc_args[-2])
+    signature = _google_news_signature(rpc_args[-1])
+    if timestamp is None or signature is None:
+        return None
+    return rpc_args[:-6] + [timestamp, signature]
+
+
+def _google_news_signed_request_from_attributes(page, token: str) -> Optional[list]:
+    """Build Google's generic signed request from the alternate data-n-a-* decoder fields."""
+    for node in page.select("[data-n-a-sg][data-n-a-ts][data-n-a-id]"):
+        article_id = node.get("data-n-a-id")
+        # A Google article page can contain signed related-story widgets.  The
+        # fallback field must therefore belong to the exact RSS token requested,
+        # otherwise a markup change could silently extract a different story.
+        if (
+            not isinstance(article_id, str)
+            or article_id != token
+            or not _GOOGLE_NEWS_OPAQUE_ID_RE.fullmatch(article_id)
+        ):
+            continue
+        timestamp = _google_news_timestamp(node.get("data-n-a-ts"))
+        signature = _google_news_signature(node.get("data-n-a-sg"))
+        if timestamp is None or signature is None:
+            continue
+        return [
+            "garturlreq",
+            _GOOGLE_NEWS_GENERIC_REQUEST_CONTEXT,
+            article_id,
+            timestamp,
+            signature,
+        ]
+    return None
+
+
+def _google_news_signed_request_from_page(page_html: str, token: str) -> Tuple[Optional[list], str]:
+    """Get one signed decoder request from the supported current Google News markup variants."""
+    try:
+        page = BeautifulSoup(page_html, "html.parser")
+    except Exception:
+        return None, "unparseable-page"
+    for node in page.select("c-wiz[data-p]"):
+        signed_request = _google_news_signed_request_from_data_p(node.get("data-p"), token)
+        if signed_request:
+            return signed_request, "data-p"
+    signed_request = _google_news_signed_request_from_attributes(page, token)
+    if signed_request:
+        return signed_request, "data-n-a"
+    return None, "missing-signed-request"
+
+
+def _google_news_batch_payload(signed_request: list) -> dict:
+    """Serialize a validated signed request for the narrow Fbv4je endpoint."""
+    batch_payload = [[[
+        _GOOGLE_NEWS_RPC_ID,
+        json.dumps(signed_request, separators=(",", ":")),
+        None,
+        "generic",
+    ]]]
+    return {"f.req": json.dumps(batch_payload, separators=(",", ":"))}
+
+
+def _resolve_google_news_decoder_attempt(
+    page_url: str,
+    token: str,
+    request_timeout: float,
+    impersonate_target: Optional[str],
+) -> Optional[str]:
+    """Run one matched browser-transport GET/POST decoder attempt, returning only a publisher URL."""
+    target_label = impersonate_target or "chrome"
+    try:
+        page_response = utils.safe_requests_get(
+            page_url,
+            timeout=request_timeout,
+            headers=dict(_HTML_ACCEPT_HEADERS),
+            allow_redirects=True,
+            impersonate=True,
+            impersonate_target=impersonate_target,
+        )
+        page_html = _response_text(page_response)
+    except Exception:
+        LOG.debug("Google News decoder %s GET failed", target_label, exc_info=True)
+        return None
+    page_status = getattr(page_response, "status_code", 0)
+    direct_url = _google_news_publisher_url(getattr(page_response, "url", ""))
+    if direct_url and 200 <= page_status < 400:
+        return direct_url
+    if not (200 <= page_status < 400) or not page_html:
+        LOG.debug("Google News decoder %s page status=%s", target_label, page_status)
+        return None
+    if _looks_like_bot_interstitial(page_html):
+        LOG.debug("Google News decoder %s received a consent or bot-interstitial page", target_label)
+        return None
+
+    signed_request, decoder_kind = _google_news_signed_request_from_page(page_html, token)
+    if not signed_request:
+        LOG.debug("Google News decoder %s has no usable signed request (%s)", target_label, decoder_kind)
+        return None
+    try:
+        response = utils.safe_requests_post(
+            _GOOGLE_NEWS_BATCH_EXECUTE_URL,
+            timeout=request_timeout,
+            data=_google_news_batch_payload(signed_request),
+            headers={
+                **_HTML_ACCEPT_HEADERS,
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                "Referer": "https://news.google.com/",
+            },
+            allow_redirects=True,
+            impersonate=True,
+            impersonate_target=impersonate_target,
+        )
+        response_body = _response_text(response)
+    except Exception:
+        LOG.debug("Google News decoder %s %s POST failed", target_label, decoder_kind, exc_info=True)
+        return None
+    response_status = getattr(response, "status_code", 0)
+    direct_url = _google_news_publisher_url(getattr(response, "url", ""))
+    if direct_url and 200 <= response_status < 400:
+        return direct_url
+    if not (200 <= response_status < 400):
+        LOG.debug("Google News decoder %s %s POST status=%s", target_label, decoder_kind, response_status)
+        return None
+    resolved = _parse_google_news_batch_response(response_body)
+    if not resolved:
+        LOG.debug("Google News decoder %s %s POST had no publisher URL", target_label, decoder_kind)
+    return resolved
 
 
 def _resolve_google_news_article_url(url: str, timeout: int) -> Optional[str]:
@@ -1271,82 +1531,24 @@ def _resolve_google_news_article_url(url: str, timeout: int) -> Optional[str]:
         return None
 
     # This happens in a full-text worker, never in refresh/startup.  Keep each network operation
-    # bounded even if a caller supplied a very large extraction timeout.
+    # bounded even if a caller supplied a very large extraction timeout.  Start with a browser
+    # TLS/HTTP fingerprint: normal requests can receive and retain Google's consent response.
     try:
         request_timeout = max(1.0, min(float(timeout or 10), 10.0))
     except (TypeError, ValueError):
         request_timeout = 10.0
-
-    try:
-        page_response = utils.safe_requests_get(
-            _google_news_decoder_page_url(url),
-            timeout=request_timeout,
-            headers=dict(_HTML_ACCEPT_HEADERS),
-            allow_redirects=True,
+    targets = _IMPERSONATE_TARGETS if getattr(utils, "CURL_CFFI_AVAILABLE", False) else (None,)
+    page_url = _google_news_decoder_page_url(url)
+    for impersonate_target in targets:
+        resolved = _resolve_google_news_decoder_attempt(
+            page_url,
+            token,
+            request_timeout,
+            impersonate_target,
         )
-        page_html = _response_text(page_response)
-    except Exception:
-        return None
-    if not (200 <= getattr(page_response, "status_code", 0) < 400) or not page_html:
-        return None
-    if _looks_like_bot_interstitial(page_html):
-        return None
-
-    try:
-        page = BeautifulSoup(page_html, "html.parser")
-        request_node = page.select_one("c-wiz[data-p]")
-        raw_request = str(request_node.get("data-p") or "") if request_node else ""
-        if not raw_request.startswith(_GOOGLE_NEWS_DATA_PREFIX):
-            return None
-        encoded_args = '["garturlreq",' + raw_request[len(_GOOGLE_NEWS_DATA_PREFIX):]
-        try:
-            rpc_args = json.loads(encoded_args)
-        except json.JSONDecodeError:
-            # Current pages include the wrapper's closing bracket in data-p.  Accept a plain
-            # argument-array variant too so a harmless markup serialization change fails less
-            # often, while all of the token/signature validation below still applies.
-            rpc_args = json.loads(encoded_args + "]")
-        if (
-            isinstance(rpc_args, list)
-            and len(rpc_args) == 2
-            and rpc_args[0] == "garturlreq"
-            and isinstance(rpc_args[1], list)
-        ):
-            # The fallback serialization above nests the original arguments one level deeper.
-            rpc_args = [rpc_args[0], *rpc_args[1]]
-        # The signed page request has the shape [garturlreq, context, token, transient...,
-        # timestamp, signature].  The RPC accepts its stable prefix plus those final two values.
-        if (
-            not isinstance(rpc_args, list)
-            or len(rpc_args) < 8
-            or rpc_args[2] != token
-            or not isinstance(rpc_args[-1], str)
-        ):
-            return None
-        signed_request = rpc_args[:-6] + rpc_args[-2:]
-        batch_payload = [[[
-            _GOOGLE_NEWS_RPC_ID,
-            json.dumps(signed_request, separators=(",", ":")),
-            None,
-            "generic",
-        ]]]
-        response = utils.safe_requests_post(
-            _GOOGLE_NEWS_BATCH_EXECUTE_URL,
-            timeout=request_timeout,
-            data={"f.req": json.dumps(batch_payload, separators=(",", ":"))},
-            headers={
-                **_HTML_ACCEPT_HEADERS,
-                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-                "Referer": "https://news.google.com/",
-            },
-            allow_redirects=True,
-        )
-        response_body = _response_text(response)
-    except Exception:
-        return None
-    if not (200 <= getattr(response, "status_code", 0) < 400):
-        return None
-    return _parse_google_news_batch_response(response_body)
+        if resolved:
+            return resolved
+    return None
 
 
 def _response_text(r) -> str:

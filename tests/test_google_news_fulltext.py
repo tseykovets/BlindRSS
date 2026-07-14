@@ -83,6 +83,18 @@ def _signed_google_news_page(token=TOKEN):
     return f"<html><body><c-wiz data-p='{data_p}'></c-wiz></body></html>"
 
 
+def _attribute_google_news_page(
+    article_id=TOKEN,
+    timestamp="1783999049",
+    signature="attribute-google-signature",
+):
+    return (
+        "<html><body><div "
+        f"data-n-a-id='{article_id}' data-n-a-ts='{timestamp}' data-n-a-sg='{signature}'"
+        "></div></body></html>"
+    )
+
+
 def _batch_response(url=PUBLISHER_URL):
     rpc_result = json.dumps(["garturlres", url])
     return ")]}'\n\n" + json.dumps([["wrb.fr", "Fbv4je", rpc_result]])
@@ -108,9 +120,13 @@ def test_google_news_resolver_uses_signed_rpc_and_returns_publisher_url(monkeypa
     assert calls[0][0] == "get"
     assert "hl=en-US" in calls[0][1]
     assert calls[0][2]["timeout"] == 10.0
+    assert calls[0][2]["impersonate"] is True
+    assert calls[0][2]["impersonate_target"] is None
     assert calls[1][0] == "post"
     assert calls[1][1] == article_extractor._GOOGLE_NEWS_BATCH_EXECUTE_URL
     assert calls[1][2]["timeout"] == 10.0
+    assert calls[1][2]["impersonate"] is True
+    assert calls[1][2]["impersonate_target"] is None
 
     signed_request = json.loads(json.loads(calls[1][2]["data"]["f.req"])[0][0][1])
     assert signed_request[0] == "garturlreq"
@@ -135,8 +151,10 @@ def test_google_news_resolver_rejects_malformed_and_non_google_urls_without_requ
 
 def test_google_news_resolver_rejects_consent_page_without_posting(monkeypatch):
     posted = False
+    calls = []
 
     def fake_get(url, **kwargs):
+        calls.append((url, kwargs))
         return _Response(200, CONSENT_HTML, "https://consent.google.com/m")
 
     def fake_post(*args, **kwargs):
@@ -146,8 +164,71 @@ def test_google_news_resolver_rejects_consent_page_without_posting(monkeypatch):
 
     monkeypatch.setattr(utils, "safe_requests_get", fake_get)
     monkeypatch.setattr(utils, "safe_requests_post", fake_post)
+    monkeypatch.setattr(utils, "CURL_CFFI_AVAILABLE", False)
 
     assert article_extractor._looks_like_bot_interstitial(CONSENT_HTML) is True
+    assert article_extractor._resolve_google_news_article_url(GOOGLE_URL, timeout=5) is None
+    assert posted is False
+    assert len(calls) == 1
+    assert calls[0][1]["impersonate"] is True
+
+
+def test_google_news_resolver_retries_browser_transport_and_uses_attribute_decoder(monkeypatch):
+    calls = []
+    attribute_id = TOKEN
+    signature = "attribute-google-signature"
+
+    def fake_get(url, **kwargs):
+        calls.append(("get", url, kwargs))
+        if kwargs["impersonate_target"] is None:
+            return _Response(200, CONSENT_HTML, "https://consent.google.com/m")
+        assert kwargs["impersonate_target"] == "safari184"
+        return _Response(200, _attribute_google_news_page(attribute_id, "1783999049", signature), url)
+
+    def fake_post(url, **kwargs):
+        calls.append(("post", url, kwargs))
+        return _Response(200, _batch_response(), url)
+
+    monkeypatch.setattr(utils, "safe_requests_get", fake_get)
+    monkeypatch.setattr(utils, "safe_requests_post", fake_post)
+    monkeypatch.setattr(utils, "CURL_CFFI_AVAILABLE", True)
+
+    assert article_extractor._resolve_google_news_article_url(GOOGLE_URL, timeout=5) == PUBLISHER_URL
+
+    assert [call[0] for call in calls] == ["get", "get", "post"]
+    assert [call[2]["impersonate_target"] for call in calls] == [None, "safari184", "safari184"]
+    assert all(call[2]["impersonate"] is True for call in calls)
+    signed_request = json.loads(json.loads(calls[-1][2]["data"]["f.req"])[0][0][1])
+    assert signed_request[0] == "garturlreq"
+    assert signed_request[2] == attribute_id
+    assert signed_request[-2:] == [1783999049, signature]
+
+
+def test_google_news_batch_response_rejects_another_google_wrapper():
+    assert article_extractor._parse_google_news_batch_response(
+        _batch_response("https://news.google.com/rss/articles/another-wrapper")
+    ) is None
+
+
+def test_google_news_attribute_decoder_rejects_a_related_story_token(monkeypatch):
+    posted = False
+
+    def fake_get(url, **kwargs):
+        return _Response(
+            200,
+            _attribute_google_news_page("CBMiUmVsYXRlZFN0b3J5VG9rZW5Gb3JUZXN0"),
+            url,
+        )
+
+    def fake_post(*args, **kwargs):
+        nonlocal posted
+        posted = True
+        return _Response(200, _batch_response())
+
+    monkeypatch.setattr(utils, "safe_requests_get", fake_get)
+    monkeypatch.setattr(utils, "safe_requests_post", fake_post)
+    monkeypatch.setattr(utils, "CURL_CFFI_AVAILABLE", False)
+
     assert article_extractor._resolve_google_news_article_url(GOOGLE_URL, timeout=5) is None
     assert posted is False
 

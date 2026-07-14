@@ -5981,7 +5981,8 @@ class MainFrame(wx.Frame):
 
         while not self.stop_event.is_set():
             interval = self._scheduled_refresh_tick_seconds()
-            if interval <= 0:
+            is_startup_tick = startup_refresh_pending
+            if interval <= 0 and not is_startup_tick:
                 # "Never" setting: wait 5s then check config/stop event again
                 if self.stop_event.wait(5):
                     return
@@ -5994,7 +5995,6 @@ class MainFrame(wx.Frame):
                 # Providers where forcing is cheap (the local provider: one full GET per
                 # feed) opt in via should_force_startup_refresh() so a fresh launch is
                 # not left stale by servers that return a spurious 304.
-                is_startup_tick = startup_refresh_pending
                 startup_refresh_pending = False
                 force_refresh = False
                 if is_startup_tick:
@@ -6013,8 +6013,11 @@ class MainFrame(wx.Frame):
             except Exception as e:
                 print(f"Refresh error: {e}")
                 log.exception("Refresh loop tick failed")
+            # "Never" suppresses periodic ticks, but a separately enabled
+            # startup refresh above still runs once before we enter this wait.
+            sleep_seconds = interval if interval > 0 else 5
             # Sleep in one shot but wake early if closing
-            if self.stop_event.wait(interval):
+            if self.stop_event.wait(sleep_seconds):
                 return
 
     def refresh_feeds(self):
@@ -6197,14 +6200,11 @@ class MainFrame(wx.Frame):
             message = _("Error checking: {title}").format(title=title)
         else:
             message = _("Checked: {title}").format(title=title)
-        # The enclosing _flush_feed_refresh_progress updates the tray exactly
-        # once per bounded chunk.  The status bar still tracks the latest feed
-        # immediately so screen-reader users retain useful progress feedback.
+        # Keep the tray's activity wording stable as "Refreshing feeds..." for
+        # the batch.  Replacing it with every completed feed title makes Windows
+        # redraw the native tray icon hundreds of times in a long refresh.  The
+        # status field remains the detailed, screen-reader-friendly progress view.
         self._set_activity_status(message, update_tray=False)
-        # Preserve the most recent activity for the chunk without asking the
-        # native tray icon to redraw yet.  The flusher performs that redraw once
-        # after all states in the chunk have been applied.
-        self._set_tray_activity_label(message, update=False)
 
     def _begin_refresh_ui_batch(self) -> int:
         """Mark a full refresh as active for selected-list coalescing.
@@ -6221,6 +6221,10 @@ class MainFrame(wx.Frame):
         self._refresh_ui_batch_ending = False
         self._refresh_ui_batch_refresh_tree = False
         self._refresh_ui_batch_end_activity = False
+        # A successful provider refresh can still be a complete no-op.  Keep
+        # the final tree reload for real model/error changes only; otherwise a
+        # large conditional refresh needlessly re-queries and rebuilds the UI.
+        self._refresh_ui_batch_dirty = False
         return self._refresh_ui_batch_token
 
     def _finish_refresh_ui_batch(self, refresh_tree: bool, batch_token: int | None = None) -> None:
@@ -6229,6 +6233,9 @@ class MainFrame(wx.Frame):
             log.debug("Ignoring stale refresh UI completion token=%s", batch_token)
             return
         self._refresh_ui_batch_ending = True
+        # Keep the caller's request, rather than snapshotting ``dirty`` here.
+        # The worker can finish while a later 40-state wx progress chunk is
+        # still queued, and that chunk may be the one that changes the model.
         self._refresh_ui_batch_refresh_tree = bool(refresh_tree)
         self._refresh_ui_batch_end_activity = True
         self._maybe_finish_refresh_ui_batch(batch_token=batch_token)
@@ -6256,12 +6263,17 @@ class MainFrame(wx.Frame):
         if progress_pending or flush_scheduled:
             return
 
-        refresh_tree = bool(getattr(self, "_refresh_ui_batch_refresh_tree", False))
+        refresh_tree_requested = bool(getattr(self, "_refresh_ui_batch_refresh_tree", False))
+        has_cached_tree = bool(getattr(self, "feed_map", None))
+        refresh_tree = refresh_tree_requested and (
+            bool(getattr(self, "_refresh_ui_batch_dirty", False)) or not has_cached_tree
+        )
         end_activity = bool(getattr(self, "_refresh_ui_batch_end_activity", False))
         self._refresh_ui_batch_active = False
         self._refresh_ui_batch_ending = False
         self._refresh_ui_batch_refresh_tree = False
         self._refresh_ui_batch_end_activity = False
+        self._refresh_ui_batch_dirty = False
 
         # Do this after the final per-feed status update, otherwise a timer
         # chunk can overwrite "Refresh complete" with a stale feed title.
@@ -6323,6 +6335,7 @@ class MainFrame(wx.Frame):
             self._refresh_progress_flush_scheduled = more
 
         applied_any = False
+        latest_applied_state = None
         for pending_state in pending:
             state_token = None
             st = pending_state
@@ -6336,10 +6349,20 @@ class MainFrame(wx.Frame):
             if state_token is not None and state_token != int(getattr(self, "_refresh_ui_batch_token", 0) or 0):
                 continue
             try:
-                self._apply_feed_refresh_progress(st)
+                # One status-bar update per UI chunk is enough: only the last
+                # message is observable, while one per feed floods native and
+                # accessibility events during a large refresh.
+                self._apply_feed_refresh_progress(st, update_activity=False)
                 applied_any = True
+                latest_applied_state = st
             except Exception:
                 log.debug("Failed to apply feed refresh progress update", exc_info=True)
+
+        if latest_applied_state is not None:
+            try:
+                self._set_feed_activity_status(latest_applied_state)
+            except Exception:
+                log.debug("Failed to update refresh activity status", exc_info=True)
 
         # One tray/unread-total update per chunk, not per feed: the total walks
         # every feed, so doing it per progress state is quadratic in feed count.
@@ -6370,25 +6393,42 @@ class MainFrame(wx.Frame):
             if callable(finish_ui_batch):
                 finish_ui_batch()
 
-    def _apply_feed_refresh_progress(self, state):
+    def _apply_feed_refresh_progress(self, state, *, update_activity: bool = True):
         if not state:
             return
         feed_id = state.get("id")
         if not feed_id:
             return
 
-        self._set_feed_activity_status(state)
+        if update_activity:
+            self._set_feed_activity_status(state)
 
         title = state.get("title", "")
         unread = state.get("unread_count", 0)
         category = state.get("category", "Uncategorized")
+        try:
+            has_new_items = int(state.get("new_items", 0) or 0) > 0
+        except (TypeError, ValueError):
+            has_new_items = bool(state.get("new_items"))
+        model_changed = (
+            has_new_items
+            or bool(state.get("content_changed"))
+            or bool(state.get("feed_metadata_changed"))
+            or bool(state.get("error"))
+            or state.get("status") == "error"
+        )
 
         # Update cached feed objects
         feed_obj = self.feed_map.get(feed_id)
         if feed_obj:
             old_unread = int(getattr(feed_obj, "unread_count", 0) or 0)
             old_category = getattr(feed_obj, "category", None)
-            feed_obj.title = title or feed_obj.title
+            old_title = getattr(feed_obj, "title", "")
+            next_title = title or old_title
+            model_changed = model_changed or (
+                next_title != old_title or unread != old_unread or category != old_category
+            )
+            feed_obj.title = next_title
             feed_obj.unread_count = unread
             feed_obj.category = category
 
@@ -6397,20 +6437,41 @@ class MainFrame(wx.Frame):
             # #34). Handles a feed moving category mid-refresh by debiting the
             # old chain and crediting the new one; same-category updates net
             # out to the plain delta.
-            if old_category and old_unread:
-                self._update_category_unread_chain_ui(old_category, -old_unread)
-            if category and unread:
-                self._update_category_unread_chain_ui(category, unread)
+            if old_category == category:
+                # The common case is an unchanged feed category.  Applying the
+                # net delta once avoids two full ancestor-chain TreeCtrl writes
+                # (and their screen-reader events) for every completed feed.
+                self._update_category_unread_chain_ui(category, unread - old_unread)
+            else:
+                if old_category and old_unread:
+                    self._update_category_unread_chain_ui(old_category, -old_unread)
+                if category and unread:
+                    self._update_category_unread_chain_ui(category, unread)
             # Tray/unread-total update happens once per flush chunk in
             # _flush_feed_refresh_progress; per-feed it is quadratic.
+        else:
+            # The initial cached-tree load can race the first refresh.  Ensure
+            # the final rebuild incorporates this feed's current state.
+            model_changed = True
+
+        if model_changed and getattr(self, "_refresh_ui_batch_active", False):
+            self._refresh_ui_batch_dirty = True
 
         # Update tree label if present
         node = self.feed_nodes.get(feed_id)
         if node and node.IsOk():
             label = f"{title} ({unread})" if unread > 0 else title
-            self.tree.SetItemText(node, label)
+            try:
+                current_label = self.tree.GetItemText(node)
+            except Exception:
+                current_label = None
+            if current_label != label:
+                self.tree.SetItemText(node, label)
 
-        # If the selected view is impacted, schedule article reload
+        # If the selected view is impacted, schedule article reload.  A true
+        # no-op completion needs neither a list reload nor a final tree rebuild.
+        if not model_changed:
+            return
         sel = self.tree.GetSelection()
         if sel and sel.IsOk():
             data = self.tree.GetItemData(sel)

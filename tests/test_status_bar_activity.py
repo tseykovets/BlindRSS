@@ -220,7 +220,9 @@ def test_refresh_activity_updates_and_clears_tray_label(monkeypatch):
     host._on_feed_refresh_progress(
         {"id": "feed-1", "title": "Example Feed", "unread_count": 4, "category": "News", "status": "ok"}
     )
-    assert host.tray_icon.label == "Unread: 6, Checked: Example Feed"
+    # Per-feed detail stays in the status bar; keeping the tray activity stable
+    # avoids a native tray-icon redraw for every completed feed.
+    assert host.tray_icon.label == "Unread: 6, Refreshing feeds..."
 
     host._end_refresh_activity()
     assert host.tray_icon.label == "Unread: 6"
@@ -244,7 +246,47 @@ def test_progress_flush_updates_native_tray_once_for_multiple_feed_states():
     host._flush_feed_refresh_progress()
 
     assert host.fields[1] == "Checked: Second"
-    assert host.tray_icon.updates == [(10, "Checked: Second")]
+    assert host.tray_icon.updates == [(10, "")]
+
+
+def test_progress_flush_announces_only_the_latest_state_in_a_chunk():
+    host = _StatusBarHost()
+    host._refresh_progress_pending = {
+        "feed-1": {"id": "feed-1", "title": "First", "unread_count": 1, "category": "News", "status": "ok"},
+        "feed-2": {"id": "feed-2", "title": "Second", "unread_count": 2, "category": "News", "status": "ok"},
+    }
+    host._refresh_progress_flush_scheduled = True
+
+    host._flush_feed_refresh_progress()
+
+    assert host.field_history[1] == ["Checked: Second"]
+
+
+def test_feed_metadata_change_marks_an_active_refresh_batch_dirty():
+    host = _StatusBarHost()
+    host.feed_map = {
+        "feed-1": SimpleNamespace(
+            id="feed-1",
+            title="Example Feed",
+            category="News",
+            unread_count=3,
+        )
+    }
+    host._refresh_ui_batch_active = True
+    host._refresh_ui_batch_dirty = False
+
+    host._apply_feed_refresh_progress(
+        {
+            "id": "feed-1",
+            "title": "Example Feed",
+            "category": "News",
+            "unread_count": 3,
+            "status": "ok",
+            "feed_metadata_changed": True,
+        }
+    )
+
+    assert host._refresh_ui_batch_dirty is True
 
 
 # --- (c) downloads: begin -> success / begin -> failure ---------------------

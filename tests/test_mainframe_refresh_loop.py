@@ -85,6 +85,15 @@ def test_refresh_loop_periodic_refresh_is_not_forced_after_startup():
     ]
 
 
+def test_refresh_loop_runs_enabled_startup_refresh_when_periodic_refresh_is_never():
+    host = _RefreshLoopHost(refresh_on_startup=True, interval=0, wait_results=[True])
+
+    host.refresh_loop()
+
+    assert host.refresh_calls == [{"block": False, "force": False, "scheduled": False}]
+    assert host.stop_event.wait_intervals == [5]
+
+
 def test_refresh_loop_startup_disabled_waits_then_uses_normal_refresh():
     host = _RefreshLoopHost(refresh_on_startup=False, interval=30, wait_results=[False, True])
 
@@ -233,6 +242,61 @@ def test_full_refresh_defers_selected_list_reload_until_final_tree_update(monkey
     assert host.tree_loads == 1
     assert host._article_refresh_dirty is False
     assert host._refresh_ui_batch_active is False
+
+
+def test_no_change_refresh_skips_final_tree_reload(monkeypatch):
+    """A successful all-304/no-change refresh must not rebuild the whole tree."""
+    monkeypatch.setattr(mainframe.wx, "CallLater", lambda *_args, **_kwargs: None)
+    host = _RefreshUiBatchHost()
+    host.feed_map = {"feed-1": object()}
+
+    host._begin_refresh_ui_batch()
+    host._finish_refresh_ui_batch(refresh_tree=True)
+
+    assert host.tree_loads == 0
+    assert host._refresh_ui_batch_active is False
+
+
+def test_changed_refresh_keeps_final_tree_reload(monkeypatch):
+    monkeypatch.setattr(mainframe.wx, "CallLater", lambda *_args, **_kwargs: None)
+    host = _RefreshUiBatchHost()
+    host.feed_map = {"feed-1": object()}
+
+    host._begin_refresh_ui_batch()
+    host._refresh_ui_batch_dirty = True
+    host._finish_refresh_ui_batch(refresh_tree=True)
+
+    assert host.tree_loads == 1
+
+
+def test_late_progress_change_keeps_final_tree_reload(monkeypatch):
+    """Evaluate dirty only after queued progress has drained.
+
+    The worker may signal completion while a later bounded wx progress chunk
+    remains queued.  That late chunk must still be able to request the final
+    tree reload.
+    """
+    monkeypatch.setattr(mainframe.wx, "CallLater", lambda *_args, **_kwargs: None)
+    host = _RefreshUiBatchHost()
+    host.feed_map = {"feed-1": object()}
+
+    host._begin_refresh_ui_batch()
+    with host._refresh_progress_lock:
+        host._refresh_progress_pending = {"feed-1": {"id": "feed-1"}}
+        host._refresh_progress_flush_scheduled = True
+    host._finish_refresh_ui_batch(refresh_tree=True)
+
+    assert host.tree_loads == 0
+    assert host._refresh_ui_batch_ending is True
+
+    # This mirrors a later progress chunk applying a real model change.
+    host._refresh_ui_batch_dirty = True
+    with host._refresh_progress_lock:
+        host._refresh_progress_pending.clear()
+        host._refresh_progress_flush_scheduled = False
+    host._maybe_finish_refresh_ui_batch()
+
+    assert host.tree_loads == 1
 
 
 def test_stale_refresh_completion_cannot_finish_a_newer_ui_batch():

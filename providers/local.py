@@ -999,6 +999,47 @@ def _interleave_feed_rows_by_host(feed_rows):
     return ordered
 
 
+def _load_current_feed_articles_for_entries(cursor, feed_id: str, base_ids) -> Dict[str, Dict[str, Any]]:
+    """Load only stored rows represented by the feed document currently being refreshed.
+
+    A feed response normally exposes only its recent entries, while its local history can contain
+    thousands of older rows.  Refresh processing only ever consults the current response's base
+    IDs (and their feed-scoped collision variants), so loading the full history wastes SQLite I/O
+    and Python allocations on every forced/full refresh.
+    """
+    candidate_ids = []
+    seen_ids = set()
+    for raw_base_id in base_ids or ():
+        base_id = str(raw_base_id or "").strip()
+        if not base_id:
+            continue
+        for article_id in (base_id, f"{feed_id}:{base_id}"):
+            if article_id not in seen_ids:
+                seen_ids.add(article_id)
+                candidate_ids.append(article_id)
+
+    existing_articles = {}
+    # SQLite's default parameter limit is commonly 999.  One parameter is reserved for feed_id.
+    for offset in range(0, len(candidate_ids), 900):
+        chunk = candidate_ids[offset:offset + 900]
+        placeholders = ",".join("?" for _ in chunk)
+        cursor.execute(
+            "SELECT id, date, chapter_url, media_url, media_type, url, description "
+            f"FROM articles WHERE feed_id = ? AND id IN ({placeholders})",
+            (feed_id, *chunk),
+        )
+        for row in cursor.fetchall():
+            existing_articles[row[0]] = {
+                "date": row[1] or "",
+                "chapter_url": row[2],
+                "media_url": row[3],
+                "media_type": row[4],
+                "url": row[5] or "",
+                "description": row[6] or "",
+            }
+    return existing_articles
+
+
 def _url_looks_feed_like(url: str) -> bool:
     low = str(url or "").strip().lower()
     if not low:
@@ -1253,25 +1294,42 @@ def _wordpress_feed_slash_variant(url: str) -> Optional[str]:
 
 def _retry_cloudflare_challenged_wordpress_feed(resp, url: str, *, headers: dict, timeout, proxies=None):
     """Retry WordPress-style /feed URLs with the canonical trailing slash after a challenge."""
+    def _effective_url(response, fallback: str) -> str:
+        # A response object's ``url`` alone is not evidence that this request
+        # redirected (test doubles and adapters often populate it with an
+        # arbitrary canonical-looking value).  Only adopt it for a normal
+        # request when the client recorded a redirect history.  Explicit
+        # WordPress retry callers still pass their known candidate as fallback.
+        try:
+            if not getattr(response, "history", None):
+                return fallback
+            resolved = str(getattr(response, "url", "") or "").strip()
+        except Exception:
+            resolved = ""
+        return resolved or fallback
+
     try:
         status_code = int(getattr(resp, "status_code", 0) or 0)
     except Exception:
         status_code = 0
     if status_code != 403 or not _response_looks_cloudflare_challenge(resp):
-        return resp, url
+        # requests/curl_cffi normally follow ordinary HTTP redirects. Preserve
+        # their final response URL so the caller can persist it instead of
+        # repeatedly refreshing the stale pre-redirect address.
+        return resp, _effective_url(resp, url)
 
     candidate = _wordpress_feed_slash_variant(url)
     if not candidate or candidate == url:
-        return resp, url
+        return resp, _effective_url(resp, url)
 
     try:
         retry_resp = utils.safe_requests_get(candidate, headers=headers, timeout=timeout, proxies=proxies)
     except Exception:
-        return resp, url
+        return resp, _effective_url(resp, url)
 
     if _response_looks_feed_like(retry_resp):
-        return retry_resp, candidate
-    return resp, url
+        return retry_resp, _effective_url(retry_resp, candidate)
+    return resp, _effective_url(resp, url)
 
 
 def _retry_feed_not_acceptable(resp, url: str, *, headers: dict, timeout, proxies=None):
@@ -1323,17 +1381,35 @@ class LocalProvider(RSSProvider):
     def get_name(self) -> str:
         return "Local RSS"
 
+    def _automatic_feed_refresh_workload(self) -> str:
+        """Return the selected automatic-refresh caching policy.
+
+        ``ignore_feed_cache`` predates the three-state setting.  Keep it as a
+        fallback only when a caller provides an older config dictionary, which
+        also preserves integrations that have not yet saved the new setting.
+        """
+        try:
+            workload = str(
+                self.config.get("automatic_feed_refresh_workload", "") or ""
+            ).strip().lower()
+        except Exception:
+            workload = ""
+        if workload in {"cached", "startup_full", "always_full"}:
+            return workload
+
+        try:
+            return "always_full" if bool(self.config.get("ignore_feed_cache", False)) else "startup_full"
+        except Exception:
+            return "startup_full"
+
     def should_force_startup_refresh(self) -> bool:
-        # Forcing the local provider is just a full GET per feed (no fan-out), so the
-        # first refresh after launch always pulls current content instead of trusting
-        # possibly-stale ETag/Last-Modified validators that make some servers return 304.
-        return True
+        # The default full startup GET prevents stale launches caused by servers
+        # that return spurious 304s.  Users who need a lighter, more responsive
+        # launch can explicitly use normal conditional refreshes instead.
+        return self._automatic_feed_refresh_workload() != "cached"
 
     def _cache_ignore_enabled(self) -> bool:
-        try:
-            return bool(self.config.get("ignore_feed_cache", False))
-        except Exception:
-            return False
+        return self._automatic_feed_refresh_workload() == "always_full"
 
     def _discover_feed_url(self, url: str, timeout_s: Optional[float] = None, use_cache: bool = False) -> Optional[str]:
         key = str(url or "").strip()
@@ -1503,7 +1579,6 @@ class LocalProvider(RSSProvider):
             len(feed_rows),
             cpu_count=cpu_count,
         )
-
         if configured_workers != max_workers:
             log.info(
                 "Using %s local refresh worker(s) for %s feed(s); configured max_concurrent_refreshes=%s "
@@ -1524,7 +1599,6 @@ class LocalProvider(RSSProvider):
                 cpu_count,
                 adaptive_cap,
             )
-
         feed_timeout = max(1, int(self.config.get("feed_timeout_seconds", 15) or 15))
         retries = max(0, int(self.config.get("feed_retry_attempts", 1) or 0))
         host_limits = defaultdict(lambda: threading.Semaphore(per_host_limit))
@@ -1691,12 +1765,15 @@ class LocalProvider(RSSProvider):
         feed_id, feed_url, feed_title, feed_category, etag, last_modified, title_is_custom, upstream_title = feed_row
         status = "ok"
         new_items = 0
+        content_changed = False
+        feed_metadata_changed = False
         new_article_summaries = []
         error_msg = None
         final_title = feed_title or "Unknown Feed"
         failure_cooldown_seconds = None
         started_at = time.monotonic()
         entry_count = None
+        known_unread_count = None
 
         if respect_failure_cooldown and not force:
             expires_at, cached_error = self._get_refresh_failure_cooldown(feed_id)
@@ -1905,6 +1982,7 @@ class LocalProvider(RSSProvider):
             if is_odysee_listing:
                 normalized_feed_url = odysee_mod.normalize_odysee_feed_url(feed_url)
                 if normalized_feed_url and normalized_feed_url != feed_url:
+                    feed_metadata_changed = True
                     try:
                         connu = get_connection()
                         try:
@@ -2348,6 +2426,7 @@ class LocalProvider(RSSProvider):
                 # Fetch via curl and scrape the video list into synthetic entries.
                 normalized_feed_url = rumble_mod.normalize_rumble_feed_url(feed_url)
                 if normalized_feed_url and normalized_feed_url != feed_url:
+                    feed_metadata_changed = True
                     try:
                         connu = get_connection()
                         try:
@@ -2531,6 +2610,7 @@ class LocalProvider(RSSProvider):
                 )
                 if resolved_feed_url and resolved_feed_url != feed_url:
                     log.info("Resolved local feed URL during refresh: %s -> %s", feed_url, resolved_feed_url)
+                    feed_metadata_changed = True
                     try:
                         connu = get_connection()
                         try:
@@ -2666,6 +2746,7 @@ class LocalProvider(RSSProvider):
                             continue
                         if effective_feed_url != feed_url:
                             log.info("Resolved challenged local feed URL during refresh: %s -> %s", feed_url, effective_feed_url)
+                            feed_metadata_changed = True
                             feed_url = effective_feed_url
                             canonical_feed_url = effective_feed_url
                         if resp.status_code == 304:
@@ -2784,6 +2865,28 @@ class LocalProvider(RSSProvider):
                         raise last_exc
 
             if status == "not_modified":
+                # A conditional request can still have followed a permanent
+                # redirect. Persist that canonical address even though there
+                # is no document body to parse or otherwise the next refresh
+                # repeats the redirect and the cached feed model stays stale.
+                if canonical_feed_url:
+                    try:
+                        conn = get_connection()
+                        try:
+                            conn.execute(
+                                "UPDATE feeds SET url = ? WHERE id = ?",
+                                (canonical_feed_url, feed_id),
+                            )
+                            conn.commit()
+                        finally:
+                            conn.close()
+                    except Exception:
+                        log.debug(
+                            "Failed to persist canonical 304 feed URL %s for %s",
+                            canonical_feed_url,
+                            feed_id,
+                            exc_info=True,
+                        )
                 return
             if xml_data is None:
                 return
@@ -2839,22 +2942,24 @@ class LocalProvider(RSSProvider):
                 # parsing/network work is done.
 
 
-                # Pre-fetch existing articles to avoid N+1 SELECTs
-                c.execute(
-                    "SELECT id, date, chapter_url, media_url, media_type, url "
-                    "FROM articles WHERE feed_id = ?",
-                    (feed_id,),
+                # Pre-compute the current document's identities before asking SQLite about
+                # existing rows.  Do not hydrate a feed's entire retained history here: only
+                # these entries can be updated/inserted by this refresh.
+                candidate_base_ids = []
+                candidate_base_id_set = set()
+                for entry in d.entries:
+                    if self._refresh_cancelled(cancel_event):
+                        return
+                    content = _entry_content(entry)
+                    base_id = _entry_base_id(entry, feed_id, feed_url, content)
+                    if base_id and base_id not in candidate_base_id_set:
+                        candidate_base_id_set.add(base_id)
+                        candidate_base_ids.append(base_id)
+                existing_articles = _load_current_feed_articles_for_entries(
+                    c,
+                    feed_id,
+                    candidate_base_ids,
                 )
-                existing_articles = {
-                    row[0]: {
-                        "date": row[1] or "",
-                        "chapter_url": row[2],
-                        "media_url": row[3],
-                        "media_type": row[4],
-                        "url": row[5] or "",
-                    }
-                    for row in c.fetchall()
-                }
                 deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
                     feed_id,
                     cursor=c,
@@ -2870,18 +2975,11 @@ class LocalProvider(RSSProvider):
                 delete_behavior = self._resolve_delete_behavior(feed_id) if filter_rules else "deleted"
 
                 entry_ids = []
-                for entry in d.entries:
-                    if self._refresh_cancelled(cancel_event):
-                        return
-                    content = _entry_content(entry)
-                    base_id = _entry_base_id(entry, feed_id, feed_url, content)
-                    if not base_id:
-                        continue
+                for base_id in candidate_base_ids:
                     scoped_id = f"{feed_id}:{base_id}"
                     if base_id in existing_articles or scoped_id in existing_articles:
                         continue
                     entry_ids.append(base_id)
-                entry_ids = list(dict.fromkeys(entry_ids))
                 conflicting_ids = set()
                 if entry_ids:
                     chunk_size = 900
@@ -3089,6 +3187,7 @@ class LocalProvider(RSSProvider):
                         "inline_chapters": inline_chapters,
                         "existing_article_id": existing_article_id,
                         "existing_stored_url": str((existing_metadata or {}).get("url") or ""),
+                        "existing_stored_description": str((existing_metadata or {}).get("description") or ""),
                         "notify_preview": _preview_for_notification(content),
                     })
 
@@ -3150,6 +3249,7 @@ class LocalProvider(RSSProvider):
                         # URL). Never wipe a good URL just because the feed
                         # temporarily omits its link.
                         stored_url = prep["existing_stored_url"]
+                        stored_description = prep["existing_stored_description"]
                         url_to_store = stored_url
                         if url and url != stored_url:
                             url_to_store = url
@@ -3157,15 +3257,27 @@ class LocalProvider(RSSProvider):
                             stored_url == (media_url or "") or _media_type_from_url(stored_url)
                         ):
                             url_to_store = ""
-                        c.execute(
-                            "UPDATE articles SET date = ?, description = ?, media_url = ?, media_type = ?, chapter_url = ?, url = ? "
-                            "WHERE id = ?",
-                            (date, description, media_url, media_type, chapter_url, url_to_store, existing_article_id),
+                        existing_metadata = existing_articles.get(existing_article_id) or {}
+                        metadata_changed = (
+                            date != str(existing_metadata.get("date") or "")
+                            or description != stored_description
+                            or media_url != existing_metadata.get("media_url")
+                            or media_type != existing_metadata.get("media_type")
+                            or chapter_url != existing_metadata.get("chapter_url")
+                            or url_to_store != stored_url
                         )
+                        if metadata_changed:
+                            c.execute(
+                                "UPDATE articles SET date = ?, description = ?, media_url = ?, media_type = ?, chapter_url = ?, url = ? "
+                                "WHERE id = ?",
+                                (date, description, media_url, media_type, chapter_url, url_to_store, existing_article_id),
+                            )
+                            content_changed = True
                         # Change history: append a version when the feed's content
                         # for this item differs from the latest recorded version.
                         try:
-                            record_article_version(existing_article_id, title, content, cursor=c)
+                            if record_article_version(existing_article_id, title, content, cursor=c):
+                                content_changed = True
                         except Exception:
                             pass
                         if inline_chapters:
@@ -3180,6 +3292,7 @@ class LocalProvider(RSSProvider):
                             "media_url": media_url,
                             "media_type": media_type,
                             "url": url_to_store,
+                            "description": description,
                         }
                         continue
 
@@ -3188,6 +3301,7 @@ class LocalProvider(RSSProvider):
                             "INSERT INTO articles (id, feed_id, title, url, content, description, date, author, is_read, media_url, media_type, chapter_url, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
                             (article_id, feed_id, title, url, content, description, date, author, media_url, media_type, chapter_url, tags or None),
                         )
+                        content_changed = True
                         new_items += 1
                         # Change history: seed the original version at first fetch.
                         try:
@@ -3211,6 +3325,7 @@ class LocalProvider(RSSProvider):
                             "media_url": media_url,
                             "media_type": media_type,
                             "url": url,
+                            "description": description,
                         }
                         _apply_rules_to_new_article(
                             article_id, title, content, description, author, url, tags,
@@ -3245,6 +3360,7 @@ class LocalProvider(RSSProvider):
                                         "chapter_url = ?, description = ?, url = ? WHERE id = ?",
                                         (date, media_url, media_type, chapter_url, description, url_to_store, base_id),
                                     )
+                                    content_changed = True
                                     if inline_chapters:
                                         utils._replace_stored_chapters(
                                             base_id,
@@ -3258,6 +3374,7 @@ class LocalProvider(RSSProvider):
                                         "INSERT INTO articles (id, feed_id, title, url, content, description, date, author, is_read, media_url, media_type, chapter_url, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
                                         (scoped_id, feed_id, title, url, content, description, date, author, media_url, media_type, chapter_url, tags or None),
                                     )
+                                    content_changed = True
                                     article_id = scoped_id
                                     new_items += 1
                                     _record_new_article(
@@ -3276,6 +3393,8 @@ class LocalProvider(RSSProvider):
                                         "chapter_url": chapter_url,
                                         "media_url": media_url,
                                         "media_type": media_type,
+                                        "url": url,
+                                        "description": description,
                                     }
                                     _apply_rules_to_new_article(
                                         article_id, title, content, description, author, url, tags,
@@ -3290,6 +3409,20 @@ class LocalProvider(RSSProvider):
 
                 # Commit once at the end
                 conn.commit()
+                # Reuse this already-open worker connection for the progress
+                # count.  Opening a fresh SQLite connection (and its PRAGMAs)
+                # for every successfully refreshed feed was needless churn.
+                try:
+                    c.execute("SELECT COUNT(*) FROM articles WHERE feed_id = ? AND is_read = 0", (feed_id,))
+                    known_unread_count = c.fetchone()[0] or 0
+                except Exception:
+                    # The write has already committed.  Keep a transient count
+                    # failure from turning a successful feed refresh into an
+                    # error; _collect_feed_state will fall back to its safe
+                    # standalone lookup below.
+                    known_unread_count = None
+                    log.debug("Could not reuse worker unread count for %s", feed_id, exc_info=True)
+                final_title = title_to_store
             finally:
                 conn.close()
         except Exception as e:
@@ -3328,6 +3461,9 @@ class LocalProvider(RSSProvider):
                 new_items,
                 error_msg,
                 new_article_summaries,
+                content_changed=content_changed,
+                feed_metadata_changed=feed_metadata_changed,
+                known_unread_count=known_unread_count,
             )
             log.info(
                 "Local feed refresh finished id=%s title=%r status=%s force=%s conditional=%s "
@@ -3360,27 +3496,45 @@ class LocalProvider(RSSProvider):
         except Exception:
             return "deleted"
 
-    def _collect_feed_state(self, feed_id, title, category, status, new_items, error_msg, new_articles=None):
+    def _collect_feed_state(
+        self,
+        feed_id,
+        title,
+        category,
+        status,
+        new_items,
+        error_msg,
+        new_articles=None,
+        content_changed: bool = False,
+        feed_metadata_changed: bool = False,
+        known_unread_count: Optional[int] = None,
+    ):
         unread = 0
         conn = None
-        try:
-            conn = get_connection()
-            c = conn.cursor()
-            c.execute("SELECT title, category FROM feeds WHERE id = ?", (feed_id,))
-            row = c.fetchone()
-            if row:
-                title = row[0] or title
-                category = row[1] or category
-            c.execute("SELECT COUNT(*) FROM articles WHERE feed_id = ? AND is_read = 0", (feed_id,))
-            unread = c.fetchone()[0] or 0
-        except Exception as e:
-            log.debug(f"Feed state fetch failed for {feed_id}: {e}")
-        finally:
-            if conn:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
+        if known_unread_count is not None:
+            try:
+                unread = max(0, int(known_unread_count))
+            except (TypeError, ValueError):
+                unread = 0
+        else:
+            try:
+                conn = get_connection()
+                c = conn.cursor()
+                c.execute("SELECT title, category FROM feeds WHERE id = ?", (feed_id,))
+                row = c.fetchone()
+                if row:
+                    title = row[0] or title
+                    category = row[1] or category
+                c.execute("SELECT COUNT(*) FROM articles WHERE feed_id = ? AND is_read = 0", (feed_id,))
+                unread = c.fetchone()[0] or 0
+            except Exception as e:
+                log.debug(f"Feed state fetch failed for {feed_id}: {e}")
+            finally:
+                if conn:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
         return {
             "id": feed_id,
             "title": title,
@@ -3389,6 +3543,8 @@ class LocalProvider(RSSProvider):
             "status": status,
             "new_items": new_items,
             "new_articles": list(new_articles or []),
+            "content_changed": bool(content_changed),
+            "feed_metadata_changed": bool(feed_metadata_changed),
             "error": error_msg,
         }
 

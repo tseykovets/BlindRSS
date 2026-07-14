@@ -128,8 +128,10 @@ class _FakeNode:
 class _FakeTree:
     def __init__(self):
         self.texts = {}
+        self.set_item_calls = []
 
     def SetItemText(self, node, text):
+        self.set_item_calls.append((node, text))
         self.texts[node] = text
 
     def GetItemText(self, node):
@@ -249,6 +251,26 @@ def test_refresh_progress_moves_totals_when_feed_changes_category():
     assert host.category_unread_totals["Tech"] == 2
     # ...and into News.
     assert host.category_unread_totals["News"] == 5
+
+
+def test_unchanged_refresh_progress_skips_tree_and_category_writes():
+    """No-change feed completions must not flood the native tree during a large refresh."""
+    host = _CategoryCountHost()
+    host.tree.texts = {
+        host.feed_node: "Feed One (3)",
+        host.sub_node: "Sub (3)",
+        host.cat_node: "Tech (5)",
+    }
+
+    host._apply_feed_refresh_progress({
+        "id": "feed-1",
+        "title": "Feed One",
+        "unread_count": 3,
+        "category": "Tech / Sub",
+    })
+
+    assert host.category_unread_totals == {"Tech": 5, "Tech / Sub": 3, "News": 2}
+    assert host.tree.set_item_calls == []
 
 
 def test_mark_all_read_patches_focused_feed_without_rebuilding_tree():

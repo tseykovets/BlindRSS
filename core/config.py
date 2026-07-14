@@ -187,10 +187,14 @@ DEFAULT_CONFIG = {
     # When True, article text includes image alt text as "[Image: alt]" so screen
     # readers announce images. Off by default; can be overridden per feed.
     "show_image_alt": False,
-    # When True, the local provider ignores ETag/Last-Modified caching on every
-    # refresh (startup and periodic) so feeds whose servers return spurious 304s
-    # still update in the background. The startup refresh always fetches fresh
-    # regardless of this setting; this only affects periodic background refreshes.
+    # Controls how the local provider handles automatic refreshes:
+    # ``cached`` uses validators at startup and later, ``startup_full`` fetches
+    # every feed at startup only, and ``always_full`` bypasses validators for
+    # every automatic refresh.  The middle option preserves legacy defaults.
+    "automatic_feed_refresh_workload": "startup_full",
+    # Retained as a downgrade-compatible mirror of ``always_full``.  Old
+    # config files with this option set are upgraded to that workload before
+    # defaults are merged below.
     "ignore_feed_cache": False,
     "prompt_missing_dependencies_on_startup": True,
     "auto_check_updates": True,
@@ -541,6 +545,17 @@ class ConfigManager:
                 else:
                     target.setdefault(key, val)
         merged = cfg if isinstance(cfg, dict) else {}
+
+        # Preserve the intent of the former boolean setting before the new
+        # workload default is merged.  Once a user opens Settings, the dialog
+        # writes both values so older BlindRSS builds continue to understand
+        # the "always fully refresh" choice.
+        if "automatic_feed_refresh_workload" not in merged:
+            merged["automatic_feed_refresh_workload"] = (
+                "always_full"
+                if bool(merged.get("ignore_feed_cache", False))
+                else "startup_full"
+            )
         merge(DEFAULT_CONFIG, merged)
         return merged
 

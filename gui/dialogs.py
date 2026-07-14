@@ -756,12 +756,50 @@ class SettingsDialog(wx.Dialog):
         self.refresh_startup_chk.SetValue(bool(config.get("refresh_on_startup", True)))
         feeds_sizer.Add(self.refresh_startup_chk, 0, wx.ALL, 5)
 
-        self.ignore_feed_cache_chk = wx.CheckBox(
-            feeds_panel,
-            label=_("Always fetch full feeds in the background (ignore feed caching)"),
+        refresh_workload_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        refresh_workload_sizer.Add(
+            wx.StaticText(feeds_panel, label=_("Local RSS automatic refresh workload:")),
+            0,
+            wx.ALIGN_CENTER_VERTICAL | wx.ALL,
+            5,
         )
-        self.ignore_feed_cache_chk.SetValue(bool(config.get("ignore_feed_cache", False)))
-        feeds_sizer.Add(self.ignore_feed_cache_chk, 0, wx.ALL, 5)
+        self.automatic_refresh_workload_map = {
+            _("Use feed cache (fastest)"): "cached",
+            _("Fully refresh feeds at startup"): "startup_full",
+            _("Always fully refresh feeds"): "always_full",
+        }
+        self.automatic_refresh_workload_choices = list(self.automatic_refresh_workload_map.keys())
+        self.automatic_refresh_workload_ctrl = wx.Choice(
+            feeds_panel,
+            choices=self.automatic_refresh_workload_choices,
+        )
+        self.automatic_refresh_workload_ctrl.SetName(_("Local RSS automatic feed refresh workload"))
+        configured_refresh_workload = str(
+            config.get("automatic_feed_refresh_workload", "") or ""
+        ).strip().lower()
+        if configured_refresh_workload not in self.automatic_refresh_workload_map.values():
+            configured_refresh_workload = (
+                "always_full"
+                if bool(config.get("ignore_feed_cache", False))
+                else "startup_full"
+            )
+        for label, value in self.automatic_refresh_workload_map.items():
+            if value == configured_refresh_workload:
+                self.automatic_refresh_workload_ctrl.SetStringSelection(label)
+                break
+        refresh_workload_sizer.Add(self.automatic_refresh_workload_ctrl, 0, wx.ALL, 5)
+        feeds_sizer.Add(refresh_workload_sizer, 0, wx.EXPAND | wx.ALL, 0)
+        feeds_sizer.Add(
+            wx.StaticText(
+                feeds_panel,
+                label=_(
+                    "Using the Local RSS feed cache lowers CPU and network use. Manual Refresh All always checks every feed."
+                ),
+            ),
+            0,
+            wx.LEFT | wx.RIGHT | wx.BOTTOM,
+            10,
+        )
 
         self.show_image_alt_chk = wx.CheckBox(
             general_panel,
@@ -2709,7 +2747,16 @@ class SettingsDialog(wx.Dialog):
             "start_maximized": self.start_maximized_chk.GetValue(),
             "debug_mode": self.debug_mode_chk.GetValue(),
             "refresh_on_startup": self.refresh_startup_chk.GetValue(),
-            "ignore_feed_cache": self.ignore_feed_cache_chk.GetValue(),
+            "automatic_feed_refresh_workload": self.automatic_refresh_workload_map.get(
+                self.automatic_refresh_workload_ctrl.GetStringSelection(),
+                "startup_full",
+            ),
+            # Keep the former boolean in sync so a user can safely return to
+            # an older build without losing the always-full choice.
+            "ignore_feed_cache": self.automatic_refresh_workload_map.get(
+                self.automatic_refresh_workload_ctrl.GetStringSelection(),
+                "startup_full",
+            ) == "always_full",
             "show_image_alt": self.show_image_alt_chk.GetValue(),
             "ytdlp_cookies_file": self.ytdlp_cookies_ctrl.GetValue().strip(),
             "auto_import_browser_cookies": self.auto_import_cookies_chk.GetValue(),

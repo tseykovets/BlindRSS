@@ -192,6 +192,14 @@ def test_settings_dialog_field_names(parent):
             "YouTube",
         ]
         assert dlg.refresh_ctrl.GetParent() is dlg.notebook.GetPage(1)
+        assert dlg.automatic_refresh_workload_ctrl.GetParent() is dlg.notebook.GetPage(1)
+        assert dlg.automatic_refresh_workload_ctrl.GetName() == "Local RSS automatic feed refresh workload"
+        selected_workload = dlg.automatic_refresh_workload_map.get(
+            dlg.automatic_refresh_workload_ctrl.GetStringSelection()
+        )
+        settings = dlg.get_data()
+        assert settings["automatic_feed_refresh_workload"] == selected_workload
+        assert settings["ignore_feed_cache"] is (selected_workload == "always_full")
         assert dlg.dl_path_ctrl.GetParent() is dlg.notebook.GetPage(2)
         assert dlg.start_in_tray_chk.GetParent() is dlg.notebook.GetPage(3)
         assert dlg.ytdlp_cookies_ctrl.GetParent() is dlg.notebook.GetPage(4)

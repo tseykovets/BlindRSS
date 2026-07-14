@@ -342,6 +342,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\filter-rules-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-fetch-fallback-chain.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-prefetch-refresh-starvation.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\installed-app-debug-landscape.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\playback-rate-gap-and-render-lag.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\podcast-signed-url-reresolve.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\provider-flat-vs-nested.md

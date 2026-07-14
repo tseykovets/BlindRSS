@@ -1132,7 +1132,17 @@ class SettingsDialog(wx.Dialog):
         def _add_simple_info_panel(name: str, info_text: str):
             pnl = wx.Panel(provider_panel)
             s = wx.BoxSizer(wx.VERTICAL)
-            s.Add(wx.StaticText(pnl, label=info_text), 0, wx.ALL, 5)
+            # Read-only text control instead of a StaticText: it participates
+            # in the tab order, so keyboard/screen-reader users reach the
+            # explanation without object navigation.
+            info = wx.TextCtrl(
+                pnl,
+                value=info_text,
+                style=wx.TE_MULTILINE | wx.TE_READONLY,
+                size=(-1, 60),
+            )
+            info.SetName(_("Provider information"))
+            s.Add(info, 0, wx.EXPAND | wx.ALL, 5)
             pnl.SetSizer(s)
             provider_sizer.Add(pnl, 0, wx.EXPAND | wx.ALL, 5)
             self._provider_panels[name] = (pnl, {})
@@ -1235,7 +1245,7 @@ class SettingsDialog(wx.Dialog):
             auth_btn.Bind(wx.EVT_BUTTON, self._start_inoreader_authorize)
             clear_btn.Bind(wx.EVT_BUTTON, self._clear_inoreader_authorization)
 
-        _add_simple_info_panel("local", "Local provider uses the feeds you add inside the app (Add Feed / Import OPML).")
+        _add_simple_info_panel("local", _("Local provider uses the feeds you add inside the app (Add Feed / Import OPML)."))
         _add_fields_panel("miniflux", [
             ("Miniflux URL:", "url", 0),
             ("Miniflux API Key:", "api_key", 0),

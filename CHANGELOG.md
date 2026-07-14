@@ -4,6 +4,14 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.99.5 - 2026-07-14
+
+- Complete translations for all 15 languages.
+- New articles appear during refresh instead of all at once at the end.
+- Retention settings survive UI language changes.
+- Local provider info in Settings is reachable by keyboard and screen readers.
+- Saved-search dialog no longer crashes the app on OK.
+
 ## v1.99.4 - 2026-07-14
 
 - Read-proxy fallback resolves Google News where Google is blocked.

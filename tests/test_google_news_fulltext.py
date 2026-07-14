@@ -134,6 +134,29 @@ def test_google_news_resolver_uses_signed_rpc_and_returns_publisher_url(monkeypa
     assert signed_request[-2:] == [1783995041, "signed-google-request"]
 
 
+def test_google_news_resolver_sends_consent_cookie_on_both_requests(monkeypatch):
+    # EEA/UK IPs get a consent interstitial instead of the redirect page unless a consent
+    # cookie is presented; the resolver must send it on the page GET and the RPC POST.
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append(("get", kwargs))
+        return _Response(200, _signed_google_news_page(), url)
+
+    def fake_post(url, **kwargs):
+        calls.append(("post", kwargs))
+        return _Response(200, _batch_response(), url)
+
+    monkeypatch.setattr(utils, "safe_requests_get", fake_get)
+    monkeypatch.setattr(utils, "safe_requests_post", fake_post)
+
+    assert article_extractor._resolve_google_news_article_url(GOOGLE_URL, timeout=10) == PUBLISHER_URL
+    assert len(calls) == 2
+    for verb, kwargs in calls:
+        cookie = kwargs["headers"].get("Cookie", "")
+        assert "SOCS=CAI" in cookie, f"{verb} request missing consent cookie"
+
+
 def test_google_news_resolver_rejects_malformed_and_non_google_urls_without_requests(monkeypatch):
     def unexpected_request(*args, **kwargs):
         raise AssertionError("resolver must not request an unrecognized URL")

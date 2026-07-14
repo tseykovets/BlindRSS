@@ -1227,6 +1227,13 @@ _GOOGLE_NEWS_RESOLUTION_MESSAGE = (
     "Open the original link in your browser to read it."
 )
 
+# Google serves EEA/UK (and some other) IPs a cookie-consent interstitial instead of the article
+# redirect page. The resolver correctly refuses to treat that page as content, but without a
+# consent state those users can never resolve ANY Google News article. The SOCS cookie carries a
+# pre-declined consent (the same mechanism yt-dlp uses for YouTube); CONSENT=YES+ covers the
+# older gate. Both are inert where no consent gate applies, so they are always sent.
+_GOOGLE_NEWS_CONSENT_COOKIE = "SOCS=CAI; CONSENT=YES+"
+
 # The page's preferred ``data-p`` signed request remains the first decoder path.  Some Google
 # News variants instead expose these three data-n-a-* fields.  The Fbv4je endpoint accepts this
 # generic request context with the page-provided opaque id, timestamp, and signature.
@@ -1499,7 +1506,7 @@ def _resolve_google_news_decoder_attempt(
         page_response = utils.safe_requests_get(
             page_url,
             timeout=request_timeout,
-            headers=dict(_HTML_ACCEPT_HEADERS),
+            headers={**_HTML_ACCEPT_HEADERS, "Cookie": _GOOGLE_NEWS_CONSENT_COOKIE},
             allow_redirects=True,
             impersonate=True,
             impersonate_target=impersonate_target,
@@ -1532,6 +1539,7 @@ def _resolve_google_news_decoder_attempt(
                 **_HTML_ACCEPT_HEADERS,
                 "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
                 "Referer": "https://news.google.com/",
+                "Cookie": _GOOGLE_NEWS_CONSENT_COOKIE,
             },
             allow_redirects=True,
             impersonate=True,

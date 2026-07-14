@@ -44,6 +44,12 @@ from core.version import APP_VERSION
 from core import dependency_check
 from core import shortcuts as shortcuts_mod
 from core.i18n import _, ngettext
+from core.categories import (
+    UNCATEGORIZED,
+    category_display_name,
+    is_uncategorized,
+    normalize_category_input,
+)
 import core.discovery
 from .shortcut_keys import event_to_accel
 
@@ -1075,11 +1081,18 @@ class MainFrame(wx.Frame):
             self._article_render_inflight = True
             # CallLater (not CallAfter): a CallAfter chain runs batch after
             # batch with nothing else dispatched in between, so keyboard/NVDA
-            # events queue up behind the whole render. A 1ms timer lets input,
+            # events queue up behind the whole render. A short timer lets input,
             # paint, and screen-reader events interleave between batches.
-            wx.CallLater(1, self._render_articles_batch, articles, first_count, generation, feed_id)
+            wx.CallLater(self._render_batch_delay_ms(), self._render_articles_batch, articles, first_count, generation, feed_id)
         else:
             self._article_render_inflight = False
+            log.debug("Article list rendered rows=%d (single chunk)", len(articles))
+
+    def _render_batch_delay_ms(self) -> int:
+        # While a refresh batch is applying progress chunks the UI thread is
+        # already contended; a slightly longer gap between render batches gives
+        # keyboard/NVDA events real slices instead of back-to-back inserts.
+        return 15 if getattr(self, "_refresh_ui_batch_active", False) else 1
 
     def _insert_article_row(self, index: int, article) -> None:
         """Insert one fully-populated article row at `index`.
@@ -1134,12 +1147,13 @@ class MainFrame(wx.Frame):
             self.list_ctrl.Thaw()
 
         if end < total:
-            # 1ms timer, not CallAfter — see _render_articles_list: keeps the
+            # Short timer, not CallAfter — see _render_articles_list: keeps the
             # event loop responsive between append batches.
-            wx.CallLater(1, self._render_articles_batch, articles, end, generation, feed_id)
+            wx.CallLater(self._render_batch_delay_ms(), self._render_articles_batch, articles, end, generation, feed_id)
         else:
             self._article_render_inflight = False
             self._reassert_load_more_placeholder_last()
+            log.debug("Article list rendered rows=%d (batched)", total)
 
     def _reassert_load_more_placeholder_last(self) -> None:
         """Ensure a load-more placeholder (if present) is the last row post-render."""
@@ -3852,7 +3866,7 @@ class MainFrame(wx.Frame):
                 add_sub_item = menu.Append(wx.ID_ANY, _("Add Subcategory"))
                 self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_add_subcategory(ct), add_sub_item)
 
-            if cat_title != "Uncategorized":
+            if not is_uncategorized(cat_title):
                 rename_item = menu.Append(wx.ID_ANY, _("Rename Category"))
                 self.Bind(wx.EVT_MENU, lambda e: self.on_rename_category(cat_title), rename_item)
 
@@ -5742,6 +5756,9 @@ class MainFrame(wx.Frame):
             self._decrement_view_total_if_present(fid)
 
     def on_rename_category(self, old_title):
+        if is_uncategorized(old_title):
+            wx.MessageBox(_("Could not rename category."), _("Error"), wx.ICON_ERROR)
+            return
         # old_title is the category's full path; the user edits only the leaf.
         from core.db import category_display_leaf
         leaf = category_display_leaf(old_title)
@@ -5775,7 +5792,10 @@ class MainFrame(wx.Frame):
         parent_ctrl = None
         if supports_sub:
             cats = self.provider.get_categories()
-            choices = [_("(None - Top Level)")] + sorted(cats, key=lambda s: s.lower())
+            category_ids = sorted(cats, key=lambda s: category_display_name(s).lower())
+            choices = [_("(None - Top Level)")] + [
+                category_display_name(category) for category in category_ids
+            ]
             sizer.Add(wx.StaticText(dlg, label=_("Parent category:")), 0, wx.ALL, 5)
             parent_ctrl = wx.ComboBox(dlg, choices=choices, style=wx.CB_READONLY)
             parent_ctrl.SetSelection(0)
@@ -5792,7 +5812,7 @@ class MainFrame(wx.Frame):
             parent_title = None
             if parent_ctrl is not None:
                 parent_sel = parent_ctrl.GetSelection()
-                parent_title = None if parent_sel <= 0 else parent_ctrl.GetString(parent_sel)
+                parent_title = None if parent_sel <= 0 else category_ids[parent_sel - 1]
             if name:
                 if self.provider.add_category(name, parent_title=parent_title):
                     self.refresh_feeds()
@@ -5832,6 +5852,9 @@ class MainFrame(wx.Frame):
         if item.IsOk():
             data = self.tree.GetItemData(item)
             if data and data["type"] == "category":
+                if is_uncategorized(data.get("id")):
+                    wx.MessageBox(_("The Uncategorized folder cannot be removed."), _("Info"))
+                    return
                 if wx.MessageBox(
                     _("Remove category '{category}'? Feeds will be moved to Uncategorized.").format(
                         category=self.tree.GetItemText(item)
@@ -5857,7 +5880,7 @@ class MainFrame(wx.Frame):
             return
 
         cat_title = data.get("id")
-        if not cat_title or str(cat_title).lower() == "uncategorized":
+        if not cat_title or is_uncategorized(cat_title):
             wx.MessageBox(_("The Uncategorized folder cannot be removed."), _("Info"))
             return
 
@@ -5868,7 +5891,7 @@ class MainFrame(wx.Frame):
             sub_cats = get_subcategory_titles(cat_title)
             all_cats_to_delete = {cat_title} | set(sub_cats)
             for fid, feed in (self.feed_map or {}).items():
-                if (feed.category or "Uncategorized") in all_cats_to_delete:
+                if (feed.category or UNCATEGORIZED) in all_cats_to_delete:
                     feed_ids.append(fid)
         except Exception:
             feed_ids = []
@@ -6276,9 +6299,13 @@ class MainFrame(wx.Frame):
             self._end_refresh_activity()
 
         if refresh_tree:
-            # _update_tree always reloads the selected view once; clear this
-            # marker so a stale debounce timer cannot issue a duplicate load.
-            self._article_refresh_dirty = False
+            # The tree update owns the final view reload: every _update_tree
+            # branch now consults the still-set dirty marker (the unchanged
+            # branch reloads only when dirty, fixing refreshes that change
+            # articles without changing any tree signature). Cancel a queued
+            # mid-batch debounce so it cannot race _update_tree's reload and
+            # fetch the same page twice within a second.
+            self._cancel_pending_article_reload()
             self.refresh_feeds()
         elif getattr(self, "_article_refresh_dirty", False):
             self._schedule_article_reload()
@@ -6400,7 +6427,7 @@ class MainFrame(wx.Frame):
 
         title = state.get("title", "")
         unread = state.get("unread_count", 0)
-        category = state.get("category", "Uncategorized")
+        category = state.get("category", UNCATEGORIZED)
         try:
             has_new_items = int(state.get("new_items", 0) or 0) > 0
         except (TypeError, ValueError):
@@ -6517,16 +6544,28 @@ class MainFrame(wx.Frame):
         self._article_refresh_pending = True
         if delay_ms is None:
             delay_ms = int(getattr(self, "_article_refresh_debounce_ms", 250))
-        wx.CallLater(max(1, int(delay_ms)), self._run_pending_article_reload)
+        self._article_refresh_timer = wx.CallLater(max(1, int(delay_ms)), self._run_pending_article_reload)
+
+    def _cancel_pending_article_reload(self):
+        timer = getattr(self, "_article_refresh_timer", None)
+        if timer is not None:
+            try:
+                timer.Stop()
+            except Exception:
+                pass
+        self._article_refresh_timer = None
+        self._article_refresh_pending = False
 
     def _run_pending_article_reload(self):
         self._article_refresh_pending = False
+        self._article_refresh_timer = None
         if getattr(self, "_refresh_ui_batch_ending", False):
             # The batch's final update handles the still-set dirty marker.
             return
         if not getattr(self, "_article_refresh_dirty", False):
             return
         self._article_refresh_dirty = False
+        log.debug("Article reload cycle start (debounced/throttled)")
         self._reload_selected_articles()
 
     def on_tree_item_expanded(self, event):
@@ -6687,7 +6726,7 @@ class MainFrame(wx.Frame):
         # Recompute category totals the same way the full rebuild does.
         cat_feeds_map = {c: [] for c in (all_cats or [])}
         for feed in feeds:
-            cat_feeds_map.setdefault(feed.category or "Uncategorized", []).append(feed)
+            cat_feeds_map.setdefault(feed.category or UNCATEGORIZED, []).append(feed)
         children_of = {}
         all_cat_set = set(cat_feeds_map.keys())
         for cat in all_cat_set:
@@ -6729,6 +6768,12 @@ class MainFrame(wx.Frame):
         ):
             if counts_sig == self._tree_counts_sig:
                 log.info("Feed tree unchanged; skipping rebuild feeds=%s", len(feeds or []))
+                # A refresh can change articles without changing any tree
+                # label or count (e.g. replaced content); the dirty marker is
+                # the only record that the open view still needs a reload.
+                if getattr(self, "_article_refresh_dirty", False):
+                    self._article_refresh_dirty = False
+                    self._reload_selected_articles()
                 return
             log.info("Feed tree counts-only change; patching labels feeds=%s", len(feeds or []))
             try:
@@ -6736,6 +6781,7 @@ class MainFrame(wx.Frame):
                 self._tree_counts_sig = counts_sig
                 # New/removed unread articles may affect the open view; merge
                 # them in without touching the tree.
+                self._article_refresh_dirty = False
                 self._reload_selected_articles()
                 return
             except Exception:
@@ -6858,7 +6904,7 @@ class MainFrame(wx.Frame):
             cat_feeds_map = {c: [] for c in all_cats}
 
             for feed in feeds:
-                cat = feed.category or "Uncategorized"
+                cat = feed.category or UNCATEGORIZED
                 if cat not in cat_feeds_map:
                     cat_feeds_map[cat] = []
                 cat_feeds_map[cat].append(feed)
@@ -6876,7 +6922,7 @@ class MainFrame(wx.Frame):
                 else:
                     top_level_cats.append(cat)
 
-            top_level_cats.sort(key=lambda s: s.lower())
+            top_level_cats.sort(key=lambda s: category_display_name(s).lower())
             for k in children_of:
                 children_of[k].sort(key=lambda s: s.lower())
 
@@ -6934,7 +6980,11 @@ class MainFrame(wx.Frame):
 
                 # The node identity is the full path; nested nodes display only
                 # the leaf so the tree reads naturally for screen-reader users.
-                label = cat if parent_node is self.root else category_display_leaf(cat)
+                label = (
+                    category_display_name(cat)
+                    if parent_node is self.root
+                    else category_display_leaf(cat)
+                )
                 total_unread = category_unread_totals.get(cat, 0)
                 display_label = f"{label} ({total_unread})" if total_unread > 0 else label
                 cat_node = self.tree.AppendItem(parent_node, display_label)
@@ -7031,6 +7081,7 @@ class MainFrame(wx.Frame):
         # Ensure article list refreshes after auto/remote refresh.
         # Re-selecting items on a rebuilt tree does not always emit EVT_TREE_SEL_CHANGED,
         # so explicitly trigger a load for the currently selected node.
+        self._article_refresh_dirty = False
         self._reload_selected_articles()
 
     def _get_feed_id_from_tree_item(self, item):
@@ -7267,15 +7318,30 @@ class MainFrame(wx.Frame):
 
     def _load_articles_thread(self, feed_id, request_id, full_load: bool = True):
         page_size = self.article_page_size
+        load_started = time.perf_counter()
         try:
             # Fast-first page
+            fetch_started = time.perf_counter()
             page, total = self.provider.get_articles_page(feed_id, offset=0, limit=page_size)
+            fetch_ms = (time.perf_counter() - fetch_started) * 1000.0
             # Ensure stable order (newest first)
             page = page or []
             page.sort(key=lambda a: (a.timestamp, self._article_cache_id(a)), reverse=True)
             # Warm expensive per-row annotations here (loader thread), not in
             # the UI render loop.
+            precompute_started = time.perf_counter()
             self._precompute_article_row_annotations(page)
+            precompute_ms = (time.perf_counter() - precompute_started) * 1000.0
+            log.debug(
+                "Article page prepared view=%s rows=%d full=%s fetch_ms=%.0f "
+                "precompute_ms=%.0f total_ms=%.0f",
+                feed_id,
+                len(page),
+                bool(full_load),
+                fetch_ms,
+                precompute_ms,
+                (time.perf_counter() - load_started) * 1000.0,
+            )
 
             if not full_load:
                 wx.CallAfter(self._quick_merge_articles, page, request_id, feed_id)
@@ -7559,8 +7625,15 @@ class MainFrame(wx.Frame):
                 # EnsureVisible(target) usually brings it to the bottom if scrolling down.
                 # EnsureVisible(last) -> Scrolls to bottom.
                 # EnsureVisible(target) -> Scrolls up until target is at top.
+                # Skip when the target already IS the top row: the double
+                # scroll is two full-list native scrolls plus the redraw and
+                # accessibility churn they trigger.
                 count = self.list_ctrl.GetItemCount()
-                if count > 0:
+                try:
+                    already_top = self.list_ctrl.GetTopItem() == target_idx
+                except Exception:
+                    already_top = False
+                if count > 0 and not already_top:
                     self.list_ctrl.EnsureVisible(count - 1)
                     self.list_ctrl.EnsureVisible(target_idx)
 
@@ -7736,6 +7809,32 @@ class MainFrame(wx.Frame):
         except Exception:
             pass
 
+    def _plan_incremental_list_update(self, old_display, new_display, new_ids):
+        """Plan a cheap native-list update, or return ``None``.
+
+        Returns ``(inserts, trim_count)`` when every retained old row keeps its
+        relative order, every added row belongs to ``new_ids``, and any removed
+        old rows form the oldest suffix. A reorder, middle removal, or
+        unexpected id returns ``None`` so the caller uses the full rebuild.
+        """
+        inserts = []
+        j = 0
+        try:
+            for i, art in enumerate(new_display):
+                cid = self._article_cache_id(art)
+                if j < len(old_display) and cid == self._article_cache_id(old_display[j]):
+                    j += 1
+                    continue
+                if cid in new_ids:
+                    inserts.append((i, art))
+                    continue
+                return None
+        except Exception:
+            return None
+        # A capped top-up page removes only the oldest suffix.  Keeping this
+        # count in the plan lets the caller avoid rebuilding all visible rows.
+        return inserts, len(old_display) - j
+
     def _quick_merge_articles(self, latest_page, request_id, feed_id):
         # If a newer request was started, ignore
         if not hasattr(self, 'current_request_id') or request_id != self.current_request_id:
@@ -7783,11 +7882,13 @@ class MainFrame(wx.Frame):
         top_article_id = self._capture_top_article_for_restore(focused_article_id, selected_id)
 
         self._updating_list = True
+        merge_path = "full"
+        merge_started = time.perf_counter()
         try:
             # Combine, deduplicate, and sort
             combined = new_entries + base_articles
             combined.sort(key=lambda a: (a.timestamp, self._article_cache_id(a)), reverse=True)
-            
+
             # Enforce page-limited view based on how many history pages the user loaded.
             truncated = False
             try:
@@ -7807,24 +7908,14 @@ class MainFrame(wx.Frame):
             if [self._article_cache_id(a) for a in combined] == [self._article_cache_id(a) for a in base_articles]:
                 return
 
+            old_display = list(getattr(self, "current_articles", []) or [])
             self._set_base_articles(combined, feed_id)
             display_articles = combined
             if self._is_search_active():
                 display_articles = self._filter_articles(combined, self._search_query)
             self.current_articles = self._sort_articles_for_display(display_articles)
-            
-            # Reset placeholder state since we are doing a full rebuild
-            self._remove_loading_more_placeholder()
 
-            empty_label = "No matches." if (self._is_search_active() and combined) else _("No articles found.")
-            self._render_articles_list(self.current_articles, empty_label=empty_label)
-            if self._is_search_active():
-                try:
-                    self.SetStatusText(f"Filter: {len(self.current_articles)} of {len(combined)}")
-                except Exception:
-                    pass
-
-            # Re-evaluate "Load More" placeholder
+            # Re-evaluate "Load More" placeholder (used by both merge paths).
             more = False
             fid = getattr(self, "current_feed_id", None)
             if fid:
@@ -7842,21 +7933,101 @@ class MainFrame(wx.Frame):
                         more = int(total) > len(combined)
                     except Exception:
                         more = False
-            
-            if more:
-                self._add_loading_more_placeholder()
+
+            # Incremental fast path: during a refresh the overwhelmingly common
+            # merge is "k new rows arrive and k oldest rows age out". A full
+            # DeleteAllItems + ~400-row re-insert floods NVDA with thousands
+            # of accessibility events every throttle cycle and the deferred
+            # focus restore undoes any arrowing the user did meanwhile — the
+            # "sluggish while feeds refresh" complaint. Inserting the new rows
+            # and trimming only the oldest suffix keeps focus/selection/scroll
+            # natively attached to existing items, so no full restore is needed.
+            update_plan = None
+            if (
+                not self._is_search_active()
+                and not getattr(self, "_article_render_inflight", False)
+                and old_display
+            ):
+                expected = len(old_display) + (1 if getattr(self, "_loading_more_placeholder", False) else 0)
+                try:
+                    count_ok = self.list_ctrl.GetItemCount() == expected
+                except Exception:
+                    count_ok = False
+                if count_ok:
+                    new_ids = {self._article_cache_id(a) for a in new_entries}
+                    update_plan = self._plan_incremental_list_update(
+                        old_display, self.current_articles, new_ids
+                    )
+                    if update_plan is not None:
+                        _planned_inserts, trim_count = update_plan
+                        trimmed_ids = {
+                            self._article_cache_id(a)
+                            for a in (old_display[-trim_count:] if trim_count else [])
+                        }
+                        if any(
+                            anchor and anchor in trimmed_ids
+                            for anchor in (focused_article_id, selected_id, top_article_id)
+                        ):
+                            update_plan = None
+
+            if update_plan is not None:
+                merge_path = "incremental"
+                inserts, trim_count = update_plan
+                if inserts or trim_count:
+                    self.list_ctrl.Freeze()
+                    try:
+                        self._remove_loading_more_placeholder()
+                        for idx in range(
+                            len(old_display) - 1,
+                            len(old_display) - trim_count - 1,
+                            -1,
+                        ):
+                            self.list_ctrl.DeleteItem(idx)
+                        for idx, art in inserts:
+                            self._insert_article_row(idx, art)
+                    finally:
+                        self.list_ctrl.Thaw()
+                if more:
+                    self._add_loading_more_placeholder()
+                else:
+                    self._remove_loading_more_placeholder()
+                if focused_on_load_more or selected_on_load_more:
+                    wx.CallAfter(self._restore_load_more_focus)
             else:
+                # Fallback: order changed, a non-suffix row disappeared, or a
+                # render is still in flight — rebuild the whole list.
                 self._remove_loading_more_placeholder()
 
-            restore_load_more = focused_on_load_more or selected_on_load_more
-            if restore_load_more:
-                wx.CallAfter(self._restore_load_more_focus)
-            else:
-                # Restore View State
-                wx.CallAfter(self._restore_list_view, focused_article_id, top_article_id, selected_id)
+                empty_label = "No matches." if (self._is_search_active() and combined) else _("No articles found.")
+                self._render_articles_list(self.current_articles, empty_label=empty_label)
+                if self._is_search_active():
+                    try:
+                        self.SetStatusText(f"Filter: {len(self.current_articles)} of {len(combined)}")
+                    except Exception:
+                        pass
+
+                if more:
+                    self._add_loading_more_placeholder()
+                else:
+                    self._remove_loading_more_placeholder()
+
+                restore_load_more = focused_on_load_more or selected_on_load_more
+                if restore_load_more:
+                    wx.CallAfter(self._restore_load_more_focus)
+                else:
+                    # Restore View State
+                    wx.CallAfter(self._restore_list_view, focused_article_id, top_article_id, selected_id)
 
         finally:
             self._updating_list = False
+
+        log.debug(
+            "Quick merge applied path=%s new=%d shown=%d ms=%.0f",
+            merge_path,
+            len(new_entries),
+            len(self.current_articles or []),
+            (time.perf_counter() - merge_started) * 1000.0,
+        )
 
         # Update cache for this view (do not reset paging offset)
         fid = getattr(self, 'current_feed_id', None)
@@ -9330,7 +9501,7 @@ class MainFrame(wx.Frame):
         by the last full ``_update_tree``); a ``seen`` guard makes this a no-op
         instead of an infinite loop if that map were ever inconsistent.
         """
-        category = (category or "").strip() or "Uncategorized"
+        category = (category or "").strip() or UNCATEGORIZED
         if delta == 0:
             return
 
@@ -9481,7 +9652,7 @@ class MainFrame(wx.Frame):
             from core.db import CATEGORY_PATH_SEP
             result = []
             for fid, feed in feeds.items():
-                feed_category = str(getattr(feed, "category", "") or "Uncategorized")
+                feed_category = str(getattr(feed, "category", "") or UNCATEGORIZED)
                 if feed_category == category or feed_category.startswith(category + CATEGORY_PATH_SEP):
                     result.append(fid)
             return result
@@ -10474,7 +10645,7 @@ class MainFrame(wx.Frame):
 
     def on_add_feed(self, event):
         cats = self.provider.get_categories()
-        if not cats: cats = ["Uncategorized"]
+        if not cats: cats = [UNCATEGORIZED]
         
         dlg = AddFeedDialog(self, cats)
         if dlg.ShowModal() == wx.ID_OK:
@@ -10726,7 +10897,7 @@ class MainFrame(wx.Frame):
 
         cats = self.provider.get_categories() if self.provider else []
         if not cats:
-            cats = ["Uncategorized"]
+            cats = [UNCATEGORIZED]
 
         allow_url_edit = False
         try:
@@ -10744,7 +10915,7 @@ class MainFrame(wx.Frame):
 
         old_title = str(getattr(feed, "title", "") or "")
         old_url = str(getattr(feed, "url", "") or "")
-        old_cat = str(getattr(feed, "category", "") or "Uncategorized")
+        old_cat = str(getattr(feed, "category", "") or UNCATEGORIZED)
 
         if not new_title:
             new_title = old_title
@@ -11050,7 +11221,7 @@ class MainFrame(wx.Frame):
 
     def _normalize_category_title_for_export(self, category_title: str | None) -> str:
         cat = str(category_title or "").strip()
-        return cat or "Uncategorized"
+        return cat or UNCATEGORIZED
 
     def _collect_category_feeds_for_export(self, category_title: str | None):
         target_cat = self._normalize_category_title_for_export(category_title)
@@ -11062,7 +11233,7 @@ class MainFrame(wx.Frame):
         feeds = list((self.provider.get_feeds() if self.provider else []) or [])
         out = []
         for feed in feeds:
-            feed_cat = str(getattr(feed, "category", "") or "").strip() or "Uncategorized"
+            feed_cat = str(getattr(feed, "category", "") or "").strip() or UNCATEGORIZED
             if feed_cat.casefold() in all_keys:
                 out.append(feed)
         return out
@@ -11488,9 +11659,9 @@ class MainFrame(wx.Frame):
 
         cats = self.provider.get_categories()
         if not cats:
-            cats = ["Uncategorized"]
+            cats = [UNCATEGORIZED]
         cat_dlg = wx.SingleChoiceDialog(self, "Choose category:", "Add Feed", cats)
-        cat = "Uncategorized"
+        cat = UNCATEGORIZED
         if cat_dlg.ShowModal() == wx.ID_OK:
             cat = cat_dlg.GetStringSelection()
         cat_dlg.Destroy()
@@ -11713,6 +11884,14 @@ class FilterRuleEditorDialog(wx.Dialog):
         super().__init__(parent, title=_("Filter Rule"),
                          style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         actions = filters_mod.normalize_actions(actions)
+        move_category = actions.get("move") or ""
+        label_category = actions.get("label") or ""
+        self._move_category_identities = (
+            [move_category] if move_category and move_category != UNCATEGORIZED else []
+        )
+        self._label_category_identities = (
+            [label_category] if label_category and label_category != UNCATEGORIZED else []
+        )
         outer = wx.BoxSizer(wx.VERTICAL)
 
         name_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -11762,7 +11941,10 @@ class FilterRuleEditorDialog(wx.Dialog):
         move_row = wx.BoxSizer(wx.HORIZONTAL)
         move_row.Add(wx.StaticText(self, label=_("&Move to category:")), 0,
                      wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
-        self.move_ctrl = wx.TextCtrl(self, value=actions.get("move") or "")
+        self.move_ctrl = wx.TextCtrl(
+            self,
+            value=category_display_name(move_category) if move_category else "",
+        )
         self.move_ctrl.SetName("Move to category (full path, blank for none)")
         move_row.Add(self.move_ctrl, 1)
         act_box.Add(move_row, 0, wx.EXPAND | wx.ALL, 4)
@@ -11770,7 +11952,10 @@ class FilterRuleEditorDialog(wx.Dialog):
         label_row = wx.BoxSizer(wx.HORIZONTAL)
         label_row.Add(wx.StaticText(self, label=_("Also &label with category:")), 0,
                       wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
-        self.label_ctrl = wx.TextCtrl(self, value=actions.get("label") or "")
+        self.label_ctrl = wx.TextCtrl(
+            self,
+            value=category_display_name(label_category) if label_category else "",
+        )
         self.label_ctrl.SetName("Also show under category (label, blank for none)")
         label_row.Add(self.label_ctrl, 1)
         act_box.Add(label_row, 0, wx.EXPAND | wx.ALL, 4)
@@ -11834,8 +12019,12 @@ class FilterRuleEditorDialog(wx.Dialog):
 
     def _collect_actions(self):
         return filters_mod.normalize_actions({
-            "move": self.move_ctrl.GetValue().strip(),
-            "label": self.label_ctrl.GetValue().strip(),
+            "move": normalize_category_input(
+                self.move_ctrl.GetValue(), self._move_category_identities
+            ),
+            "label": normalize_category_input(
+                self.label_ctrl.GetValue(), self._label_category_identities
+            ),
             "mark_read": self.mark_read_ctrl.GetValue(),
             "mark_favorite": self.mark_fav_ctrl.GetValue(),
             "delete": self.delete_ctrl.GetValue(),

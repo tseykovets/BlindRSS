@@ -6,6 +6,7 @@ import uuid
 import json
 import hashlib
 from core.config import APP_DIR, USER_DATA_DIR, get_data_dir
+from core.categories import UNCATEGORIZED
 
 log = logging.getLogger(__name__)
 
@@ -657,7 +658,7 @@ def init_db():
                 "SELECT lower(hex(randomblob(16))), category FROM feeds WHERE category IS NOT NULL AND category != ''"
             )
             # Ensure Uncategorized exists
-            c.execute("INSERT OR IGNORE INTO categories (id, title) VALUES (?, ?)", ("uncategorized", "Uncategorized"))
+            c.execute("INSERT OR IGNORE INTO categories (id, title) VALUES (?, ?)", ("uncategorized", UNCATEGORIZED))
         
         conn.commit()
     finally:
@@ -1950,7 +1951,7 @@ def get_feed_errors() -> list:
             "id": row[0],
             "title": row[1] or "Untitled feed",
             "url": row[2] or "",
-            "category": row[3] or "Uncategorized",
+            "category": row[3] or UNCATEGORIZED,
             "last_error": row[4] or "",
             "last_error_at": row[5],
             "last_success_at": row[6],

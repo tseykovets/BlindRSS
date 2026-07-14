@@ -10,6 +10,7 @@ import wx
 from core import utils
 from core import article_extractor
 from core.i18n import _
+from core.categories import UNCATEGORIZED, category_display_name
 from .clipboard_utils import copy_textctrl_selection_to_clipboard
 
 log = logging.getLogger(__name__)
@@ -208,13 +209,13 @@ def build_accessible_view_entries(feeds, categories=None, hierarchy=None, includ
 
     cat_names = {str(c or "").strip() for c in (categories or []) if str(c or "").strip()}
     for feed in feeds:
-        cat_names.add(str(getattr(feed, "category", "") or "Uncategorized").strip() or "Uncategorized")
+        cat_names.add(str(getattr(feed, "category", "") or UNCATEGORIZED).strip() or UNCATEGORIZED)
     if not cat_names and feeds:
-        cat_names.add("Uncategorized")
+        cat_names.add(UNCATEGORIZED)
 
     feeds_by_cat = {cat: [] for cat in cat_names}
     for feed in feeds:
-        cat = str(getattr(feed, "category", "") or "Uncategorized").strip() or "Uncategorized"
+        cat = str(getattr(feed, "category", "") or UNCATEGORIZED).strip() or UNCATEGORIZED
         feeds_by_cat.setdefault(cat, []).append(feed)
 
     children_of = {}
@@ -234,7 +235,10 @@ def build_accessible_view_entries(feeds, categories=None, hierarchy=None, includ
         # `path`/`cat` carry full category-path identities; show only the leaf of
         # each segment in the human-readable breadcrumb label.
         category_path = list(path) + [cat]
-        path_label = " > ".join(category_display_leaf(c) for c in category_path)
+        path_label = " > ".join(
+            category_display_name(c) if c == UNCATEGORIZED else category_display_leaf(c)
+            for c in category_path
+        )
         cat_id = f"category:{cat}"
         entries.append(
             {

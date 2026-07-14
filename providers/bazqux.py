@@ -5,6 +5,7 @@ import time
 from typing import List, Dict, Any
 from .base import RSSProvider
 from core.models import Feed, Article
+from core.categories import UNCATEGORIZED
 from core import utils
 
 log = logging.getLogger(__name__)
@@ -242,7 +243,7 @@ class BazQuxProvider(RSSProvider):
                         {
                             "id": fid,
                             "title": fid,
-                            "category": "Uncategorized",
+                            "category": UNCATEGORIZED,
                             "unread_count": 0,
                             "status": "error",
                             "new_items": None,
@@ -257,7 +258,7 @@ class BazQuxProvider(RSSProvider):
                     {
                         "id": fid,
                         "title": getattr(feed, "title", "") or "",
-                        "category": getattr(feed, "category", "") or "Uncategorized",
+                        "category": getattr(feed, "category", "") or UNCATEGORIZED,
                         "unread_count": int(getattr(feed, "unread_count", 0) or 0),
                         "status": "ok",
                         "new_items": None,
@@ -308,7 +309,7 @@ class BazQuxProvider(RSSProvider):
             self._categories_cache = set()
 
             for sub in data.get("subscriptions", []):
-                cat = "Uncategorized"
+                cat = UNCATEGORIZED
                 if sub.get("categories"):
                     cat = sub["categories"][0]["label"]
                     self._categories_cache.add(cat)
@@ -671,14 +672,14 @@ class BazQuxProvider(RSSProvider):
             try:
                 for f in self.get_feeds():
                     if f.id == feed_id:
-                        current_cat = f.category or "Uncategorized"
+                        current_cat = f.category or UNCATEGORIZED
                         break
             except Exception:
                 current_cat = None
             if current_cat and current_cat != category:
-                if current_cat and current_cat != "Uncategorized":
+                if current_cat and current_cat != UNCATEGORIZED:
                     data["r"] = f"user/-/label/{current_cat}"
-                if category and category != "Uncategorized":
+                if category and category != UNCATEGORIZED:
                     data["a"] = f"user/-/label/{category}"
 
         try:

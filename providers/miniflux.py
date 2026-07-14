@@ -13,6 +13,7 @@ from datetime import datetime, timezone, timedelta
 from dateutil import parser as dateparser
 from .base import RSSProvider
 from core.models import Feed, Article
+from core.categories import UNCATEGORIZED
 from core import utils
 
 log = logging.getLogger(__name__)
@@ -260,7 +261,7 @@ class MinifluxProvider(RSSProvider):
         error_override: str | None = None,
     ) -> dict[str, Any]:
         feed_id = str(feed.get("id") or "")
-        category = (feed.get("category") or {}).get("title", "Uncategorized")
+        category = (feed.get("category") or {}).get("title", UNCATEGORIZED)
         unread = self._unread_count_from_map(unread_map or {}, feed_id, feed.get("id"))
 
         status = "ok"
@@ -298,7 +299,7 @@ class MinifluxProvider(RSSProvider):
             state = {
                 "id": fid,
                 "title": fid,
-                "category": "Uncategorized",
+                "category": UNCATEGORIZED,
                 "unread_count": 0,
                 "new_items": None,
             }
@@ -1249,7 +1250,7 @@ class MinifluxProvider(RSSProvider):
                 status = "stale"
 
             unread = unread_map.get(fid) or unread_map.get(int(target.get("id", 0) or 0), 0) or 0
-            category = (target.get("category") or {}).get("title", "Uncategorized")
+            category = (target.get("category") or {}).get("title", UNCATEGORIZED)
 
             self._emit_progress(
                 progress_cb,
@@ -1315,7 +1316,7 @@ class MinifluxProvider(RSSProvider):
                         {
                             "id": fid,
                             "title": fid,
-                            "category": "Uncategorized",
+                            "category": UNCATEGORIZED,
                             "unread_count": 0,
                             "status": "error",
                             "new_items": None,
@@ -1335,7 +1336,7 @@ class MinifluxProvider(RSSProvider):
                     status = "stale"
 
                 unread = unread_map.get(fid) or unread_map.get(int(feed.get("id", 0) or 0), 0) or 0
-                category = (feed.get("category") or {}).get("title", "Uncategorized")
+                category = (feed.get("category") or {}).get("title", UNCATEGORIZED)
                 self._emit_progress(
                     progress_cb,
                     {
@@ -1367,7 +1368,7 @@ class MinifluxProvider(RSSProvider):
         for f in data:
             # category/icon may be present with a null value, so `or {}` is
             # needed -- a plain default only applies when the key is absent.
-            cat = (f.get("category") or {}).get("title", "Uncategorized")
+            cat = (f.get("category") or {}).get("title", UNCATEGORIZED)
             fid = str(f.get("id", ""))
             feed = Feed(
                 id=fid,
@@ -1636,7 +1637,7 @@ class MinifluxProvider(RSSProvider):
             self._req("PUT", f"/v1/entries/{article_id}/bookmark")
         return True
 
-    def add_feed(self, url: str, category: str = "Uncategorized") -> bool:
+    def add_feed(self, url: str, category: str = UNCATEGORIZED) -> bool:
         from core.discovery import get_ytdlp_feed_url, discover_feed
         from core import odysee as odysee_mod
         from core import rumble as rumble_mod

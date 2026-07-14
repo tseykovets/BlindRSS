@@ -34,13 +34,24 @@ class _FakeListCtrl:
     def __init__(self):
         self.rows = []  # list of {col_index: value}
         self.freeze_depth = 0
+        self.delete_all_calls = 0
+        self.focused = -1
+        self.selected = -1
+        self.top = 0
 
     def DeleteAllItems(self):
+        self.delete_all_calls += 1
         self.rows = []
 
     def InsertItem(self, index, label):
         index = max(0, min(int(index), len(self.rows)))
         self.rows.insert(index, {ARTICLE_COL_TITLE: label})
+        if self.focused >= index:
+            self.focused += 1
+        if self.selected >= index:
+            self.selected += 1
+        if self.top >= index and len(self.rows) > 1:
+            self.top += 1
         return index
 
     def SetItem(self, index, col, value):
@@ -56,6 +67,25 @@ class _FakeListCtrl:
 
     def DeleteItem(self, index):
         del self.rows[index]
+        if self.focused > index:
+            self.focused -= 1
+        elif self.focused == index:
+            self.focused = -1
+        if self.selected > index:
+            self.selected -= 1
+        elif self.selected == index:
+            self.selected = -1
+        if self.top > index:
+            self.top -= 1
+
+    def GetFocusedItem(self):
+        return self.focused
+
+    def GetFirstSelected(self):
+        return self.selected
+
+    def GetTopItem(self):
+        return self.top
 
     def Freeze(self):
         self.freeze_depth += 1
@@ -78,6 +108,7 @@ class _RenderHost:
     _article_media_label = mainframe.MainFrame._article_media_label
     _should_play_in_player = mainframe.MainFrame._should_play_in_player
     _render_articles_batch = mainframe.MainFrame._render_articles_batch
+    _render_batch_delay_ms = mainframe.MainFrame._render_batch_delay_ms
     _reassert_load_more_placeholder_last = mainframe.MainFrame._reassert_load_more_placeholder_last
     _defer_restore_during_render = mainframe.MainFrame._defer_restore_during_render
     _article_description_preview = mainframe.MainFrame._article_description_preview
@@ -95,6 +126,7 @@ class _RenderHost:
         self._render_first_chunk = first_chunk
         self._render_batch_size = batch_size
         self._article_render_inflight = False
+        self._refresh_ui_batch_active = False
         self._loading_more_placeholder = False
         self._load_more_label = "Load more items (Enter)"
         self._loading_label = "Loading more..."
@@ -288,3 +320,104 @@ def test_description_preview_long_max_len_is_not_memoized_short(monkeypatch):
     assert short.endswith("...")
     assert len(long) > 240  # full text, not the cached 240-char preview
     assert getattr(article, "_desc_preview_240") == short
+
+
+def test_refresh_batch_uses_longer_gaps_between_native_render_chunks():
+    host = _RenderHost()
+
+    assert host._render_batch_delay_ms() == 1
+    host._refresh_ui_batch_active = True
+    assert host._render_batch_delay_ms() == 15
+
+
+def test_incremental_plan_accepts_insert_plus_capped_oldest_suffix_trim():
+    host = _RenderHost()
+    host._article_cache_id = lambda article: article.cache_id
+    old = [_make_article(i) for i in range(4)]
+    fresh = _make_article(9)
+    new = [fresh, *old[:3]]
+
+    plan = mainframe.MainFrame._plan_incremental_list_update(
+        host, old, new, {fresh.cache_id}
+    )
+
+    assert plan == ([(0, fresh)], 1)
+
+
+def test_incremental_plan_rejects_middle_removal():
+    host = _RenderHost()
+    host._article_cache_id = lambda article: article.cache_id
+    old = [_make_article(i) for i in range(4)]
+    fresh = _make_article(9)
+    new = [fresh, old[0], old[2], old[3]]
+
+    plan = mainframe.MainFrame._plan_incremental_list_update(
+        host, old, new, {fresh.cache_id}
+    )
+
+    assert plan is None
+
+
+def test_quick_merge_updates_capped_page_without_full_native_rebuild():
+    class _MergeHost(_RenderHost):
+        _quick_merge_articles = mainframe.MainFrame._quick_merge_articles
+        _plan_incremental_list_update = mainframe.MainFrame._plan_incremental_list_update
+        _set_base_articles = mainframe.MainFrame._set_base_articles
+        _capture_top_article_for_restore = mainframe.MainFrame._capture_top_article_for_restore
+
+        def __init__(self):
+            super().__init__(first_chunk=4, batch_size=4)
+            self.article_page_size = 4
+            self.current_feed_id = "all"
+            self.current_request_id = 1
+            self._base_view_id = "all"
+            self._updating_list = False
+            self._state = {"paged_offset": 4, "total": 10}
+
+        def _article_cache_id(self, article):
+            return article.cache_id
+
+        def _ensure_view_state(self, _feed_id):
+            return self._state
+
+        def _is_search_active(self):
+            return False
+
+        def _sort_articles_for_display(self, articles):
+            return sorted(
+                articles,
+                key=lambda article: (article.timestamp, article.cache_id),
+                reverse=True,
+            )
+
+        def _queue_fulltext_prefetch(self, _articles):
+            return None
+
+        def _restore_list_view(self, *_args):
+            raise AssertionError("incremental merge must not restore the whole list")
+
+        def _restore_load_more_focus(self):
+            raise AssertionError("incremental merge must not restore the placeholder")
+
+    host = _MergeHost()
+    old = [_make_article(i) for i in range(4)]
+    for timestamp, article in zip((4, 3, 2, 1), old):
+        article.timestamp = timestamp
+    host._base_articles = list(old)
+    host.current_articles = list(old)
+    for idx, article in enumerate(old):
+        host._insert_article_row(idx, article)
+    host.list_ctrl.delete_all_calls = 0
+    host.list_ctrl.focused = 1
+    host.list_ctrl.selected = 1
+    host.list_ctrl.top = 1
+
+    fresh = _make_article(9)
+    fresh.timestamp = 5
+    host._quick_merge_articles([fresh, *old[:3]], 1, "all")
+
+    assert host.list_ctrl.delete_all_calls == 0
+    assert host.list_ctrl.titles()[:4] == [fresh.title, *(a.title for a in old[:3])]
+    assert host.list_ctrl.titles()[4] == host._load_more_label
+    assert host.list_ctrl.focused == 2
+    assert host.list_ctrl.selected == 2

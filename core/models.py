@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
+from core.categories import UNCATEGORIZED
 from core.utils import parse_datetime_utc
 
 class Article:
@@ -36,7 +37,7 @@ class Article:
                 self.timestamp = dt.timestamp()
 
 class Feed:
-    def __init__(self, id: str, title: str, url: str, category: str = "Uncategorized", icon_url: str = None):
+    def __init__(self, id: str, title: str, url: str, category: str = UNCATEGORIZED, icon_url: str = None):
         self.id = id
         self.title = title
         self.url = url

@@ -49,6 +49,15 @@ def test_build_detects_inno_setup_compiler_paths():
     assert 'where ISCC.exe' in text
 
 
+def test_build_python_missing_message_is_safe_inside_cmd_block():
+    text = BUILD.read_text(encoding="utf-8")
+
+    # Parentheses are control syntax even in an echo inside a parenthesized
+    # cmd.exe block.  Keep them escaped so dry-run/release can be parsed.
+    assert "available ^(python/py^)." in text
+    assert "available (python/py)." not in text
+
+
 def test_release_uploads_installer_and_manifest_contains_installer_hash():
     text = BUILD.read_text(encoding="utf-8")
 

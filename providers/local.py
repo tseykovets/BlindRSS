@@ -14,6 +14,7 @@ from collections import defaultdict, deque
 from urllib.parse import urlparse, urljoin
 from .base import RSSProvider
 from core.models import Feed, Article
+from core.categories import UNCATEGORIZED
 from core.db import (
     get_connection,
     init_db,
@@ -3538,7 +3539,7 @@ class LocalProvider(RSSProvider):
         return {
             "id": feed_id,
             "title": title,
-            "category": category or "Uncategorized",
+            "category": category or UNCATEGORIZED,
             "unread_count": unread,
             "status": status,
             "new_items": new_items,
@@ -4345,7 +4346,7 @@ class LocalProvider(RSSProvider):
         finally:
             conn.close()
 
-    def add_feed(self, url: str, category: str = "Uncategorized") -> bool:
+    def add_feed(self, url: str, category: str = UNCATEGORIZED) -> bool:
         real_url = self._resolve_feed_url(url)
         
         title = real_url
@@ -4623,7 +4624,7 @@ class LocalProvider(RSSProvider):
 
                         def ensure_category_path(title: str):
                             title = (title or "").strip()
-                            if not title or title == "Uncategorized":
+                            if not title or title == UNCATEGORIZED:
                                 return None
                             try:
                                 parent_id = None
@@ -4655,20 +4656,20 @@ class LocalProvider(RSSProvider):
 
                         def append_category(parent_category: str, folder_title: str) -> str:
                             path = str(parent_category or "").strip()
-                            if path == "Uncategorized":
+                            if path == UNCATEGORIZED:
                                 path = ""
                             for raw_part in str(folder_title or "").split(CATEGORY_PATH_SEP):
                                 leaf = sanitize_category_leaf(raw_part)
                                 if leaf:
                                     path = make_category_path(path, leaf)
-                            return path or "Uncategorized"
+                            return path or UNCATEGORIZED
 
                         # Make sure target category exists if used.
-                        if target_category and target_category != "Uncategorized":
+                        if target_category and target_category != UNCATEGORIZED:
                             target_category = ensure_category_path(target_category) or target_category
-                        base_category = target_category if target_category else "Uncategorized"
+                        base_category = target_category if target_category else UNCATEGORIZED
 
-                        def process_outline(outline, current_category="Uncategorized"):
+                        def process_outline(outline, current_category=UNCATEGORIZED):
                             # Case insensitive attribute lookup helper
                             def get_attr(name):
                                 # Direct lookup first
@@ -4704,9 +4705,9 @@ class LocalProvider(RSSProvider):
                                 )
                                 if not c.fetchone():
                                     feed_id = str(uuid.uuid4())
-                                    cat_to_use = current_category or "Uncategorized"
+                                    cat_to_use = current_category or UNCATEGORIZED
 
-                                    if cat_to_use and cat_to_use != "Uncategorized":
+                                    if cat_to_use and cat_to_use != UNCATEGORIZED:
                                         cat_to_use = ensure_category_path(cat_to_use) or cat_to_use
                                     
                                     # Preserve OPML-provided labels as user-custom titles so refresh
@@ -4727,7 +4728,7 @@ class LocalProvider(RSSProvider):
                                 # category path so standard nested OPML outlines survive import.
                                 if not xmlUrl:
                                     new_cat = append_category(current_category, text)
-                                    if new_cat and new_cat != "Uncategorized":
+                                    if new_cat and new_cat != UNCATEGORIZED:
                                         ensure_category_path(new_cat)
 
                                 for child in children:
@@ -4869,7 +4870,7 @@ class LocalProvider(RSSProvider):
         # feeds assigned to them are rewritten to match.
         from core.db import CATEGORY_PATH_SEP
         path = (title or "").strip()
-        if path.lower() == "uncategorized":
+        if path.casefold() == UNCATEGORIZED.casefold():
             return False
         conn = get_connection()
         try:
@@ -4907,7 +4908,7 @@ class LocalProvider(RSSProvider):
             if collision:
                 # Safe fallback: drop the whole subtree, feeds go to Uncategorized.
                 for sp in [path] + descendants:
-                    c.execute("UPDATE feeds SET category = 'Uncategorized' WHERE category = ?", (sp,))
+                    c.execute("UPDATE feeds SET category = ? WHERE category = ?", (UNCATEGORIZED, sp))
                     c.execute("DELETE FROM categories WHERE title = ?", (sp,))
                 conn.commit()
                 return True
@@ -4918,7 +4919,7 @@ class LocalProvider(RSSProvider):
                 c.execute("UPDATE categories SET title = ? WHERE title = ?", (new_p, old_p))
                 c.execute("UPDATE feeds SET category = ? WHERE category = ?", (new_p, old_p))
             # Feeds directly in the deleted category fall back to Uncategorized.
-            c.execute("UPDATE feeds SET category = 'Uncategorized' WHERE category = ?", (path,))
+            c.execute("UPDATE feeds SET category = ? WHERE category = ?", (UNCATEGORIZED, path))
             c.execute("DELETE FROM categories WHERE id = ?", (cat_id,))
             conn.commit()
             return True

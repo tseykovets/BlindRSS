@@ -79,6 +79,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - `db.py`: SQLite schema setup/migrations, WAL/busy timeout pragmas, connection helpers, retention cleanup.
     - Includes tables: `feeds`, `articles`, `chapters`, `chapter_cache`, `chapter_sources`, `categories`, `playback_state`.
     - Category identity is the full path string (`Parent / Child`) in `categories.title` and `feeds.category`; the UI can display only the leaf, but storage must keep the full path so duplicate leaf names under different parents do not collide.
+    - The system category identity is always the English sentinel `Uncategorized` in storage, provider calls, OPML, rules, and config. Translate it only at display time through `core.categories`; normalize localized editable input back to the sentinel.
     - Hosted-provider chapter rows do not belong in the local FK-backed `chapters` table; use provider-scoped cache keys in `chapter_cache` / `chapter_sources`.
     - Local article deletion is a persistent user action: record a `deleted_articles` tombstone before removing the row, and make refresh skip tombstoned item IDs/URLs so deleted RSS items are not recreated as unread on the next refresh.
   - `utils.py`: Critical helpers.
@@ -333,6 +334,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\MEMORY.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\always-commit-agents-md.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-filter-and-i18n.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-list-rebuild-lag.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\category-identity-model.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\curl-cffi-impersonation-transport.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\delete-restore-refresh-unguarded.md
@@ -354,6 +356,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\test-suite-live-stream-hazard.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\translation-completion-workflow.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\tree-rebuild-fastpath.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\uncategorized-sentinel-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\video-search-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\vlc-init-ui-freeze.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\volume-jump-root-cause.md

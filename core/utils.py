@@ -18,6 +18,7 @@ from dateutil import parser as dateparser
 from dateutil.parser import UnknownTimezoneWarning
 from io import BytesIO
 from pathlib import Path
+from core.categories import UNCATEGORIZED
 from core.db import CATEGORY_PATH_SEP, get_connection, make_category_path, sanitize_category_leaf
 import warnings
 import urllib.parse
@@ -1775,20 +1776,20 @@ def fetch_and_store_chapters(
 
 def _opml_category_parts(category):
     category = str(category or "").strip()
-    if not category or category == "Uncategorized":
+    if not category or category == UNCATEGORIZED:
         return []
     return [part.strip() for part in category.split(CATEGORY_PATH_SEP) if part.strip()]
 
 
 def _opml_append_category(parent_category, folder_title):
     path = str(parent_category or "").strip()
-    if path == "Uncategorized":
+    if path == UNCATEGORIZED:
         path = ""
     for part in _opml_category_parts(folder_title):
         leaf = sanitize_category_leaf(part)
         if leaf:
             path = make_category_path(path, leaf)
-    return path or "Uncategorized"
+    return path or UNCATEGORIZED
 
 
 def _feed_opml_fields(feed):
@@ -1796,17 +1797,17 @@ def _feed_opml_fields(feed):
         return (
             feed.get("title"),
             feed.get("url") or feed.get("xmlUrl"),
-            feed.get("category", "Uncategorized"),
+            feed.get("category", UNCATEGORIZED),
         )
     if isinstance(feed, (tuple, list)):
         title = feed[0] if len(feed) > 0 else None
         url = feed[1] if len(feed) > 1 else None
-        category = feed[2] if len(feed) > 2 else "Uncategorized"
+        category = feed[2] if len(feed) > 2 else UNCATEGORIZED
         return title, url, category
     return (
         getattr(feed, 'title', None),
         getattr(feed, 'url', None),
-        getattr(feed, 'category', "Uncategorized"),
+        getattr(feed, 'category', UNCATEGORIZED),
     )
 
 def parse_opml(path: str):
@@ -1842,7 +1843,7 @@ def parse_opml(path: str):
         if not body:
             return
 
-        def process_outline(outline, current_category="Uncategorized"):
+        def process_outline(outline, current_category=UNCATEGORIZED):
             # Case insensitive attribute lookup
             def get_attr(name):
                 if name in outline.attrs:

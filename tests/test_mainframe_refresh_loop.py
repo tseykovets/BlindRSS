@@ -197,6 +197,7 @@ class _RefreshUiBatchHost:
     _maybe_finish_refresh_ui_batch = mainframe.MainFrame._maybe_finish_refresh_ui_batch
     _request_article_reload = mainframe.MainFrame._request_article_reload
     _schedule_article_reload = mainframe.MainFrame._schedule_article_reload
+    _cancel_pending_article_reload = mainframe.MainFrame._cancel_pending_article_reload
     _run_pending_article_reload = mainframe.MainFrame._run_pending_article_reload
 
     def __init__(self):
@@ -210,6 +211,7 @@ class _RefreshUiBatchHost:
         self._refresh_ui_batch_token = 0
         self._article_refresh_dirty = False
         self._article_refresh_pending = False
+        self._article_refresh_timer = None
         self._article_refresh_debounce_ms = 250
         self._article_refresh_batch_ms = 2500
         self.tree_loads = 0

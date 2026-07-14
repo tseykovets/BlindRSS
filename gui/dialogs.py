@@ -46,6 +46,11 @@ from core.retention import (
     retention_label,
 )
 from core.i18n import _, ngettext
+from core.categories import (
+    UNCATEGORIZED,
+    category_display_name,
+    normalize_category_input,
+)
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +59,8 @@ class AddFeedDialog(wx.Dialog):
     def __init__(self, parent, categories=None):
         super().__init__(parent, title=_("Add Feed"), size=(400, 250))
         
-        self.categories = categories or ["Uncategorized"]
+        self.category_identities = list(categories or [UNCATEGORIZED])
+        self.categories = [category_display_name(category) for category in self.category_identities]
         self._check_timer = None
         
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -129,7 +135,10 @@ class AddFeedDialog(wx.Dialog):
             wx.CallAfter(self.status_lbl.SetLabel, "")
 
     def get_data(self):
-        return self.url_ctrl.GetValue(), self.cat_ctrl.GetValue()
+        category = normalize_category_input(
+            self.cat_ctrl.GetValue(), self.category_identities
+        )
+        return self.url_ctrl.GetValue(), category
 
 
 class AddShortcutsDialog(wx.Dialog):
@@ -697,11 +706,14 @@ class SettingsDialog(wx.Dialog):
         general_sizer.Add(del_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
         kind, category = filters_mod.parse_delete_behavior(config.get("delete_behavior", "deleted"))
+        self._delete_category_identities = (
+            [category] if category and category != UNCATEGORIZED else []
+        )
         self.delete_behavior_ctrl.SetSelection(
             next((i for i, (k, _l) in enumerate(self._delete_behavior_choices) if k == kind), 0)
         )
         if category:
-            self.delete_category_ctrl.SetValue(category)
+            self.delete_category_ctrl.SetValue(category_display_name(category))
         self.delete_behavior_ctrl.Bind(wx.EVT_CHOICE, lambda e: self._sync_delete_category_enabled())
         self._sync_delete_category_enabled()
 
@@ -1019,11 +1031,11 @@ class SettingsDialog(wx.Dialog):
         general_panel.SetSizer(general_sizer)
         notebook.AddPage(general_panel, _("General"))
         feeds_panel.SetSizer(feeds_sizer)
-        notebook.AddPage(feeds_panel, _("Feeds && Articles"))
+        notebook.AddPage(feeds_panel, _("Feeds & Articles"))
         downloads_panel.SetSizer(downloads_sizer)
         notebook.AddPage(downloads_panel, _("Downloads"))
         startup_panel.SetSizer(startup_sizer)
-        notebook.AddPage(startup_panel, _("Startup && Tray"))
+        notebook.AddPage(startup_panel, _("Startup & Tray"))
         youtube_panel.SetSizer(youtube_sizer)
         notebook.AddPage(youtube_panel, _("YouTube"))
 
@@ -2444,7 +2456,9 @@ class SettingsDialog(wx.Dialog):
         idx = self.delete_behavior_ctrl.GetSelection()
         kind = self._delete_behavior_choices[idx][0] if idx >= 0 else "deleted"
         if kind == "category":
-            category = self.delete_category_ctrl.GetValue().strip()
+            category = normalize_category_input(
+                self.delete_category_ctrl.GetValue(), self._delete_category_identities
+            )
             return f"category:{category}" if category else "deleted"
         return kind
 
@@ -2856,7 +2870,8 @@ class FeedPropertiesDialog(wx.Dialog):
         super().__init__(parent, title=_("Feed Properties"), size=(540, 620))
 
         self.feed = feed
-        self.categories = categories
+        self.category_identities = list(categories or [UNCATEGORIZED])
+        self.categories = [category_display_name(category) for category in self.category_identities]
         # Per-feed HTTP overrides (issue #29). Loaded here, saved in on_ok.
         try:
             from core import db as _db
@@ -2891,7 +2906,7 @@ class FeedPropertiesDialog(wx.Dialog):
         sizer.Add(wx.StaticText(self, label=_("Category:")), 0, wx.ALL, 5)
         self.cat_ctrl = wx.ComboBox(self, choices=self.categories, style=wx.CB_DROPDOWN)
         self.cat_ctrl.SetName("Category")
-        self.cat_ctrl.SetValue(feed.category or "Uncategorized")
+        self.cat_ctrl.SetValue(category_display_name(feed.category or UNCATEGORIZED))
         sizer.Add(self.cat_ctrl, 0, wx.EXPAND | wx.ALL, 5)
 
         # Per-feed refresh interval override. "Use global setting" (None) follows
@@ -3023,6 +3038,9 @@ class FeedPropertiesDialog(wx.Dialog):
         sizer.Add(del_row, 0, wx.EXPAND)
 
         fd_kind, fd_category = filters_mod.parse_delete_behavior(self._feed_delete_behavior)
+        self._feed_delete_category_identities = (
+            [fd_category] if fd_category and fd_category != UNCATEGORIZED else []
+        )
         if self._feed_delete_behavior is None:
             self.feed_delete_ctrl.SetSelection(0)
         else:
@@ -3030,7 +3048,7 @@ class FeedPropertiesDialog(wx.Dialog):
                 next((i for i, (k, _l) in enumerate(self._feed_delete_choices) if k == fd_kind), 0)
             )
         if fd_category:
-            self.feed_delete_category_ctrl.SetValue(fd_category)
+            self.feed_delete_category_ctrl.SetValue(category_display_name(fd_category))
         self.feed_delete_ctrl.Bind(wx.EVT_CHOICE, lambda e: self._sync_feed_delete_category_enabled())
         self._sync_feed_delete_category_enabled()
 
@@ -3075,7 +3093,10 @@ class FeedPropertiesDialog(wx.Dialog):
         if kind is None:
             return None
         if kind == "category":
-            category = self.feed_delete_category_ctrl.GetValue().strip()
+            category = normalize_category_input(
+                self.feed_delete_category_ctrl.GetValue(),
+                self._feed_delete_category_identities,
+            )
             return f"category:{category}" if category else None
         return kind
 
@@ -3154,7 +3175,9 @@ class FeedPropertiesDialog(wx.Dialog):
         except Exception:
             url = ""
         try:
-            category = (self.cat_ctrl.GetValue() or "").strip()
+            category = normalize_category_input(
+                self.cat_ctrl.GetValue(), self.category_identities
+            )
         except Exception:
             category = ""
         return title, url, category
@@ -3304,7 +3327,7 @@ class FeedErrorsDialog(wx.Dialog):
         return (
             f"Feed: {err.get('title') or 'Untitled feed'}\n"
             f"URL: {err.get('url') or '(unknown)'}\n"
-            f"Category: {err.get('category') or 'Uncategorized'}\n"
+            f"Category: {category_display_name(err.get('category') or UNCATEGORIZED)}\n"
             f"Last update attempt: {self._format_timestamp(err.get('last_error_at'))}\n"
             f"Last successful update: {success_line}\n"
             f"{failures_line}\n\n"

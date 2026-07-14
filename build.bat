@@ -119,7 +119,7 @@ if defined PYTHON_EXE exit /b 0
 
 where /q python
 if errorlevel 1 (
-    echo [X] Python not found. Install Python 3.14+ and ensure it is available (python/py).
+    echo [X] Python not found. Install Python 3.14+ and ensure it is available ^(python/py^).
     exit /b 1
 )
 for /f "delims=" %%P in ('python -c "import sys; print(sys.executable) if sys.version_info >= (3, 14) else sys.exit(1)" 2^>nul') do (

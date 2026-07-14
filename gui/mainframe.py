@@ -3592,22 +3592,10 @@ class MainFrame(wx.Frame):
         """Perform retention cleanup based on config settings."""
         try:
             from core.db import cleanup_old_articles
-            retention_str = self.config_manager.get("article_retention", "Unlimited")
-            days = None
-            if retention_str == "1 day": days = 1
-            elif retention_str == "2 days": days = 2
-            elif retention_str == "3 days": days = 3
-            elif retention_str == "1 week": days = 7
-            elif retention_str == "2 weeks": days = 14
-            elif retention_str == "3 weeks": days = 21
-            elif retention_str == "1 month": days = 30
-            elif retention_str == "2 months": days = 60
-            elif retention_str == "3 months": days = 90
-            elif retention_str == "6 months": days = 180
-            elif retention_str == "1 year": days = 365
-            elif retention_str == "2 years": days = 730
-            elif retention_str == "5 years": days = 1825
-            
+            from core.retention import RETENTION_DEFAULT, retention_days
+            days = retention_days(
+                self.config_manager.get("article_retention", RETENTION_DEFAULT)
+            )
             if days is not None:
                 cleanup_old_articles(days)
         except Exception as e:
@@ -10449,8 +10437,9 @@ class MainFrame(wx.Frame):
             counter += 1
 
     def _apply_download_retention(self, folder):
-        label = self.config_manager.get("download_retention", "Unlimited")
-        seconds = self._retention_seconds(label)
+        from core.retention import RETENTION_DEFAULT
+        value = self.config_manager.get("download_retention", RETENTION_DEFAULT)
+        seconds = self._retention_seconds(value)
         if seconds is None:
             return
         cutoff = time.time() - seconds
@@ -10462,22 +10451,11 @@ class MainFrame(wx.Frame):
         except Exception as e:
             print(f"Retention cleanup failed for {folder}: {e}")
 
-    def _retention_seconds(self, label):
-        table = {
-            "1 day": 86400,
-            "3 days": 3 * 86400,
-            "1 week": 7 * 86400,
-            "2 weeks": 14 * 86400,
-            "3 weeks": 21 * 86400,
-            "1 month": 30 * 86400,
-            "2 months": 60 * 86400,
-            "6 months": 180 * 86400,
-            "1 year": 365 * 86400,
-            "2 years": 730 * 86400,
-            "5 years": 1825 * 86400,
-            "Unlimited": None
-        }
-        return table.get(label, None)
+    def _retention_seconds(self, value):
+        # Accepts stable identifiers ("1_week") and legacy English labels
+        # ("1 week") from old configs; see core.retention (issue #63).
+        from core.retention import retention_seconds
+        return retention_seconds(value)
 
     def _get_feed_title(self, feed_id):
         feed = self.feed_map.get(feed_id) if hasattr(self, "feed_map") else None

@@ -270,11 +270,12 @@ DEFAULT_CONFIG = {
     "range_cache_debug": False,  # verbose local proxy debug logs (PROXY_DEBUG)
     "downloads_enabled": False,
     "download_path": _default_download_dir(),
-    "download_retention": "Unlimited",
+    # Stable identifier from core.retention (issue #63) — never a UI label.
+    "download_retention": "unlimited",
     # Maps stable article/media fingerprints to locally downloaded episode files.
     # This lets playback prefer a completed download when the network is offline.
     "downloaded_media": {},
-    "article_retention": "Unlimited",
+    "article_retention": "unlimited",
     "persistent_searches": [],
     "show_search_field": True,
     # Default expansion state of the feed category tree on launch (issue #33):
@@ -580,6 +581,23 @@ class ConfigManager:
                 changed = True
         except (TypeError, ValueError):
             log.warning("Could not migrate 'resume_min_ms' due to invalid value in config.json; leaving it as is.")
+
+        # Issue #63: retention settings used to store the English UI label
+        # ("1 week", "Unlimited"); convert to stable identifiers ("1_week",
+        # "unlimited") so changing the UI language cannot break them.
+        try:
+            from core.retention import normalize_retention
+
+            for key in ("article_retention", "download_retention"):
+                previous = cfg.get(key)
+                if previous is None:
+                    continue
+                normalized = normalize_retention(previous)
+                if normalized != previous:
+                    cfg[key] = normalized
+                    changed = True
+        except Exception:
+            log.warning("Could not migrate retention settings; leaving them as is.")
 
         # v1.63.x+: refresh defaults were tuned multiple times.
         # Only migrate when the values still match a known untouched default set.

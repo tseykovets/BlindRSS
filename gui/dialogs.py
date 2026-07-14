@@ -39,6 +39,12 @@ from core import inoreader_oauth
 from core import translation as translation_mod
 from core import filters as filters_mod
 from core.vlc_options import build_vlc_instance_args
+from core.retention import (
+    RETENTION_CHOICES,
+    RETENTION_DEFAULT,
+    normalize_retention,
+    retention_label,
+)
 from core.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
@@ -710,18 +716,37 @@ class SettingsDialog(wx.Dialog):
         dl_path_sizer.Add(browse_btn, 0, wx.ALL, 5)
         downloads_sizer.Add(dl_path_sizer, 0, wx.EXPAND | wx.ALL, 5)
         
+        def _make_retention_combo(parent, cfg_value):
+            # Config stores stable identifiers ("1_week"); the combobox shows
+            # localized labels. Selection index maps back to the identifier on
+            # save so display language never leaks into the config (issue #63).
+            ids = [ident for ident, _days in RETENTION_CHOICES]
+            current = normalize_retention(cfg_value)
+            if current not in ids:
+                # Legacy value no longer offered in the UI (e.g. "3_months"):
+                # keep it selectable so opening Settings doesn't change it.
+                ids.append(current)
+            combo = wx.ComboBox(
+                parent,
+                choices=[retention_label(ident) for ident in ids],
+                style=wx.CB_READONLY,
+            )
+            combo.SetSelection(ids.index(current))
+            return combo, ids
+
         retention_sizer = wx.BoxSizer(wx.HORIZONTAL)
         retention_sizer.Add(wx.StaticText(downloads_panel, label=_("Retention Policy:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        retention_opts = ["1 day", "3 days", "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "6 months", "1 year", "2 years", "5 years", "Unlimited"]
-        self.retention_ctrl = wx.ComboBox(downloads_panel, choices=retention_opts, style=wx.CB_READONLY)
-        self.retention_ctrl.SetValue(config.get("download_retention", "Unlimited"))
+        self.retention_ctrl, self._retention_ids_download = _make_retention_combo(
+            downloads_panel, config.get("download_retention", RETENTION_DEFAULT)
+        )
         retention_sizer.Add(self.retention_ctrl, 0, wx.ALL, 5)
         downloads_sizer.Add(retention_sizer, 0, wx.EXPAND | wx.ALL, 5)
-        
+
         art_retention_sizer = wx.BoxSizer(wx.HORIZONTAL)
         art_retention_sizer.Add(wx.StaticText(feeds_panel, label=_("Article Retention:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.art_retention_ctrl = wx.ComboBox(feeds_panel, choices=retention_opts, style=wx.CB_READONLY)
-        self.art_retention_ctrl.SetValue(config.get("article_retention", "Unlimited"))
+        self.art_retention_ctrl, self._retention_ids_article = _make_retention_combo(
+            feeds_panel, config.get("article_retention", RETENTION_DEFAULT)
+        )
         art_retention_sizer.Add(self.art_retention_ctrl, 0, wx.ALL, 5)
         feeds_sizer.Add(art_retention_sizer, 0, wx.EXPAND | wx.ALL, 5)
 
@@ -2407,6 +2432,13 @@ class SettingsDialog(wx.Dialog):
         kind = self._delete_behavior_choices[idx][0] if idx >= 0 else "deleted"
         self.delete_category_ctrl.Enable(kind == "category")
 
+    def _selected_retention_id(self, combo, ids):
+        """Stable identifier for the retention combobox selection (issue #63)."""
+        idx = combo.GetSelection()
+        if 0 <= idx < len(ids):
+            return ids[idx]
+        return RETENTION_DEFAULT
+
     def _delete_behavior_setting(self):
         """Encode the delete-behavior choice + category into the config string."""
         idx = self.delete_behavior_ctrl.GetSelection()
@@ -2749,8 +2781,12 @@ class SettingsDialog(wx.Dialog):
             "confirm_article_delete": self.confirm_delete_chk.GetValue(),
             "delete_behavior": self._delete_behavior_setting(),
             "download_path": self.dl_path_ctrl.GetValue(),
-            "download_retention": self.retention_ctrl.GetValue(),
-            "article_retention": self.art_retention_ctrl.GetValue(),
+            "download_retention": self._selected_retention_id(
+                self.retention_ctrl, self._retention_ids_download
+            ),
+            "article_retention": self._selected_retention_id(
+                self.art_retention_ctrl, self._retention_ids_article
+            ),
             "close_to_tray": self.close_tray_chk.GetValue(),
             "minimize_to_tray": self.min_tray_chk.GetValue(),
             "start_in_system_tray": self.start_in_tray_chk.GetValue(),

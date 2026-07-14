@@ -6492,35 +6492,37 @@ class MainFrame(wx.Frame):
     def _request_article_reload(self):
         """Remember that the selected view changed during a refresh.
 
-        Full refreshes keep this marker until their final tree update.  Targeted
-        refreshes still use the normal short debounce below, so a single-feed
-        refresh remains visibly current without spawning one loader per feed
-        completion.
+        During a full refresh the reload runs on a slow throttle so new
+        articles appear in the visible list as feeds complete, without the
+        per-feed reload churn that starved full-text extraction.  Once the
+        batch enters its ending drain the final tree/list update is imminent,
+        so only the dirty marker is kept.  Targeted refreshes still use the
+        normal short debounce, so a single-feed refresh remains visibly
+        current without spawning one loader per feed completion.
         """
         self._article_refresh_dirty = True
-        if (
-            getattr(self, "_refresh_ui_batch_active", False)
-            or getattr(self, "_refresh_ui_batch_ending", False)
-        ):
+        if getattr(self, "_refresh_ui_batch_ending", False):
+            return
+        if getattr(self, "_refresh_ui_batch_active", False):
+            self._schedule_article_reload(
+                delay_ms=int(getattr(self, "_article_refresh_batch_ms", 2500))
+            )
             return
         self._schedule_article_reload()
 
-    def _schedule_article_reload(self):
+    def _schedule_article_reload(self, delay_ms: int | None = None):
         self._article_refresh_dirty = True
         if self._article_refresh_pending:
             return
         self._article_refresh_pending = True
-        wx.CallLater(
-            max(1, int(getattr(self, "_article_refresh_debounce_ms", 250))),
-            self._run_pending_article_reload,
-        )
+        if delay_ms is None:
+            delay_ms = int(getattr(self, "_article_refresh_debounce_ms", 250))
+        wx.CallLater(max(1, int(delay_ms)), self._run_pending_article_reload)
 
     def _run_pending_article_reload(self):
         self._article_refresh_pending = False
-        if (
-            getattr(self, "_refresh_ui_batch_active", False)
-            or getattr(self, "_refresh_ui_batch_ending", False)
-        ):
+        if getattr(self, "_refresh_ui_batch_ending", False):
+            # The batch's final update handles the still-set dirty marker.
             return
         if not getattr(self, "_article_refresh_dirty", False):
             return

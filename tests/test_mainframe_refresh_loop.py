@@ -197,6 +197,7 @@ class _RefreshUiBatchHost:
     _maybe_finish_refresh_ui_batch = mainframe.MainFrame._maybe_finish_refresh_ui_batch
     _request_article_reload = mainframe.MainFrame._request_article_reload
     _schedule_article_reload = mainframe.MainFrame._schedule_article_reload
+    _run_pending_article_reload = mainframe.MainFrame._run_pending_article_reload
 
     def __init__(self):
         self._refresh_progress_lock = threading.Lock()
@@ -210,16 +211,21 @@ class _RefreshUiBatchHost:
         self._article_refresh_dirty = False
         self._article_refresh_pending = False
         self._article_refresh_debounce_ms = 250
+        self._article_refresh_batch_ms = 2500
         self.tree_loads = 0
+        self.article_reloads = 0
 
     def refresh_feeds(self):
         self.tree_loads += 1
+
+    def _reload_selected_articles(self):
+        self.article_reloads += 1
 
     def _end_refresh_activity(self):
         return None
 
 
-def test_full_refresh_defers_selected_list_reload_until_final_tree_update(monkeypatch):
+def test_full_refresh_throttles_selected_list_reload(monkeypatch):
     timers = []
     monkeypatch.setattr(
         mainframe.wx,
@@ -230,18 +236,65 @@ def test_full_refresh_defers_selected_list_reload_until_final_tree_update(monkey
 
     host._begin_refresh_ui_batch()
     host._request_article_reload()
+    host._request_article_reload()
 
-    # Per-feed progress has only marked the currently visible view dirty; it
-    # has not started another list loader while the refresh is in flight.
+    # Mid-refresh progress schedules exactly ONE slow-throttled reload of the
+    # visible list, so new articles appear while the batch is still running
+    # without one loader per completed feed.
     assert host._article_refresh_dirty is True
-    assert host._article_refresh_pending is False
-    assert timers == []
+    assert host._article_refresh_pending is True
+    assert [t[0] for t in timers] == [2500]
+
+    # The throttled timer fires while the batch is still active: the visible
+    # list reloads immediately instead of waiting for the final tree update.
+    timers[0][1]()
+    assert host.article_reloads == 1
+    assert host._article_refresh_dirty is False
 
     host._finish_refresh_ui_batch(refresh_tree=True)
 
     assert host.tree_loads == 1
-    assert host._article_refresh_dirty is False
     assert host._refresh_ui_batch_active is False
+
+
+def test_reload_during_batch_ending_defers_to_final_update(monkeypatch):
+    timers = []
+    monkeypatch.setattr(
+        mainframe.wx,
+        "CallLater",
+        lambda delay, callback, *args, **kwargs: timers.append((delay, callback)),
+    )
+    host = _RefreshUiBatchHost()
+
+    host._begin_refresh_ui_batch()
+    host._request_article_reload()
+    assert [d for d, _cb in timers] == [2500]
+
+    # Worker finished; the batch enters its ending drain while the throttled
+    # reload timer is still queued.
+    with host._refresh_progress_lock:
+        host._refresh_progress_pending = {"feed-1": {"id": "feed-1"}}
+        host._refresh_progress_flush_scheduled = True
+    host._finish_refresh_ui_batch(refresh_tree=False)
+    assert host._refresh_ui_batch_ending is True
+
+    # Progress during the drain only marks dirty, and the stale throttled
+    # timer is a no-op that keeps the dirty flag for the final update.
+    host._request_article_reload()
+    timers[0][1]()
+    assert host.article_reloads == 0
+    assert host._article_refresh_dirty is True
+
+    # Drain completes: the final update schedules the short-debounce reload
+    # for the still-dirty view.
+    with host._refresh_progress_lock:
+        host._refresh_progress_pending.clear()
+        host._refresh_progress_flush_scheduled = False
+    host._maybe_finish_refresh_ui_batch()
+    assert [d for d, _cb in timers] == [2500, 250]
+    timers[1][1]()
+    assert host.article_reloads == 1
+    assert host._article_refresh_dirty is False
 
 
 def test_no_change_refresh_skips_final_tree_reload(monkeypatch):

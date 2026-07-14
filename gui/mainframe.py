@@ -9003,9 +9003,9 @@ class MainFrame(wx.Frame):
                 # Fallback: show feed content (cleaned) rather than a blank failure message.
                 note_lines = []
                 if not url:
-                    note_lines.append("No webpage URL for this item. Showing feed content.\n\n")
+                    note_lines.append(f'{_("No webpage URL for this item. Showing feed content.")}\n\n')
                 else:
-                    note_lines.append("Full-text extraction failed. Showing feed content.\n\n")
+                    note_lines.append(f'{_("Full-text extraction failed. Showing feed content.")}\n\n')
                 if err:
                     note_lines.append(err + "\n\n")
 

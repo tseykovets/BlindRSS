@@ -347,6 +347,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\podcast-signed-url-reresolve.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\provider-flat-vs-nested.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\refresh-speed-fixes.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\refresh-throttled-list-reload.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\release-build-process.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\soundcloud-mixcloud-feeds.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\speed-shortcut-interception.md
@@ -357,5 +358,6 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\vlc-init-ui-freeze.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\volume-jump-root-cause.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\wx-callafter-timer-starvation.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\wx-searchctrl-setmenu-ownership.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\youtube-live-format-selection.md
 <!-- claude-memory:end -->

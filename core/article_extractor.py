@@ -1161,6 +1161,72 @@ class _FetchResult:
     blocked: bool = False
 
 
+# Read-proxy markdown keeps navigation as long "[label](very-long-url)" lines that survive the
+# short-line paragraph filter in _merge_texts. Inlining link/image syntax reduces nav entries to
+# their short labels, which the existing filters then drop, leaving the article sentences.
+_MD_IMAGE_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+_MD_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_MD_BULLET_RE = re.compile(r"(?m)^\s*[*+-]\s+")
+_MD_HEADING_RE = re.compile(r"(?m)^#{1,6}\s*")
+
+
+def _markdown_links_to_text(md: str) -> str:
+    """Inline read-proxy markdown links/images/bullets so nav noise reduces to droppable lines.
+
+    Also drops emphasis/heading/code markers so a screen reader never hears the raw syntax.
+    """
+    text = _MD_IMAGE_RE.sub("", md or "")
+    text = _MD_LINK_RE.sub(lambda m: m.group(1), text)
+    text = _MD_BULLET_RE.sub("", text)
+    text = _MD_HEADING_RE.sub("", text)
+    return text.replace("**", "").replace("`", "")
+
+
+# Whole-page renderings can carry the site's cookie-consent modal as trailing sentences that
+# the nav-run trim keeps (they are real prose). Cut from the first cookie-notice line onward,
+# but only in the trailing half so an article that merely discusses cookies is never truncated.
+_PROXY_COOKIE_BLOCK_RE = re.compile(
+    r"(?im)^[^\n]{0,160}\b(?:uses?|stores?|places?)\s+cookies\b.*$"
+)
+
+
+def _strip_proxy_trailing_boilerplate(text: str) -> str:
+    """Cut a trailing cookie-consent/preferences block from a whole-page proxy rendering."""
+    text = text or ""
+    match = _PROXY_COOKIE_BLOCK_RE.search(text)
+    if match and match.start() > len(text) * 0.5:
+        return text[: match.start()].rstrip()
+    return text
+
+
+def _strip_edge_nav_runs(text: str) -> str:
+    """Drop the header/footer navigation runs from a whole-page rendering.
+
+    Site chrome sits at the edges as unbroken runs of short, punctuation-free label lines
+    (menus, section names, footer links); article prose is long sentences. Only the edge runs
+    are removed, so short headings inside the body survive. Page titles trimmed with the header
+    are re-supplied by the feed item's title at render time.
+    """
+    lines = (text or "").splitlines()
+
+    def _is_nav_like(line: str) -> bool:
+        # A rendered-markdown paragraph is one long line, so short edge lines are chrome even
+        # when punctuated (e.g. NPR's "Wait Wait...Don't Tell Me!" menu entry).
+        line = line.strip()
+        if not line:
+            return True
+        if len(line) > _LINK_LIST_MAX_LINE_LEN:
+            return False
+        return len(line) <= 40 or not _LINK_LIST_SENTENCE_END_RE.search(line)
+
+    start, end = 0, len(lines)
+    while start < end and _is_nav_like(lines[start]):
+        start += 1
+    while end > start and _is_nav_like(lines[end - 1]):
+        end -= 1
+    return "\n".join(lines[start:end])
+
+
 def _download_via_jina(target_url: str, timeout: int) -> Optional[str]:
     try:
         target = re.sub(r"^https?://", "", (target_url or "").strip())
@@ -2196,10 +2262,27 @@ def extract_full_article(
     # before any normal page fetch so the reader never extracts Google's consent document.  This
     # function is called by the application's background full-text workers, not feed refresh.
     extraction_url = url
+    prefetched_text: Optional[str] = None
     if _is_google_news_article_url(url):
         extraction_url = _resolve_google_news_article_url(url, timeout)
         if not extraction_url:
-            raise ExtractionError(_GOOGLE_NEWS_RESOLUTION_MESSAGE)
+            # Local resolution requires direct Google access, which some regions block outright
+            # (Russia's ISP-level block of news.google.com, Google's own restrictions on Iranian
+            # IPs). The Jina read-proxy renders the redirect server-side from its own network
+            # and returns the publisher page, so those users still get full text. Malformed
+            # URLs (no valid token) still fail closed without any request.
+            proxy_markdown = _download_via_jina(url, timeout) if _google_news_article_token(url) else None
+            if not proxy_markdown or _looks_like_bot_interstitial(proxy_markdown):
+                raise ExtractionError(_GOOGLE_NEWS_RESOLUTION_MESSAGE)
+            # The proxy already returns the rendered, readable page; running the HTML
+            # extraction stack over it mis-detects the main content, so it bypasses
+            # _extract_text_any and relies on _merge_texts dropping short nav lines.
+            prefetched_text = _strip_edge_nav_runs(
+                _strip_proxy_trailing_boilerplate(_markdown_links_to_text(proxy_markdown))
+            )
+            if not prefetched_text.strip():
+                raise ExtractionError(_GOOGLE_NEWS_RESOLUTION_MESSAGE)
+            extraction_url = url
 
     current = extraction_url
     title = ""
@@ -2212,6 +2295,12 @@ def extract_full_article(
         if not current or current in visited:
             break
         visited.add(current)
+
+        if prefetched_text is not None:
+            page_texts.append(prefetched_text)
+            prefetched_text = None
+            downloaded_any = True
+            break
 
         res = _fetch_page(current, timeout=timeout)
         if res.blocked:

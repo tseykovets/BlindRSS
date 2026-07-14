@@ -287,6 +287,93 @@ def test_google_news_fulltext_fetches_resolved_publisher_url_instead_of_google(m
     assert article.text == "The full publisher article body."
 
 
+def test_google_news_fulltext_falls_back_to_read_proxy_when_resolution_blocked(monkeypatch):
+    # Users whose networks cannot reach Google at all (e.g. Russia's ISP-level block of
+    # news.google.com, Google's restrictions on Iranian IPs) must still get full text via the
+    # server-side read proxy, which follows Google's JavaScript redirect from its own network.
+    proxied = []
+    proxy_markdown = (
+        "[Skip to content](https://news.google.com/very-long-navigation-url-that-would-survive-filters)\n"
+        "The full publisher article body, rendered by the read proxy, keeps every sentence.\n"
+        "A second paragraph of real reporting also comes through the proxy unharmed.\n"
+    )
+
+    monkeypatch.setattr(article_extractor, "trafilatura", object())
+    monkeypatch.setattr(article_extractor, "_resolve_google_news_article_url", lambda url, timeout: None)
+
+    def fake_jina(target_url, timeout):
+        proxied.append((target_url, timeout))
+        return proxy_markdown
+
+    monkeypatch.setattr(article_extractor, "_download_via_jina", fake_jina)
+    monkeypatch.setattr(
+        article_extractor,
+        "_fetch_page",
+        lambda *args, **kwargs: pytest.fail("must not fetch directly when the proxy already returned the page"),
+    )
+    monkeypatch.setattr(
+        article_extractor,
+        "_extract_text_any",
+        lambda *args, **kwargs: pytest.fail("proxy markdown must not go through the HTML extraction stack"),
+    )
+
+    article = article_extractor.extract_full_article(GOOGLE_URL, max_pages=1, timeout=9)
+
+    assert proxied == [(GOOGLE_URL, 9)]
+    assert "keeps every sentence" in article.text
+    assert "second paragraph of real reporting" in article.text
+    # Markdown nav links are inlined to their short labels and dropped by the merge filter.
+    assert "news.google.com" not in article.text
+    assert "Skip to content" not in article.text
+
+
+def test_proxy_trailing_cookie_block_is_cut_only_when_trailing():
+    body = "Real reporting sentence about the news of the day, with plenty of detail. " * 20
+    cookie_block = (
+        "When you visit our website or app, we store cookies on your browser, "
+        "use similar tracking and storage technologies to enhance your experience.\n"
+        "Strictly Necessary or Essential Cookies\n"
+        "These cookies are essential to provide you with services."
+    )
+    combined = body + "\n" + cookie_block
+    cut = article_extractor._strip_proxy_trailing_boilerplate(combined)
+    assert "store cookies" not in cut
+    assert "Real reporting sentence" in cut
+
+    # An article that mentions cookies early (first half) must never be truncated.
+    early = "This site uses cookies, an article about web privacy explains.\n" + body
+    assert article_extractor._strip_proxy_trailing_boilerplate(early) == early
+
+
+def test_google_news_fulltext_raises_when_resolution_and_proxy_both_fail(monkeypatch):
+    monkeypatch.setattr(article_extractor, "trafilatura", object())
+    monkeypatch.setattr(article_extractor, "_resolve_google_news_article_url", lambda url, timeout: None)
+    monkeypatch.setattr(article_extractor, "_download_via_jina", lambda url, timeout: None)
+    monkeypatch.setattr(
+        article_extractor,
+        "_fetch_page",
+        lambda *args, **kwargs: pytest.fail("must not fetch Google News directly"),
+    )
+
+    with pytest.raises(article_extractor.ExtractionError, match="Google News could not resolve"):
+        article_extractor.extract_full_article(GOOGLE_URL, max_pages=1, timeout=5)
+
+
+def test_google_news_fulltext_rejects_proxy_consent_page(monkeypatch):
+    # If the proxy itself hands back Google's consent document, fail closed as before.
+    monkeypatch.setattr(article_extractor, "trafilatura", object())
+    monkeypatch.setattr(article_extractor, "_resolve_google_news_article_url", lambda url, timeout: None)
+    monkeypatch.setattr(article_extractor, "_download_via_jina", lambda url, timeout: CONSENT_HTML)
+    monkeypatch.setattr(
+        article_extractor,
+        "_fetch_page",
+        lambda *args, **kwargs: pytest.fail("must not fetch Google News directly"),
+    )
+
+    with pytest.raises(article_extractor.ExtractionError, match="Google News could not resolve"):
+        article_extractor.extract_full_article(GOOGLE_URL, max_pages=1, timeout=5)
+
+
 def test_google_news_fulltext_fails_closed_for_malformed_redirect(monkeypatch):
     malformed = "https://news.google.com/rss/articles/short"
     monkeypatch.setattr(article_extractor, "trafilatura", object())
@@ -294,6 +381,11 @@ def test_google_news_fulltext_fails_closed_for_malformed_redirect(monkeypatch):
         article_extractor,
         "_fetch_page",
         lambda *args, **kwargs: pytest.fail("must not fetch Google News directly after resolver rejection"),
+    )
+    monkeypatch.setattr(
+        article_extractor,
+        "_download_via_jina",
+        lambda *args, **kwargs: pytest.fail("must not proxy a malformed Google News URL"),
     )
 
     with pytest.raises(article_extractor.ExtractionError, match="Google News could not resolve"):

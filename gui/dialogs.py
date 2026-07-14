@@ -566,20 +566,20 @@ class SettingsDialog(wx.Dialog):
         refresh_sizer.Add(wx.StaticText(feeds_panel, label=_("Refresh Interval:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         
         self.refresh_map = {
-            "Never": 0,
-            "30 seconds": 30,
-            "1 minute": 60,
-            "2 minutes": 120,
-            "3 minutes": 180,
-            "4 minutes": 240,
-            "5 minutes": 300,
-            "10 minutes": 600,
-            "15 minutes": 900,
-            "30 minutes": 1800,
-            "60 minutes": 3600,
-            "2 hours": 7200,
-            "3 hours": 10800,
-            "4 hours": 14400
+            _("Never"): 0,
+            _("30 seconds"): 30,
+            _("1 minute"): 60,
+            _("2 minutes"): 120,
+            _("3 minutes"): 180,
+            _("4 minutes"): 240,
+            _("5 minutes"): 300,
+            _("10 minutes"): 600,
+            _("15 minutes"): 900,
+            _("30 minutes"): 1800,
+            _("60 minutes"): 3600,
+            _("2 hours"): 7200,
+            _("3 hours"): 10800,
+            _("4 hours"): 14400
         }
         self.refresh_choices = list(self.refresh_map.keys())
         self.refresh_ctrl = wx.Choice(feeds_panel, choices=self.refresh_choices)
@@ -1019,11 +1019,11 @@ class SettingsDialog(wx.Dialog):
         general_panel.SetSizer(general_sizer)
         notebook.AddPage(general_panel, _("General"))
         feeds_panel.SetSizer(feeds_sizer)
-        notebook.AddPage(feeds_panel, _("Feeds & Articles"))
+        notebook.AddPage(feeds_panel, _("Feeds && Articles"))
         downloads_panel.SetSizer(downloads_sizer)
         notebook.AddPage(downloads_panel, _("Downloads"))
         startup_panel.SetSizer(startup_sizer)
-        notebook.AddPage(startup_panel, _("Startup & Tray"))
+        notebook.AddPage(startup_panel, _("Startup && Tray"))
         youtube_panel.SetSizer(youtube_sizer)
         notebook.AddPage(youtube_panel, _("YouTube"))
 
@@ -1767,8 +1767,8 @@ class SettingsDialog(wx.Dialog):
         storage_sizer.Add(storage_help, 0, wx.ALL, 6)
 
         self._storage_location_map = {
-            "User Data Folder": "user_data",
-            "App Install Folder": "app_folder",
+            _("User Data Folder"): "user_data",
+            _("App Install Folder"): "app_folder",
         }
         storage_choices = list(self._storage_location_map.keys())
         storage_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -1796,8 +1796,8 @@ class SettingsDialog(wx.Dialog):
         paths_lbl = wx.StaticText(
             advanced_panel,
             label=(
-                f"User Data Folder path:\n  {paths.get('user_data', '')}\n"
-                f"App Install Folder path:\n  {paths.get('app_folder', '')}"
+                _("User Data Folder path:\n  {path}\n").format(path=paths.get('user_data', ''))
+                + _("App Install Folder path:\n  {path}").format(path=paths.get('app_folder', ''))
             ),
         )
         storage_sizer.Add(paths_lbl, 0, wx.ALL, 6)

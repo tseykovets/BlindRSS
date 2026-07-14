@@ -10,7 +10,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
 "X-Generator: Poedit 3.9\n"
 
 #: core/article_extractor.py:2399
@@ -25,6 +26,23 @@ msgstr "Заголовок:"
 #: gui/mainframe.py:4534 gui/mainframe.py:7924
 msgid "Author:"
 msgstr "Автор:"
+
+#: core/config.py:695
+msgid "Installed Windows builds store data in the User Data Folder."
+msgstr ""
+"Установленные Windows-сборки хранят данные в папке пользовательских данных."
+
+#: core/config.py:697
+msgid "No change."
+msgstr "Никаких изменений."
+
+#: core/config.py:723
+msgid "Config moved to {path}."
+msgstr "Конфигурация перемещена в {path}."
+
+#: core/config.py:710
+msgid "Could not write config at new location: {error}"
+msgstr "Не удалось записать конфигурацию в новом местоположении: {error}"
 
 #: core/macos_integration.py:71
 msgid "Startup registration is only available on macOS."
@@ -49,8 +67,7 @@ msgstr "Не удалось обновить настройки автозагр
 #: core/macos_integration.py:113
 msgid "Could not register BlindRSS to start at login: {error}"
 msgstr ""
-"Не удалось зарегистрировать BlindRSS для запуска при входе в систему: "
-"{error}"
+"Не удалось зарегистрировать BlindRSS для запуска при входе в систему: {error}"
 
 #: core/macos_integration.py:108
 msgid ""
@@ -114,7 +131,7 @@ msgstr "5 лет"
 
 #: core/retention.py:103 core/retention.py:105
 msgid "Unlimited"
-msgstr "Без ограничений"
+msgstr "Неограничено"
 
 #: core/updater.py:293
 msgid "Update available."
@@ -338,8 +355,8 @@ msgstr "Представления"
 
 #: gui/accessibility.py:433
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
-" to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
+"to expand and Left Arrow to collapse."
 msgstr ""
 "Категории можно разворачивать или сворачивать. Используйте кнопки или "
 "используйте стрелку вправо, чтобы развернуть, и стрелку влево, чтобы "
@@ -408,7 +425,8 @@ msgid ""
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Выберите, куда добавить ярлыки BlindRSS.\n"
-"Закрепление на панели задач может быть ограничено вашей версией Windows или политиками."
+"Закрепление на панели задач может быть ограничено вашей версией Windows или "
+"политиками."
 
 #: gui/dialogs.py:2049
 msgid "BlindRSS notification test"
@@ -433,6 +451,62 @@ msgstr "отмечено"
 #: gui/dialogs.py:269 gui/dialogs.py:295
 msgid "unchecked"
 msgstr "не отмечено"
+
+#: gui/dialogs.py:569 gui/dialogs.py:2975
+msgid "Never"
+msgstr "Никогда"
+
+#: gui/dialogs.py:570 gui/dialogs.py:2903
+msgid "30 seconds"
+msgstr "30 секунд"
+
+#: gui/dialogs.py:571 gui/dialogs.py:2904
+msgid "1 minute"
+msgstr "1 минута"
+
+#: gui/dialogs.py:572 gui/dialogs.py:2905
+msgid "2 minutes"
+msgstr "2 минуты"
+
+#: gui/dialogs.py:573 gui/dialogs.py:2906
+msgid "3 minutes"
+msgstr "3 минуты"
+
+#: gui/dialogs.py:574 gui/dialogs.py:2907
+msgid "4 minutes"
+msgstr "4 минуты"
+
+#: gui/dialogs.py:575 gui/dialogs.py:2908
+msgid "5 minutes"
+msgstr "5 минут"
+
+#: gui/dialogs.py:576 gui/dialogs.py:2909
+msgid "10 minutes"
+msgstr "10 минут"
+
+#: gui/dialogs.py:577 gui/dialogs.py:2910
+msgid "15 minutes"
+msgstr "15 минут"
+
+#: gui/dialogs.py:578 gui/dialogs.py:2911
+msgid "30 minutes"
+msgstr "30 минут"
+
+#: gui/dialogs.py:579 gui/dialogs.py:2912
+msgid "60 minutes"
+msgstr "60 минут"
+
+#: gui/dialogs.py:580 gui/dialogs.py:2913
+msgid "2 hours"
+msgstr "2 часа"
+
+#: gui/dialogs.py:581 gui/dialogs.py:2914
+msgid "3 hours"
+msgstr "3 часа"
+
+#: gui/dialogs.py:582 gui/dialogs.py:2915
+msgid "4 hours"
+msgstr "4 часа"
 
 #: gui/dialogs.py:609
 msgid "Titles only"
@@ -460,7 +534,7 @@ msgstr "Всегда полностью обновлять каналы"
 
 #: gui/dialogs.py:801
 msgid "Local RSS automatic feed refresh workload"
-msgstr "Режим автоматического обновления каналов локального RSS"
+msgstr "Нагрузка по автоматическому обновлению локального RSS-канала"
 
 #: gui/dialogs.py:851
 msgid "Path to a cookies.txt file"
@@ -491,7 +565,7 @@ msgid "General"
 msgstr "Общие"
 
 #: gui/dialogs.py:1022
-msgid "Feeds & Articles"
+msgid "Feeds && Articles"
 msgstr "Каналы и статьи"
 
 #: gui/dialogs.py:1024
@@ -499,7 +573,7 @@ msgid "Downloads"
 msgstr "Загрузки"
 
 #: gui/dialogs.py:1026
-msgid "Startup & Tray"
+msgid "Startup && Tray"
 msgstr "Автозагрузка и область уведомлений"
 
 #: gui/dialogs.py:1028
@@ -550,6 +624,14 @@ msgstr "Уведомления"
 #: gui/dialogs.py:1750
 msgid "Translate"
 msgstr "Перевод"
+
+#: gui/dialogs.py:1770
+msgid "User Data Folder"
+msgstr "Папка пользовательских данных"
+
+#: gui/dialogs.py:1771
+msgid "App Install Folder"
+msgstr "Папка установки программы"
 
 #: gui/dialogs.py:1845
 msgid "Advanced"
@@ -798,8 +880,7 @@ msgstr "Удалить её навсегда"
 msgid "Move it to a category"
 msgstr "Переместить её в категорию"
 
-#: gui/dialogs.py:713 gui/dialogs.py:853 gui/dialogs.py:888
-#: gui/dialogs.py:1119
+#: gui/dialogs.py:713 gui/dialogs.py:853 gui/dialogs.py:888 gui/dialogs.py:1119
 msgid "Browse..."
 msgstr "Обзор..."
 
@@ -840,21 +921,21 @@ msgstr ""
 
 #: gui/dialogs.py:838
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
-" or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
+"or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
-" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
-"Edge Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
+"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
+"Canary."
 msgstr ""
 "файлы cookies yt-dlp (cookies.txt) — необходимы только для контента YouTube "
 "с возрастными ограничениями, приватного контента или контента, доступного "
-"только для подписчиков. Установленные браузеры обнаруживаются автоматически;"
-" рекомендуется использовать Firefox. Chrome, Edge и Brave могут не работать "
-"в Windows, поскольку их файлы cookies могут быть зашифрованы таким образом, "
-"что yt-dlp не сможет их прочитать, поэтому cookies.txt это надёжный запасной"
-" вариант. LibreWolf использует файлы cookies, совместимые с Firefox. Chrome "
+"только для подписчиков. Установленные браузеры обнаруживаются автоматически; "
+"рекомендуется использовать Firefox. Chrome, Edge и Brave могут не работать в "
+"Windows, поскольку их файлы cookies могут быть зашифрованы таким образом, "
+"что yt-dlp не сможет их прочитать, поэтому cookies.txt это надёжный запасной "
+"вариант. LibreWolf использует файлы cookies, совместимые с Firefox. Chrome "
 "\"Nightly\" означает Chrome Canary; Edge \"Nightly\" означает Edge Canary."
 
 #: gui/dialogs.py:857
@@ -865,8 +946,8 @@ msgstr "Импортировать из браузера..."
 msgid ""
 "Automatically import a YouTube cookies.txt when you export one to Downloads"
 msgstr ""
-"Автоматически импортировать cookies.txt для YouTube, когда он экспортируется"
-" в раздел \"Загрузки\""
+"Автоматически импортировать cookies.txt для YouTube, когда он экспортируется "
+"в раздел \"Загрузки\""
 
 #: gui/dialogs.py:871
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
@@ -964,8 +1045,8 @@ msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
 msgstr ""
-"Groq - это НЕ Grok. Получите бесплатный ключ Groq по адресу "
-"console.groq.com/keys (работает с моделями LLaMA и Mistral)."
+"Groq - это НЕ Grok. Получите бесплатный ключ Groq по адресу console.groq.com/"
+"keys (работает с моделями LLaMA и Mistral)."
 
 #: gui/dialogs.py:1649
 msgid "Load OpenRouter Models"
@@ -986,7 +1067,8 @@ msgid ""
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Где BlindRSS хранит файлы config.json и rss.db.\n"
-"В папке пользовательских данных хранятся ваши настройки и каналы при обновлении приложения,\n"
+"В папке пользовательских данных хранятся ваши настройки и каналы при "
+"обновлении приложения,\n"
 "особенно на macOS, где заменяется установленный пакет приложения."
 
 #: gui/dialogs.py:1808 gui/mainframe.py:11408 gui/mainframe.py:11376
@@ -1037,8 +1119,8 @@ msgstr "Выберите экспортированный cookies.txt"
 #: gui/dialogs.py:2679
 msgid "Enter a command to test. Use %1 where the article URL should go."
 msgstr ""
-"Введите команду для проверки. Используйте %1 там, где должен быть указан "
-"URL-адрес статьи."
+"Введите команду для проверки. Используйте %1 там, где должен быть указан URL-"
+"адрес статьи."
 
 #: gui/dialogs.py:2680
 msgid "Nothing to test"
@@ -1063,58 +1145,6 @@ msgstr "Использовать глобальную настройку"
 #: gui/dialogs.py:2902
 msgid "Never (manual refresh only)"
 msgstr "Никогда (обновление только вручную)"
-
-#: gui/dialogs.py:2903
-msgid "30 seconds"
-msgstr "30 секунд"
-
-#: gui/dialogs.py:2904
-msgid "1 minute"
-msgstr "1 минута"
-
-#: gui/dialogs.py:2905
-msgid "2 minutes"
-msgstr "2 минуты"
-
-#: gui/dialogs.py:2906
-msgid "3 minutes"
-msgstr "3 минуты"
-
-#: gui/dialogs.py:2907
-msgid "4 minutes"
-msgstr "4 минуты"
-
-#: gui/dialogs.py:2908
-msgid "5 minutes"
-msgstr "5 минут"
-
-#: gui/dialogs.py:2909
-msgid "10 minutes"
-msgstr "10 минут"
-
-#: gui/dialogs.py:2910
-msgid "15 minutes"
-msgstr "15 минут"
-
-#: gui/dialogs.py:2911
-msgid "30 minutes"
-msgstr "30 минут"
-
-#: gui/dialogs.py:2912
-msgid "60 minutes"
-msgstr "60 минут"
-
-#: gui/dialogs.py:2913
-msgid "2 hours"
-msgstr "2 часа"
-
-#: gui/dialogs.py:2914
-msgid "3 hours"
-msgstr "3 часа"
-
-#: gui/dialogs.py:2915
-msgid "4 hours"
-msgstr "4 часа"
 
 #: gui/dialogs.py:3012
 msgid "Move it to Deleted Articles"
@@ -1148,11 +1178,14 @@ msgstr "У&далить канал"
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead "
+"URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Ни один канал не сообщал об ошибках при последней попытке обновления.\n"
 "\n"
-"Каналы отображаются здесь автоматически при сбое обновления (например, неактивный URL-адрес, ошибка HTTP, превышенное время ожидания или неправильный формат канала)."
+"Каналы отображаются здесь автоматически при сбое обновления (например, "
+"неактивный URL-адрес, ошибка HTTP, превышенное время ожидания или "
+"неправильный формат канала)."
 
 #: gui/dialogs.py:3412
 msgid "Editing feed properties is not available here."
@@ -1368,7 +1401,7 @@ msgstr "Повторные попытки загрузки канала:"
 
 #: gui/dialogs.py:659
 msgid "Max Cached Views:"
-msgstr "Максимальное количество кэшированых представлений:"
+msgstr "Максимальное количество кэшированых просмотров:"
 
 #: gui/dialogs.py:681
 msgid "When I delete an article:"
@@ -1388,15 +1421,15 @@ msgstr "Хранение статей:"
 
 #: gui/dialogs.py:786
 msgid "Local RSS automatic refresh workload:"
-msgstr "Автоматическое обновление локального RSS:"
+msgstr "Нагрузка при автоматическом обновлении локального RSS:"
 
 #: gui/dialogs.py:820
 msgid ""
 "Using the Local RSS feed cache lowers CPU and network use. Manual Refresh "
 "All always checks every feed."
 msgstr ""
-"Использование кэша каналов снижает нагрузку на процессор и сеть. Ручное "
-"обновление всех каналов всегда проверяет каждый канал."
+"Использование локального кэша RSS-каналов снижает нагрузку на процессор и "
+"сеть. Ручное обновление всех каналов всегда проверяет каждый канал."
 
 #: gui/dialogs.py:899
 msgid "Max cache size (MB, 0 = unlimited):"
@@ -1442,12 +1475,16 @@ msgstr "Активный поставщик:"
 
 #: gui/dialogs.py:1229
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
+"fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address "
+"bar and paste it\n"
 "when prompted."
 msgstr ""
-"Примечание: Если в вашем URI перенаправления используется HTTPS (общий/обязательный), ваш браузер может не загрузить\n"
-"localhost после авторизации. Скопируйте полный URL перенаправления из адресной строки и вставьте его\n"
+"Примечание: Если в вашем URI перенаправления используется HTTPS (общий/"
+"обязательный), ваш браузер может не загрузить\n"
+"localhost после авторизации. Скопируйте полный URL перенаправления из "
+"адресной строки и вставьте его\n"
 "при появлении запроса."
 
 #: gui/dialogs.py:1241
@@ -1461,8 +1498,7 @@ msgstr "Очистить авторизацию"
 #: gui/dialogs.py:1360
 msgid "Max notifications per refresh (0 = no limit):"
 msgstr ""
-"Максимальное количество уведомлений за одно обновление (0 = без "
-"ограничений):"
+"Максимальное количество уведомлений за одно обновление (0 = без ограничений):"
 
 #: gui/dialogs.py:1433
 msgid "Provider:"
@@ -1531,10 +1567,13 @@ msgstr "Местоположение хранилища:"
 #: gui/dialogs.py:1833
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to search them."
+"When on, adult sites are added and must still be selected explicitly to "
+"search them."
 msgstr ""
-"Когда выключено, сайты для взрослых никогда не отображаются в списке сайтов для поиска видео.\n"
-"Когда включено, сайты для взрослых добавляются, и их всё равно необходимо явно выбрать для поиска."
+"Когда выключено, сайты для взрослых никогда не отображаются в списке сайтов "
+"для поиска видео.\n"
+"Когда включено, сайты для взрослых добавляются, и их всё равно необходимо "
+"явно выбрать для поиска."
 
 #: gui/dialogs.py:2173
 msgid "Inoreader Authorization"
@@ -1601,10 +1640,6 @@ msgstr "Автоматически"
 msgid "Always"
 msgstr "Всегда"
 
-#: gui/dialogs.py:2975
-msgid "Never"
-msgstr "Никогда"
-
 #: gui/dialogs.py:2987
 msgid "Proxy URL (optional, e.g. http://host:port):"
 msgstr "URL-адрес прокси-сервера (необязательно, например: http://host:port):"
@@ -1628,14 +1663,12 @@ msgstr "Источник:"
 #: gui/dialogs.py:3557
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
-"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit "
-"source."
+"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/"
+"Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source."
 msgstr ""
 "Источники: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
 "Google News, Bing News, Feedsearch, сканирование сайта, Reddit, Fediverse "
-"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly доступен как отдельный "
-"источник."
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly доступен как отдельный источник."
 
 #: gui/dialogs.py:3946 gui/dialogs.py:3971
 msgid "News search feed"
@@ -1754,6 +1787,22 @@ msgstr "{name} (моя предустановка)"
 #: gui/dialogs.py:6809
 msgid "Delete the preset \"{name}\"?"
 msgstr "Удалить предустановку \"{name}\"?"
+
+#: gui/dialogs.py:1799
+msgid ""
+"User Data Folder path:\n"
+"  {path}\n"
+msgstr ""
+"Путь к папке пользовательских данных:\n"
+"  {path}\n"
+
+#: gui/dialogs.py:1800
+msgid ""
+"App Install Folder path:\n"
+"  {path}"
+msgstr ""
+"Путь к папке установки программы:\n"
+"  {path}"
 
 #: gui/dialogs.py:5875
 msgid "Could not subscribe: {error}"
@@ -2155,11 +2204,11 @@ msgstr "Открыть в браузере по умолчанию"
 
 #: gui/mainframe.py:4608
 msgid "Scanning for audio... This may take a few seconds."
-msgstr "Поиск звука... Это может занять несколько секунд."
+msgstr "Поиск аудио... Это может занять несколько секунд."
 
 #: gui/mainframe.py:4608 gui/mainframe.py:4203
 msgid "Detect Audio"
-msgstr "Обнаружение звука"
+msgstr "Обнаружение аудио"
 
 #: gui/mainframe.py:5751 gui/mainframe.py:3856
 msgid "Rename Category"
@@ -2203,7 +2252,7 @@ msgstr "Экспорт OPML"
 
 #: gui/mainframe.py:11390
 msgid "Release notes are available on GitHub."
-msgstr "Примечания к выпуску доступны на GitHub."
+msgstr "Примечания к релизу доступны на GitHub."
 
 #: gui/mainframe.py:736
 msgid "(No saved searches)"
@@ -2443,7 +2492,7 @@ msgstr "Описание канала"
 
 #: gui/mainframe.py:4828
 msgid "No change history for this article."
-msgstr "В этой статье нет истории изменений."
+msgstr "Для этой статьи нет истории изменений."
 
 #: gui/mainframe.py:4828 gui/mainframe.py:4833
 msgid "Article History"
@@ -2478,15 +2527,15 @@ msgstr[2] "{n} статей"
 
 #: gui/mainframe.py:5483
 msgid ""
-"Delete {subject}? Deleted articles can be restored from the Deleted Articles"
-" view."
+"Delete {subject}? Deleted articles can be restored from the Deleted Articles "
+"view."
 msgstr ""
 "Удалить {subject}? Удалённые статьи можно восстановить из представления "
 "\"Удалённые статьи\"."
 
 #: gui/mainframe.py:5489
 msgid "This provider does not support permanently deleting articles."
-msgstr "Этот поставщик не поддерживает постоянное удаление статей."
+msgstr "Этот поставщик не поддерживает безвозвратное удаление статей."
 
 #: gui/mainframe.py:5503
 msgid "Permanently delete this article? It cannot be restored."
@@ -2638,8 +2687,8 @@ msgstr "Правило &включено"
 
 #: gui/mainframe.py:11848
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip"
-" notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip "
+"notification)."
 msgstr ""
 "Выберите хотя бы одно действие для этого правила (переместить, поставить "
 "метку, отметить, удалить или пропустить уведомление)."
@@ -2930,7 +2979,8 @@ msgstr ""
 
 #: gui/mainframe.py:397
 msgid ""
-"Would you like to install them automatically (via winget/Ninite) and add them to PATH?\n"
+"Would you like to install them automatically (via winget/Ninite) and add "
+"them to PATH?\n"
 "\n"
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
@@ -3133,7 +3183,8 @@ msgid "Storage Location Changed"
 msgstr "Местоположение хранилища изменено"
 
 #: gui/mainframe.py:12000
-msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
+msgid ""
+"Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
 "Удалить правило фильтрации \"{name}\"? Статьи, которые уже были добавлены, "
 "не изменятся."
@@ -3227,7 +3278,7 @@ msgstr ", воспроизведено, {total}"
 
 #: gui/mainframe.py:4994
 msgid "played {position}"
-msgstr "воспроизведённое {position}"
+msgstr "воспроизведено {position}"
 
 #: gui/mainframe.py:5846
 msgid "Could not remove category."
@@ -3247,13 +3298,15 @@ msgid ""
 "\n"
 "{err}\n"
 "\n"
-"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
+"Opening in the default browser instead. You can change this in Settings > "
+"General > Article opening method."
 msgstr ""
 "Не удалось открыть статью с помощью пользовательской команды:\n"
 "\n"
 "{err}\n"
 "\n"
-"Вместо этого она откроется в браузере по умолчанию. Вы можете изменить это в \"Настройки\" > \"Общие\" > \"Способ открытия статей\"."
+"Вместо этого она откроется в браузере по умолчанию. Вы можете изменить это в "
+"\"Настройки\" > \"Общие\" > \"Способ открытия статей\"."
 
 #: gui/mainframe.py:10313
 msgid "Download failed: {error}"
@@ -3323,6 +3376,15 @@ msgstr ""
 "Удалить категорию \"{category}\"? Каналы будут перемещены в папку \"Без "
 "категории\"."
 
+#: gui/mainframe.py:9006
+msgid "No webpage URL for this item. Showing feed content."
+msgstr ""
+"Для этого элемента нет URL-адреса страницы. Отображается содержимое канала."
+
+#: gui/mainframe.py:9008
+msgid "Full-text extraction failed. Showing feed content."
+msgstr "Не удалось извлечь полный текст. Отображается содержимое канала."
+
 #: gui/mainframe.py:10378 gui/mainframe.py:10296
 msgid ""
 "Downloaded to:\n"
@@ -3357,7 +3419,7 @@ msgstr "Время воспроизведения"
 
 #: gui/player.py:2102
 msgid "Disconnect"
-msgstr "Разъединить"
+msgstr "Отключить"
 
 #: gui/player.py:2102 gui/player.py:2024
 msgid "Cast"
@@ -3446,8 +3508,7 @@ msgstr "&Тайм-коды"
 #: gui/player.py:2542
 msgid "Cast device disconnected; resuming local playback"
 msgstr ""
-"Устройство для трансляции отключено; возобновление локального "
-"воспроизведения"
+"Устройство для трансляции отключено; возобновление локального воспроизведения"
 
 #: gui/player.py:3279 gui/player.py:3800
 msgid "Failed to load media"
@@ -3540,31 +3601,3 @@ msgstr "Непрочитано: {count}"
 #: main.py:219
 msgid "BlindRSS is already running."
 msgstr "BlindRSS уже запущен."
-
-#~ msgid "Always fetch full feeds in the background (ignore feed caching)"
-#~ msgstr ""
-#~ "Всегда извлекать полные каналы в фоновом режиме (игнорировать кэширование "
-#~ "канала)"
-
-#~ msgid ""
-#~ "Articles cannot be deleted while feeds are refreshing. Try again after the "
-#~ "refresh is complete."
-#~ msgstr ""
-#~ "Статьи не могут быть удалены во время обновления каналов. Повторите попытку "
-#~ "после завершения обновления."
-
-#~ msgid "Refresh in Progress"
-#~ msgstr "Выполняется обновление"
-
-#~ msgid ""
-#~ "Articles cannot be restored while feeds are refreshing. Try again after the "
-#~ "refresh is complete."
-#~ msgstr ""
-#~ "Статьи не могут быть восстановлены во время обновления каналов. Повторите "
-#~ "попытку после завершения обновления."
-
-#~ msgid "Loaded {count} article(s)."
-#~ msgstr "Загружено {count} статей."
-
-#~ msgid "Show/Hide Player (Ctrl+P)"
-#~ msgstr "Показать/скрыть проигрыватель (Ctrl+P)"

@@ -22,6 +22,22 @@ msgstr ""
 msgid "Author:"
 msgstr ""
 
+#: core/config.py:695
+msgid "Installed Windows builds store data in the User Data Folder."
+msgstr ""
+
+#: core/config.py:697
+msgid "No change."
+msgstr ""
+
+#: core/config.py:723
+msgid "Config moved to {path}."
+msgstr ""
+
+#: core/config.py:710
+msgid "Could not write config at new location: {error}"
+msgstr ""
+
 #: core/macos_integration.py:71
 msgid "Startup registration is only available on macOS."
 msgstr ""
@@ -426,6 +442,76 @@ msgstr ""
 msgid "unchecked"
 msgstr ""
 
+#: gui/dialogs.py:569
+#: gui/dialogs.py:2975
+msgid "Never"
+msgstr ""
+
+#: gui/dialogs.py:570
+#: gui/dialogs.py:2903
+msgid "30 seconds"
+msgstr ""
+
+#: gui/dialogs.py:571
+#: gui/dialogs.py:2904
+msgid "1 minute"
+msgstr ""
+
+#: gui/dialogs.py:572
+#: gui/dialogs.py:2905
+msgid "2 minutes"
+msgstr ""
+
+#: gui/dialogs.py:573
+#: gui/dialogs.py:2906
+msgid "3 minutes"
+msgstr ""
+
+#: gui/dialogs.py:574
+#: gui/dialogs.py:2907
+msgid "4 minutes"
+msgstr ""
+
+#: gui/dialogs.py:575
+#: gui/dialogs.py:2908
+msgid "5 minutes"
+msgstr ""
+
+#: gui/dialogs.py:576
+#: gui/dialogs.py:2909
+msgid "10 minutes"
+msgstr ""
+
+#: gui/dialogs.py:577
+#: gui/dialogs.py:2910
+msgid "15 minutes"
+msgstr ""
+
+#: gui/dialogs.py:578
+#: gui/dialogs.py:2911
+msgid "30 minutes"
+msgstr ""
+
+#: gui/dialogs.py:579
+#: gui/dialogs.py:2912
+msgid "60 minutes"
+msgstr ""
+
+#: gui/dialogs.py:580
+#: gui/dialogs.py:2913
+msgid "2 hours"
+msgstr ""
+
+#: gui/dialogs.py:581
+#: gui/dialogs.py:2914
+msgid "3 hours"
+msgstr ""
+
+#: gui/dialogs.py:582
+#: gui/dialogs.py:2915
+msgid "4 hours"
+msgstr ""
+
 #: gui/dialogs.py:609
 msgid "Titles only"
 msgstr ""
@@ -489,7 +575,7 @@ msgid "General"
 msgstr ""
 
 #: gui/dialogs.py:1022
-msgid "Feeds & Articles"
+msgid "Feeds && Articles"
 msgstr ""
 
 #: gui/dialogs.py:1024
@@ -497,7 +583,7 @@ msgid "Downloads"
 msgstr ""
 
 #: gui/dialogs.py:1026
-msgid "Startup & Tray"
+msgid "Startup && Tray"
 msgstr ""
 
 #: gui/dialogs.py:1028
@@ -546,6 +632,14 @@ msgstr ""
 
 #: gui/dialogs.py:1750
 msgid "Translate"
+msgstr ""
+
+#: gui/dialogs.py:1770
+msgid "User Data Folder"
+msgstr ""
+
+#: gui/dialogs.py:1771
+msgid "App Install Folder"
 msgstr ""
 
 #: gui/dialogs.py:1845
@@ -1045,58 +1139,6 @@ msgstr ""
 msgid "Never (manual refresh only)"
 msgstr ""
 
-#: gui/dialogs.py:2903
-msgid "30 seconds"
-msgstr ""
-
-#: gui/dialogs.py:2904
-msgid "1 minute"
-msgstr ""
-
-#: gui/dialogs.py:2905
-msgid "2 minutes"
-msgstr ""
-
-#: gui/dialogs.py:2906
-msgid "3 minutes"
-msgstr ""
-
-#: gui/dialogs.py:2907
-msgid "4 minutes"
-msgstr ""
-
-#: gui/dialogs.py:2908
-msgid "5 minutes"
-msgstr ""
-
-#: gui/dialogs.py:2909
-msgid "10 minutes"
-msgstr ""
-
-#: gui/dialogs.py:2910
-msgid "15 minutes"
-msgstr ""
-
-#: gui/dialogs.py:2911
-msgid "30 minutes"
-msgstr ""
-
-#: gui/dialogs.py:2912
-msgid "60 minutes"
-msgstr ""
-
-#: gui/dialogs.py:2913
-msgid "2 hours"
-msgstr ""
-
-#: gui/dialogs.py:2914
-msgid "3 hours"
-msgstr ""
-
-#: gui/dialogs.py:2915
-msgid "4 hours"
-msgstr ""
-
 #: gui/dialogs.py:3012
 msgid "Move it to Deleted Articles"
 msgstr ""
@@ -1557,10 +1599,6 @@ msgstr ""
 msgid "Always"
 msgstr ""
 
-#: gui/dialogs.py:2975
-msgid "Never"
-msgstr ""
-
 #: gui/dialogs.py:2987
 msgid "Proxy URL (optional, e.g. http://host:port):"
 msgstr ""
@@ -1698,6 +1736,14 @@ msgstr ""
 
 #: gui/dialogs.py:6809
 msgid "Delete the preset \"{name}\"?"
+msgstr ""
+
+#: gui/dialogs.py:1799
+msgid "User Data Folder path:\n  {path}\n"
+msgstr ""
+
+#: gui/dialogs.py:1800
+msgid "App Install Folder path:\n  {path}"
 msgstr ""
 
 #: gui/dialogs.py:5875
@@ -3222,6 +3268,14 @@ msgstr ""
 
 #: gui/mainframe.py:5836
 msgid "Remove category '{category}'? Feeds will be moved to Uncategorized."
+msgstr ""
+
+#: gui/mainframe.py:9006
+msgid "No webpage URL for this item. Showing feed content."
+msgstr ""
+
+#: gui/mainframe.py:9008
+msgid "Full-text extraction failed. Showing feed content."
 msgstr ""
 
 #: gui/mainframe.py:10378

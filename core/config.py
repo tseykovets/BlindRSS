@@ -5,6 +5,7 @@ import shutil
 import sys
 import logging
 from functools import lru_cache
+from core.i18n import _
 
 log = logging.getLogger(__name__)
 
@@ -691,9 +692,9 @@ class ConfigManager:
         """
         new_location = "user_data" if new_location == "user_data" else "app_folder"
         if is_windows_installed_build() and new_location != "user_data":
-            return False, "Installed Windows builds store data in the User Data Folder."
+            return False, _("Installed Windows builds store data in the User Data Folder.")
         if new_location == self.data_location:
-            return True, "No change."
+            return True, _("No change.")
 
         new_path = _path_for_location(new_location)
         old_path = self.config_path
@@ -706,7 +707,7 @@ class ConfigManager:
                     json.dump(self.config, f, indent=4)
         except Exception as e:
             log.exception("Failed to write config to new location")
-            return False, f"Could not write config at new location: {e}"
+            return False, _("Could not write config at new location: {error}").format(error=e)
 
         # Remove the old file so future resolution is unambiguous.
         try:
@@ -719,7 +720,7 @@ class ConfigManager:
         self.data_location = new_location
         global CONFIG_FILE
         CONFIG_FILE = new_path
-        return True, f"Config moved to {new_path}."
+        return True, _("Config moved to {path}.").format(path=new_path)
 
     @staticmethod
     def location_paths() -> dict:

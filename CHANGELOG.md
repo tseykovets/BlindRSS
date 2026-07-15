@@ -4,6 +4,11 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.102.0 - 2026-07-15
+
+- Opt-in rich full-text reader with links, embeds, and clean article HTML.
+- Translate rich-reader and link settings into all 15 locales.
+
 ## v1.101.0 - 2026-07-15
 
 - Opt-in article structure markers (headings, lists, quotes).

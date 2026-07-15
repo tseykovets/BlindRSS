@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup as BS
 from datetime import datetime, timezone, timedelta
 from dateutil import parser as dateparser
 from dateutil.parser import UnknownTimezoneWarning
+from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
 from core.categories import UNCATEGORIZED
@@ -158,6 +159,83 @@ def html_to_text(html: str | None, include_images: bool = False) -> str:
         return (soup.get_text(separator="\n\n") or "").strip()
     except Exception:
         return str(html)
+
+
+class _PreviewTextComplete(Exception):
+    """Internal early-exit once enough visible preview text was collected."""
+
+
+class _HTMLPreviewParser(HTMLParser):
+    """Small, bounded HTML-to-text parser for list-column previews."""
+
+    _IGNORED_TAGS = {"script", "style", "noscript", "template"}
+
+    def __init__(self, max_chars: int):
+        super().__init__(convert_charrefs=True)
+        self.max_chars = max(1, int(max_chars))
+        self.parts: list[str] = []
+        self.text_length = 0
+        self._ignored_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        del attrs
+        if self._ignored_depth:
+            self._ignored_depth += 1
+        elif str(tag or "").lower() in self._IGNORED_TAGS:
+            self._ignored_depth = 1
+
+    def handle_startendtag(self, tag, attrs):
+        del tag, attrs
+
+    def handle_endtag(self, tag):
+        del tag
+        if self._ignored_depth:
+            self._ignored_depth -= 1
+
+    def handle_data(self, data):
+        if self._ignored_depth:
+            return
+        text = " ".join(str(data or "").split())
+        if not text:
+            return
+        separator = 1 if self.parts else 0
+        remaining = self.max_chars - self.text_length - separator
+        if remaining <= 0:
+            raise _PreviewTextComplete
+        self.parts.append(text[:remaining])
+        self.text_length += separator + min(len(text), remaining)
+        if len(text) >= remaining:
+            raise _PreviewTextComplete
+
+    def text(self) -> str:
+        return " ".join(self.parts).strip()
+
+
+def html_to_text_preview(html: str | None, max_chars: int = 320) -> str:
+    """Return bounded visible text for an article-list description preview.
+
+    The reader pane still uses :func:`html_to_text` and its full BeautifulSoup
+    conversion.  List rows only display a short preview, so parsing an entire
+    multi-kilobyte article 400 times wastes CPU and contends with wx/NVDA.  This
+    parser skips non-visible elements and stops as soon as enough text exists.
+    """
+    if not html:
+        return ""
+    raw = str(html)
+    if "<" not in raw and "&" not in raw:
+        return " ".join(raw.split())[: max(1, int(max_chars))]
+
+    parser = _HTMLPreviewParser(max_chars)
+    try:
+        parser.feed(raw)
+        parser.close()
+    except _PreviewTextComplete:
+        pass
+    except Exception:
+        # Preserve historical behavior for malformed input the small parser
+        # cannot consume; this rare fallback is allowed to do the full parse.
+        return html_to_text(raw, include_images=False)[: max(1, int(max_chars))]
+    return parser.text()
 
 
 def first_image_url(html: str | None) -> str | None:

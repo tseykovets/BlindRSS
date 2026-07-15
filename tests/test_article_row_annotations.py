@@ -42,6 +42,8 @@ class _Host:
     _invalidate_article_media_label = staticmethod(mainframe.MainFrame._invalidate_article_media_label)
     _refresh_article_in_list = mainframe.MainFrame._refresh_article_in_list
     _update_cached_views_for_article = mainframe.MainFrame._update_cached_views_for_article
+    _next_articles_request_id = mainframe.MainFrame._next_articles_request_id
+    _is_articles_load_current = mainframe.MainFrame._is_articles_load_current
 
 
 def test_precompute_fills_both_memos():
@@ -57,7 +59,7 @@ def test_precompute_fills_both_memos():
         assert getattr(a, "_media_label_cached", None) is not None
 
 
-def test_render_path_uses_memo_without_recompute():
+def test_render_path_uses_memo_without_recompute(monkeypatch):
     h = _Host()
     a = _Article()
     h._precompute_article_row_annotations([a])
@@ -67,7 +69,9 @@ def test_render_path_uses_memo_without_recompute():
 
     # After precompute the render-loop calls must be pure cache reads: poison
     # the recompute paths and make sure the memoized values are still served.
-    h._strip_html = None  # would raise TypeError if the preview re-parsed
+    def _preview_boom(*_a, **_k):
+        raise AssertionError("description preview recomputed on render path")
+    monkeypatch.setattr(mainframe.utils, "html_to_text_preview", _preview_boom)
     def _boom(*_a, **_k):
         raise AssertionError("media label recomputed on render path")
     h._should_play_in_player = _boom
@@ -76,7 +80,7 @@ def test_render_path_uses_memo_without_recompute():
     assert h._article_media_label(a) == label
 
 
-def test_preview_cache_survives_article_object_rebuilds():
+def test_preview_cache_survives_article_object_rebuilds(monkeypatch):
     """Refresh reload storms build NEW Article objects each cycle; the
     second-level LRU (keyed by article id + content hash) must serve them
     without re-parsing, or every refresh cycle costs ~1.5s of loader-thread
@@ -85,11 +89,11 @@ def test_preview_cache_survives_article_object_rebuilds():
     h._article_cache_id = lambda a: "id-1"
 
     parses = []
-    orig_strip = _Host._strip_html
-    def counting_strip(self, html, include_images=None):
+    orig_preview = mainframe.utils.html_to_text_preview
+    def counting_preview(html, max_chars=320):
         parses.append(1)
-        return orig_strip(self, html, include_images=include_images)
-    h._strip_html = counting_strip.__get__(h)
+        return orig_preview(html, max_chars=max_chars)
+    monkeypatch.setattr(mainframe.utils, "html_to_text_preview", counting_preview)
 
     first = _Article()
     h._precompute_article_row_annotations([first])
@@ -117,6 +121,64 @@ def test_precompute_survives_broken_articles():
     ok = _Article()
     h._precompute_article_row_annotations([_Broken(), ok])
     assert getattr(ok, "_media_label_cached", None) is not None
+
+
+def test_precompute_stops_when_navigation_supersedes_request():
+    h = _Host()
+    articles = [_Article(id=i) for i in range(10)]
+    checks = 0
+
+    def still_current():
+        nonlocal checks
+        checks += 1
+        return checks < 3
+
+    assert h._precompute_article_row_annotations(
+        articles, should_continue=still_current
+    ) is False
+    assert getattr(articles[0], "_desc_preview_240", None) is not None
+    assert getattr(articles[1], "_desc_preview_240", None) is not None
+    assert getattr(articles[2], "_desc_preview_240", None) is None
+
+
+def test_article_request_generations_are_unique_and_view_scoped():
+    h = _Host()
+    h.current_feed_id = "feed-a"
+    first = h._next_articles_request_id()
+    second = h._next_articles_request_id()
+
+    assert second == first + 1
+    assert not h._is_articles_load_current("feed-a", first)
+    assert h._is_articles_load_current("feed-a", second)
+    assert not h._is_articles_load_current("feed-b", second)
+
+
+def test_stale_page_is_discarded_before_precompute():
+    class _PageArticle:
+        timestamp = 1
+        id = 1
+
+    class _Provider:
+        def get_articles_page(self, *_args, **_kwargs):
+            return [_PageArticle()], 1
+
+    class _LoadHost:
+        _load_articles_thread = mainframe.MainFrame._load_articles_thread
+        _is_articles_load_current = mainframe.MainFrame._is_articles_load_current
+        article_page_size = 400
+        current_feed_id = "new-view"
+        current_request_id = 2
+        provider = _Provider()
+
+        @staticmethod
+        def _article_cache_id(article):
+            return article.id
+
+        @staticmethod
+        def _precompute_article_row_annotations(*_args, **_kwargs):
+            raise AssertionError("stale page should not be precomputed")
+
+    _LoadHost()._load_articles_thread("old-view", 1)
 
 
 def test_live_player_duration_refreshes_visible_media_column():

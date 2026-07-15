@@ -183,16 +183,24 @@ def test_description_preview_memoized_across_renders(monkeypatch):
     captured = _install_capturing_call_after(monkeypatch)
     host = _RenderHost(first_chunk=2, batch_size=2)
     articles = [_make_article(i) for i in range(5)]
+    preview_calls = []
+    original_preview = mainframe.utils.html_to_text_preview
+
+    def counting_preview(html, max_chars=320):
+        preview_calls.append(html)
+        return original_preview(html, max_chars=max_chars)
+
+    monkeypatch.setattr(mainframe.utils, "html_to_text_preview", counting_preview)
 
     host._render_articles_list(articles)
     _drain(captured)
     # First full render builds each article's preview exactly once.
-    assert {a.id: host.desc_text_calls[a.id] for a in articles} == {a.id: 1 for a in articles}
+    assert len(preview_calls) == len(articles)
 
     host._render_articles_list(articles)
     _drain(captured)
     # Second render of the same articles reuses the memoized preview: no rebuilds.
-    assert {a.id: host.desc_text_calls[a.id] for a in articles} == {a.id: 1 for a in articles}
+    assert len(preview_calls) == len(articles)
 
 
 def test_chunked_render_produces_one_row_per_article_in_order(monkeypatch):

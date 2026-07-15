@@ -824,6 +824,17 @@ class MainFrame(wx.Frame):
         # callers pass a different max_len (e.g. _article_description_for_sort uses
         # 4000) and must NOT receive a 240-char truncation, so they bypass the
         # cache and compute their own length.
+        try:
+            raw_description = self._raw_article_description(article)
+        except Exception:
+            try:
+                raw_description = getattr(article, "description", None)
+                if raw_description is None:
+                    raw_description = getattr(article, "content", "")
+            except Exception:
+                raw_description = ""
+            raw_description = str(raw_description or "")
+
         cache_on_article = (article is not None and max_len == 240)
         lru_key = None
         if cache_on_article:
@@ -844,7 +855,7 @@ class MainFrame(wx.Frame):
             except AttributeError:
                 lru = self._desc_preview_lru = OrderedDict()
             try:
-                lru_key = (self._article_cache_id(article), hash(self._raw_article_description(article)))
+                lru_key = (self._article_cache_id(article), hash(raw_description))
                 cached = lru.get(lru_key)
                 if cached is not None:
                     lru.move_to_end(lru_key)
@@ -856,9 +867,18 @@ class MainFrame(wx.Frame):
             except Exception:
                 lru_key = None
         try:
-            text = self._article_description_text(article, include_images=False)
+            if max_len == 240:
+                # A list row can only show a short preview.  Stop parsing once
+                # enough visible text exists instead of building a full
+                # BeautifulSoup tree for every article on a 400-row page.
+                text = utils.html_to_text_preview(
+                    raw_description,
+                    max_chars=max_len + 64,
+                )
+            else:
+                text = self._article_description_text(article, include_images=False)
         except Exception:
-            text = self._raw_article_description(article)
+            text = raw_description
         text = re.sub(r"\s+", " ", str(text or "")).strip()
         text = re.sub(r"\s+([,.;:!?])", r"\1", text)
         if max_len > 3 and len(text) > max_len:
@@ -1755,10 +1775,10 @@ class MainFrame(wx.Frame):
                 pass
 
             # Start a cheap top-up (latest page) in the background.
-            self.current_request_id = time.time()
+            request_id = self._next_articles_request_id()
             threading.Thread(
                 target=self._load_articles_thread,
-                args=(feed_id, self.current_request_id, False),
+                args=(feed_id, request_id, False),
                 daemon=True,
             ).start()
             return
@@ -1774,10 +1794,10 @@ class MainFrame(wx.Frame):
                 self._reset_fulltext_prefetch([])
             except Exception:
                 pass
-            self.current_request_id = time.time()
+            request_id = self._next_articles_request_id()
             threading.Thread(
                 target=self._load_articles_thread,
-                args=(feed_id, self.current_request_id, False),
+                args=(feed_id, request_id, False),
                 daemon=True,
             ).start()
             return
@@ -7243,6 +7263,19 @@ class MainFrame(wx.Frame):
 
         self._select_view(feed_id)
 
+    def _next_articles_request_id(self) -> int:
+        """Return a collision-free generation for article page work."""
+        generation = int(getattr(self, "_articles_request_generation", 0)) + 1
+        self._articles_request_generation = generation
+        self.current_request_id = generation
+        return generation
+
+    def _is_articles_load_current(self, feed_id, request_id) -> bool:
+        return (
+            request_id == getattr(self, "current_request_id", None)
+            and feed_id == getattr(self, "current_feed_id", None)
+        )
+
     def _begin_articles_load(self, feed_id: str, full_load: bool = True, clear_list: bool = True):
         # Track current view so auto-refresh can do a cheap "top-up" without reloading history.
         self.current_feed_id = feed_id
@@ -7255,10 +7288,10 @@ class MainFrame(wx.Frame):
             self.content_ctrl.Clear()
 
         # Use a request ID to handle race conditions (if user clicks fast / auto-refresh overlaps).
-        self.current_request_id = time.time()
+        request_id = self._next_articles_request_id()
         threading.Thread(
             target=self._load_articles_thread,
-            args=(feed_id, self.current_request_id, full_load),
+            args=(feed_id, request_id, full_load),
             daemon=True
         ).start()
 
@@ -7327,11 +7360,33 @@ class MainFrame(wx.Frame):
             # Ensure stable order (newest first)
             page = page or []
             page.sort(key=lambda a: (a.timestamp, self._article_cache_id(a)), reverse=True)
+            if not self._is_articles_load_current(feed_id, request_id):
+                log.debug(
+                    "Article page discarded as stale view=%s rows=%d stage=post-fetch fetch_ms=%.0f",
+                    feed_id,
+                    len(page),
+                    fetch_ms,
+                )
+                return
             # Warm expensive per-row annotations here (loader thread), not in
             # the UI render loop.
             precompute_started = time.perf_counter()
-            self._precompute_article_row_annotations(page)
+            prepared = self._precompute_article_row_annotations(
+                page,
+                should_continue=lambda: self._is_articles_load_current(feed_id, request_id),
+            )
             precompute_ms = (time.perf_counter() - precompute_started) * 1000.0
+            if not prepared:
+                log.debug(
+                    "Article page preparation cancelled view=%s rows=%d fetch_ms=%.0f "
+                    "precompute_ms=%.0f total_ms=%.0f",
+                    feed_id,
+                    len(page),
+                    fetch_ms,
+                    precompute_ms,
+                    (time.perf_counter() - load_started) * 1000.0,
+                )
+                return
             log.debug(
                 "Article page prepared view=%s rows=%d full=%s fetch_ms=%.0f "
                 "precompute_ms=%.0f total_ms=%.0f",
@@ -7784,9 +7839,18 @@ class MainFrame(wx.Frame):
             page, total = self.provider.get_articles_page(feed_id, offset=offset, limit=page_size)
             page = page or []
             page.sort(key=lambda a: (a.timestamp, self._article_cache_id(a)), reverse=True)
+            if not self._is_articles_load_current(feed_id, request_id):
+                wx.CallAfter(self._after_load_more, [], total, request_id, page_size)
+                return
             # Warm expensive per-row annotations off the UI thread (see
             # _precompute_article_row_annotations).
-            self._precompute_article_row_annotations(page)
+            prepared = self._precompute_article_row_annotations(
+                page,
+                should_continue=lambda: self._is_articles_load_current(feed_id, request_id),
+            )
+            if not prepared:
+                wx.CallAfter(self._after_load_more, [], total, request_id, page_size)
+                return
             wx.CallAfter(self._after_load_more, page, total, request_id, page_size)
         except Exception as e:
             wx.CallAfter(self._load_more_failed, request_id, str(e))
@@ -10003,7 +10067,7 @@ class MainFrame(wx.Frame):
             annotation = ""
         return f"{base}, {annotation}" if annotation else base
 
-    def _precompute_article_row_annotations(self, articles) -> None:
+    def _precompute_article_row_annotations(self, articles, should_continue=None) -> bool:
         """Warm per-article row annotations OFF the UI thread.
 
         First-time computation of the description preview (full HTML->text
@@ -10022,6 +10086,8 @@ class MainFrame(wx.Frame):
         felt as tree/list lag under a screen reader).
         """
         for i, article in enumerate(list(articles or [])):
+            if should_continue is not None and not should_continue():
+                return False
             try:
                 self._article_description_preview(article)
                 self._article_media_label(article)
@@ -10029,6 +10095,7 @@ class MainFrame(wx.Frame):
                 continue
             if i % 16 == 15:
                 time.sleep(0.001)
+        return should_continue is None or bool(should_continue())
 
     def _should_play_in_player(self, article, include_downloads: bool = True):
         """Only treat bona-fide podcast/media items as playable; everything else opens in browser."""

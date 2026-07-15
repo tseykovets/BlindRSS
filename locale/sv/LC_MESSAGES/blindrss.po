@@ -10,91 +10,87 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: core/announcements.py:129
-#, fuzzy
 msgid "Filter change"
-msgstr "Filterregel"
+msgstr "Filterändring"
 
 #: core/announcements.py:130
 msgid "Announce the applied article filter (Ctrl+1 to Ctrl+6)."
-msgstr ""
+msgstr "Meddela det tillämpade artikelfiltret (Ctrl+1 till Ctrl+6)."
 
 #: core/announcements.py:131
 msgid "Read/unread status change"
-msgstr ""
+msgstr "Ändring av läst/oläst-status"
 
 #: core/announcements.py:132
 msgid "Announce the new status when toggling read/unread (Backspace)."
-msgstr ""
+msgstr "Meddela den nya statusen när läst/oläst växlas (Backspace)."
 
 #: core/announcements.py:133
-#, fuzzy
 msgid "Start update"
-msgstr "Startmeny"
+msgstr "Starta uppdatering"
 
 #: core/announcements.py:134
 msgid "Announce when a feed refresh is started (F5)."
-msgstr ""
+msgstr "Meddela när en flödesuppdatering startas (F5)."
 
 #: core/announcements.py:135
-#, fuzzy
 msgid "Stop update"
-msgstr "Inga uppdateringar"
+msgstr "Stoppa uppdatering"
 
 #: core/announcements.py:136
 msgid "Announce when a feed refresh is stopped (Shift+F5)."
-msgstr ""
+msgstr "Meddela när en flödesuppdatering stoppas (Shift+F5)."
 
 #: core/announcements.py:137
-#, fuzzy
 msgid "Playback speed change"
-msgstr "Uppspelningshastighet {speed}x"
+msgstr "Ändring av uppspelningshastighet"
 
 #: core/announcements.py:138
 msgid "Announce the current playback speed when it is changed by keyboard."
 msgstr ""
+"Meddela aktuell uppspelningshastighet när den ändras via tangentbordet."
 
 #: core/announcements.py:139
 msgid "Media and chapter navigation"
-msgstr ""
+msgstr "Media- och kapitelnavigering"
 
 #: core/announcements.py:140
 msgid "Announce the item or chapter when moving to the next/previous one."
-msgstr ""
+msgstr "Meddela objektet eller kapitlet vid byte till nästa/föregående."
 
 #: core/announcements.py:141
-#, fuzzy
 msgid "Other notifications"
-msgstr "Aviseringar"
+msgstr "Andra aviseringar"
 
 #: core/announcements.py:142
 msgid "Announce other significant interface changes and notifications."
-msgstr ""
+msgstr "Meddela andra viktiga gränssnittsändringar och aviseringar."
 
 #: core/announcements.py:143
 msgid "None"
-msgstr ""
+msgstr "Ingen"
 
 #: core/announcements.py:144
 msgid "Only speech"
-msgstr ""
+msgstr "Endast tal"
 
 #: core/announcements.py:145
 msgid "Only Braille"
-msgstr ""
+msgstr "Endast punktskrift"
 
 #: core/announcements.py:146
 msgid "Speech and Braille"
-msgstr ""
+msgstr "Tal och punktskrift"
 
-#: core/article_extractor.py:2526
+#: core/article_extractor.py:2591
 msgid "(unknown)"
 msgstr "(okänd)"
 
-#: core/article_extractor.py:2527 gui/dialogs.py:3000
+#: core/article_extractor.py:2592 gui/dialogs.py:3000
 msgid "Title:"
 msgstr "Titel:"
 
-#: core/article_extractor.py:2528 gui/accessibility.py:872
+#: core/article_extractor.py:2593 gui/accessibility.py:872
 #: gui/mainframe.py:4970 gui/mainframe.py:8623
 msgid "Author:"
 msgstr "Författare:"
@@ -149,8 +145,8 @@ msgid ""
 "Could not register BlindRSS to start at login: {error} (the failed plist "
 "could not be removed: {cleanup_error})"
 msgstr ""
-"Det gick inte att registrera BlindRSS för start vid inloggning: {error} (den "
-"misslyckade plist-filen kunde inte tas bort: {cleanup_error})"
+"Det gick inte att registrera BlindRSS för start vid inloggning: {error} (den"
+" misslyckade plist-filen kunde inte tas bort: {cleanup_error})"
 
 #: core/retention.py:90
 msgid "1 day"
@@ -431,8 +427,8 @@ msgstr "Vyer"
 
 #: gui/accessibility.py:438
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
-"to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
+" to expand and Left Arrow to collapse."
 msgstr ""
 "Kategorier kan expanderas eller fällas ihop. Använd knapparna, eller "
 "högerpil för att expandera och vänsterpil för att fälla ihop."
@@ -500,8 +496,7 @@ msgid ""
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Välj var BlindRSS-genvägar ska läggas till.\n"
-"Fastnålning i aktivitetsfältet kan begränsas av din Windows-version/dina "
-"principer."
+"Fastnålning i aktivitetsfältet kan begränsas av din Windows-version/dina principer."
 
 #: gui/dialogs.py:2153
 msgid "BlindRSS notification test"
@@ -698,7 +693,7 @@ msgstr "Aviseringar"
 
 #: gui/dialogs.py:1503
 msgid "Announcements"
-msgstr ""
+msgstr "Meddelanden"
 
 #: gui/dialogs.py:1854
 msgid "Translate"
@@ -959,7 +954,8 @@ msgstr "Ta bort den permanent"
 msgid "Move it to a category"
 msgstr "Flytta den till en kategori"
 
-#: gui/dialogs.py:726 gui/dialogs.py:914 gui/dialogs.py:949 gui/dialogs.py:1180
+#: gui/dialogs.py:726 gui/dialogs.py:914 gui/dialogs.py:949
+#: gui/dialogs.py:1180
 msgid "Browse..."
 msgstr "Bläddra..."
 
@@ -993,8 +989,8 @@ msgstr "Uppdatera flöden automatiskt vid start"
 
 #: gui/dialogs.py:844
 msgid ""
-"Article formatting: preserve structure from the original page as spoken text "
-"markers. Applies to newly loaded articles and full text."
+"Article formatting: preserve structure from the original page as spoken text"
+" markers. Applies to newly loaded articles and full text."
 msgstr ""
 "Artikelformatering: bevara strukturen från originalsidan som upplästa "
 "textmarkörer. Gäller nyinlästa artiklar och fulltext."
@@ -1018,17 +1014,16 @@ msgstr "Markera citat (\"Quote:\" före och \"End of quote.\" efter)"
 #: gui/dialogs.py:876
 msgid ""
 "Show links as \"text (address)\" and open the link at the cursor with Enter"
-msgstr ""
-"Visa länkar som \"text (adress)\" och öppna länken vid markören med Retur"
+msgstr "Visa länkar som \"text (adress)\" och öppna länken vid markören med Retur"
 
 #: gui/dialogs.py:882
 msgid ""
 "Rich full-text view: show links, embedded videos, and tweets in a web view "
 "(instead of plain text). Falls back to plain text if unavailable."
 msgstr ""
-"Berikad fulltextvy: visa länkar, inbäddade videoklipp och tweets i en webbvy "
-"(i stället för oformaterad text). Återgår till oformaterad text om den inte "
-"är tillgänglig."
+"Berikad fulltextvy: visa länkar, inbäddade videoklipp och tweets i en webbvy"
+" (i stället för oformaterad text). Återgår till oformaterad text om den inte"
+" är tillgänglig."
 
 #: gui/dialogs.py:892
 msgid ""
@@ -1039,13 +1034,13 @@ msgstr ""
 
 #: gui/dialogs.py:899
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
-"or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
+" or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
-"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
-"Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
+" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
+"Edge Canary."
 msgstr ""
 "yt-dlp-cookiefil (cookies.txt) — behövs bara för åldersbegränsat, privat "
 "eller endast-för-medlemmar-innehåll på YouTube. Installerade webbläsare "
@@ -1069,8 +1064,8 @@ msgstr ""
 #: gui/dialogs.py:932
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
 msgstr ""
-"Spela upp YouTube genom att ladda ner först (mest pålitligt; långsammare att "
-"starta)"
+"Spela upp YouTube genom att ladda ner först (mest pålitligt; långsammare att"
+" starta)"
 
 #: gui/dialogs.py:939
 msgid "YouTube playback cache folder (blank = default, next to your data):"
@@ -1150,8 +1145,8 @@ msgid ""
 "Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select "
 "'Groq (LLaMA, Mistral)' instead."
 msgstr ""
-"Grok kommer från xAI. Skaffa en nyckel på console.x.ai. För Groq (LLaMA/"
-"Mistral), välj i stället 'Groq (LLaMA, Mistral)'."
+"Grok kommer från xAI. Skaffa en nyckel på console.x.ai. För Groq "
+"(LLaMA/Mistral), välj i stället 'Groq (LLaMA, Mistral)'."
 
 #: gui/dialogs.py:1667
 msgid ""
@@ -1180,8 +1175,7 @@ msgid ""
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Var BlindRSS lagrar config.json och rss.db.\n"
-"Mappen för användardata bevarar dina inställningar och flöden mellan "
-"appuppdateringar,\n"
+"Mappen för användardata bevarar dina inställningar och flöden mellan appuppdateringar,\n"
 "särskilt på macOS där det installerade apppaketet ersätts."
 
 #: gui/dialogs.py:1912 gui/mainframe.py:12177 gui/mainframe.py:12145
@@ -1288,13 +1282,11 @@ msgstr "Ta &bort flöde"
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead "
-"URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Inga flöden rapporterade fel under sitt senaste uppdateringsförsök.\n"
 "\n"
-"Flöden visas här automatiskt när en uppdatering misslyckas (till exempel en "
-"död URL, ett HTTP-fel, en timeout eller ett ogiltigt flödesformat)."
+"Flöden visas här automatiskt när en uppdatering misslyckas (till exempel en död URL, ett HTTP-fel, en timeout eller ett ogiltigt flödesformat)."
 
 #: gui/dialogs.py:3547
 msgid "Editing feed properties is not available here."
@@ -1585,16 +1577,12 @@ msgstr "Aktiv leverantör:"
 
 #: gui/dialogs.py:1290
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
-"fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address "
-"bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
 "when prompted."
 msgstr ""
-"Obs: Om din omdirigerings-URI använder HTTPS (vanligt/krävs) kan din "
-"webbläsare\n"
-"misslyckas med att läsa in localhost efter auktorisering. Kopiera hela den "
-"omdirigerade\n"
+"Obs: Om din omdirigerings-URI använder HTTPS (vanligt/krävs) kan din webbläsare\n"
+"misslyckas med att läsa in localhost efter auktorisering. Kopiera hela den omdirigerade\n"
 "URL:en från adressfältet och klistra in den när du uppmanas."
 
 #: gui/dialogs.py:1302
@@ -1676,12 +1664,10 @@ msgstr "Lagringsplats:"
 #: gui/dialogs.py:1937
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to "
-"search them."
+"When on, adult sites are added and must still be selected explicitly to search them."
 msgstr ""
 "När avstängd visas vuxensajter aldrig i videosökningens sajtlista.\n"
-"När påslagen läggs vuxensajter till och måste ändå väljas uttryckligen för "
-"att sökas i."
+"När påslagen läggs vuxensajter till och måste ändå väljas uttryckligen för att sökas i."
 
 #: gui/dialogs.py:2277
 msgid "Inoreader Authorization"
@@ -1769,13 +1755,14 @@ msgstr "Källa:"
 #: gui/dialogs.py:3692
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/"
-"Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source."
+"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit "
+"source."
 msgstr ""
-"Källor: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, Google "
-"News, Bing News, Feedsearch, webbplatsskanning, Reddit, Fediversum (Lemmy/"
-"Kbin/Mastodon/Bluesky/PieFed). Feedly är tillgängligt som en uttrycklig "
-"källa."
+"Källor: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, Google"
+" News, Bing News, Feedsearch, webbplatsskanning, Reddit, Fediversum "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly är tillgängligt som en "
+"uttrycklig källa."
 
 #: gui/dialogs.py:4081 gui/dialogs.py:4106
 msgid "News search feed"
@@ -2039,9 +2026,8 @@ msgid "Export feeds to OPML"
 msgstr "Exportera flöden till OPML"
 
 #: gui/mainframe.py:1968
-#, fuzzy
 msgid "Configure &Persistent Search..."
-msgstr "Konfigurera bestående sökning..."
+msgstr "Konfigurera &beständig sökning..."
 
 #: gui/mainframe.py:1968
 msgid "Configure saved search queries"
@@ -2104,9 +2090,8 @@ msgid "Show or hide the media player window"
 msgstr "Visa eller dölj mediaspelarfönstret"
 
 #: gui/mainframe.py:2057
-#, fuzzy
 msgid "&Ascending"
-msgstr "Stigande"
+msgstr "&Stigande"
 
 #: gui/mainframe.py:2058
 msgid "Sort in ascending order (default is descending by date)"
@@ -2251,8 +2236,8 @@ msgstr "Filter&regler..."
 #: gui/mainframe.py:2169
 msgid "Create rules that categorize, label, or delete articles as they arrive"
 msgstr ""
-"Skapa regler som kategoriserar, märker eller tar bort artiklar när de kommer "
-"in"
+"Skapa regler som kategoriserar, märker eller tar bort artiklar när de kommer"
+" in"
 
 #: gui/mainframe.py:2174
 msgid "&Keyboard Shortcuts..."
@@ -2467,54 +2452,48 @@ msgid "Show only articles that have no playable media"
 msgstr "Visa endast artiklar som saknar spelbara medier"
 
 #: gui/mainframe.py:2040
-#, fuzzy
 msgid "&Date"
-msgstr "Datum"
+msgstr "&Datum"
 
 #: gui/mainframe.py:2040
 msgid "Sort articles by date"
 msgstr "Sortera artiklar efter datum"
 
 #: gui/mainframe.py:2041
-#, fuzzy
 msgid "&Name"
-msgstr "Namn"
+msgstr "&Namn"
 
 #: gui/mainframe.py:2041
 msgid "Sort articles by name"
 msgstr "Sortera artiklar efter namn"
 
 #: gui/mainframe.py:2042
-#, fuzzy
 msgid "A&uthor"
-msgstr "Författare"
+msgstr "Fö&rfattare"
 
 #: gui/mainframe.py:2042
 msgid "Sort articles by author"
 msgstr "Sortera artiklar efter författare"
 
 #: gui/mainframe.py:2043
-#, fuzzy
 msgid "De&scription"
-msgstr "Beskrivning"
+msgstr "Be&skrivning"
 
 #: gui/mainframe.py:2043
 msgid "Sort articles by description"
 msgstr "Sortera artiklar efter beskrivning"
 
 #: gui/mainframe.py:2044
-#, fuzzy
 msgid "&Feed"
-msgstr "Flöde"
+msgstr "&Flöde"
 
 #: gui/mainframe.py:2044
 msgid "Sort articles by feed"
 msgstr "Sortera artiklar efter flöde"
 
 #: gui/mainframe.py:2045
-#, fuzzy
 msgid "S&tatus"
-msgstr "Status"
+msgstr "S&tatus"
 
 #: gui/mainframe.py:2045
 msgid "Sort articles by status"
@@ -2672,8 +2651,8 @@ msgstr[1] "{n} artiklar"
 
 #: gui/mainframe.py:5981
 msgid ""
-"Delete {subject}? Deleted articles can be restored from the Deleted Articles "
-"view."
+"Delete {subject}? Deleted articles can be restored from the Deleted Articles"
+" view."
 msgstr ""
 "Ta bort {subject}? Borttagna artiklar kan återställas från vyn Borttagna "
 "artiklar."
@@ -2837,8 +2816,8 @@ msgstr "Regel akti&verad"
 
 #: gui/mainframe.py:12635
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip "
-"notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip"
+" notification)."
 msgstr ""
 "Välj minst en åtgärd för den här regeln (flytta, märka, markera, ta bort "
 "eller hoppa över avisering)."
@@ -3121,18 +3100,16 @@ msgstr "Märk även &med kategori:"
 #: gui/mainframe.py:12665
 msgid "Rules run top to bottom for each incoming article, like email filters."
 msgstr ""
-"Regler körs uppifrån och ner för varje inkommande artikel, precis som e-"
-"postfilter."
+"Regler körs uppifrån och ner för varje inkommande artikel, precis som "
+"e-postfilter."
 
 #: gui/mainframe.py:442
 msgid ""
-"Would you like to install them automatically (via winget/Ninite) and add "
-"them to PATH?\n"
+"Would you like to install them automatically (via winget/Ninite) and add them to PATH?\n"
 "\n"
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
-"Vill du installera dem automatiskt (via winget/Ninite) och lägga till dem i "
-"PATH?\n"
+"Vill du installera dem automatiskt (via winget/Ninite) och lägga till dem i PATH?\n"
 "\n"
 "Tips: du kan inaktivera den här frågan i Inställningar > YouTube."
 
@@ -3329,10 +3306,10 @@ msgid "Storage Location Changed"
 msgstr "Lagringsplats ändrad"
 
 #: gui/mainframe.py:12787
-msgid ""
-"Delete filter rule \"{name}\"? Articles it already filed are not changed."
+msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
-"Ta bort filterregeln \"{name}\"? Artiklar den redan har sorterat ändras inte."
+"Ta bort filterregeln \"{name}\"? Artiklar den redan har sorterat ändras "
+"inte."
 
 #: gui/mainframe.py:436
 msgid "VLC Media Player (required for playback)"
@@ -3373,9 +3350,8 @@ msgstr ""
 "{error}"
 
 #: gui/mainframe.py:2439
-#, fuzzy
 msgid "Stop Refresh"
-msgstr "S&toppa uppdatering"
+msgstr "Stoppa uppdatering"
 
 #: gui/mainframe.py:2730
 msgid "Playing {position} of {total}: {title}"
@@ -3447,15 +3423,13 @@ msgid ""
 "\n"
 "{err}\n"
 "\n"
-"Opening in the default browser instead. You can change this in Settings > "
-"General > Article opening method."
+"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
 msgstr ""
 "Det gick inte att öppna artikeln med ditt anpassade kommando:\n"
 "\n"
 "{err}\n"
 "\n"
-"Öppnar i standardwebbläsaren istället. Du kan ändra detta i Inställningar > "
-"Allmänt > Metod för att öppna artiklar."
+"Öppnar i standardwebbläsaren istället. Du kan ändra detta i Inställningar > Allmänt > Metod för att öppna artiklar."
 
 #: gui/mainframe.py:11053
 msgid "Download failed: {error}"
@@ -3752,8 +3726,8 @@ msgstr "BlindRSS körs redan."
 #~ "Hämta alltid fullständiga flöden i bakgrunden (ignorera flödescachning)"
 
 #~ msgid ""
-#~ "Articles cannot be deleted while feeds are refreshing. Try again after "
-#~ "the refresh is complete."
+#~ "Articles cannot be deleted while feeds are refreshing. Try again after the "
+#~ "refresh is complete."
 #~ msgstr ""
 #~ "Artiklar kan inte tas bort medan flöden uppdateras. Försök igen när "
 #~ "uppdateringen är klar."
@@ -3762,8 +3736,8 @@ msgstr "BlindRSS körs redan."
 #~ msgstr "Uppdatering pågår"
 
 #~ msgid ""
-#~ "Articles cannot be restored while feeds are refreshing. Try again after "
-#~ "the refresh is complete."
+#~ "Articles cannot be restored while feeds are refreshing. Try again after the "
+#~ "refresh is complete."
 #~ msgstr ""
 #~ "Artiklar kan inte återställas medan flöden uppdateras. Försök igen när "
 #~ "uppdateringen är klar."

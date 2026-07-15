@@ -4,6 +4,11 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.105.1 - 2026-07-15
+
+- Complete all locale catalogs except Russian.
+- Extract the whole story body from socast/Pattison-portals sites.
+
 ## v1.105.0 - 2026-07-15
 
 - Skip chronically-broken feeds on manual miniflux refresh.

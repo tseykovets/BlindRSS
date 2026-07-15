@@ -414,6 +414,21 @@ def _fetch_embedjs_video(embed_id: str, *, timeout_s: float = 20.0, user_agent: 
         raise RumbleError(f"Failed to parse embedJS JSON: {e}")
 
 
+# Recorded live streams often expose only combined video+audio HLS/tar
+# renditions (no MP4s). Buffering the top rendition (1080p+) stalls playback
+# start for what the user listens to as audio, so mirror the yt-dlp policy
+# ("best[height<=480]/worst"): best rendition at or below the cap, else the
+# smallest available. Unknown heights (0) count as below the cap.
+_STREAM_HEIGHT_CAP = 480
+
+
+def _select_stream_rendition(candidates: list[tuple[int, int, str]]) -> str:
+    capped = [c for c in candidates if c[0] <= _STREAM_HEIGHT_CAP]
+    if capped:
+        return max(capped, key=lambda t: (t[0], t[1]))[2]
+    return min(candidates, key=lambda t: (t[0], t[1]))[2]
+
+
 def _pick_best_direct_url(video: dict[str, Any]) -> str | None:
     candidates: list[tuple[int, int, str]] = []
 
@@ -501,9 +516,9 @@ def _pick_best_direct_url(video: dict[str, Any]) -> str | None:
     # Prefer URLs not on rumble.com when possible.
     non_rumble = [c for c in stream_candidates if "rumble.com" not in c[2].lower()]
     if non_rumble:
-        return max(non_rumble, key=lambda t: (t[0], t[1]))[2]
+        return _select_stream_rendition(non_rumble)
     if stream_candidates:
-        return max(stream_candidates, key=lambda t: (t[0], t[1]))[2]
+        return _select_stream_rendition(stream_candidates)
 
     # Last resort: very low-bitrate timeline preview.
     timeline = None

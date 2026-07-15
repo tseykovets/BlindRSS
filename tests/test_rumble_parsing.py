@@ -62,6 +62,34 @@ class RumbleParsingTests(unittest.TestCase):
         picked = rumble_mod._pick_best_direct_url(video)
         self.assertTrue(picked.startswith("https://1a-1791.com/"))
 
+    def test_pick_stream_rendition_caps_height(self) -> None:
+        # Recorded live streams expose only combined video+audio renditions;
+        # picking the top one (1080p+) stalls playback start (yt-dlp policy
+        # is best[height<=480]/worst).
+        video = {
+            "ua": {
+                "tar": {
+                    "240": {"url": "https://1a-1791.com/x.tar?f=240", "meta": {"h": 240, "bitrate": 300}},
+                    "480": {"url": "https://1a-1791.com/x.tar?f=480", "meta": {"h": 480, "bitrate": 700}},
+                    "1080": {"url": "https://1a-1791.com/x.tar?f=1080", "meta": {"h": 1080, "bitrate": 3000}},
+                }
+            }
+        }
+        picked = rumble_mod._pick_best_direct_url(video)
+        self.assertEqual(picked, "https://1a-1791.com/x.tar?f=480")
+
+    def test_pick_stream_rendition_falls_back_to_smallest(self) -> None:
+        video = {
+            "ua": {
+                "hls": {
+                    "720": {"url": "https://1a-1791.com/x.m3u8?f=720", "meta": {"h": 720, "bitrate": 1500}},
+                    "1080": {"url": "https://1a-1791.com/x.m3u8?f=1080", "meta": {"h": 1080, "bitrate": 3000}},
+                }
+            }
+        }
+        picked = rumble_mod._pick_best_direct_url(video)
+        self.assertEqual(picked, "https://1a-1791.com/x.m3u8?f=720")
+
 
 if __name__ == "__main__":
     unittest.main()

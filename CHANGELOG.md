@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.100.0 - 2026-07-15
+
+- Preserve article tables as accessible text.
+
 ## v1.99.7 - 2026-07-15
 
 - Cancel stale article list preparation.

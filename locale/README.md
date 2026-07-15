@@ -61,13 +61,25 @@ Notes for translators:
 - Keep `{placeholder}` tokens exactly as written; they are substituted at
   runtime (e.g. `Unread: {count}`).
 - An `&` marks the menu access key (e.g. `&File`); place it before whichever
-  letter works best in your language.
+  letter works best in your language. To show a **literal** ampersand in a
+  label (e.g. the "Feeds && Articles" and "Startup && Tray" settings tabs), it
+  must be doubled as `&&`. Never collapse `&&` back to a single `&` — wx would
+  swallow it as a mnemonic and the character would vanish from the UI
+  (issue #66). `tests/test_i18n.py` guards these labels.
 - Trailing `...` means the item opens a dialog; keep it.
+- Keep terminology consistent within a language. Pick one word for a recurring
+  UI concept and use it everywhere. For example, in Russian "feed" is always
+  "канал"; do not alternate between synonyms across strings (issue #66).
 
 ## Translation quality policy
 
 - Human translations and corrections take priority over machine-generated
-  suggestions.
+  suggestions. **Never overwrite an existing non-empty translation with a
+  machine-generated one.** Automated passes may only fill entries that are
+  still blank; entries a translator has already filled are off-limits unless
+  that same translator asks for a change (issue #66). When source strings
+  change, use `msgmerge` (which preserves existing translations) rather than
+  re-translating from scratch.
 - Do not fill every empty entry automatically. Short labels can be ambiguous
   without UI context; leave them blank until a translator can inspect the
   source reference or ask for clarification. Blank entries safely fall back

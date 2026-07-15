@@ -141,6 +141,52 @@ def test_extractor_resolves_deferred_module_string_constants(tmp_path):
     assert ("Contains audio", None) in messages
 
 
+def _lone_ampersands(text):
+    """Return True if text has a single '&' that wx would treat as a mnemonic.
+
+    In wx, '&' marks the next character as an accelerator and is not shown;
+    '&&' renders a literal '&'. A label meant to display a literal ampersand
+    must therefore double every one.
+    """
+    i = 0
+    while i < len(text):
+        if text[i] == "&":
+            if i + 1 < len(text) and text[i + 1] == "&":
+                i += 2
+                continue
+            return True
+        i += 1
+    return False
+
+
+# Settings tab labels that contain a literal ampersand. In wx a page label's
+# '&' is a mnemonic marker, so these MUST be escaped as '&&' in the source and
+# in every translation (issue #66). This guards against an auto-translation
+# pass silently collapsing '&&' back to '&' and re-breaking the display.
+LITERAL_AMPERSAND_LABELS = ("Feeds && Articles", "Startup && Tray")
+
+
+def test_source_settings_labels_escape_ampersands():
+    pot = Path("locale/blindrss.pot").read_text(encoding="utf-8")
+    for label in LITERAL_AMPERSAND_LABELS:
+        assert f'msgid "{label}"' in pot, f"missing escaped source label: {label}"
+
+
+def test_no_locale_reintroduces_lone_ampersand_in_labels():
+    po_paths = sorted(Path("locale").glob("*/LC_MESSAGES/blindrss.po"))
+    assert po_paths, "no locale catalogs found"
+    for po_path in po_paths:
+        messages = compile_translations.read_po(po_path)
+        for label in LITERAL_AMPERSAND_LABELS:
+            msgstr = messages.get(label)
+            if not msgstr:
+                continue  # untranslated -> English source (already escaped)
+            assert not _lone_ampersands(msgstr), (
+                f"{po_path}: translation of {label!r} has an unescaped '&' "
+                f"(wx would eat it as a mnemonic): {msgstr!r}"
+            )
+
+
 def test_repository_pot_matches_current_source(tmp_path, monkeypatch):
     generated = tmp_path / "blindrss.pot"
     monkeypatch.setattr(extract_strings, "POT_PATH", str(generated))

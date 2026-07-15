@@ -186,9 +186,9 @@ def test_settings_dialog_field_names(parent):
         ]
         assert page_labels[:5] == [
             "General",
-            "Feeds & Articles",
+            "Feeds && Articles",
             "Downloads",
-            "Startup & Tray",
+            "Startup && Tray",
             "YouTube",
         ]
         assert dlg.refresh_ctrl.GetParent() is dlg.notebook.GetPage(1)

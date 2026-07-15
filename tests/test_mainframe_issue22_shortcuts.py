@@ -54,7 +54,12 @@ class _DummyHost:
     _is_plain_backspace_event = mainframe.MainFrame._is_plain_backspace_event
     _is_shift_delete_event = mainframe.MainFrame._is_shift_delete_event
     _window_is_or_child = mainframe.MainFrame._window_is_or_child
+    _filter_shortcut_targets = mainframe.MainFrame._filter_shortcut_targets
+    _is_editable_text_input_focused = mainframe.MainFrame._is_editable_text_input_focused
     toggle_selected_article_read_status = mainframe.MainFrame.toggle_selected_article_read_status
+
+    def _announce_event(self, event_id, message):
+        self.calls.append(("announce", event_id, message))
 
     def __init__(self):
         self.tree = object()

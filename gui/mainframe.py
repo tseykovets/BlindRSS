@@ -42,6 +42,7 @@ from core import translation as translation_mod
 from core import updater
 from core import windows_integration
 from core import screen_reader_announce
+from core import announcements as announcements_mod
 from core.version import APP_VERSION
 from core import dependency_check
 from core import shortcuts as shortcuts_mod
@@ -243,6 +244,12 @@ class MainFrame(wx.Frame):
         # branches when not "all". _unread_filter_enabled is a compatibility
         # property over this.
         self._article_read_filter = "all"
+        # Screen-reader announcements for key keyboard events (issue #67). The
+        # announcer resolves each event's speech/Braille mode from live config,
+        # so Settings changes take effect without rebuilding it.
+        self.announcer = announcements_mod.Announcer(
+            lambda: self.config_manager.get("announcements", {})
+        )
         # Client-side media filter (independent of read status): "all", "with"
         # (only articles with playable media), or "without" (only non-media).
         # Applied at display time in _sort_articles_for_display, so it costs
@@ -1949,7 +1956,7 @@ class MainFrame(wx.Frame):
         remove_feed_item = file_menu.Append(wx.ID_ANY, _("&Remove Feed"), _("Remove selected feed"))
         refresh_item = file_menu.Append(wx.ID_REFRESH, _("&Refresh Feeds") + "\tF5", _("Refresh all feeds"))
         stop_refresh_item = file_menu.Append(wx.ID_ANY, _("S&top Refresh") + "\tShift+F5", _("Stop the feed refresh currently in progress"))
-        mark_all_read_item = file_menu.Append(wx.ID_ANY, _("Mark All Items as &Read"), _("Mark all items in all feeds as read"))
+        mark_all_read_item = file_menu.Append(wx.ID_ANY, _("Mark All Items as &Read") + "\tCtrl+Shift+R", _("Mark all items in all feeds as read"))
         view_errors_item = file_menu.Append(wx.ID_ANY, _("View Feed &Errors..."), _("View feeds that failed to update"))
         file_menu.AppendSeparator()
         add_cat_item = file_menu.Append(wx.ID_ANY, _("Add &Category"), _("Add a new category"))
@@ -1958,7 +1965,7 @@ class MainFrame(wx.Frame):
         import_opml_item = file_menu.Append(wx.ID_ANY, _("&Import OPML..."), _("Import feeds from OPML"))
         export_opml_item = file_menu.Append(wx.ID_ANY, _("E&xport OPML..."), _("Export feeds to OPML"))
         file_menu.AppendSeparator()
-        persistent_search_item = file_menu.Append(wx.ID_ANY, _("Configure Persistent Search..."), _("Configure saved search queries"))
+        persistent_search_item = file_menu.Append(wx.ID_ANY, _("Configure &Persistent Search..."), _("Configure saved search queries"))
         # Desktop/Start Menu/Taskbar shortcuts are Windows-only; hide the dead item on macOS.
         add_shortcuts_item = None
         if should_show_add_shortcuts():
@@ -2030,12 +2037,12 @@ class MainFrame(wx.Frame):
         sort_menu = wx.Menu()
         self._sort_by_menu_items = {}
         sort_choices = [
-            ("date", _("Date"), _("Sort articles by date")),
-            ("name", _("Name"), _("Sort articles by name")),
-            ("author", _("Author"), _("Sort articles by author")),
-            ("description", _("Description"), _("Sort articles by description")),
-            ("feed", _("Feed"), _("Sort articles by feed")),
-            ("status", _("Status"), _("Sort articles by status")),
+            ("date", _("&Date"), _("Sort articles by date")),
+            ("name", _("&Name"), _("Sort articles by name")),
+            ("author", _("A&uthor"), _("Sort articles by author")),
+            ("description", _("De&scription"), _("Sort articles by description")),
+            ("feed", _("&Feed"), _("Sort articles by feed")),
+            ("status", _("S&tatus"), _("Sort articles by status")),
         ]
         for key, label, sort_help in sort_choices:
             item = sort_menu.AppendRadioItem(wx.ID_ANY, label, sort_help)
@@ -2047,7 +2054,7 @@ class MainFrame(wx.Frame):
         sort_menu.AppendSeparator()
         self._sort_ascending_item = sort_menu.AppendCheckItem(
             wx.ID_ANY,
-            _("Ascending"),
+            _("&Ascending"),
             _("Sort in ascending order (default is descending by date)"),
         )
         self._sort_ascending_item.Check(bool(getattr(self, "_article_sort_ascending", False)))
@@ -2390,10 +2397,54 @@ class MainFrame(wx.Frame):
         if MainFrame._is_plain_backspace_event(self, event, key):
             if MainFrame._window_is_or_child(self, focus, self.list_ctrl):
                 try:
-                    self.toggle_selected_article_read_status()
+                    new_status = self.toggle_selected_article_read_status()
+                    if new_status:
+                        self._announce_event("status_toggle", new_status)
                     return
                 except Exception:
                     log.exception("Error toggling article read status on Backspace")
+
+        # Article-filter shortcuts (issue #67): Ctrl+1..6 change the read-status /
+        # media filter. Handled here (before the menu accelerator fires) so the
+        # keyboard path can announce the applied filter while a menu click stays
+        # silent. Returning without Skip() consumes the key so the equivalent
+        # menu accelerator never double-runs.
+        if (
+            event.ControlDown()
+            and not event.ShiftDown()
+            and not event.AltDown()
+            and not event.MetaDown()
+            and key in self._filter_shortcut_targets()
+            and not self._is_editable_text_input_focused(focus)
+        ):
+            try:
+                if self._handle_filter_shortcut(key):
+                    return
+            except Exception:
+                log.exception("Error handling article-filter shortcut")
+
+        # Feed refresh shortcuts (issue #67): F5 starts a refresh, Shift+F5 stops
+        # it. Handled here so the keyboard path announces the action by menu-item
+        # name; the menu click path (same handlers) stays silent.
+        if (
+            key == wx.WXK_F5
+            and not event.ControlDown()
+            and not event.AltDown()
+            and not event.MetaDown()
+        ):
+            try:
+                if event.ShiftDown():
+                    if self._is_feed_refresh_active():
+                        self.on_stop_refresh()
+                        self._announce_event("stop_update", _("Stop Refresh"))
+                        return
+                else:
+                    if not self._is_feed_refresh_active():
+                        self.on_refresh_feeds()
+                        self._announce_event("start_update", _("Refresh Feeds"))
+                        return
+            except Exception:
+                log.exception("Error handling refresh shortcut")
 
         # Registry-managed shortcuts (play/pause, stop, show/hide player, play
         # queue open/next/prev, playback speed). Editable via Tools > Keyboard
@@ -2656,7 +2707,7 @@ class MainFrame(wx.Frame):
         """
         queue = self._get_play_queue()
         if not queue:
-            self._announce(_("Play queue is empty."))
+            self._announce_event("media_navigation", _("Play queue is empty."))
             return
         cur = getattr(self, "_current_queue_index", None)
         if cur is None or not (0 <= int(cur) < len(queue)):
@@ -2664,8 +2715,9 @@ class MainFrame(wx.Frame):
         else:
             target = int(cur) + int(delta)
         if not (0 <= target < len(queue)):
-            self._announce(
-                _("End of play queue.") if delta >= 0 else _("Start of play queue.")
+            self._announce_event(
+                "media_navigation",
+                _("End of play queue.") if delta >= 0 else _("Start of play queue."),
             )
             return
         if self.play_queue_index(target):
@@ -2673,14 +2725,15 @@ class MainFrame(wx.Frame):
                 title = str(queue[target].get("title") or "").strip()
             except Exception:
                 title = ""
-            self._announce(
+            self._announce_event(
+                "media_navigation",
                 _("Playing {position} of {total}: {title}").format(
                     position=target + 1, total=len(queue), title=title
                 )
                 if title
                 else _("Playing {position} of {total}").format(
                     position=target + 1, total=len(queue)
-                )
+                ),
             )
 
     # -----------------------------------------------------------------
@@ -2727,7 +2780,14 @@ class MainFrame(wx.Frame):
                 self.config_manager.set("playback_speed", speed)
             except Exception:
                 pass
-        self._announce(_("Playback speed {speed}x").format(speed=("%g" % round(speed, 2))))
+        # Status bar only (no speech): the keyboard path announces the speed via
+        # dispatch_shortcut so a menu-driven change stays quiet (issue #67).
+        try:
+            self.SetStatusText(
+                _("Playback speed {speed}x").format(speed=("%g" % round(speed, 2))), 0
+            )
+        except Exception:
+            pass
         try:
             self._sync_speed_menu_check()
         except Exception:
@@ -2847,7 +2907,23 @@ class MainFrame(wx.Frame):
             handler(None)
         except Exception:
             log.exception("Error dispatching shortcut %s", cmd_id)
+        # Keyboard-only announcement (issue #67): the speed handlers keep the
+        # menu path silent (status bar only); announce the resulting speed here
+        # so only the keyboard shortcut speaks/brailles it. Queue navigation
+        # announces itself in _play_queue_step (shared by keyboard and menu).
+        if cmd_id in ("speed.up", "speed.down", "speed.reset"):
+            try:
+                self._announce_event("playback_speed", self._current_playback_speed_message())
+            except Exception:
+                log.debug("Playback-speed announcement failed", exc_info=True)
         return True
+
+    def _current_playback_speed_message(self) -> str:
+        try:
+            speed = float(self.config_manager.get("playback_speed", 1.0))
+        except Exception:
+            speed = 1.0
+        return _("Playback speed {speed}x").format(speed=("%g" % round(speed, 2)))
 
     def _shortcut_menu_label(self, base_label: str, command_id: str) -> str:
         accel = self.binding_label(command_id)
@@ -4040,6 +4116,55 @@ class MainFrame(wx.Frame):
     @_unread_filter_enabled.setter
     def _unread_filter_enabled(self, value) -> None:
         self._article_read_filter = "unread" if value else "all"
+
+    def _filter_shortcut_targets(self):
+        """Map Ctrl+<digit> key codes to a (group, mode) filter target.
+
+        Positions mirror the View > Article Filter submenu order (issue #60):
+        1-3 are the read-status radio group, 4-6 the media radio group. Both the
+        main number row and the numeric keypad are accepted.
+        """
+        order = [
+            ("read", "all"),
+            ("read", "unread"),
+            ("read", "read"),
+            ("media", "all"),
+            ("media", "with"),
+            ("media", "without"),
+        ]
+        targets = {}
+        for i, target in enumerate(order, start=1):
+            targets[ord(str(i))] = target
+            np = getattr(wx, "WXK_NUMPAD%d" % i, None)
+            if np is not None:
+                targets[np] = target
+        return targets
+
+    def _handle_filter_shortcut(self, key) -> bool:
+        """Apply the Ctrl+<digit> article filter and announce it. Returns True if
+        the key mapped to a filter (issue #67, keyboard-only announcement)."""
+        target = self._filter_shortcut_targets().get(key)
+        if not target:
+            return False
+        group, mode = target
+        if group == "read":
+            items = getattr(self, "_article_filter_menu_items", None) or {}
+            self.on_change_article_filter(mode)
+        else:
+            items = getattr(self, "_article_media_filter_menu_items", None) or {}
+            self.on_change_media_filter(mode)
+        # Announce the exact visible menu-item name (mnemonics/accelerator
+        # stripped) so the spoken/Braille text matches what the menu shows.
+        label = ""
+        item = items.get(mode)
+        if item is not None:
+            try:
+                label = item.GetItemLabelText()
+            except Exception:
+                label = ""
+        if label:
+            self._announce_event("filter_change", label)
+        return True
 
     def on_change_article_filter(self, mode: str):
         mode = str(mode or "all").lower()
@@ -8585,6 +8710,26 @@ class MainFrame(wx.Frame):
         where = "No more occurrences" if forward else "No previous occurrences"
         self._announce(f'{where} of "{term}".')
 
+    def _announce_event(self, event_id: str, message: str) -> None:
+        """Announce a key-event message (issue #67) via the configured mode.
+
+        Routes through the per-event announcer (speech and/or Braille through
+        accessible-output2, falling back to the direct NVDA/JAWS adapters). The
+        message is also mirrored to transient status field 0 for sighted users.
+        Fully guarded and non-blocking; a disabled event ("none") is a no-op.
+        """
+        message = str(message or "").strip()
+        if not message:
+            return
+        try:
+            self.SetStatusText(message, 0)
+        except Exception:
+            pass
+        try:
+            self.announcer.announce(event_id, message)
+        except Exception:
+            log.debug("Announcement for %s failed", event_id, exc_info=True)
+
     def _announce(self, message: str) -> None:
         """Speak a short status message to the screen reader without stealing
         focus or popping a dialog.
@@ -9969,18 +10114,25 @@ class MainFrame(wx.Frame):
             self._update_feed_unread_count_ui(article.feed_id, 1)
 
     def toggle_selected_article_read_status(self):
+        """Toggle read/unread on the selected article.
+
+        Returns the new status label ("Read"/"Unread", matching the Status
+        column) so keyboard callers can announce it (issue #67), or None when
+        there was nothing to toggle.
+        """
         idx = self._get_selected_article_index()
         if idx == wx.NOT_FOUND:
-            return
+            return None
         if self._is_load_more_row(idx):
-            return
+            return None
         if idx < 0 or idx >= len(self.current_articles):
-            return
+            return None
         article = self.current_articles[idx]
         if bool(getattr(article, "is_read", False)):
             self.mark_article_unread(idx)
-        else:
-            self.mark_article_read(idx)
+            return _("Unread")
+        self.mark_article_read(idx)
+        return _("Read")
 
     def on_mark_all_read(self, event=None):
         # File menu entry: global scope (issue #39). Per-feed/category marking

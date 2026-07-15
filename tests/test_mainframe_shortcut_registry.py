@@ -40,6 +40,8 @@ class _Host:
     _nudge_playback_speed = mainframe.MainFrame._nudge_playback_speed
     _apply_playback_speed = mainframe.MainFrame._apply_playback_speed
     _player_for_speed = mainframe.MainFrame._player_for_speed
+    _filter_shortcut_targets = mainframe.MainFrame._filter_shortcut_targets
+    _current_playback_speed_message = mainframe.MainFrame._current_playback_speed_message
 
     _is_text_input_focused = mainframe.MainFrame._is_text_input_focused
     _is_editable_text_input_focused = mainframe.MainFrame._is_editable_text_input_focused
@@ -55,6 +57,9 @@ class _Host:
         self._rebuild_shortcut_map()
 
     def _announce(self, msg):
+        self.announcements.append(msg)
+
+    def _announce_event(self, event_id, msg):
         self.announcements.append(msg)
 
     def play_queue_index(self, index):
@@ -186,6 +191,27 @@ def test_nudge_playback_speed_persists_when_no_player():
     saved = float(h.config_manager.get("playback_speed"))
     idx = min(range(len(speeds)), key=lambda i: abs(speeds[i] - 1.0))
     assert saved == speeds[min(len(speeds) - 1, idx + 1)]
+
+
+def test_filter_shortcut_targets_map_digits_to_groups():
+    h = _Host()
+    targets = h._filter_shortcut_targets()
+    # 1-3 are the read-status group, 4-6 the media group (issue #67).
+    assert targets[ord("1")] == ("read", "all")
+    assert targets[ord("2")] == ("read", "unread")
+    assert targets[ord("3")] == ("read", "read")
+    assert targets[ord("4")] == ("media", "all")
+    assert targets[ord("5")] == ("media", "with")
+    assert targets[ord("6")] == ("media", "without")
+    # No mapping for out-of-range digits.
+    assert ord("7") not in targets
+
+
+def test_current_playback_speed_message_reflects_config():
+    h = _Host({"playback_speed": 1.5})
+    assert h._current_playback_speed_message() == "Playback speed 1.5x"
+    h.config_manager.set("playback_speed", 1.0)
+    assert h._current_playback_speed_message() == "Playback speed 1x"
 
 
 def test_apply_speed_uses_player_when_present():

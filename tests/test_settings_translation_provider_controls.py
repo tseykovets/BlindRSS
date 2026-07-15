@@ -108,3 +108,50 @@ def test_update_translation_provider_controls_shows_only_groq_rows():
     host._update_translation_provider_controls()
 
     assert _shown_rows(host._translation_layout_sizer.calls) == {"groq_model", "groq_api"}
+
+
+# ---------------------------------------------------------------------------
+# Announcements tab (issue #67): dropdown -> {event_id: mode} collection
+# ---------------------------------------------------------------------------
+
+from core import announcements as _ann
+
+
+class _ModeChoiceStub:
+    def __init__(self, index):
+        self._index = int(index)
+
+    def GetSelection(self):
+        return self._index
+
+
+class _AnnouncementHost:
+    _collect_announcement_modes = dialogs.SettingsDialog._collect_announcement_modes
+
+    def __init__(self, selections):
+        # selections: {event_id: mode_index}
+        self._announcement_mode_values = list(_ann.MODE_ORDER)
+        self._announcement_choice_ctrls = {
+            eid: _ModeChoiceStub(idx) for eid, idx in selections.items()
+        }
+
+
+def test_collect_announcement_modes_reads_dropdowns():
+    idx = {m: i for i, m in enumerate(_ann.MODE_ORDER)}
+    host = _AnnouncementHost(
+        {
+            "filter_change": idx["none"],
+            "status_toggle": idx["speech"],
+            "playback_speed": idx["braille"],
+            "media_navigation": idx["both"],
+        }
+    )
+    out = host._collect_announcement_modes()
+    # Explicit selections are honored...
+    assert out["filter_change"] == "none"
+    assert out["status_toggle"] == "speech"
+    assert out["playback_speed"] == "braille"
+    assert out["media_navigation"] == "both"
+    # ...and unlisted events are filled with the default (both).
+    assert out["start_update"] == _ann.MODE_BOTH
+    assert set(out) == {e.id for e in _ann.iter_events()}

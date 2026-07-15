@@ -47,6 +47,8 @@ class _FindRoutingHost:
     on_char_hook = mainframe.MainFrame.on_char_hook
     _is_backspace_key = mainframe.MainFrame._is_backspace_key
     _is_plain_backspace_event = mainframe.MainFrame._is_plain_backspace_event
+    _filter_shortcut_targets = mainframe.MainFrame._filter_shortcut_targets
+    _is_editable_text_input_focused = mainframe.MainFrame._is_editable_text_input_focused
 
     def __init__(self):
         self.content_ctrl = object()

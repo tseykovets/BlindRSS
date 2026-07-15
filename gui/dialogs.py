@@ -32,6 +32,7 @@ from core import utils
 from core import config as config_mod
 from core import equalizer as equalizer_mod
 from core import shortcuts as shortcuts_mod
+from core import announcements as announcements_mod
 from .shortcut_keys import event_to_accel
 from core import windows_integration
 from core.casting import CastingManager
@@ -1458,6 +1459,49 @@ class SettingsDialog(wx.Dialog):
         notifications_panel.SetSizer(notifications_sizer)
         notebook.AddPage(notifications_panel, _("Notifications"))
 
+        # Announcements Tab (issue #67): per-event screen-reader announcement mode.
+        announcements_panel = wx.ScrolledWindow(notebook)
+        announcements_panel.SetScrollRate(0, 12)
+        announcements_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        announce_note = (
+            "Screen-reader announcements for key keyboard actions.\n"
+            "Each event can announce via speech, Braille, both, or neither.\n"
+            "Braille output is most reliable on Windows with NVDA or JAWS."
+        )
+        announcements_sizer.Add(
+            wx.StaticText(announcements_panel, label=announce_note), 0, wx.ALL, 8
+        )
+
+        mode_labels = [_(label) for _mode, label in announcements_mod.mode_choices()]
+        mode_values = [mode for mode, _label in announcements_mod.mode_choices()]
+        current_modes = announcements_mod.normalize_modes(
+            config.get("announcements", {})
+        )
+        self._announcement_mode_values = mode_values
+        self._announcement_choice_ctrls = {}
+
+        announce_grid = wx.FlexGridSizer(0, 2, 6, 10)
+        announce_grid.AddGrowableCol(0, 1)
+        for event in announcements_mod.iter_events():
+            label = wx.StaticText(announcements_panel, label=_(event.label))
+            label.SetToolTip(_(event.help))
+            choice = wx.Choice(announcements_panel, choices=mode_labels)
+            choice.SetName(_(event.label))
+            choice.SetToolTip(_(event.help))
+            try:
+                sel = mode_values.index(current_modes.get(event.id, event.default))
+            except ValueError:
+                sel = mode_values.index(announcements_mod.DEFAULT_MODE)
+            choice.SetSelection(sel)
+            self._announcement_choice_ctrls[event.id] = choice
+            announce_grid.Add(label, 0, wx.ALIGN_CENTER_VERTICAL)
+            announce_grid.Add(choice, 0, wx.EXPAND)
+        announcements_sizer.Add(announce_grid, 0, wx.EXPAND | wx.ALL, 8)
+
+        announcements_panel.SetSizer(announcements_sizer)
+        notebook.AddPage(announcements_panel, _("Announcements"))
+
         # Translate Tab (automatic article translation via Grok/Groq/OpenAI/OpenRouter/Gemini/Qwen)
         translate_panel = wx.Panel(notebook)
         translate_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -2766,6 +2810,19 @@ class SettingsDialog(wx.Dialog):
                 _("Test failed"), wx.ICON_ERROR, self,
             )
 
+    def _collect_announcement_modes(self) -> dict:
+        """Read the Announcements tab dropdowns into a {event_id: mode} map."""
+        modes = {}
+        values = getattr(self, "_announcement_mode_values", []) or []
+        for event_id, choice in getattr(self, "_announcement_choice_ctrls", {}).items():
+            try:
+                idx = int(choice.GetSelection())
+                if 0 <= idx < len(values):
+                    modes[event_id] = values[idx]
+            except Exception:
+                continue
+        return announcements_mod.normalize_modes(modes)
+
     def get_data(self):
         # Parse speed back to float
         speed_str = self.speed_ctrl.GetValue().replace("x", "")
@@ -2894,6 +2951,7 @@ class SettingsDialog(wx.Dialog):
             "windows_notifications_max_per_refresh": self.windows_notifications_max_ctrl.GetValue(),
             "windows_notifications_show_summary_when_capped": self.windows_notifications_summary_chk.GetValue(),
             "windows_notifications_excluded_feeds": sorted(self._notification_excluded_feed_ids),
+            "announcements": self._collect_announcement_modes(),
             "translation_enabled": self.translation_enabled_chk.GetValue(),
             "translation_provider": self._translation_provider_key_from_ui(),
             "translation_target_language": self._translation_language_code_from_ui(),

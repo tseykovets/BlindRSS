@@ -9,16 +9,93 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: core/announcements.py:129
+#, fuzzy
+msgid "Filter change"
+msgstr "Filterregel"
+
+#: core/announcements.py:130
+msgid "Announce the applied article filter (Ctrl+1 to Ctrl+6)."
+msgstr ""
+
+#: core/announcements.py:131
+msgid "Read/unread status change"
+msgstr ""
+
+#: core/announcements.py:132
+msgid "Announce the new status when toggling read/unread (Backspace)."
+msgstr ""
+
+#: core/announcements.py:133
+#, fuzzy
+msgid "Start update"
+msgstr "Startmeny"
+
+#: core/announcements.py:134
+msgid "Announce when a feed refresh is started (F5)."
+msgstr ""
+
+#: core/announcements.py:135
+#, fuzzy
+msgid "Stop update"
+msgstr "Inga uppdateringar"
+
+#: core/announcements.py:136
+msgid "Announce when a feed refresh is stopped (Shift+F5)."
+msgstr ""
+
+#: core/announcements.py:137
+#, fuzzy
+msgid "Playback speed change"
+msgstr "Uppspelningshastighet {speed}x"
+
+#: core/announcements.py:138
+msgid "Announce the current playback speed when it is changed by keyboard."
+msgstr ""
+
+#: core/announcements.py:139
+msgid "Media and chapter navigation"
+msgstr ""
+
+#: core/announcements.py:140
+msgid "Announce the item or chapter when moving to the next/previous one."
+msgstr ""
+
+#: core/announcements.py:141
+#, fuzzy
+msgid "Other notifications"
+msgstr "Aviseringar"
+
+#: core/announcements.py:142
+msgid "Announce other significant interface changes and notifications."
+msgstr ""
+
+#: core/announcements.py:143
+msgid "None"
+msgstr ""
+
+#: core/announcements.py:144
+msgid "Only speech"
+msgstr ""
+
+#: core/announcements.py:145
+msgid "Only Braille"
+msgstr ""
+
+#: core/announcements.py:146
+msgid "Speech and Braille"
+msgstr ""
+
 #: core/article_extractor.py:2526
 msgid "(unknown)"
 msgstr "(okänd)"
 
-#: core/article_extractor.py:2527 gui/dialogs.py:2942
+#: core/article_extractor.py:2527 gui/dialogs.py:3000
 msgid "Title:"
 msgstr "Titel:"
 
 #: core/article_extractor.py:2528 gui/accessibility.py:872
-#: gui/mainframe.py:4845 gui/mainframe.py:8498
+#: gui/mainframe.py:4970 gui/mainframe.py:8623
 msgid "Author:"
 msgstr "Författare:"
 
@@ -26,19 +103,19 @@ msgstr "Författare:"
 msgid "Uncategorized"
 msgstr "Okategoriserat"
 
-#: core/config.py:713
+#: core/config.py:717
 msgid "Installed Windows builds store data in the User Data Folder."
 msgstr "Installerade Windows-versioner lagrar data i användardatamappen."
 
-#: core/config.py:715
+#: core/config.py:719
 msgid "No change."
 msgstr "Ingen ändring."
 
-#: core/config.py:741
+#: core/config.py:745
 msgid "Config moved to {path}."
 msgstr "Konfigurationen flyttades till {path}."
 
-#: core/config.py:728
+#: core/config.py:732
 msgid "Could not write config at new location: {error}"
 msgstr "Det gick inte att skriva konfigurationen på den nya platsen: {error}"
 
@@ -72,8 +149,8 @@ msgid ""
 "Could not register BlindRSS to start at login: {error} (the failed plist "
 "could not be removed: {cleanup_error})"
 msgstr ""
-"Det gick inte att registrera BlindRSS för start vid inloggning: {error} (den"
-" misslyckade plist-filen kunde inte tas bort: {cleanup_error})"
+"Det gick inte att registrera BlindRSS för start vid inloggning: {error} (den "
+"misslyckade plist-filen kunde inte tas bort: {cleanup_error})"
 
 #: core/retention.py:90
 msgid "1 day"
@@ -263,7 +340,7 @@ msgstr "expanderad"
 msgid "collapsed"
 msgstr "hopfälld"
 
-#: gui/accessibility.py:201 gui/mainframe.py:7220
+#: gui/accessibility.py:201 gui/mainframe.py:7345
 msgid "All Articles"
 msgstr "Alla artiklar"
 
@@ -275,11 +352,12 @@ msgstr "Olästa artiklar"
 msgid "Read Articles"
 msgstr "Lästa artiklar"
 
-#: gui/accessibility.py:383 gui/accessibility.py:382 gui/tray.py:100
+#: gui/accessibility.py:383 gui/accessibility.py:382 gui/mainframe.py:2444
+#: gui/tray.py:100
 msgid "Refresh Feeds"
 msgstr "Uppdatera flöden"
 
-#: gui/accessibility.py:608 gui/mainframe.py:6556
+#: gui/accessibility.py:608 gui/mainframe.py:6681
 msgid "Refreshing feeds..."
 msgstr "Uppdaterar flöden..."
 
@@ -299,7 +377,7 @@ msgstr "Tillgängliga kapitel: {count}."
 msgid "Chapter {index}: {timestamp}, {title}."
 msgstr "Kapitel {index}: {timestamp}, {title}."
 
-#: gui/accessibility.py:206 gui/mainframe.py:7229
+#: gui/accessibility.py:206 gui/mainframe.py:7354
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -339,7 +417,7 @@ msgstr "Markera som läst"
 msgid "Mark Unread"
 msgstr "Markera som oläst"
 
-#: gui/accessibility.py:403 gui/mainframe.py:10715 gui/mainframe.py:4288
+#: gui/accessibility.py:403 gui/mainframe.py:10867 gui/mainframe.py:4413
 msgid "Download"
 msgstr "Ladda ner"
 
@@ -353,13 +431,13 @@ msgstr "Vyer"
 
 #: gui/accessibility.py:438
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
-" to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
+"to expand and Left Arrow to collapse."
 msgstr ""
 "Kategorier kan expanderas eller fällas ihop. Använd knapparna, eller "
 "högerpil för att expandera och vänsterpil för att fälla ihop."
 
-#: gui/accessibility.py:447 gui/mainframe.py:571
+#: gui/accessibility.py:447 gui/mainframe.py:578
 msgid "Articles"
 msgstr "Artiklar"
 
@@ -375,11 +453,11 @@ msgstr "Artikelinnehåll"
 msgid "Failed to load articles."
 msgstr "Det gick inte att läsa in artiklar."
 
-#: gui/accessibility.py:871 gui/mainframe.py:4844 gui/mainframe.py:8497
+#: gui/accessibility.py:871 gui/mainframe.py:4969 gui/mainframe.py:8622
 msgid "Date:"
 msgstr "Datum:"
 
-#: gui/accessibility.py:873 gui/mainframe.py:4846 gui/mainframe.py:8499
+#: gui/accessibility.py:873 gui/mainframe.py:4971 gui/mainframe.py:8624
 msgid "Link:"
 msgstr "Länk:"
 
@@ -395,12 +473,12 @@ msgstr "Flöde:"
 msgid "Failed to load articles: {error}"
 msgstr "Det gick inte att läsa in artiklar: {error}"
 
-#: gui/accessibility.py:811 gui/mainframe.py:1104 gui/mainframe.py:1412
-#: gui/mainframe.py:1455
+#: gui/accessibility.py:811 gui/mainframe.py:1111 gui/mainframe.py:1419
+#: gui/mainframe.py:1462
 msgid "No articles found."
 msgstr "Inga artiklar hittades."
 
-#: gui/accessibility.py:246 gui/dialogs.py:82 gui/dialogs.py:2960
+#: gui/accessibility.py:246 gui/dialogs.py:83 gui/dialogs.py:3018
 msgid "Category:"
 msgstr "Kategori:"
 
@@ -416,179 +494,180 @@ msgstr "Inlästa artiklar: {count}."
 msgid "Articles loaded: {count} of {total}."
 msgstr "Inlästa artiklar: {count} av {total}."
 
-#: gui/dialogs.py:150
+#: gui/dialogs.py:151
 msgid ""
 "Choose where to add BlindRSS shortcuts.\n"
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Välj var BlindRSS-genvägar ska läggas till.\n"
-"Fastnålning i aktivitetsfältet kan begränsas av din Windows-version/dina principer."
+"Fastnålning i aktivitetsfältet kan begränsas av din Windows-version/dina "
+"principer."
 
-#: gui/dialogs.py:2109
+#: gui/dialogs.py:2153
 msgid "BlindRSS notification test"
 msgstr "BlindRSS-aviseringstest"
 
-#: gui/dialogs.py:2110
+#: gui/dialogs.py:2154
 msgid "If you can read this, notifications are working."
 msgstr "Om du kan läsa det här fungerar aviseringarna."
 
-#: gui/dialogs.py:72
+#: gui/dialogs.py:73
 msgid "https://example.com/feed or a YouTube/podcast URL"
 msgstr "https://example.com/feed eller en YouTube-/podcast-URL"
 
-#: gui/dialogs.py:127
+#: gui/dialogs.py:128
 msgid "Checking compatibility..."
 msgstr "Kontrollerar kompatibilitet..."
 
-#: gui/dialogs.py:278 gui/dialogs.py:304
+#: gui/dialogs.py:279 gui/dialogs.py:305
 msgid "checked"
 msgstr "markerad"
 
-#: gui/dialogs.py:278 gui/dialogs.py:304
+#: gui/dialogs.py:279 gui/dialogs.py:305
 msgid "unchecked"
 msgstr "avmarkerad"
 
-#: gui/dialogs.py:578 gui/dialogs.py:3044
+#: gui/dialogs.py:579 gui/dialogs.py:3102
 msgid "Never"
 msgstr "Aldrig"
 
-#: gui/dialogs.py:579 gui/dialogs.py:2972
+#: gui/dialogs.py:580 gui/dialogs.py:3030
 msgid "30 seconds"
 msgstr "30 sekunder"
 
-#: gui/dialogs.py:580 gui/dialogs.py:2973
+#: gui/dialogs.py:581 gui/dialogs.py:3031
 msgid "1 minute"
 msgstr "1 minut"
 
-#: gui/dialogs.py:581 gui/dialogs.py:2974
+#: gui/dialogs.py:582 gui/dialogs.py:3032
 msgid "2 minutes"
 msgstr "2 minuter"
 
-#: gui/dialogs.py:582 gui/dialogs.py:2975
+#: gui/dialogs.py:583 gui/dialogs.py:3033
 msgid "3 minutes"
 msgstr "3 minuter"
 
-#: gui/dialogs.py:583 gui/dialogs.py:2976
+#: gui/dialogs.py:584 gui/dialogs.py:3034
 msgid "4 minutes"
 msgstr "4 minuter"
 
-#: gui/dialogs.py:584 gui/dialogs.py:2977
+#: gui/dialogs.py:585 gui/dialogs.py:3035
 msgid "5 minutes"
 msgstr "5 minuter"
 
-#: gui/dialogs.py:585 gui/dialogs.py:2978
+#: gui/dialogs.py:586 gui/dialogs.py:3036
 msgid "10 minutes"
 msgstr "10 minuter"
 
-#: gui/dialogs.py:586 gui/dialogs.py:2979
+#: gui/dialogs.py:587 gui/dialogs.py:3037
 msgid "15 minutes"
 msgstr "15 minuter"
 
-#: gui/dialogs.py:587 gui/dialogs.py:2980
+#: gui/dialogs.py:588 gui/dialogs.py:3038
 msgid "30 minutes"
 msgstr "30 minuter"
 
-#: gui/dialogs.py:588 gui/dialogs.py:2981
+#: gui/dialogs.py:589 gui/dialogs.py:3039
 msgid "60 minutes"
 msgstr "60 minuter"
 
-#: gui/dialogs.py:589 gui/dialogs.py:2982
+#: gui/dialogs.py:590 gui/dialogs.py:3040
 msgid "2 hours"
 msgstr "2 timmar"
 
-#: gui/dialogs.py:590 gui/dialogs.py:2983
+#: gui/dialogs.py:591 gui/dialogs.py:3041
 msgid "3 hours"
 msgstr "3 timmar"
 
-#: gui/dialogs.py:591 gui/dialogs.py:2984
+#: gui/dialogs.py:592 gui/dialogs.py:3042
 msgid "4 hours"
 msgstr "4 timmar"
 
-#: gui/dialogs.py:618
+#: gui/dialogs.py:619
 msgid "Titles only"
 msgstr "Endast rubriker"
 
-#: gui/dialogs.py:619
+#: gui/dialogs.py:620
 msgid "Titles and article text"
 msgstr "Rubriker och artikeltext"
 
-#: gui/dialogs.py:704 gui/dialogs.py:3090
+#: gui/dialogs.py:705 gui/dialogs.py:3148
 msgid "Category / Path"
 msgstr "Kategori / Sökväg"
 
-#: gui/dialogs.py:804
+#: gui/dialogs.py:805
 msgid "Use feed cache (fastest)"
 msgstr "Använd flödescache (snabbast)"
 
-#: gui/dialogs.py:805
+#: gui/dialogs.py:806
 msgid "Fully refresh feeds at startup"
 msgstr "Uppdatera flöden fullständigt vid start"
 
-#: gui/dialogs.py:806
+#: gui/dialogs.py:807
 msgid "Always fully refresh feeds"
 msgstr "Uppdatera alltid flöden fullständigt"
 
-#: gui/dialogs.py:813
+#: gui/dialogs.py:814
 msgid "Local RSS automatic feed refresh workload"
 msgstr "Arbetssätt för automatisk flödesuppdatering (lokal RSS)"
 
-#: gui/dialogs.py:911
+#: gui/dialogs.py:912
 msgid "Path to a cookies.txt file"
 msgstr "Sökväg till en cookies.txt-fil"
 
-#: gui/dialogs.py:946
+#: gui/dialogs.py:947
 msgid "Leave blank for the default location"
 msgstr "Lämna tomt för standardplatsen"
 
-#: gui/dialogs.py:1021 gui/dialogs.py:1029
+#: gui/dialogs.py:1022 gui/dialogs.py:1030
 msgid "All items expanded"
 msgstr "Alla objekt expanderade"
 
-#: gui/dialogs.py:1022 gui/dialogs.py:1029
+#: gui/dialogs.py:1023 gui/dialogs.py:1030
 msgid "All items collapsed"
 msgstr "Alla objekt hopfällda"
 
-#: gui/dialogs.py:1041 gui/dialogs.py:1049
+#: gui/dialogs.py:1042 gui/dialogs.py:1050
 msgid "Default browser"
 msgstr "Standardwebbläsare"
 
-#: gui/dialogs.py:1042 gui/dialogs.py:2732 gui/dialogs.py:1049
+#: gui/dialogs.py:1043 gui/dialogs.py:2776 gui/dialogs.py:1050
 msgid "Custom command"
 msgstr "Anpassat kommando"
 
-#: gui/dialogs.py:1080
+#: gui/dialogs.py:1081
 msgid "General"
 msgstr "Allmänt"
 
-#: gui/dialogs.py:1082
+#: gui/dialogs.py:1083
 msgid "Feeds && Articles"
 msgstr "Flöden och artiklar"
 
-#: gui/dialogs.py:1084
+#: gui/dialogs.py:1085
 msgid "Downloads"
 msgstr "Nedladdningar"
 
-#: gui/dialogs.py:1086
+#: gui/dialogs.py:1087
 msgid "Startup && Tray"
 msgstr "Start && systemfält"
 
-#: gui/dialogs.py:1088
+#: gui/dialogs.py:1089
 msgid "YouTube"
 msgstr "YouTube"
 
-#: gui/dialogs.py:1099
+#: gui/dialogs.py:1100
 msgid "Loading soundcards..."
 msgstr "Läser in ljudkort..."
 
-#: gui/dialogs.py:1154
+#: gui/dialogs.py:1155
 msgid "Media tools (ffmpeg, ffprobe, yt-dlp)"
 msgstr "Mediaverktyg (ffmpeg, ffprobe, yt-dlp)"
 
-#: gui/dialogs.py:1195
+#: gui/dialogs.py:1196
 msgid "Media Player"
 msgstr "Mediaspelare"
 
-#: gui/dialogs.py:1333
+#: gui/dialogs.py:1334
 msgid ""
 "Local provider uses the feeds you add inside the app (Add Feed / Import "
 "OPML)."
@@ -596,373 +675,377 @@ msgstr ""
 "Den lokala leverantören använder flödena du lägger till i appen (Lägg till "
 "flöde / Importera OPML)."
 
-#: gui/dialogs.py:1352 gui/dialogs.py:3626
+#: gui/dialogs.py:1353 gui/dialogs.py:3684
 msgid "Provider"
 msgstr "Leverantör"
 
-#: gui/dialogs.py:1384
+#: gui/dialogs.py:1385
 msgid "Refresh Complete Sound:"
 msgstr "Ljud vid slutförd uppdatering:"
 
-#: gui/dialogs.py:1385
+#: gui/dialogs.py:1386
 msgid "Refresh Error Sound:"
 msgstr "Ljud vid uppdateringsfel:"
 
-#: gui/dialogs.py:1388
+#: gui/dialogs.py:1389
 msgid "Sounds"
 msgstr "Ljud"
 
-#: gui/dialogs.py:1459 gui/dialogs.py:2106 gui/dialogs.py:2140
-#: gui/mainframe.py:11831
+#: gui/dialogs.py:1460 gui/dialogs.py:2150 gui/dialogs.py:2184
+#: gui/mainframe.py:11983
 msgid "Notifications"
 msgstr "Aviseringar"
 
-#: gui/dialogs.py:1810
+#: gui/dialogs.py:1503
+msgid "Announcements"
+msgstr ""
+
+#: gui/dialogs.py:1854
 msgid "Translate"
 msgstr "Översätt"
 
-#: gui/dialogs.py:1830
+#: gui/dialogs.py:1874
 msgid "User Data Folder"
 msgstr "Användardatamapp"
 
-#: gui/dialogs.py:1831
+#: gui/dialogs.py:1875
 msgid "App Install Folder"
 msgstr "Appens installationsmapp"
 
-#: gui/dialogs.py:1905
+#: gui/dialogs.py:1949
 msgid "Advanced"
 msgstr "Avancerat"
 
-#: gui/dialogs.py:2522
+#: gui/dialogs.py:2566
 msgid "Choose yt-dlp cookies.txt"
 msgstr "Välj cookies.txt för yt-dlp"
 
-#: gui/dialogs.py:2563
+#: gui/dialogs.py:2607
 msgid "Clear playback cache"
 msgstr "Rensa uppspelningscache"
 
-#: gui/dialogs.py:2571
+#: gui/dialogs.py:2615
 msgid "Playback cache cleared"
 msgstr "Uppspelningscachen har rensats"
 
-#: gui/dialogs.py:2603
+#: gui/dialogs.py:2647
 msgid "Find my export"
 msgstr "Hitta min export"
 
-#: gui/dialogs.py:2603
+#: gui/dialogs.py:2647
 msgid "Open extension page"
 msgstr "Öppna tilläggssidan"
 
-#: gui/dialogs.py:2603 gui/dialogs.py:2634 gui/player.py:380
+#: gui/dialogs.py:2647 gui/dialogs.py:2678 gui/player.py:380
 msgid "Cancel"
 msgstr "Avbryt"
 
-#: gui/dialogs.py:2673
+#: gui/dialogs.py:2717
 msgid "Cookies imported"
 msgstr "Cookies har importerats"
 
-#: gui/dialogs.py:2987
+#: gui/dialogs.py:3045
 msgid "Refresh interval for this feed"
 msgstr "Uppdateringsintervall för detta flöde"
 
-#: gui/dialogs.py:3275 gui/mainframe.py:576 gui/mainframe.py:2037
+#: gui/dialogs.py:3333 gui/mainframe.py:583
 msgid "Feed"
 msgstr "Flöde"
 
-#: gui/dialogs.py:3276
+#: gui/dialogs.py:3334
 msgid "Last attempt"
 msgstr "Senaste försök"
 
-#: gui/dialogs.py:3277
+#: gui/dialogs.py:3335
 msgid "Failures"
 msgstr "Misslyckanden"
 
-#: gui/dialogs.py:3278 gui/mainframe.py:11384 gui/mainframe.py:11435
-#: gui/mainframe.py:6119
+#: gui/dialogs.py:3336 gui/mainframe.py:11536 gui/mainframe.py:11587
+#: gui/mainframe.py:6244
 msgid "Error"
 msgstr "Fel"
 
-#: gui/dialogs.py:3323
+#: gui/dialogs.py:3381
 msgid "No feeds reported errors during their most recent update."
 msgstr "Inga flöden rapporterade fel under sin senaste uppdatering."
 
-#: gui/dialogs.py:3325
+#: gui/dialogs.py:3383
 msgid "1 feed failed to update during its most recent attempt:"
 msgstr "1 flöde misslyckades med att uppdateras vid sitt senaste försök:"
 
-#: gui/dialogs.py:3602
+#: gui/dialogs.py:3660
 msgid "Podcast name, topic, or site URL"
 msgstr "Podcastnamn, ämne eller webbplats-URL"
 
-#: gui/dialogs.py:3625 gui/dialogs.py:4557 gui/dialogs.py:4579
-#: gui/mainframe.py:572
+#: gui/dialogs.py:3683 gui/dialogs.py:4615 gui/dialogs.py:4637
+#: gui/mainframe.py:579
 msgid "Title"
 msgstr "Titel"
 
-#: gui/dialogs.py:3627 gui/dialogs.py:4583
+#: gui/dialogs.py:3685 gui/dialogs.py:4641
 msgid "Details"
 msgstr "Detaljer"
 
-#: gui/dialogs.py:3628 gui/dialogs.py:4584
+#: gui/dialogs.py:3686 gui/dialogs.py:4642
 msgid "URL"
 msgstr "URL"
 
-#: gui/dialogs.py:4533
+#: gui/dialogs.py:4591
 msgid "Search videos across sites"
 msgstr "Sök videor på flera webbplatser"
 
-#: gui/dialogs.py:4557
+#: gui/dialogs.py:4615
 msgid "Relevance"
 msgstr "Relevans"
 
-#: gui/dialogs.py:4557 gui/dialogs.py:4580
+#: gui/dialogs.py:4615 gui/dialogs.py:4638
 msgid "Site"
 msgstr "Webbplats"
 
-#: gui/dialogs.py:4557 gui/dialogs.py:4582
+#: gui/dialogs.py:4615 gui/dialogs.py:4640
 msgid "Plays"
 msgstr "Uppspelningar"
 
-#: gui/dialogs.py:4581
+#: gui/dialogs.py:4639
 msgid "Kind"
 msgstr "Typ"
 
-#: gui/dialogs.py:4588 gui/dialogs.py:6093 gui/mainframe.py:5232
-#: gui/mainframe.py:4559
+#: gui/dialogs.py:4646 gui/dialogs.py:6151 gui/mainframe.py:5357
+#: gui/mainframe.py:4684
 msgid "Close"
 msgstr "Stäng"
 
-#: gui/dialogs.py:5768 gui/player.py:2001
+#: gui/dialogs.py:5826 gui/player.py:2001
 msgid "Play"
 msgstr "Spela upp"
 
-#: gui/dialogs.py:5769 gui/dialogs.py:5945
+#: gui/dialogs.py:5827 gui/dialogs.py:6003
 msgid "Subscribe"
 msgstr "Prenumerera"
 
-#: gui/dialogs.py:5770
+#: gui/dialogs.py:5828
 msgid "Copy URL"
 msgstr "Kopiera URL"
 
-#: gui/dialogs.py:6039
+#: gui/dialogs.py:6097
 msgid "Search query:"
 msgstr "Sökfråga:"
 
-#: gui/dialogs.py:6039
+#: gui/dialogs.py:6097
 msgid "Add Search"
 msgstr "Lägg till sökning"
 
-#: gui/dialogs.py:6136
+#: gui/dialogs.py:6194
 msgid "Queued media"
 msgstr "Köade medier"
 
-#: gui/dialogs.py:6264
+#: gui/dialogs.py:6322
 msgid "&Pause"
 msgstr "&Pausa"
 
-#: gui/dialogs.py:6264 gui/dialogs.py:6147
+#: gui/dialogs.py:6322 gui/dialogs.py:6205
 msgid "&Play"
 msgstr "&Spela upp"
 
-#: gui/dialogs.py:6369
+#: gui/dialogs.py:6427
 msgid "Captured keyboard shortcut"
 msgstr "Infångad genväg"
 
-#: gui/dialogs.py:6446
+#: gui/dialogs.py:6504
 msgid "Keyboard shortcuts"
 msgstr "Kortkommandon"
 
-#: gui/dialogs.py:6447
+#: gui/dialogs.py:6505
 msgid "Category"
 msgstr "Kategori"
 
-#: gui/dialogs.py:6448
+#: gui/dialogs.py:6506
 msgid "Command"
 msgstr "Kommando"
 
-#: gui/dialogs.py:6449
+#: gui/dialogs.py:6507
 msgid "Shortcut"
 msgstr "Genväg"
 
-#: gui/dialogs.py:6670
+#: gui/dialogs.py:6728
 msgid "Preset"
 msgstr "Förinställning"
 
-#: gui/dialogs.py:6679
+#: gui/dialogs.py:6737
 msgid "Preamp"
 msgstr "Förförstärkare"
 
-#: gui/dialogs.py:6762
+#: gui/dialogs.py:6820
 msgid "Custom"
 msgstr "Anpassad"
 
-#: gui/dialogs.py:6849
+#: gui/dialogs.py:6907
 msgid "Name for this equalizer preset:"
 msgstr "Namn på denna equalizerförinställning:"
 
-#: gui/dialogs.py:6849 gui/dialogs.py:6875 gui/dialogs.py:6861
+#: gui/dialogs.py:6907 gui/dialogs.py:6933 gui/dialogs.py:6919
 msgid "Save Preset"
 msgstr "Spara förinställning"
 
-#: gui/dialogs.py:60
+#: gui/dialogs.py:61
 msgid "Add Feed"
 msgstr "Lägg till flöde"
 
-#: gui/dialogs.py:120
+#: gui/dialogs.py:121
 msgid "OK: Recognized as YouTube source"
 msgstr "OK: Identifierad som YouTube-källa"
 
-#: gui/dialogs.py:146
+#: gui/dialogs.py:147
 msgid "Add BlindRSS Shortcuts"
 msgstr "Lägg till BlindRSS-genvägar"
 
-#: gui/dialogs.py:157
+#: gui/dialogs.py:158
 msgid "Desktop"
 msgstr "Skrivbord"
 
-#: gui/dialogs.py:161
+#: gui/dialogs.py:162
 msgid "Start Menu"
 msgstr "Startmeny"
 
-#: gui/dialogs.py:165
+#: gui/dialogs.py:166
 msgid "Taskbar"
 msgstr "Aktivitetsfält"
 
-#: gui/dialogs.py:191
+#: gui/dialogs.py:192
 msgid "Exclude Feeds from Notifications"
 msgstr "Undanta flöden från aviseringar"
 
-#: gui/dialogs.py:240
+#: gui/dialogs.py:241
 msgid "Check All"
 msgstr "Markera alla"
 
-#: gui/dialogs.py:241
+#: gui/dialogs.py:242
 msgid "Uncheck All"
 msgstr "Avmarkera alla"
 
-#: gui/dialogs.py:260
+#: gui/dialogs.py:261
 msgid "No feeds available."
 msgstr "Inga flöden tillgängliga."
 
-#: gui/dialogs.py:298
+#: gui/dialogs.py:299
 msgid "No feed selected."
 msgstr "Inget flöde valt."
 
-#: gui/dialogs.py:550 gui/mainframe.py:11817
+#: gui/dialogs.py:551 gui/mainframe.py:11969
 msgid "Settings"
 msgstr "Inställningar"
 
-#: gui/dialogs.py:674
+#: gui/dialogs.py:675
 msgid "Cache full text in background"
 msgstr "Cacha fulltext i bakgrunden"
 
-#: gui/dialogs.py:679
+#: gui/dialogs.py:680
 msgid "Enable Downloads"
 msgstr "Aktivera nedladdningar"
 
-#: gui/dialogs.py:683
+#: gui/dialogs.py:684
 msgid "Confirm before deleting articles"
 msgstr "Bekräfta innan artiklar tas bort"
 
-#: gui/dialogs.py:693
+#: gui/dialogs.py:694
 msgid "Move it to Deleted Articles (restorable)"
 msgstr "Flytta den till Borttagna artiklar (återställningsbar)"
 
-#: gui/dialogs.py:694 gui/dialogs.py:3082
+#: gui/dialogs.py:695 gui/dialogs.py:3140
 msgid "Remove it permanently"
 msgstr "Ta bort den permanent"
 
-#: gui/dialogs.py:695 gui/dialogs.py:3083
+#: gui/dialogs.py:696 gui/dialogs.py:3141
 msgid "Move it to a category"
 msgstr "Flytta den till en kategori"
 
-#: gui/dialogs.py:725 gui/dialogs.py:913 gui/dialogs.py:948
-#: gui/dialogs.py:1179
+#: gui/dialogs.py:726 gui/dialogs.py:914 gui/dialogs.py:949 gui/dialogs.py:1180
 msgid "Browse..."
 msgstr "Bläddra..."
 
-#: gui/dialogs.py:766
+#: gui/dialogs.py:767
 msgid "Close to system tray"
 msgstr "Minimera till systemfältet vid stängning"
 
-#: gui/dialogs.py:770
+#: gui/dialogs.py:771
 msgid "Minimize to system tray"
 msgstr "Minimera till systemfältet"
 
-#: gui/dialogs.py:775
+#: gui/dialogs.py:776
 msgid "Start BlindRSS in the system tray"
 msgstr "Starta BlindRSS i systemfältet"
 
-#: gui/dialogs.py:780
+#: gui/dialogs.py:781
 msgid "Always start maximized"
 msgstr "Starta alltid maximerad"
 
-#: gui/dialogs.py:784
+#: gui/dialogs.py:785
 msgid "Debug mode (show console on startup)"
 msgstr "Felsökningsläge (visa konsol vid start)"
 
-#: gui/dialogs.py:788
+#: gui/dialogs.py:789
 msgid "Check for updates on startup"
 msgstr "Sök efter uppdateringar vid start"
 
-#: gui/dialogs.py:792
+#: gui/dialogs.py:793
 msgid "Automatically refresh feeds upon start"
 msgstr "Uppdatera flöden automatiskt vid start"
 
-#: gui/dialogs.py:843
+#: gui/dialogs.py:844
 msgid ""
-"Article formatting: preserve structure from the original page as spoken text"
-" markers. Applies to newly loaded articles and full text."
+"Article formatting: preserve structure from the original page as spoken text "
+"markers. Applies to newly loaded articles and full text."
 msgstr ""
 "Artikelformatering: bevara strukturen från originalsidan som upplästa "
 "textmarkörer. Gäller nyinlästa artiklar och fulltext."
 
-#: gui/dialogs.py:851
+#: gui/dialogs.py:852
 msgid "Describe tables (\"Table with 3 rows...\" and one line per row)"
 msgstr "Beskriv tabeller (\"Table with 3 rows...\" och en rad per tabellrad)"
 
-#: gui/dialogs.py:857
+#: gui/dialogs.py:858
 msgid "Announce headings (\"Heading level 2:\" before each heading)"
 msgstr "Meddela rubriker (\"Heading level 2:\" före varje rubrik)"
 
-#: gui/dialogs.py:863
+#: gui/dialogs.py:864
 msgid "Mark list items with bullets and numbers"
 msgstr "Markera listobjekt med punkter och siffror"
 
-#: gui/dialogs.py:869
+#: gui/dialogs.py:870
 msgid "Mark quotations (\"Quote:\" before and \"End of quote.\" after)"
 msgstr "Markera citat (\"Quote:\" före och \"End of quote.\" efter)"
 
-#: gui/dialogs.py:875
+#: gui/dialogs.py:876
 msgid ""
 "Show links as \"text (address)\" and open the link at the cursor with Enter"
-msgstr "Visa länkar som \"text (adress)\" och öppna länken vid markören med Retur"
+msgstr ""
+"Visa länkar som \"text (adress)\" och öppna länken vid markören med Retur"
 
-#: gui/dialogs.py:881
+#: gui/dialogs.py:882
 msgid ""
 "Rich full-text view: show links, embedded videos, and tweets in a web view "
 "(instead of plain text). Falls back to plain text if unavailable."
 msgstr ""
-"Berikad fulltextvy: visa länkar, inbäddade videoklipp och tweets i en webbvy"
-" (i stället för oformaterad text). Återgår till oformaterad text om den inte"
-" är tillgänglig."
+"Berikad fulltextvy: visa länkar, inbäddade videoklipp och tweets i en webbvy "
+"(i stället för oformaterad text). Återgår till oformaterad text om den inte "
+"är tillgänglig."
 
-#: gui/dialogs.py:891
+#: gui/dialogs.py:892
 msgid ""
 "Include image alt text in articles (announces images, can override per feed)"
 msgstr ""
 "Inkludera alt-text för bilder i artiklar (läser upp bilder, kan åsidosättas "
 "per flöde)"
 
-#: gui/dialogs.py:898
+#: gui/dialogs.py:899
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
-" or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
+"or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
-" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
-"Edge Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
+"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
+"Canary."
 msgstr ""
 "yt-dlp-cookiefil (cookies.txt) — behövs bara för åldersbegränsat, privat "
 "eller endast-för-medlemmar-innehåll på YouTube. Installerade webbläsare "
@@ -972,105 +1055,105 @@ msgstr ""
 "reservlösningen. LibreWolf använder Firefox-kompatibla cookies. Chromes "
 "\"Nightly\" betyder Chrome Canary; Edges \"Nightly\" betyder Edge Canary."
 
-#: gui/dialogs.py:917
+#: gui/dialogs.py:918
 msgid "Import from browser..."
 msgstr "Importera från webbläsare..."
 
-#: gui/dialogs.py:924
+#: gui/dialogs.py:925
 msgid ""
 "Automatically import a YouTube cookies.txt when you export one to Downloads"
 msgstr ""
 "Importera automatiskt en YouTube-cookies.txt när du exporterar en till "
 "Nedladdningar"
 
-#: gui/dialogs.py:931
+#: gui/dialogs.py:932
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
 msgstr ""
-"Spela upp YouTube genom att ladda ner först (mest pålitligt; långsammare att"
-" starta)"
+"Spela upp YouTube genom att ladda ner först (mest pålitligt; långsammare att "
+"starta)"
 
-#: gui/dialogs.py:938
+#: gui/dialogs.py:939
 msgid "YouTube playback cache folder (blank = default, next to your data):"
 msgstr ""
 "Mapp för YouTube-uppspelningscache (tomt = standard, bredvid din data):"
 
-#: gui/dialogs.py:952
+#: gui/dialogs.py:953
 msgid "Clear cache now"
 msgstr "Rensa cache nu"
 
-#: gui/dialogs.py:971
+#: gui/dialogs.py:972
 msgid "Ask to install missing media dependencies on startup"
 msgstr "Fråga om att installera saknade medieberoenden vid start"
 
-#: gui/dialogs.py:984
+#: gui/dialogs.py:985
 msgid "Remember last selected feed/folder on startup"
 msgstr "Kom ihåg senast valt flöde/mapp vid start"
 
-#: gui/dialogs.py:1064
+#: gui/dialogs.py:1065
 msgid "Test"
 msgstr "Testa"
 
-#: gui/dialogs.py:1071
+#: gui/dialogs.py:1072
 msgid "Use %1 for the article URL. Example: chrome --incognito %1"
 msgstr "Använd %1 för artikelns URL. Exempel: chrome --incognito %1"
 
-#: gui/dialogs.py:1098 gui/dialogs.py:2455
+#: gui/dialogs.py:1099 gui/dialogs.py:2499
 msgid "System Default"
 msgstr "Systemstandard"
 
-#: gui/dialogs.py:1106
+#: gui/dialogs.py:1107
 msgid "Skip Silence (Experimental)"
 msgstr "Hoppa över tystnad (experimentell)"
 
-#: gui/dialogs.py:1135
+#: gui/dialogs.py:1136
 msgid "Show player window when starting playback"
 msgstr "Visa spelarfönster när uppspelning startar"
 
-#: gui/dialogs.py:1146
+#: gui/dialogs.py:1147
 msgid "Verbose range-cache proxy debug logs"
 msgstr "Utförliga felsökningsloggar för intervallcacheproxy"
 
-#: gui/dialogs.py:1229
+#: gui/dialogs.py:1230
 msgid "Provider information"
 msgstr "Leverantörsinformation"
 
-#: gui/dialogs.py:1358
+#: gui/dialogs.py:1359
 msgid "Enable Sound Notifications"
 msgstr "Aktivera ljudaviseringar"
 
-#: gui/dialogs.py:1402
+#: gui/dialogs.py:1403
 msgid "Enable notifications for new articles"
 msgstr "Aktivera aviseringar för nya artiklar"
 
-#: gui/dialogs.py:1411
+#: gui/dialogs.py:1412
 msgid "Include feed name in notification text"
 msgstr "Inkludera flödesnamn i aviseringstexten"
 
-#: gui/dialogs.py:1436
+#: gui/dialogs.py:1437
 msgid "Show a summary notification when notification cap is reached"
 msgstr "Visa en sammanfattande avisering när aviseringsgränsen nås"
 
-#: gui/dialogs.py:1443
+#: gui/dialogs.py:1444
 msgid "Test Notification"
 msgstr "Testavisering"
 
-#: gui/dialogs.py:1447
+#: gui/dialogs.py:1448
 msgid "Exclude Feeds..."
 msgstr "Undanta flöden..."
 
-#: gui/dialogs.py:1473
+#: gui/dialogs.py:1517
 msgid "Enable automatic translation for article content"
 msgstr "Aktivera automatisk översättning av artikelinnehåll"
 
-#: gui/dialogs.py:1564
+#: gui/dialogs.py:1608
 msgid ""
 "Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select "
 "'Groq (LLaMA, Mistral)' instead."
 msgstr ""
-"Grok kommer från xAI. Skaffa en nyckel på console.x.ai. För Groq "
-"(LLaMA/Mistral), välj i stället 'Groq (LLaMA, Mistral)'."
+"Grok kommer från xAI. Skaffa en nyckel på console.x.ai. För Groq (LLaMA/"
+"Mistral), välj i stället 'Groq (LLaMA, Mistral)'."
 
-#: gui/dialogs.py:1623
+#: gui/dialogs.py:1667
 msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
@@ -1078,316 +1161,319 @@ msgstr ""
 "Groq är INTE Grok. Skaffa en gratis Groq-nyckel på console.groq.com/keys "
 "(kör LLaMA- och Mistral-modeller)."
 
-#: gui/dialogs.py:1709
+#: gui/dialogs.py:1753
 msgid "Load OpenRouter Models"
 msgstr "Läs in OpenRouter-modeller"
 
-#: gui/dialogs.py:1713
+#: gui/dialogs.py:1757
 msgid "Loads all available model IDs from OpenRouter."
 msgstr "Läser in alla tillgängliga modell-ID:n från OpenRouter."
 
-#: gui/dialogs.py:1816
+#: gui/dialogs.py:1860
 msgid "Data Storage Location"
 msgstr "Lagringsplats för data"
 
-#: gui/dialogs.py:1821
+#: gui/dialogs.py:1865
 msgid ""
 "Where BlindRSS stores config.json and rss.db.\n"
 "User Data Folder keeps your settings and feeds across app upgrades,\n"
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Var BlindRSS lagrar config.json och rss.db.\n"
-"Mappen för användardata bevarar dina inställningar och flöden mellan appuppdateringar,\n"
+"Mappen för användardata bevarar dina inställningar och flöden mellan "
+"appuppdateringar,\n"
 "särskilt på macOS där det installerade apppaketet ersätts."
 
-#: gui/dialogs.py:1868 gui/mainframe.py:12025 gui/mainframe.py:11993
+#: gui/dialogs.py:1912 gui/mainframe.py:12177 gui/mainframe.py:12145
 msgid "Updates"
 msgstr "Uppdateringar"
 
-#: gui/dialogs.py:1872
+#: gui/dialogs.py:1916
 msgid "Automatically install updates without confirmation"
 msgstr "Installera uppdateringar automatiskt utan bekräftelse"
 
-#: gui/dialogs.py:1881 gui/dialogs.py:4478
+#: gui/dialogs.py:1925 gui/dialogs.py:4536
 msgid "Video Search"
 msgstr "Videosökning"
 
-#: gui/dialogs.py:1885
+#: gui/dialogs.py:1929
 msgid "Enable adult sites in Video Search"
 msgstr "Aktivera vuxensajter i videosökning"
 
-#: gui/dialogs.py:1944
+#: gui/dialogs.py:1988
 msgid "Loading OpenRouter models..."
 msgstr "Läser in OpenRouter-modeller..."
 
-#: gui/dialogs.py:2106
+#: gui/dialogs.py:2150
 msgid "Notifications are not supported on this platform."
 msgstr "Aviseringar stöds inte på den här plattformen."
 
-#: gui/dialogs.py:2215
+#: gui/dialogs.py:2259
 msgid "Enter your Inoreader App ID and App Key first."
 msgstr "Ange ditt Inoreader-app-ID och din app-nyckel först."
 
-#: gui/dialogs.py:2244
+#: gui/dialogs.py:2288
 msgid "Paste the full URL from your browser address bar"
 msgstr "Klistra in hela URL:en från webbläsarens adressfält"
 
-#: gui/dialogs.py:2556
+#: gui/dialogs.py:2600
 msgid "Playback cache"
 msgstr "Uppspelningscache"
 
-#: gui/dialogs.py:2634
+#: gui/dialogs.py:2678
 msgid "Choose file..."
 msgstr "Välj fil..."
 
-#: gui/dialogs.py:2641
+#: gui/dialogs.py:2685
 msgid "Choose exported cookies.txt"
 msgstr "Välj exporterad cookies.txt"
 
-#: gui/dialogs.py:2741
+#: gui/dialogs.py:2785
 msgid "Enter a command to test. Use %1 where the article URL should go."
 msgstr "Ange ett kommando att testa. Använd %1 där artikelns URL ska stå."
 
-#: gui/dialogs.py:2742
+#: gui/dialogs.py:2786
 msgid "Nothing to test"
 msgstr "Inget att testa"
 
-#: gui/dialogs.py:2761
+#: gui/dialogs.py:2805
 msgid "Test launched"
 msgstr "Test startat"
 
-#: gui/dialogs.py:2766
+#: gui/dialogs.py:2810
 msgid "Test failed"
 msgstr "Testet misslyckades"
 
-#: gui/dialogs.py:2924
+#: gui/dialogs.py:2982
 msgid "Feed Properties"
 msgstr "Flödesegenskaper"
 
-#: gui/dialogs.py:2970 gui/dialogs.py:3080
+#: gui/dialogs.py:3028 gui/dialogs.py:3138
 msgid "Use global setting"
 msgstr "Använd global inställning"
 
-#: gui/dialogs.py:2971
+#: gui/dialogs.py:3029
 msgid "Never (manual refresh only)"
 msgstr "Aldrig (endast manuell uppdatering)"
 
-#: gui/dialogs.py:3081
+#: gui/dialogs.py:3139
 msgid "Move it to Deleted Articles"
 msgstr "Flytta den till Borttagna artiklar"
 
-#: gui/dialogs.py:3257
+#: gui/dialogs.py:3315
 msgid "Feeds with Errors"
 msgstr "Flöden med fel"
 
-#: gui/dialogs.py:3281
+#: gui/dialogs.py:3339
 msgid "Error &details:"
 msgstr "Fel&detaljer:"
 
-#: gui/dialogs.py:3292
+#: gui/dialogs.py:3350
 msgid "&Refresh Selected"
 msgstr "&Uppdatera markerade"
 
-#: gui/dialogs.py:3293
+#: gui/dialogs.py:3351
 msgid "&Copy Details"
 msgstr "&Kopiera detaljer"
 
-#: gui/dialogs.py:3294
+#: gui/dialogs.py:3352
 msgid "Feed &Properties..."
 msgstr "Flödes&egenskaper..."
 
-#: gui/dialogs.py:3295
+#: gui/dialogs.py:3353
 msgid "Re&move Feed"
 msgstr "Ta &bort flöde"
 
-#: gui/dialogs.py:3357
+#: gui/dialogs.py:3415
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead "
+"URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Inga flöden rapporterade fel under sitt senaste uppdateringsförsök.\n"
 "\n"
-"Flöden visas här automatiskt när en uppdatering misslyckas (till exempel en död URL, ett HTTP-fel, en timeout eller ett ogiltigt flödesformat)."
+"Flöden visas här automatiskt när en uppdatering misslyckas (till exempel en "
+"död URL, ett HTTP-fel, en timeout eller ett ogiltigt flödesformat)."
 
-#: gui/dialogs.py:3489
+#: gui/dialogs.py:3547
 msgid "Editing feed properties is not available here."
 msgstr "Redigering av flödesegenskaper är inte tillgänglig här."
 
-#: gui/dialogs.py:3490
+#: gui/dialogs.py:3548
 msgid "Not available"
 msgstr "Inte tillgängligt"
 
-#: gui/dialogs.py:3514
+#: gui/dialogs.py:3572
 msgid "Confirm Remove"
 msgstr "Bekräfta borttagning"
 
-#: gui/dialogs.py:3587
+#: gui/dialogs.py:3645
 msgid "Find a Podcast or RSS Feed"
 msgstr "Hitta en podcast eller RSS-flöde"
 
-#: gui/dialogs.py:3613 gui/dialogs.py:4535
+#: gui/dialogs.py:3671 gui/dialogs.py:4593
 msgid "Search"
 msgstr "Sök"
 
-#: gui/dialogs.py:3619 gui/dialogs.py:4565 gui/dialogs.py:5873
+#: gui/dialogs.py:3677 gui/dialogs.py:4623 gui/dialogs.py:5931
 msgid "Ready."
 msgstr "Klar."
 
-#: gui/dialogs.py:3762
+#: gui/dialogs.py:3820
 msgid "Searching all sources..."
 msgstr "Söker i alla källor..."
 
-#: gui/dialogs.py:4537
+#: gui/dialogs.py:4595
 msgid "Load More Results (+80/site)"
 msgstr "Läs in fler resultat (+80/webbplats)"
 
-#: gui/dialogs.py:5493
+#: gui/dialogs.py:5551
 msgid "No searchable sites."
 msgstr "Inga sökbara webbplatser."
 
-#: gui/dialogs.py:5945
+#: gui/dialogs.py:6003
 msgid "Parent window does not support subscribing from this dialog."
 msgstr ""
 "Det överordnade fönstret stöder inte prenumeration från den här dialogrutan."
 
-#: gui/dialogs.py:5998
+#: gui/dialogs.py:6056
 msgid "Configure Persistent Search"
 msgstr "Konfigurera bestående sökning"
 
-#: gui/dialogs.py:6011
+#: gui/dialogs.py:6069
 msgid "Add..."
 msgstr "Lägg till..."
 
-#: gui/dialogs.py:6012
+#: gui/dialogs.py:6070
 msgid "Remove"
 msgstr "Ta bort"
 
-#: gui/dialogs.py:6066 gui/mainframe.py:2174
+#: gui/dialogs.py:6124 gui/mainframe.py:2181
 msgid "About BlindRSS"
 msgstr "Om BlindRSS"
 
-#: gui/dialogs.py:6077
+#: gui/dialogs.py:6135
 msgid "Copyright (c) 2024-2026 serrebidev and contributors"
 msgstr "Copyright (c) 2024-2026 serrebidev och bidragsgivare"
 
-#: gui/dialogs.py:6083
+#: gui/dialogs.py:6141
 msgid "Follow me on GitHub (@serrebidev)"
 msgstr "Följ mig på GitHub (@serrebidev)"
 
-#: gui/dialogs.py:6084
+#: gui/dialogs.py:6142
 msgid "Visit Repository"
 msgstr "Besök arkivet"
 
-#: gui/dialogs.py:6085
+#: gui/dialogs.py:6143
 msgid "View Changelog"
 msgstr "Visa ändringslogg"
 
-#: gui/dialogs.py:6125
+#: gui/dialogs.py:6183
 msgid "Play Queue"
 msgstr "Uppspelningskö"
 
-#: gui/dialogs.py:6151 gui/mainframe.py:12527
+#: gui/dialogs.py:6209 gui/mainframe.py:12679
 msgid "Move &Up"
 msgstr "Flytta &upp"
 
-#: gui/dialogs.py:6155 gui/mainframe.py:12528
+#: gui/dialogs.py:6213 gui/mainframe.py:12680
 msgid "Move &Down"
 msgstr "Flytta &ner"
 
-#: gui/dialogs.py:6159
+#: gui/dialogs.py:6217
 msgid "&Remove"
 msgstr "&Ta bort"
 
-#: gui/dialogs.py:6163
+#: gui/dialogs.py:6221
 msgid "&Clear All"
 msgstr "&Rensa alla"
 
-#: gui/dialogs.py:6230
+#: gui/dialogs.py:6288
 msgid "Untitled"
 msgstr "Namnlös"
 
-#: gui/dialogs.py:6251
+#: gui/dialogs.py:6309
 msgid "The play queue is empty."
 msgstr "Uppspelningskön är tom."
 
-#: gui/dialogs.py:6312
+#: gui/dialogs.py:6370
 msgid "Remove all items from the play queue?"
 msgstr "Ta bort alla objekt från uppspelningskön?"
 
-#: gui/dialogs.py:6313
+#: gui/dialogs.py:6371
 msgid "Clear Play Queue"
 msgstr "Rensa uppspelningskön"
 
-#: gui/dialogs.py:6355
+#: gui/dialogs.py:6413
 msgid "Press Shortcut"
 msgstr "Tryck på genväg"
 
-#: gui/dialogs.py:6368
+#: gui/dialogs.py:6426
 msgid "Waiting for a key…"
 msgstr "Väntar på en tangent…"
 
-#: gui/dialogs.py:6429
+#: gui/dialogs.py:6487
 msgid "Keyboard Shortcuts"
 msgstr "Kortkommandon"
 
-#: gui/dialogs.py:6441
+#: gui/dialogs.py:6499
 msgid "Select a command and choose Change to set its shortcut."
 msgstr "Välj ett kommando och välj Ändra för att ange dess genväg."
 
-#: gui/dialogs.py:6456
+#: gui/dialogs.py:6514
 msgid "&Change Shortcut..."
 msgstr "&Ändra genväg..."
 
-#: gui/dialogs.py:6460
+#: gui/dialogs.py:6518
 msgid "&Remove Shortcut"
 msgstr "&Ta bort genväg"
 
-#: gui/dialogs.py:6464
+#: gui/dialogs.py:6522
 msgid "Reset All to &Defaults"
 msgstr "Återställ alla till &standard"
 
-#: gui/dialogs.py:6582
+#: gui/dialogs.py:6640
 msgid "Reset all keyboard shortcuts to their defaults?"
 msgstr "Återställa alla kortkommandon till sina standardvärden?"
 
-#: gui/dialogs.py:6583
+#: gui/dialogs.py:6641
 msgid "Reset Shortcuts"
 msgstr "Återställ genvägar"
 
-#: gui/dialogs.py:6636
+#: gui/dialogs.py:6694
 msgid "Equalizer"
 msgstr "Equalizer"
 
-#: gui/dialogs.py:6661
+#: gui/dialogs.py:6719
 msgid "&Enable equalizer"
 msgstr "&Aktivera equalizer"
 
-#: gui/dialogs.py:6698
+#: gui/dialogs.py:6756
 msgid "&Save as Preset..."
 msgstr "&Spara som förinställning..."
 
-#: gui/dialogs.py:6701
+#: gui/dialogs.py:6759
 msgid "&Delete Preset"
 msgstr "Ta &bort förinställning"
 
-#: gui/dialogs.py:6704
+#: gui/dialogs.py:6762
 msgid "&Reset (Flat)"
 msgstr "&Återställ (platt)"
 
-#: gui/dialogs.py:6875
+#: gui/dialogs.py:6933
 msgid "Could not save the preset."
 msgstr "Det gick inte att spara förinställningen."
 
-#: gui/dialogs.py:6887
+#: gui/dialogs.py:6945
 msgid "Delete Preset"
 msgstr "Ta bort förinställning"
 
-#: gui/dialogs.py:69
+#: gui/dialogs.py:70
 msgid "Feed or Media URL:"
 msgstr "Flödes- eller media-URL:"
 
-#: gui/dialogs.py:201
+#: gui/dialogs.py:202
 msgid ""
 "Feeds are checked by default.\n"
 "Uncheck feeds that should not send notifications."
@@ -1395,59 +1481,59 @@ msgstr ""
 "Flöden är markerade som standard.\n"
 "Avmarkera flöden som inte ska skicka aviseringar."
 
-#: gui/dialogs.py:306
+#: gui/dialogs.py:307
 msgid "Selected feed: {name}. {state}."
 msgstr "Valt flöde: {name}. {state}."
 
-#: gui/dialogs.py:575
+#: gui/dialogs.py:576
 msgid "Refresh Interval:"
 msgstr "Uppdateringsintervall:"
 
-#: gui/dialogs.py:616
+#: gui/dialogs.py:617
 msgid "Search Matches:"
 msgstr "Sökträffar:"
 
-#: gui/dialogs.py:643
+#: gui/dialogs.py:644
 msgid "Max Concurrent Refreshes:"
 msgstr "Max samtidiga uppdateringar:"
 
-#: gui/dialogs.py:649
+#: gui/dialogs.py:650
 msgid "Max Connections Per Host:"
 msgstr "Max anslutningar per värd:"
 
-#: gui/dialogs.py:655
+#: gui/dialogs.py:656
 msgid "Feed Timeout (seconds):"
 msgstr "Flödestimeout (sekunder):"
 
-#: gui/dialogs.py:661
+#: gui/dialogs.py:662
 msgid "Feed Retry Attempts:"
 msgstr "Antal återförsök för flöde:"
 
-#: gui/dialogs.py:668
+#: gui/dialogs.py:669
 msgid "Max Cached Views:"
 msgstr "Max cachade vyer:"
 
-#: gui/dialogs.py:690
+#: gui/dialogs.py:691
 msgid "When I delete an article:"
 msgstr "När jag tar bort en artikel:"
 
-#: gui/dialogs.py:721
+#: gui/dialogs.py:722
 msgid "Download Path:"
 msgstr "Nedladdningssökväg:"
 
-#: gui/dialogs.py:750
+#: gui/dialogs.py:751
 msgid "Retention Policy:"
 msgstr "Kvarhållningspolicy:"
 
-#: gui/dialogs.py:758
+#: gui/dialogs.py:759
 msgid "Article Retention:"
 msgstr "Kvarhållning av artiklar:"
 
-#: gui/dialogs.py:798
+#: gui/dialogs.py:799
 msgid "Local RSS automatic refresh workload:"
 msgstr "Automatisk uppdatering av lokal RSS:"
 
-#: gui/dialogs.py:832
+#: gui/dialogs.py:833
 msgid ""
 "Using the Local RSS feed cache lowers CPU and network use. Manual Refresh "
 "All always checks every feed."
@@ -1455,147 +1541,153 @@ msgstr ""
 "Att använda flödescachen minskar CPU- och nätverksanvändningen. Manuell "
 "uppdatering av alla flöden kontrollerar alltid varje flöde."
 
-#: gui/dialogs.py:959
+#: gui/dialogs.py:960
 msgid "Max cache size (MB, 0 = unlimited):"
 msgstr "Max cachestorlek (MB, 0 = obegränsat):"
 
-#: gui/dialogs.py:993
+#: gui/dialogs.py:994
 msgid "Interface language (requires restart):"
 msgstr "Gränssnittsspråk (kräver omstart):"
 
-#: gui/dialogs.py:1017
+#: gui/dialogs.py:1018
 msgid "Feed category tree on startup:"
 msgstr "Flödeskategoriträd vid start:"
 
-#: gui/dialogs.py:1037
+#: gui/dialogs.py:1038
 msgid "Article opening method:"
 msgstr "Metod för att öppna artiklar:"
 
-#: gui/dialogs.py:1056
+#: gui/dialogs.py:1057
 msgid "Custom command:"
 msgstr "Anpassat kommando:"
 
-#: gui/dialogs.py:1096
+#: gui/dialogs.py:1097
 msgid "Preferred Soundcard:"
 msgstr "Föredraget ljudkort:"
 
-#: gui/dialogs.py:1112
+#: gui/dialogs.py:1113
 msgid "Default Playback Speed:"
 msgstr "Standarduppspelningshastighet:"
 
-#: gui/dialogs.py:1141
+#: gui/dialogs.py:1142
 msgid "Network Cache (ms):"
 msgstr "Nätverkscache (ms):"
 
-#: gui/dialogs.py:1159
+#: gui/dialogs.py:1160
 msgid "Leave a path blank to auto-detect. A set path overrides detection."
 msgstr ""
 "Lämna en sökväg tom för att detektera automatiskt. En angiven sökväg "
 "åsidosätter detekteringen."
 
-#: gui/dialogs.py:1201
+#: gui/dialogs.py:1202
 msgid "Active Provider:"
 msgstr "Aktiv leverantör:"
 
-#: gui/dialogs.py:1289
+#: gui/dialogs.py:1290
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
+"fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address "
+"bar and paste it\n"
 "when prompted."
 msgstr ""
-"Obs: Om din omdirigerings-URI använder HTTPS (vanligt/krävs) kan din webbläsare\n"
-"misslyckas med att läsa in localhost efter auktorisering. Kopiera hela den omdirigerade\n"
+"Obs: Om din omdirigerings-URI använder HTTPS (vanligt/krävs) kan din "
+"webbläsare\n"
+"misslyckas med att läsa in localhost efter auktorisering. Kopiera hela den "
+"omdirigerade\n"
 "URL:en från adressfältet och klistra in den när du uppmanas."
 
-#: gui/dialogs.py:1301
+#: gui/dialogs.py:1302
 msgid "Authorize Inoreader"
 msgstr "Auktorisera Inoreader"
 
-#: gui/dialogs.py:1302
+#: gui/dialogs.py:1303
 msgid "Clear Authorization"
 msgstr "Rensa auktorisering"
 
-#: gui/dialogs.py:1420
+#: gui/dialogs.py:1421
 msgid "Max notifications per refresh (0 = no limit):"
 msgstr "Max aviseringar per uppdatering (0 = ingen gräns):"
 
-#: gui/dialogs.py:1493
+#: gui/dialogs.py:1537
 msgid "Provider:"
 msgstr "Leverantör:"
 
-#: gui/dialogs.py:1513
+#: gui/dialogs.py:1557
 msgid "Target language:"
 msgstr "Målspråk:"
 
-#: gui/dialogs.py:1534
+#: gui/dialogs.py:1578
 msgid "Choose a language or type a code (e.g. en, es, fr, pt-BR)."
 msgstr "Välj ett språk eller skriv en kod (t.ex. en, es, fr, pt-BR)."
 
-#: gui/dialogs.py:1543
+#: gui/dialogs.py:1587
 msgid "Grok (xAI) model (optional):"
 msgstr "Grok (xAI)-modell (valfritt):"
 
-#: gui/dialogs.py:1574
+#: gui/dialogs.py:1618
 msgid "Grok (xAI) API key (starts with xai-):"
 msgstr "Grok (xAI) API-nyckel (börjar med xai-):"
 
-#: gui/dialogs.py:1586
+#: gui/dialogs.py:1630
 msgid "Groq model (optional) - hosts LLaMA and Mistral:"
 msgstr "Groq-modell (valfritt) – hostar LLaMA och Mistral:"
 
-#: gui/dialogs.py:1608
+#: gui/dialogs.py:1652
 msgid "Groq API key (starts with gsk_):"
 msgstr "Groq API-nyckel (börjar med gsk_):"
 
-#: gui/dialogs.py:1634
+#: gui/dialogs.py:1678
 msgid "OpenAI model (optional):"
 msgstr "OpenAI-modell (valfritt):"
 
-#: gui/dialogs.py:1656
+#: gui/dialogs.py:1700
 msgid "OpenAI API key:"
 msgstr "OpenAI API-nyckel:"
 
-#: gui/dialogs.py:1672
+#: gui/dialogs.py:1716
 msgid "OpenRouter model (optional):"
 msgstr "OpenRouter-modell (valfritt):"
 
-#: gui/dialogs.py:1694
+#: gui/dialogs.py:1738
 msgid "OpenRouter API key:"
 msgstr "OpenRouter API-nyckel:"
 
-#: gui/dialogs.py:1720
+#: gui/dialogs.py:1764
 msgid "Gemini model (optional):"
 msgstr "Gemini-modell (valfritt):"
 
-#: gui/dialogs.py:1742
+#: gui/dialogs.py:1786
 msgid "Gemini API key:"
 msgstr "Gemini API-nyckel:"
 
-#: gui/dialogs.py:1758
+#: gui/dialogs.py:1802
 msgid "Qwen model (optional):"
 msgstr "Qwen-modell (valfritt):"
 
-#: gui/dialogs.py:1780
+#: gui/dialogs.py:1824
 msgid "Qwen API key:"
 msgstr "Qwen API-nyckel:"
 
-#: gui/dialogs.py:1836
+#: gui/dialogs.py:1880
 msgid "Storage Location:"
 msgstr "Lagringsplats:"
 
-#: gui/dialogs.py:1893
+#: gui/dialogs.py:1937
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to search them."
+"When on, adult sites are added and must still be selected explicitly to "
+"search them."
 msgstr ""
 "När avstängd visas vuxensajter aldrig i videosökningens sajtlista.\n"
-"När påslagen läggs vuxensajter till och måste ändå väljas uttryckligen för att sökas i."
+"När påslagen läggs vuxensajter till och måste ändå väljas uttryckligen för "
+"att sökas i."
 
-#: gui/dialogs.py:2233
+#: gui/dialogs.py:2277
 msgid "Inoreader Authorization"
 msgstr "Inoreader-auktorisering"
 
-#: gui/dialogs.py:2370
+#: gui/dialogs.py:2414
 msgid ""
 "Inoreader authorization failed:\n"
 "{message}"
@@ -1603,186 +1695,185 @@ msgstr ""
 "Inoreader-auktorisering misslyckades:\n"
 "{message}"
 
-#: gui/dialogs.py:2570
+#: gui/dialogs.py:2614
 msgid "Removed {n} file, freed {size}."
 msgid_plural "Removed {n} files, freed {size}."
 msgstr[0] "{n} fil borttagen, {size} frigjort."
 msgstr[1] "{n} filer borttagna, {size} frigjort."
 
-#: gui/dialogs.py:2656 gui/dialogs.py:2663
+#: gui/dialogs.py:2700 gui/dialogs.py:2707
 msgid "Import failed"
 msgstr "Import misslyckades"
 
-#: gui/dialogs.py:2679
+#: gui/dialogs.py:2723
 msgid "Executables"
 msgstr "Körbara filer"
 
-#: gui/dialogs.py:2679 gui/dialogs.py:2681 gui/dialogs.py:2524
-#: gui/dialogs.py:2642
+#: gui/dialogs.py:2723 gui/dialogs.py:2725 gui/dialogs.py:2568
+#: gui/dialogs.py:2686
 msgid "All files"
 msgstr "Alla filer"
 
-#: gui/dialogs.py:2752
+#: gui/dialogs.py:2796
 msgid "Invalid command"
 msgstr "Ogiltigt kommando"
 
-#: gui/dialogs.py:2949
+#: gui/dialogs.py:3007
 msgid "URL:"
 msgstr "URL:"
 
-#: gui/dialogs.py:2968
+#: gui/dialogs.py:3026
 msgid "Refresh interval for this feed:"
 msgstr "Uppdateringsintervall för detta flöde:"
 
-#: gui/dialogs.py:3012
+#: gui/dialogs.py:3070
 msgid "Custom request headers (one per line, Name: Value):"
 msgstr "Anpassade förfrågningshuvuden (en per rad, Namn: Värde):"
 
-#: gui/dialogs.py:3028
+#: gui/dialogs.py:3086
 msgid "Request timeout in seconds (blank = default):"
 msgstr "Förfrågningstimeout i sekunder (tomt = standard):"
 
-#: gui/dialogs.py:3043
+#: gui/dialogs.py:3101
 msgid "Browser impersonation:"
 msgstr "Webbläsaridentitet:"
 
-#: gui/dialogs.py:3044
+#: gui/dialogs.py:3102
 msgid "Auto"
 msgstr "Automatisk"
 
-#: gui/dialogs.py:3044
+#: gui/dialogs.py:3102
 msgid "Always"
 msgstr "Alltid"
 
-#: gui/dialogs.py:3056
+#: gui/dialogs.py:3114
 msgid "Proxy URL (optional, e.g. http://host:port):"
 msgstr "Proxy-URL (valfritt, t.ex. http://värd:port):"
 
-#: gui/dialogs.py:3077
+#: gui/dialogs.py:3135
 msgid "When I delete an article from this feed:"
 msgstr "När jag tar bort en artikel från det här flödet:"
 
-#: gui/dialogs.py:3448
+#: gui/dialogs.py:3506
 msgid "Refreshing '{title}'..."
 msgstr "Uppdaterar '{title}'..."
 
-#: gui/dialogs.py:3597 gui/dialogs.py:4529
+#: gui/dialogs.py:3655 gui/dialogs.py:4587
 msgid "Search:"
 msgstr "Sök:"
 
-#: gui/dialogs.py:3606
+#: gui/dialogs.py:3664
 msgid "Source:"
 msgstr "Källa:"
 
-#: gui/dialogs.py:3634
+#: gui/dialogs.py:3692
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
-"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit "
-"source."
+"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/"
+"Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source."
 msgstr ""
-"Källor: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, Google"
-" News, Bing News, Feedsearch, webbplatsskanning, Reddit, Fediversum "
-"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly är tillgängligt som en "
-"uttrycklig källa."
+"Källor: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, Google "
+"News, Bing News, Feedsearch, webbplatsskanning, Reddit, Fediversum (Lemmy/"
+"Kbin/Mastodon/Bluesky/PieFed). Feedly är tillgängligt som en uttrycklig "
+"källa."
 
-#: gui/dialogs.py:4023 gui/dialogs.py:4048
+#: gui/dialogs.py:4081 gui/dialogs.py:4106
 msgid "News search feed"
 msgstr "Nyhetssökflöde"
 
-#: gui/dialogs.py:4543
+#: gui/dialogs.py:4601
 msgid "Search Sites:"
 msgstr "Sökwebbplatser:"
 
-#: gui/dialogs.py:4547
+#: gui/dialogs.py:4605
 msgid "Filter Results:"
 msgstr "Filtrera resultat:"
 
-#: gui/dialogs.py:4551
+#: gui/dialogs.py:4609
 msgid "Sort by:"
 msgstr "Sortera efter:"
 
-#: gui/dialogs.py:5953
+#: gui/dialogs.py:6011
 msgid "Subscribe Error"
 msgstr "Prenumerationsfel"
 
-#: gui/dialogs.py:5991
+#: gui/dialogs.py:6049
 msgid "Copied URL."
 msgstr "URL kopierad."
 
-#: gui/dialogs.py:6004
+#: gui/dialogs.py:6062
 msgid "Saved searches:"
 msgstr "Sparade sökningar:"
 
-#: gui/dialogs.py:6492
+#: gui/dialogs.py:6550
 msgid "(none)"
 msgstr "(ingen)"
 
-#: gui/dialogs.py:6622
+#: gui/dialogs.py:6680
 msgid "{sign}{v} dB"
 msgstr "{sign}{v} dB"
 
-#: gui/dialogs.py:6668
+#: gui/dialogs.py:6726
 msgid "&Preset:"
 msgstr "&Förinställning:"
 
-#: gui/dialogs.py:1004
+#: gui/dialogs.py:1005
 msgid "Automatic (system language)"
 msgstr "Automatiskt (systemspråk)"
 
-#: gui/dialogs.py:1263
+#: gui/dialogs.py:1264
 msgid "Inoreader App ID:"
 msgstr "Inoreader-app-ID:"
 
-#: gui/dialogs.py:1270
+#: gui/dialogs.py:1271
 msgid "Inoreader App Key:"
 msgstr "Inoreader-appnyckel:"
 
-#: gui/dialogs.py:1281
+#: gui/dialogs.py:1282
 msgid "Redirect URI:"
 msgstr "Omdirigerings-URI:"
 
-#: gui/dialogs.py:2524 gui/dialogs.py:2642
+#: gui/dialogs.py:2568 gui/dialogs.py:2686
 msgid "Cookies"
 msgstr "Kakor"
 
-#: gui/dialogs.py:2555
+#: gui/dialogs.py:2599
 msgid "The playback cache is already empty."
 msgstr "Uppspelningscachen är redan tom."
 
-#: gui/dialogs.py:2561
+#: gui/dialogs.py:2605
 msgid "Delete {n} cached file ({size})?"
 msgid_plural "Delete {n} cached files ({size})?"
 msgstr[0] "Ta bort {n} cachad fil ({size})?"
 msgstr[1] "Ta bort {n} cachade filer ({size})?"
 
-#: gui/dialogs.py:3448
+#: gui/dialogs.py:3506
 msgid "feed"
 msgstr "flöde"
 
-#: gui/dialogs.py:4031
+#: gui/dialogs.py:4089
 msgid "News topic feed"
 msgstr "Nyhetsämnesflöde"
 
-#: gui/dialogs.py:5927
+#: gui/dialogs.py:5985
 msgid "Playback Error"
 msgstr "Uppspelningsfel"
 
-#: gui/dialogs.py:6233
+#: gui/dialogs.py:6291
 msgid "{index}. {title}, from {source}"
 msgstr "{index}. {title}, från {source}"
 
-#: gui/dialogs.py:6237
+#: gui/dialogs.py:6295
 msgid "{index}. {title}"
 msgstr "{index}. {title}"
 
-#: gui/dialogs.py:6244
+#: gui/dialogs.py:6302
 msgid "{n} item in queue."
 msgid_plural "{n} items in queue."
 msgstr[0] "{n} objekt i kön."
 msgstr[1] "{n} objekt i kön."
 
-#: gui/dialogs.py:6361
+#: gui/dialogs.py:6419
 msgid ""
 "Press the new shortcut for “{command}”.\n"
 "It must include Ctrl, Alt or Shift. Press Escape to cancel."
@@ -1790,19 +1881,19 @@ msgstr ""
 "Tryck på den nya genvägen för “{command}”.\n"
 "Den måste innehålla Ctrl, Alt eller Skift. Tryck på Escape för att avbryta."
 
-#: gui/dialogs.py:6554
+#: gui/dialogs.py:6612
 msgid "Shortcut Conflict"
 msgstr "Genvägskonflikt"
 
-#: gui/dialogs.py:6768
+#: gui/dialogs.py:6826
 msgid "{name} (my preset)"
 msgstr "{name} (min förinställning)"
 
-#: gui/dialogs.py:6886
+#: gui/dialogs.py:6944
 msgid "Delete the preset \"{name}\"?"
 msgstr "Ta bort förinställningen \"{name}\"?"
 
-#: gui/dialogs.py:1859
+#: gui/dialogs.py:1903
 msgid ""
 "User Data Folder path:\n"
 "  {path}\n"
@@ -1810,7 +1901,7 @@ msgstr ""
 "Sökväg till användardatamappen:\n"
 "  {path}\n"
 
-#: gui/dialogs.py:1860
+#: gui/dialogs.py:1904
 msgid ""
 "App Install Folder path:\n"
 "  {path}"
@@ -1818,27 +1909,27 @@ msgstr ""
 "Sökväg till appens installationsmapp:\n"
 "  {path}"
 
-#: gui/dialogs.py:5952
+#: gui/dialogs.py:6010
 msgid "Could not subscribe: {error}"
 msgstr "Kunde inte prenumerera: {error}"
 
-#: gui/dialogs.py:6860
+#: gui/dialogs.py:6918
 msgid "A preset named \"{name}\" already exists. Overwrite it?"
 msgstr "En förinställning med namnet \"{name}\" finns redan. Skriva över den?"
 
-#: gui/dialogs.py:1173
+#: gui/dialogs.py:1174
 msgid "{tool} path:"
 msgstr "Sökväg till {tool}:"
 
-#: gui/dialogs.py:1374
+#: gui/dialogs.py:1375
 msgid "WAV files"
 msgstr "WAV-filer"
 
-#: gui/dialogs.py:5926
+#: gui/dialogs.py:5984
 msgid "Could not start playback: {error}"
 msgstr "Kunde inte starta uppspelning: {error}"
 
-#: gui/dialogs.py:6550
+#: gui/dialogs.py:6608
 msgid ""
 "{accel} is already assigned to “{other}”.\n"
 "Reassign it to “{this}”?"
@@ -1846,774 +1937,811 @@ msgstr ""
 "{accel} är redan tilldelad “{other}”.\n"
 "Tilldela den till “{this}” i stället?"
 
-#: gui/mainframe.py:3431
+#: gui/mainframe.py:3507
 msgid "New article available."
 msgstr "Ny artikel tillgänglig."
 
-#: gui/mainframe.py:524 gui/mainframe.py:507
-msgid "Shortcuts"
-msgstr "Genvägar"
-
-#: gui/mainframe.py:573 gui/mainframe.py:2035
-msgid "Author"
-msgstr "Författare"
-
-#: gui/mainframe.py:574 gui/mainframe.py:1596
-msgid "Media"
-msgstr "Media"
-
-#: gui/mainframe.py:575 gui/mainframe.py:2033
-msgid "Date"
-msgstr "Datum"
-
-#: gui/mainframe.py:577 gui/mainframe.py:2036
-msgid "Description"
-msgstr "Beskrivning"
-
-#: gui/mainframe.py:578 gui/mainframe.py:2038
-msgid "Status"
-msgstr "Status"
-
-#: gui/mainframe.py:788 gui/mainframe.py:1961
-msgid "Configure Persistent Search..."
-msgstr "Konfigurera bestående sökning..."
-
-#: gui/mainframe.py:1948
-msgid "Add a new RSS feed"
-msgstr "Lägg till ett nytt RSS-flöde"
-
-#: gui/mainframe.py:1949
-msgid "&Remove Feed"
-msgstr "Ta &bort flöde"
-
-#: gui/mainframe.py:1949
-msgid "Remove selected feed"
-msgstr "Ta bort valt flöde"
-
-#: gui/mainframe.py:1950
-msgid "Refresh all feeds"
-msgstr "Uppdatera alla flöden"
-
-#: gui/mainframe.py:1951
-msgid "Stop the feed refresh currently in progress"
-msgstr "Stoppa den pågående flödesuppdateringen"
-
-#: gui/mainframe.py:1952
-msgid "Mark All Items as &Read"
-msgstr "Markera alla objekt som &lästa"
-
-#: gui/mainframe.py:1952
-msgid "Mark all items in all feeds as read"
-msgstr "Markera alla objekt i alla flöden som lästa"
-
-#: gui/mainframe.py:1953
-msgid "View Feed &Errors..."
-msgstr "Visa flödes&fel..."
-
-#: gui/mainframe.py:1953
-msgid "View feeds that failed to update"
-msgstr "Visa flöden som inte kunde uppdateras"
-
-#: gui/mainframe.py:1955
-msgid "Add &Category"
-msgstr "Lägg till &kategori"
-
-#: gui/mainframe.py:1955
-msgid "Add a new category"
-msgstr "Lägg till en ny kategori"
-
-#: gui/mainframe.py:1956
-msgid "Remove C&ategory"
-msgstr "Ta bort k&ategori"
-
-#: gui/mainframe.py:1956
-msgid "Remove selected category"
-msgstr "Ta bort vald kategori"
-
-#: gui/mainframe.py:1958
-msgid "&Import OPML..."
-msgstr "&Importera OPML..."
-
-#: gui/mainframe.py:1958
-msgid "Import feeds from OPML"
-msgstr "Importera flöden från OPML"
-
-#: gui/mainframe.py:1959
-msgid "E&xport OPML..."
-msgstr "E&xportera OPML..."
-
-#: gui/mainframe.py:1959
-msgid "Export feeds to OPML"
-msgstr "Exportera flöden till OPML"
-
-#: gui/mainframe.py:1961
-msgid "Configure saved search queries"
-msgstr "Konfigurera sparade sökfrågor"
-
-#: gui/mainframe.py:1967
-msgid "E&xit"
-msgstr "A&vsluta"
-
-#: gui/mainframe.py:1967
-msgid "Exit application"
-msgstr "Avsluta programmet"
-
-#: gui/mainframe.py:1974
-msgid "Cut the selection"
-msgstr "Klipp ut markeringen"
-
-#: gui/mainframe.py:1975
-msgid "Copy the selection"
-msgstr "Kopiera markeringen"
-
-#: gui/mainframe.py:1976
-msgid "Paste from the clipboard"
-msgstr "Klistra in från urklipp"
-
-#: gui/mainframe.py:1977
-msgid "Select all"
-msgstr "Markera allt"
-
-#: gui/mainframe.py:1980
-msgid "Show &Search Field"
-msgstr "Visa &sökfält"
-
-#: gui/mainframe.py:1980
-msgid "Show or hide the search field"
-msgstr "Visa eller dölj sökfältet"
-
-#: gui/mainframe.py:2019
-msgid "Article &Filter"
-msgstr "Artikel&filter"
-
-#: gui/mainframe.py:2019
-msgid "Filter all views by read status and media"
-msgstr "Filtrera alla vyer efter lässtatus och media"
-
-#: gui/mainframe.py:2022
-msgid "Open &Accessible Browser"
-msgstr "Öppna &tillgänglig webbläsare"
-
-#: gui/mainframe.py:2023
-msgid "Open the VoiceOver-friendly browser window"
-msgstr "Öppna det VoiceOver-vänliga webbläsarfönstret"
-
-#: gui/mainframe.py:2027
-msgid "Show/Hide &Player (Ctrl+Shift+P)"
-msgstr "Visa/dölj s&pelare (Ctrl+Skift+P)"
-
-#: gui/mainframe.py:2027 gui/mainframe.py:2073
-msgid "Show or hide the media player window"
-msgstr "Visa eller dölj mediaspelarfönstret"
-
-#: gui/mainframe.py:2050
-msgid "Ascending"
-msgstr "Stigande"
-
-#: gui/mainframe.py:2051
-msgid "Sort in ascending order (default is descending by date)"
-msgstr "Sortera i stigande ordning (standard är fallande efter datum)"
-
-#: gui/mainframe.py:2055
-msgid "Sort &By"
-msgstr "Sortera &efter"
-
-#: gui/mainframe.py:2072 gui/tray.py:97
-msgid "Show/Hide Player"
-msgstr "Visa/dölj spelare"
-
-#: gui/mainframe.py:2077 gui/tray.py:104
-msgid "Play/Pause"
-msgstr "Spela upp/Pausa"
-
-#: gui/mainframe.py:2077
-msgid "Toggle play/pause"
-msgstr "Växla uppspelning/paus"
-
-#: gui/mainframe.py:2080 gui/player.py:2006 gui/tray.py:105
-msgid "Stop"
-msgstr "Stoppa"
-
-#: gui/mainframe.py:2080
-msgid "Stop playback"
-msgstr "Stoppa uppspelning"
-
-#: gui/mainframe.py:2084
-msgid "Play &Queue..."
-msgstr "Uppspelnings&kö..."
-
-#: gui/mainframe.py:2085
-msgid "View and manage the media play queue"
-msgstr "Visa och hantera medieuppspelningskön"
-
-#: gui/mainframe.py:2088
-msgid "Play Next in Queue"
-msgstr "Spela upp nästa i kön"
-
-#: gui/mainframe.py:2089
-msgid "Play the next item in the play queue"
-msgstr "Spela upp nästa objekt i uppspelningskön"
-
-#: gui/mainframe.py:2092
-msgid "Play Previous in Queue"
-msgstr "Spela upp föregående i kön"
-
-#: gui/mainframe.py:2093
-msgid "Play the previous item in the play queue"
-msgstr "Spela upp föregående objekt i uppspelningskön"
-
-#: gui/mainframe.py:2099
-msgid "Increase Speed"
-msgstr "Öka hastigheten"
-
-#: gui/mainframe.py:2099
-msgid "Play faster"
-msgstr "Spela upp snabbare"
-
-#: gui/mainframe.py:2102
-msgid "Decrease Speed"
-msgstr "Minska hastigheten"
-
-#: gui/mainframe.py:2102
-msgid "Play slower"
-msgstr "Spela upp långsammare"
-
-#: gui/mainframe.py:2105
-msgid "Normal Speed (1x)"
-msgstr "Normal hastighet (1x)"
-
-#: gui/mainframe.py:2105
-msgid "Reset to normal speed"
-msgstr "Återställ till normal hastighet"
-
-#: gui/mainframe.py:2120
-msgid "Playback &Speed"
-msgstr "Uppspelnings&hastighet"
-
-#: gui/mainframe.py:2123
-msgid "&Equalizer..."
-msgstr "&Equalizer..."
-
-#: gui/mainframe.py:2124
-msgid "Adjust the audio equalizer"
-msgstr "Justera ljudequalizern"
-
-#: gui/mainframe.py:2130
-msgid "Rewind (Ctrl+Left)"
-msgstr "Spola tillbaka (Ctrl+Vänster)"
-
-#: gui/mainframe.py:2130 gui/tray.py:106
-msgid "Rewind"
-msgstr "Spola tillbaka"
-
-#: gui/mainframe.py:2131
-msgid "Fast Forward (Ctrl+Right)"
-msgstr "Snabbspola framåt (Ctrl+Höger)"
-
-#: gui/mainframe.py:2131
-msgid "Fast forward"
-msgstr "Snabbspola framåt"
-
-#: gui/mainframe.py:2133
-msgid "Volume Up (Ctrl+Up)"
-msgstr "Höj volym (Ctrl+Upp)"
-
-#: gui/mainframe.py:2133
-msgid "Increase volume"
-msgstr "Höj volymen"
-
-#: gui/mainframe.py:2134
-msgid "Volume Down (Ctrl+Down)"
-msgstr "Sänk volym (Ctrl+Ner)"
-
-#: gui/mainframe.py:2134
-msgid "Decrease volume"
-msgstr "Sänk volymen"
-
-#: gui/mainframe.py:2137 gui/player.py:2029
-msgid "Chapters"
-msgstr "Kapitel"
-
-#: gui/mainframe.py:2151
-msgid "Find and add a podcast or RSS feed"
-msgstr "Hitta och lägg till en podcast eller RSS-flöde"
-
-#: gui/mainframe.py:2155
-msgid "&Video Search..."
-msgstr "&Videosökning..."
-
-#: gui/mainframe.py:2156
-msgid "Search all yt-dlp query-search sites"
-msgstr "Sök på alla yt-dlp-sökbara webbplatser"
-
-#: gui/mainframe.py:2161
-msgid "Filter &Rules..."
-msgstr "Filter&regler..."
-
-#: gui/mainframe.py:2162
-msgid "Create rules that categorize, label, or delete articles as they arrive"
-msgstr ""
-"Skapa regler som kategoriserar, märker eller tar bort artiklar när de kommer"
-" in"
-
-#: gui/mainframe.py:2167
-msgid "&Keyboard Shortcuts..."
-msgstr "&Kortkommandon..."
-
-#: gui/mainframe.py:2168
-msgid "View and customize keyboard shortcuts"
-msgstr "Visa och anpassa kortkommandon"
-
-#: gui/mainframe.py:2170
-msgid "&Settings..."
-msgstr "&Inställningar..."
-
-#: gui/mainframe.py:2170
-msgid "Configure application"
-msgstr "Konfigurera programmet"
-
-#: gui/mainframe.py:2173
-msgid "Check for &Updates..."
-msgstr "Sök efter &uppdateringar..."
-
-#: gui/mainframe.py:2173
-msgid "Check for new versions"
-msgstr "Sök efter nya versioner"
-
-#: gui/mainframe.py:2174
-msgid "&About"
-msgstr "&Om"
-
-#: gui/mainframe.py:2176
-msgid "&File"
-msgstr "&Arkiv"
-
-#: gui/mainframe.py:2177
-msgid "&Edit"
-msgstr "&Redigera"
-
-#: gui/mainframe.py:2178
-msgid "&View"
-msgstr "&Visa"
-
-#: gui/mainframe.py:2179
-msgid "&Player"
-msgstr "S&pelare"
-
-#: gui/mainframe.py:2180
-msgid "&Tools"
-msgstr "Verkty&g"
-
-#: gui/mainframe.py:2181
-msgid "&Help"
-msgstr "&Hjälp"
-
-#: gui/mainframe.py:4229
-msgid "Open Article"
-msgstr "Öppna artikel"
-
-#: gui/mainframe.py:4230
-msgid "Open in Default Browser"
-msgstr "Öppna i standardwebbläsare"
-
-#: gui/mainframe.py:4981
-msgid "Scanning for audio... This may take a few seconds."
-msgstr "Söker efter ljud... Detta kan ta några sekunder."
-
-#: gui/mainframe.py:4981 gui/mainframe.py:4291
-msgid "Detect Audio"
-msgstr "Identifiera ljud"
-
-#: gui/mainframe.py:6127 gui/mainframe.py:3944
-msgid "Rename Category"
-msgstr "Byt namn på kategori"
-
-#: gui/mainframe.py:6189 gui/mainframe.py:3940
-msgid "Add Subcategory"
-msgstr "Lägg till underkategori"
-
-#: gui/mainframe.py:6260
-msgid " (including subcategories)"
-msgstr " (inklusive underkategorier)"
-
-#: gui/mainframe.py:6264
-msgid "This will remove the feeds and their articles."
-msgstr "Detta tar bort flödena och deras artiklar."
-
-#: gui/mainframe.py:6566
-msgid "Refresh complete"
-msgstr "Uppdatering slutförd"
-
-#: gui/mainframe.py:8765
-msgid "Find in article:"
-msgstr "Sök i artikeln:"
-
-#: gui/mainframe.py:8765
-msgid "Find"
-msgstr "Sök"
-
-#: gui/mainframe.py:9988
-msgid "Mark all items in all feeds as read?"
-msgstr "Markera alla objekt i alla flöden som lästa?"
-
-#: gui/mainframe.py:11438
-msgid "Import OPML"
-msgstr "Importera OPML"
-
-#: gui/mainframe.py:11626
-msgid "Export OPML"
-msgstr "Exportera OPML"
-
-#: gui/mainframe.py:12007
-msgid "Release notes are available on GitHub."
-msgstr "Versionsinformation finns på GitHub."
-
-#: gui/mainframe.py:784
-msgid "(No saved searches)"
-msgstr "(Inga sparade sökningar)"
-
-#: gui/mainframe.py:1177 gui/mainframe.py:9952 gui/mainframe.py:10162
+#: gui/mainframe.py:10135 gui/mainframe.py:1184 gui/mainframe.py:10097
+#: gui/mainframe.py:10314
 msgid "Read"
 msgstr "Läst"
 
-#: gui/mainframe.py:1177 gui/mainframe.py:9966
+#: gui/mainframe.py:531 gui/mainframe.py:514
+msgid "Shortcuts"
+msgstr "Genvägar"
+
+#: gui/mainframe.py:580
+msgid "Author"
+msgstr "Författare"
+
+#: gui/mainframe.py:581 gui/mainframe.py:1603
+msgid "Media"
+msgstr "Media"
+
+#: gui/mainframe.py:582
+msgid "Date"
+msgstr "Datum"
+
+#: gui/mainframe.py:584
+msgid "Description"
+msgstr "Beskrivning"
+
+#: gui/mainframe.py:585
+msgid "Status"
+msgstr "Status"
+
+#: gui/mainframe.py:795
+msgid "Configure Persistent Search..."
+msgstr "Konfigurera bestående sökning..."
+
+#: gui/mainframe.py:1955
+msgid "Add a new RSS feed"
+msgstr "Lägg till ett nytt RSS-flöde"
+
+#: gui/mainframe.py:1956
+msgid "&Remove Feed"
+msgstr "Ta &bort flöde"
+
+#: gui/mainframe.py:1956
+msgid "Remove selected feed"
+msgstr "Ta bort valt flöde"
+
+#: gui/mainframe.py:1957
+msgid "Refresh all feeds"
+msgstr "Uppdatera alla flöden"
+
+#: gui/mainframe.py:1958
+msgid "Stop the feed refresh currently in progress"
+msgstr "Stoppa den pågående flödesuppdateringen"
+
+#: gui/mainframe.py:1959
+msgid "Mark all items in all feeds as read"
+msgstr "Markera alla objekt i alla flöden som lästa"
+
+#: gui/mainframe.py:1960
+msgid "View Feed &Errors..."
+msgstr "Visa flödes&fel..."
+
+#: gui/mainframe.py:1960
+msgid "View feeds that failed to update"
+msgstr "Visa flöden som inte kunde uppdateras"
+
+#: gui/mainframe.py:1962
+msgid "Add &Category"
+msgstr "Lägg till &kategori"
+
+#: gui/mainframe.py:1962
+msgid "Add a new category"
+msgstr "Lägg till en ny kategori"
+
+#: gui/mainframe.py:1963
+msgid "Remove C&ategory"
+msgstr "Ta bort k&ategori"
+
+#: gui/mainframe.py:1963
+msgid "Remove selected category"
+msgstr "Ta bort vald kategori"
+
+#: gui/mainframe.py:1965
+msgid "&Import OPML..."
+msgstr "&Importera OPML..."
+
+#: gui/mainframe.py:1965
+msgid "Import feeds from OPML"
+msgstr "Importera flöden från OPML"
+
+#: gui/mainframe.py:1966
+msgid "E&xport OPML..."
+msgstr "E&xportera OPML..."
+
+#: gui/mainframe.py:1966
+msgid "Export feeds to OPML"
+msgstr "Exportera flöden till OPML"
+
+#: gui/mainframe.py:1968
+#, fuzzy
+msgid "Configure &Persistent Search..."
+msgstr "Konfigurera bestående sökning..."
+
+#: gui/mainframe.py:1968
+msgid "Configure saved search queries"
+msgstr "Konfigurera sparade sökfrågor"
+
+#: gui/mainframe.py:1974
+msgid "E&xit"
+msgstr "A&vsluta"
+
+#: gui/mainframe.py:1974
+msgid "Exit application"
+msgstr "Avsluta programmet"
+
+#: gui/mainframe.py:1981
+msgid "Cut the selection"
+msgstr "Klipp ut markeringen"
+
+#: gui/mainframe.py:1982
+msgid "Copy the selection"
+msgstr "Kopiera markeringen"
+
+#: gui/mainframe.py:1983
+msgid "Paste from the clipboard"
+msgstr "Klistra in från urklipp"
+
+#: gui/mainframe.py:1984
+msgid "Select all"
+msgstr "Markera allt"
+
+#: gui/mainframe.py:1987
+msgid "Show &Search Field"
+msgstr "Visa &sökfält"
+
+#: gui/mainframe.py:1987
+msgid "Show or hide the search field"
+msgstr "Visa eller dölj sökfältet"
+
+#: gui/mainframe.py:2026
+msgid "Article &Filter"
+msgstr "Artikel&filter"
+
+#: gui/mainframe.py:2026
+msgid "Filter all views by read status and media"
+msgstr "Filtrera alla vyer efter lässtatus och media"
+
+#: gui/mainframe.py:2029
+msgid "Open &Accessible Browser"
+msgstr "Öppna &tillgänglig webbläsare"
+
+#: gui/mainframe.py:2030
+msgid "Open the VoiceOver-friendly browser window"
+msgstr "Öppna det VoiceOver-vänliga webbläsarfönstret"
+
+#: gui/mainframe.py:2034
+msgid "Show/Hide &Player (Ctrl+Shift+P)"
+msgstr "Visa/dölj s&pelare (Ctrl+Skift+P)"
+
+#: gui/mainframe.py:2034 gui/mainframe.py:2080
+msgid "Show or hide the media player window"
+msgstr "Visa eller dölj mediaspelarfönstret"
+
+#: gui/mainframe.py:2057
+#, fuzzy
+msgid "&Ascending"
+msgstr "Stigande"
+
+#: gui/mainframe.py:2058
+msgid "Sort in ascending order (default is descending by date)"
+msgstr "Sortera i stigande ordning (standard är fallande efter datum)"
+
+#: gui/mainframe.py:2062
+msgid "Sort &By"
+msgstr "Sortera &efter"
+
+#: gui/mainframe.py:2079 gui/tray.py:97
+msgid "Show/Hide Player"
+msgstr "Visa/dölj spelare"
+
+#: gui/mainframe.py:2084 gui/tray.py:104
+msgid "Play/Pause"
+msgstr "Spela upp/Pausa"
+
+#: gui/mainframe.py:2084
+msgid "Toggle play/pause"
+msgstr "Växla uppspelning/paus"
+
+#: gui/mainframe.py:2087 gui/player.py:2006 gui/tray.py:105
+msgid "Stop"
+msgstr "Stoppa"
+
+#: gui/mainframe.py:2087
+msgid "Stop playback"
+msgstr "Stoppa uppspelning"
+
+#: gui/mainframe.py:2091
+msgid "Play &Queue..."
+msgstr "Uppspelnings&kö..."
+
+#: gui/mainframe.py:2092
+msgid "View and manage the media play queue"
+msgstr "Visa och hantera medieuppspelningskön"
+
+#: gui/mainframe.py:2095
+msgid "Play Next in Queue"
+msgstr "Spela upp nästa i kön"
+
+#: gui/mainframe.py:2096
+msgid "Play the next item in the play queue"
+msgstr "Spela upp nästa objekt i uppspelningskön"
+
+#: gui/mainframe.py:2099
+msgid "Play Previous in Queue"
+msgstr "Spela upp föregående i kön"
+
+#: gui/mainframe.py:2100
+msgid "Play the previous item in the play queue"
+msgstr "Spela upp föregående objekt i uppspelningskön"
+
+#: gui/mainframe.py:2106
+msgid "Increase Speed"
+msgstr "Öka hastigheten"
+
+#: gui/mainframe.py:2106
+msgid "Play faster"
+msgstr "Spela upp snabbare"
+
+#: gui/mainframe.py:2109
+msgid "Decrease Speed"
+msgstr "Minska hastigheten"
+
+#: gui/mainframe.py:2109
+msgid "Play slower"
+msgstr "Spela upp långsammare"
+
+#: gui/mainframe.py:2112
+msgid "Normal Speed (1x)"
+msgstr "Normal hastighet (1x)"
+
+#: gui/mainframe.py:2112
+msgid "Reset to normal speed"
+msgstr "Återställ till normal hastighet"
+
+#: gui/mainframe.py:2127
+msgid "Playback &Speed"
+msgstr "Uppspelnings&hastighet"
+
+#: gui/mainframe.py:2130
+msgid "&Equalizer..."
+msgstr "&Equalizer..."
+
+#: gui/mainframe.py:2131
+msgid "Adjust the audio equalizer"
+msgstr "Justera ljudequalizern"
+
+#: gui/mainframe.py:2137
+msgid "Rewind (Ctrl+Left)"
+msgstr "Spola tillbaka (Ctrl+Vänster)"
+
+#: gui/mainframe.py:2137 gui/tray.py:106
+msgid "Rewind"
+msgstr "Spola tillbaka"
+
+#: gui/mainframe.py:2138
+msgid "Fast Forward (Ctrl+Right)"
+msgstr "Snabbspola framåt (Ctrl+Höger)"
+
+#: gui/mainframe.py:2138
+msgid "Fast forward"
+msgstr "Snabbspola framåt"
+
+#: gui/mainframe.py:2140
+msgid "Volume Up (Ctrl+Up)"
+msgstr "Höj volym (Ctrl+Upp)"
+
+#: gui/mainframe.py:2140
+msgid "Increase volume"
+msgstr "Höj volymen"
+
+#: gui/mainframe.py:2141
+msgid "Volume Down (Ctrl+Down)"
+msgstr "Sänk volym (Ctrl+Ner)"
+
+#: gui/mainframe.py:2141
+msgid "Decrease volume"
+msgstr "Sänk volymen"
+
+#: gui/mainframe.py:2144 gui/player.py:2029
+msgid "Chapters"
+msgstr "Kapitel"
+
+#: gui/mainframe.py:2158
+msgid "Find and add a podcast or RSS feed"
+msgstr "Hitta och lägg till en podcast eller RSS-flöde"
+
+#: gui/mainframe.py:2162
+msgid "&Video Search..."
+msgstr "&Videosökning..."
+
+#: gui/mainframe.py:2163
+msgid "Search all yt-dlp query-search sites"
+msgstr "Sök på alla yt-dlp-sökbara webbplatser"
+
+#: gui/mainframe.py:2168
+msgid "Filter &Rules..."
+msgstr "Filter&regler..."
+
+#: gui/mainframe.py:2169
+msgid "Create rules that categorize, label, or delete articles as they arrive"
+msgstr ""
+"Skapa regler som kategoriserar, märker eller tar bort artiklar när de kommer "
+"in"
+
+#: gui/mainframe.py:2174
+msgid "&Keyboard Shortcuts..."
+msgstr "&Kortkommandon..."
+
+#: gui/mainframe.py:2175
+msgid "View and customize keyboard shortcuts"
+msgstr "Visa och anpassa kortkommandon"
+
+#: gui/mainframe.py:2177
+msgid "&Settings..."
+msgstr "&Inställningar..."
+
+#: gui/mainframe.py:2177
+msgid "Configure application"
+msgstr "Konfigurera programmet"
+
+#: gui/mainframe.py:2180
+msgid "Check for &Updates..."
+msgstr "Sök efter &uppdateringar..."
+
+#: gui/mainframe.py:2180
+msgid "Check for new versions"
+msgstr "Sök efter nya versioner"
+
+#: gui/mainframe.py:2181
+msgid "&About"
+msgstr "&Om"
+
+#: gui/mainframe.py:2183
+msgid "&File"
+msgstr "&Arkiv"
+
+#: gui/mainframe.py:2184
+msgid "&Edit"
+msgstr "&Redigera"
+
+#: gui/mainframe.py:2185
+msgid "&View"
+msgstr "&Visa"
+
+#: gui/mainframe.py:2186
+msgid "&Player"
+msgstr "S&pelare"
+
+#: gui/mainframe.py:2187
+msgid "&Tools"
+msgstr "Verkty&g"
+
+#: gui/mainframe.py:2188
+msgid "&Help"
+msgstr "&Hjälp"
+
+#: gui/mainframe.py:4354
+msgid "Open Article"
+msgstr "Öppna artikel"
+
+#: gui/mainframe.py:4355
+msgid "Open in Default Browser"
+msgstr "Öppna i standardwebbläsare"
+
+#: gui/mainframe.py:5106
+msgid "Scanning for audio... This may take a few seconds."
+msgstr "Söker efter ljud... Detta kan ta några sekunder."
+
+#: gui/mainframe.py:5106 gui/mainframe.py:4416
+msgid "Detect Audio"
+msgstr "Identifiera ljud"
+
+#: gui/mainframe.py:6252 gui/mainframe.py:4020
+msgid "Rename Category"
+msgstr "Byt namn på kategori"
+
+#: gui/mainframe.py:6314 gui/mainframe.py:4016
+msgid "Add Subcategory"
+msgstr "Lägg till underkategori"
+
+#: gui/mainframe.py:6385
+msgid " (including subcategories)"
+msgstr " (inklusive underkategorier)"
+
+#: gui/mainframe.py:6389
+msgid "This will remove the feeds and their articles."
+msgstr "Detta tar bort flödena och deras artiklar."
+
+#: gui/mainframe.py:6691
+msgid "Refresh complete"
+msgstr "Uppdatering slutförd"
+
+#: gui/mainframe.py:8910
+msgid "Find in article:"
+msgstr "Sök i artikeln:"
+
+#: gui/mainframe.py:8910
+msgid "Find"
+msgstr "Sök"
+
+#: gui/mainframe.py:10133 gui/mainframe.py:1184 gui/mainframe.py:10111
 msgid "Unread"
 msgstr "Oläst"
 
-#: gui/mainframe.py:1658 gui/mainframe.py:10402
+#: gui/mainframe.py:10140
+msgid "Mark all items in all feeds as read?"
+msgstr "Markera alla objekt i alla flöden som lästa?"
+
+#: gui/mainframe.py:11590
+msgid "Import OPML"
+msgstr "Importera OPML"
+
+#: gui/mainframe.py:11778
+msgid "Export OPML"
+msgstr "Exportera OPML"
+
+#: gui/mainframe.py:12159
+msgid "Release notes are available on GitHub."
+msgstr "Versionsinformation finns på GitHub."
+
+#: gui/mainframe.py:791
+msgid "(No saved searches)"
+msgstr "(Inga sparade sökningar)"
+
+#: gui/mainframe.py:1665 gui/mainframe.py:10554
 msgid "Contains audio"
 msgstr "Innehåller ljud"
 
-#: gui/mainframe.py:1948
+#: gui/mainframe.py:1955
 msgid "&Add Feed"
 msgstr "&Lägg till flöde"
 
-#: gui/mainframe.py:1950
+#: gui/mainframe.py:1957
 msgid "&Refresh Feeds"
 msgstr "Uppdate&ra flöden"
 
-#: gui/mainframe.py:1951
+#: gui/mainframe.py:1958
 msgid "S&top Refresh"
 msgstr "S&toppa uppdatering"
 
-#: gui/mainframe.py:1965
+#: gui/mainframe.py:1959
+msgid "Mark All Items as &Read"
+msgstr "Markera alla objekt som &lästa"
+
+#: gui/mainframe.py:1972
 msgid "Add &Shortcuts..."
 msgstr "Lägg till &genvägar..."
 
-#: gui/mainframe.py:1965
+#: gui/mainframe.py:1972
 msgid "Create desktop, taskbar, or Start Menu shortcuts"
 msgstr "Skapa genvägar på skrivbordet, aktivitetsfältet eller startmenyn"
 
-#: gui/mainframe.py:1974
+#: gui/mainframe.py:1981
 msgid "Cu&t"
 msgstr "Klipp u&t"
 
-#: gui/mainframe.py:1975
+#: gui/mainframe.py:1982
 msgid "&Copy"
 msgstr "&Kopiera"
 
-#: gui/mainframe.py:1976
+#: gui/mainframe.py:1983
 msgid "&Paste"
 msgstr "Klistra &in"
 
-#: gui/mainframe.py:1977
+#: gui/mainframe.py:1984
 msgid "Select &All"
 msgstr "Markera &allt"
 
-#: gui/mainframe.py:1993
+#: gui/mainframe.py:2000
 msgid "&All Articles"
 msgstr "&Alla artiklar"
 
-#: gui/mainframe.py:1993
+#: gui/mainframe.py:2000
 msgid "Show read and unread articles in all views"
 msgstr "Visa lästa och olästa artiklar i alla vyer"
 
-#: gui/mainframe.py:1994
+#: gui/mainframe.py:2001
 msgid "&Unread Only"
 msgstr "Endast &olästa"
 
-#: gui/mainframe.py:1994
+#: gui/mainframe.py:2001
 msgid "Show only unread articles in all views"
 msgstr "Visa endast olästa artiklar i alla vyer"
 
-#: gui/mainframe.py:1995
+#: gui/mainframe.py:2002
 msgid "&Read Only"
 msgstr "Endast &lästa"
 
-#: gui/mainframe.py:1995
+#: gui/mainframe.py:2002
 msgid "Show only read articles in all views"
 msgstr "Visa endast lästa artiklar i alla vyer"
 
-#: gui/mainframe.py:2009
+#: gui/mainframe.py:2016
 msgid "Media and &Non-media"
 msgstr "Media och icke-&media"
 
-#: gui/mainframe.py:2009
+#: gui/mainframe.py:2016
 msgid "Show articles whether or not they have media"
 msgstr "Visa artiklar oavsett om de har media eller inte"
 
-#: gui/mainframe.py:2010
+#: gui/mainframe.py:2017
 msgid "With &Media Only"
 msgstr "Endast &med media"
 
-#: gui/mainframe.py:2010
+#: gui/mainframe.py:2017
 msgid "Show only articles that have playable media"
 msgstr "Visa endast artiklar som har spelbara medier"
 
-#: gui/mainframe.py:2011
+#: gui/mainframe.py:2018
 msgid "Wit&hout Media Only"
 msgstr "Endast &utan media"
 
-#: gui/mainframe.py:2011
+#: gui/mainframe.py:2018
 msgid "Show only articles that have no playable media"
 msgstr "Visa endast artiklar som saknar spelbara medier"
 
-#: gui/mainframe.py:2033
+#: gui/mainframe.py:2040
+#, fuzzy
+msgid "&Date"
+msgstr "Datum"
+
+#: gui/mainframe.py:2040
 msgid "Sort articles by date"
 msgstr "Sortera artiklar efter datum"
 
-#: gui/mainframe.py:2034
-msgid "Name"
+#: gui/mainframe.py:2041
+#, fuzzy
+msgid "&Name"
 msgstr "Namn"
 
-#: gui/mainframe.py:2034
+#: gui/mainframe.py:2041
 msgid "Sort articles by name"
 msgstr "Sortera artiklar efter namn"
 
-#: gui/mainframe.py:2035
+#: gui/mainframe.py:2042
+#, fuzzy
+msgid "A&uthor"
+msgstr "Författare"
+
+#: gui/mainframe.py:2042
 msgid "Sort articles by author"
 msgstr "Sortera artiklar efter författare"
 
-#: gui/mainframe.py:2036
+#: gui/mainframe.py:2043
+#, fuzzy
+msgid "De&scription"
+msgstr "Beskrivning"
+
+#: gui/mainframe.py:2043
 msgid "Sort articles by description"
 msgstr "Sortera artiklar efter beskrivning"
 
-#: gui/mainframe.py:2037
+#: gui/mainframe.py:2044
+#, fuzzy
+msgid "&Feed"
+msgstr "Flöde"
+
+#: gui/mainframe.py:2044
 msgid "Sort articles by feed"
 msgstr "Sortera artiklar efter flöde"
 
-#: gui/mainframe.py:2038
+#: gui/mainframe.py:2045
+#, fuzzy
+msgid "S&tatus"
+msgstr "Status"
+
+#: gui/mainframe.py:2045
 msgid "Sort articles by status"
 msgstr "Sortera artiklar efter status"
 
-#: gui/mainframe.py:2150
+#: gui/mainframe.py:2157
 msgid "Find a &Podcast or RSS Feed..."
 msgstr "Hitta en &podcast eller RSS-flöde..."
 
-#: gui/mainframe.py:2659
+#: gui/mainframe.py:2710
 msgid "Play queue is empty."
 msgstr "Uppspelningskön är tom."
 
-#: gui/mainframe.py:2985
+#: gui/mainframe.py:2926 gui/mainframe.py:2787
+msgid "Playback speed {speed}x"
+msgstr "Uppspelningshastighet {speed}x"
+
+#: gui/mainframe.py:3061
 msgid "Show Chapters..."
 msgstr "Visa kapitel..."
 
-#: gui/mainframe.py:2986
+#: gui/mainframe.py:3062
 msgid "Show chapter list"
 msgstr "Visa kapitellista"
 
-#: gui/mainframe.py:2996
+#: gui/mainframe.py:3072
 msgid "Previous Chapter (Ctrl+Shift+Left)"
 msgstr "Föregående kapitel (Ctrl+Skift+Vänster)"
 
-#: gui/mainframe.py:2997
+#: gui/mainframe.py:3073
 msgid "Jump to previous chapter"
 msgstr "Hoppa till föregående kapitel"
 
-#: gui/mainframe.py:3007
+#: gui/mainframe.py:3083
 msgid "Next Chapter (Ctrl+Shift+Right)"
 msgstr "Nästa kapitel (Ctrl+Skift+Höger)"
 
-#: gui/mainframe.py:3008
+#: gui/mainframe.py:3084
 msgid "Jump to next chapter"
 msgstr "Hoppa till nästa kapitel"
 
-#: gui/mainframe.py:3080
+#: gui/mainframe.py:3156
 msgid "Stopping refresh..."
 msgstr "Stoppar uppdatering..."
 
-#: gui/mainframe.py:3082
+#: gui/mainframe.py:3158
 msgid "No refresh in progress"
 msgstr "Ingen uppdatering pågår"
 
-#: gui/mainframe.py:3926
+#: gui/mainframe.py:4002
 msgid "Refresh Category"
 msgstr "Uppdatera kategori"
 
-#: gui/mainframe.py:3929 gui/mainframe.py:3969
+#: gui/mainframe.py:4005 gui/mainframe.py:4045
 msgid "Mark All Items as Read"
 msgstr "Markera alla objekt som lästa"
 
-#: gui/mainframe.py:3953
+#: gui/mainframe.py:4029
 msgid "Import OPML Here..."
 msgstr "Importera OPML här..."
 
-#: gui/mainframe.py:3956
+#: gui/mainframe.py:4032
 msgid "Export Category to OPML..."
 msgstr "Exportera kategori till OPML..."
 
-#: gui/mainframe.py:4093
+#: gui/mainframe.py:4218
 msgid "The current provider does not support filter rules."
 msgstr "Den aktuella leverantören stöder inte filterregler."
 
-#: gui/mainframe.py:4094 gui/mainframe.py:5801 gui/mainframe.py:5863
+#: gui/mainframe.py:4219 gui/mainframe.py:5926 gui/mainframe.py:5988
 msgid "Not Supported"
 msgstr "Stöds inte"
 
-#: gui/mainframe.py:4162 gui/mainframe.py:4022
+#: gui/mainframe.py:4287 gui/mainframe.py:4098
 msgid "Delete Smart Folder"
 msgstr "Ta bort smart mapp"
 
-#: gui/mainframe.py:4236
+#: gui/mainframe.py:4361
 msgid "Mark as &Read"
 msgstr "Markera som &läst"
 
-#: gui/mainframe.py:4237
+#: gui/mainframe.py:4362
 msgid "Mark as &Unread"
 msgstr "Markera som o&läst"
 
-#: gui/mainframe.py:4247
+#: gui/mainframe.py:4372
 msgid "Delete Article\tDel"
 msgstr "Ta bort artikel\tDel"
 
-#: gui/mainframe.py:4262
+#: gui/mainframe.py:4387
 msgid "Restore Article"
 msgstr "Återställ artikel"
 
-#: gui/mainframe.py:4266
+#: gui/mainframe.py:4391
 msgid "Copy Links"
 msgstr "Kopiera länkar"
 
-#: gui/mainframe.py:4266
+#: gui/mainframe.py:4391
 msgid "Copy Link"
 msgstr "Kopiera länk"
 
-#: gui/mainframe.py:4273
+#: gui/mainframe.py:4398
 msgid "Copy Text"
 msgstr "Kopiera text"
 
-#: gui/mainframe.py:4277
+#: gui/mainframe.py:4402
 msgid "View Feed Description..."
 msgstr "Visa flödesbeskrivning..."
 
-#: gui/mainframe.py:4346
+#: gui/mainframe.py:4471
 msgid "Open Play Queue..."
 msgstr "Öppna uppspelningskön..."
 
-#: gui/mainframe.py:4531
+#: gui/mainframe.py:4656
 msgid "Feed Description"
 msgstr "Flödesbeskrivning"
 
-#: gui/mainframe.py:4964
+#: gui/mainframe.py:5089
 msgid "Opening link."
 msgstr "Öppnar länken."
 
-#: gui/mainframe.py:5201
+#: gui/mainframe.py:5326
 msgid "No change history for this article."
 msgstr "Ingen ändringshistorik för den här artikeln."
 
-#: gui/mainframe.py:5201 gui/mainframe.py:5206
+#: gui/mainframe.py:5326 gui/mainframe.py:5331
 msgid "Article History"
 msgstr "Artikelhistorik"
 
-#: gui/mainframe.py:5277
+#: gui/mainframe.py:5402
 msgid "Chapters available"
 msgstr "Kapitel tillgängliga"
 
-#: gui/mainframe.py:5333
+#: gui/mainframe.py:5458
 msgid ", played"
 msgstr ", uppspelad"
 
-#: gui/mainframe.py:5365
+#: gui/mainframe.py:5490
 msgid "played"
 msgstr "uppspelad"
 
-#: gui/mainframe.py:5479
+#: gui/mainframe.py:5604
 msgid "Already in play queue."
 msgstr "Finns redan i uppspelningskön."
 
-#: gui/mainframe.py:5800
+#: gui/mainframe.py:5925
 msgid "This provider does not support deleting articles."
 msgstr "Den här leverantören stöder inte borttagning av artiklar."
 
-#: gui/mainframe.py:5849
+#: gui/mainframe.py:5974
 msgid "this article"
 msgid_plural "{n} articles"
 msgstr[0] "den här artikeln"
 msgstr[1] "{n} artiklar"
 
-#: gui/mainframe.py:5856
+#: gui/mainframe.py:5981
 msgid ""
-"Delete {subject}? Deleted articles can be restored from the Deleted Articles"
-" view."
+"Delete {subject}? Deleted articles can be restored from the Deleted Articles "
+"view."
 msgstr ""
 "Ta bort {subject}? Borttagna artiklar kan återställas från vyn Borttagna "
 "artiklar."
 
-#: gui/mainframe.py:5862
+#: gui/mainframe.py:5987
 msgid "This provider does not support permanently deleting articles."
 msgstr "Den här leverantören stöder inte permanent borttagning av artiklar."
 
-#: gui/mainframe.py:5876
+#: gui/mainframe.py:6001
 msgid "Permanently delete this article? It cannot be restored."
 msgstr "Ta bort denna artikel permanent? Den kan inte återställas."
 
-#: gui/mainframe.py:6119 gui/mainframe.py:6136
+#: gui/mainframe.py:6244 gui/mainframe.py:6261
 msgid "Could not rename category."
 msgstr "Kunde inte byta namn på kategorin."
 
-#: gui/mainframe.py:6143
+#: gui/mainframe.py:6268
 msgid "Add Category"
 msgstr "Lägg till kategori"
 
-#: gui/mainframe.py:6238 gui/mainframe.py:6230
+#: gui/mainframe.py:6363 gui/mainframe.py:6355
 msgid "Please select a category to remove."
 msgstr "Välj en kategori att ta bort."
 
-#: gui/mainframe.py:6238 gui/mainframe.py:6243 gui/mainframe.py:6230
-#: gui/mainframe.py:6215
+#: gui/mainframe.py:6363 gui/mainframe.py:6368 gui/mainframe.py:6355
+#: gui/mainframe.py:6340
 msgid "Info"
 msgstr "Info"
 
-#: gui/mainframe.py:6243 gui/mainframe.py:6215
+#: gui/mainframe.py:6368 gui/mainframe.py:6340
 msgid "The Uncategorized folder cannot be removed."
 msgstr "Mappen Okategoriserad kan inte tas bort."
 
-#: gui/mainframe.py:6266 gui/mainframe.py:6221 gui/mainframe.py:11207
+#: gui/mainframe.py:6391 gui/mainframe.py:6346 gui/mainframe.py:11359
 msgid "Confirm"
 msgstr "Bekräfta"
 
-#: gui/mainframe.py:6336
+#: gui/mainframe.py:6461
 msgid "Warning"
 msgstr "Varning"
 
-#: gui/mainframe.py:6564
+#: gui/mainframe.py:6689
 msgid "Refresh stopped"
 msgstr "Uppdatering stoppad"
 
-#: gui/mainframe.py:10402 gui/mainframe.py:10409
+#: gui/mainframe.py:10554 gui/mainframe.py:10561
 msgid "No audio"
 msgstr "Inget ljud"
 
-#: gui/mainframe.py:10715
+#: gui/mainframe.py:10867
 msgid "No downloadable media found for this item."
 msgstr "Inget nedladdningsbart media hittades för det här objektet."
 
-#: gui/mainframe.py:10718
+#: gui/mainframe.py:10870
 msgid "Downloads are disabled. Enable them in Settings > Downloads."
 msgstr ""
 "Nedladdningar är inaktiverade. Aktivera dem under Inställningar > "
 "Nedladdningar."
 
-#: gui/mainframe.py:10718
+#: gui/mainframe.py:10870
 msgid "Downloads disabled"
 msgstr "Nedladdningar inaktiverade"
 
-#: gui/mainframe.py:11200
+#: gui/mainframe.py:11352
 msgid "Failed to add feed."
 msgstr "Det gick inte att lägga till flödet."
 
-#: gui/mainframe.py:11347
+#: gui/mainframe.py:11499
 msgid ""
 "This provider does not support changing the feed URL.\n"
 "The title and category will be updated, but the URL will stay the same."
@@ -2621,15 +2749,15 @@ msgstr ""
 "Den här leverantören stöder inte ändring av flödets URL.\n"
 "Titeln och kategorin uppdateras, men URL:en förblir densamma."
 
-#: gui/mainframe.py:11351
+#: gui/mainframe.py:11503
 msgid "Feed URL not supported"
 msgstr "Flödes-URL stöds inte"
 
-#: gui/mainframe.py:11621
+#: gui/mainframe.py:11773
 msgid "Import successful."
 msgstr "Import lyckades."
 
-#: gui/mainframe.py:11623
+#: gui/mainframe.py:11775
 msgid ""
 "Import failed. Please check the latest opml_debug_*.log in the temporary "
 "directory."
@@ -2637,7 +2765,7 @@ msgstr ""
 "Import misslyckades. Kontrollera den senaste opml_debug_*.log i den "
 "temporära katalogen."
 
-#: gui/mainframe.py:12008
+#: gui/mainframe.py:12160
 msgid ""
 "A new version of BlindRSS is available ({version}).\n"
 "\n"
@@ -2651,11 +2779,11 @@ msgstr ""
 "\n"
 "Vill du ladda ner och installera uppdateringen nu?"
 
-#: gui/mainframe.py:12013
+#: gui/mainframe.py:12165
 msgid "Update Available"
 msgstr "Uppdatering tillgänglig"
 
-#: gui/mainframe.py:12021
+#: gui/mainframe.py:12173
 msgid ""
 "Auto-update is only available in the packaged app build.\n"
 "Download the latest release from GitHub."
@@ -2663,91 +2791,91 @@ msgstr ""
 "Automatisk uppdatering är endast tillgänglig i den paketerade appversionen.\n"
 "Ladda ner den senaste versionen från GitHub."
 
-#: gui/mainframe.py:12090
+#: gui/mainframe.py:12242
 msgid "Update Failed"
 msgstr "Uppdatering misslyckades"
 
-#: gui/mainframe.py:12208
+#: gui/mainframe.py:12360
 msgid "Smart Folder"
 msgstr "Smart mapp"
 
-#: gui/mainframe.py:12221
+#: gui/mainframe.py:12373
 msgid "Show articles that match"
 msgstr "Visa artiklar som matchar"
 
-#: gui/mainframe.py:12330
+#: gui/mainframe.py:12482
 msgid "Filter Rule"
 msgstr "Filterregel"
 
-#: gui/mainframe.py:12352
+#: gui/mainframe.py:12504
 msgid "Apply this rule to articles that match"
 msgstr "Tillämpa den här regeln på artiklar som matchar"
 
-#: gui/mainframe.py:12409
+#: gui/mainframe.py:12561
 msgid "Mark as &read"
 msgstr "Markera som &läst"
 
-#: gui/mainframe.py:12411
+#: gui/mainframe.py:12563
 msgid "Mark as &favorite"
 msgstr "Markera som &favorit"
 
-#: gui/mainframe.py:12413
+#: gui/mainframe.py:12565
 msgid "&Delete (uses the configured delete behavior)"
 msgstr "&Ta bort (använder konfigurerat borttagningsbeteende)"
 
-#: gui/mainframe.py:12415
+#: gui/mainframe.py:12567
 msgid "Skip &notification"
 msgstr "Hoppa över a&visering"
 
-#: gui/mainframe.py:12421
+#: gui/mainframe.py:12573
 msgid "&Stop processing later rules when this rule matches"
 msgstr "&Sluta bearbeta senare regler när den här regeln matchar"
 
-#: gui/mainframe.py:12424
+#: gui/mainframe.py:12576
 msgid "Rule &enabled"
 msgstr "Regel akti&verad"
 
-#: gui/mainframe.py:12483
+#: gui/mainframe.py:12635
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip"
-" notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip "
+"notification)."
 msgstr ""
 "Välj minst en åtgärd för den här regeln (flytta, märka, markera, ta bort "
 "eller hoppa över avisering)."
 
-#: gui/mainframe.py:12484
+#: gui/mainframe.py:12636
 msgid "No Actions"
 msgstr "Inga åtgärder"
 
-#: gui/mainframe.py:12506
+#: gui/mainframe.py:12658
 msgid "Filter Rules"
 msgstr "Filterregler"
 
-#: gui/mainframe.py:12524
+#: gui/mainframe.py:12676
 msgid "&Add..."
 msgstr "&Lägg till..."
 
-#: gui/mainframe.py:12525
+#: gui/mainframe.py:12677
 msgid "&Edit..."
 msgstr "&Redigera..."
 
-#: gui/mainframe.py:12526
+#: gui/mainframe.py:12678
 msgid "De&lete"
 msgstr "Ta &bort"
 
-#: gui/mainframe.py:12529
+#: gui/mainframe.py:12681
 msgid "En&able/Disable"
 msgstr "Aktiver&a/Inaktivera"
 
-#: gui/mainframe.py:12530
+#: gui/mainframe.py:12682
 msgid "Apply to E&xisting Articles"
 msgstr "Tillämpa på befintliga arti&klar"
 
-#: gui/mainframe.py:12636
+#: gui/mainframe.py:12788
 msgid "Delete Rule"
 msgstr "Ta bort regel"
 
-#: gui/mainframe.py:12675
+#: gui/mainframe.py:12827
 msgid ""
 "Run all enabled rules against every existing article now? This may move, "
 "label, or delete articles."
@@ -2755,442 +2883,440 @@ msgstr ""
 "Köra alla aktiverade regler mot alla befintliga artiklar nu? Detta kan "
 "flytta, märka eller ta bort artiklar."
 
-#: gui/mainframe.py:12679
+#: gui/mainframe.py:12831
 msgid "Apply to Existing Articles"
 msgstr "Tillämpa på befintliga artiklar"
 
-#: gui/mainframe.py:12706
+#: gui/mainframe.py:12858
 msgid "Filter Rules Applied"
 msgstr "Filterregler tillämpade"
 
-#: gui/mainframe.py:427
+#: gui/mainframe.py:434
 msgid "Missing recommended tools:"
 msgstr "Saknade rekommenderade verktyg:"
 
-#: gui/mainframe.py:468
+#: gui/mainframe.py:475
 msgid "Install Incomplete"
 msgstr "Installationen är ofullständig"
 
-#: gui/mainframe.py:474
+#: gui/mainframe.py:481
 msgid "Dependencies installed and PATH updated. A restart is recommended."
 msgstr "Beroenden installerade och PATH uppdaterad. En omstart rekommenderas."
 
-#: gui/mainframe.py:475
+#: gui/mainframe.py:482
 msgid "Success"
 msgstr "Lyckades"
 
-#: gui/mainframe.py:1609 gui/player.py:3885 gui/player.py:6260
-#: gui/player.py:5952
+#: gui/mainframe.py:1616 gui/player.py:3924 gui/player.py:6299
+#: gui/player.py:5991
 msgid "Playing"
 msgstr "Spelar upp"
 
-#: gui/mainframe.py:1609 gui/player.py:6316 gui/player.py:6333
+#: gui/mainframe.py:1616 gui/player.py:6355 gui/player.py:6372
 msgid "Paused"
 msgstr "Pausad"
 
-#: gui/mainframe.py:2668
+#: gui/mainframe.py:2720
 msgid "End of play queue."
 msgstr "Slutet av uppspelningskön."
 
-#: gui/mainframe.py:2668
+#: gui/mainframe.py:2720
 msgid "Start of play queue."
 msgstr "Början av uppspelningskön."
 
-#: gui/mainframe.py:2730
-msgid "Playback speed {speed}x"
-msgstr "Uppspelningshastighet {speed}x"
-
-#: gui/mainframe.py:2954 gui/player.py:2239
+#: gui/mainframe.py:3030 gui/player.py:2239
 msgid "No chapters available"
 msgstr "Inga kapitel tillgängliga"
 
-#: gui/mainframe.py:3947
+#: gui/mainframe.py:4023
 msgid "Remove Category"
 msgstr "Ta bort kategori"
 
-#: gui/mainframe.py:3950
+#: gui/mainframe.py:4026
 msgid "Delete Category and Feeds"
 msgstr "Ta bort kategori och flöden"
 
-#: gui/mainframe.py:3967
+#: gui/mainframe.py:4043
 msgid "Mark all items in this feed as read?"
 msgstr "Markera alla objekt i det här flödet som lästa?"
 
-#: gui/mainframe.py:3986
+#: gui/mainframe.py:4062
 msgid "Copy Feed URL"
 msgstr "Kopiera flödes-URL"
 
-#: gui/mainframe.py:3989
+#: gui/mainframe.py:4065
 msgid "Notifications for This Feed"
 msgstr "Aviseringar för det här flödet"
 
-#: gui/mainframe.py:4000
+#: gui/mainframe.py:4076
 msgid "Use default setting"
 msgstr "Använd standardinställning"
 
-#: gui/mainframe.py:4001
+#: gui/mainframe.py:4077
 msgid "Always show image alt text"
 msgstr "Visa alltid alt-text för bilder"
 
-#: gui/mainframe.py:4002
+#: gui/mainframe.py:4078
 msgid "Never show image alt text"
 msgstr "Visa aldrig alt-text för bilder"
 
-#: gui/mainframe.py:4009
+#: gui/mainframe.py:4085
 msgid "Image Alt Text"
 msgstr "Alt-text för bilder"
 
-#: gui/mainframe.py:4011
+#: gui/mainframe.py:4087
 msgid "Remove Feed"
 msgstr "Ta bort flöde"
 
-#: gui/mainframe.py:4254
+#: gui/mainframe.py:4379
 msgid "Delete Article Permanently\tDel"
 msgstr "Ta bort artikel permanent\tDel"
 
-#: gui/mainframe.py:4366
+#: gui/mainframe.py:4491
 msgid "Chapter Links"
 msgstr "Kapitellänkar"
 
-#: gui/mainframe.py:4558
+#: gui/mainframe.py:4683
 msgid "Copy"
 msgstr "Kopiera"
 
-#: gui/mainframe.py:4627
+#: gui/mainframe.py:4752
 msgid "Article text"
 msgstr "Artikeltext"
 
-#: gui/mainframe.py:5369
+#: gui/mainframe.py:5494
 msgid "not played"
 msgstr "inte uppspelad"
 
-#: gui/mainframe.py:5815
+#: gui/mainframe.py:5940
 msgid "Confirm Delete"
 msgstr "Bekräfta borttagning"
 
-#: gui/mainframe.py:5853
+#: gui/mainframe.py:5978
 msgid "Move {subject} to the '{category}' category?"
 msgstr "Flytta {subject} till kategorin '{category}'?"
 
-#: gui/mainframe.py:5855
+#: gui/mainframe.py:5980
 msgid "Permanently delete {subject}? This cannot be undone."
 msgstr "Ta bort {subject} permanent? Detta kan inte ångras."
 
-#: gui/mainframe.py:5881
+#: gui/mainframe.py:6006
 msgid "Confirm Permanent Delete"
 msgstr "Bekräfta permanent borttagning"
 
-#: gui/mainframe.py:5961
+#: gui/mainframe.py:6086
 msgid "Could not delete article."
 msgid_plural "Could not delete {n} articles."
 msgstr[0] "Kunde inte ta bort artikeln."
 msgstr[1] "Kunde inte ta bort {n} artiklar."
 
-#: gui/mainframe.py:6126
+#: gui/mainframe.py:6251
 msgid "Rename category '{category}' to:"
 msgstr "Byt namn på kategorin '{category}' till:"
 
-#: gui/mainframe.py:6146
+#: gui/mainframe.py:6271
 msgid "Category name:"
 msgstr "Kategorinamn:"
 
-#: gui/mainframe.py:6155
+#: gui/mainframe.py:6280
 msgid "(None - Top Level)"
 msgstr "(Ingen - Toppnivå)"
 
-#: gui/mainframe.py:6188
+#: gui/mainframe.py:6313
 msgid "Enter subcategory name (under '{category}'):"
 msgstr "Ange namn på underkategori (under '{category}'):"
 
-#: gui/mainframe.py:6556
+#: gui/mainframe.py:6681
 msgid "Refreshing {detail}..."
 msgstr "Uppdaterar {detail}..."
 
-#: gui/mainframe.py:6577
+#: gui/mainframe.py:6702
 msgid "Error checking: {title}"
 msgstr "Fel vid kontroll: {title}"
 
-#: gui/mainframe.py:6579
+#: gui/mainframe.py:6704
 msgid "Checked: {title}"
 msgstr "Kontrollerad: {title}"
 
-#: gui/mainframe.py:9751
+#: gui/mainframe.py:9896
 msgid "Chapters ({count}):"
 msgstr "Kapitel ({count}):"
 
-#: gui/mainframe.py:9995 gui/mainframe.py:10150
+#: gui/mainframe.py:10147 gui/mainframe.py:10302
 msgid "Mark All as Read"
 msgstr "Markera allt som läst"
 
-#: gui/mainframe.py:10150
+#: gui/mainframe.py:10302
 msgid "All items are already marked as read."
 msgstr "Alla objekt är redan markerade som lästa."
 
-#: gui/mainframe.py:10318
+#: gui/mainframe.py:10470
 msgid "Custom command failed"
 msgstr "Anpassat kommando misslyckades"
 
-#: gui/mainframe.py:10902 gui/mainframe.py:10976 gui/mainframe.py:10865
+#: gui/mainframe.py:11054 gui/mainframe.py:11128 gui/mainframe.py:11017
 msgid "Download error"
 msgstr "Nedladdningsfel"
 
-#: gui/mainframe.py:10906 gui/mainframe.py:10980 gui/mainframe.py:10866
+#: gui/mainframe.py:11058 gui/mainframe.py:11132 gui/mainframe.py:11018
 msgid "Download failed: {title}"
 msgstr "Nedladdning misslyckades: {title}"
 
-#: gui/mainframe.py:10931
+#: gui/mainframe.py:11083
 msgid "Downloading: {title}"
 msgstr "Laddar ner: {title}"
 
-#: gui/mainframe.py:11310
+#: gui/mainframe.py:11462
 msgid "This provider does not support editing feeds."
 msgstr "Den här leverantören stöder inte redigering av flöden."
 
-#: gui/mainframe.py:11310 gui/mainframe.py:11401
+#: gui/mainframe.py:11462 gui/mainframe.py:11553
 msgid "Not supported"
 msgstr "Stöds inte"
 
-#: gui/mainframe.py:11400
+#: gui/mainframe.py:11552
 msgid "This provider does not support resetting feed titles."
 msgstr "Den här leverantören stöder inte återställning av flödestitlar."
 
-#: gui/mainframe.py:11983
+#: gui/mainframe.py:12135
 msgid "Update Check Failed"
 msgstr "Kontroll av uppdatering misslyckades"
 
-#: gui/mainframe.py:11988
+#: gui/mainframe.py:12140
 msgid "No Updates"
 msgstr "Inga uppdateringar"
 
-#: gui/mainframe.py:11993
+#: gui/mainframe.py:12145
 msgid "Unable to determine update status."
 msgstr "Det gick inte att fastställa uppdateringsstatus."
 
-#: gui/mainframe.py:12213
+#: gui/mainframe.py:12365
 msgid "Folder &name:"
 msgstr "Mapp&namn:"
 
-#: gui/mainframe.py:12230 gui/mainframe.py:12362
+#: gui/mainframe.py:12382 gui/mainframe.py:12514
 msgid "Field"
 msgstr "Fält"
 
-#: gui/mainframe.py:12231 gui/mainframe.py:12363
+#: gui/mainframe.py:12383 gui/mainframe.py:12515
 msgid "Condition"
 msgstr "Villkor"
 
-#: gui/mainframe.py:12232 gui/mainframe.py:12364
+#: gui/mainframe.py:12384 gui/mainframe.py:12516
 msgid "Value"
 msgstr "Värde"
 
-#: gui/mainframe.py:12344
+#: gui/mainframe.py:12496
 msgid "Rule &name:"
 msgstr "Regel&namn:"
 
-#: gui/mainframe.py:12388
+#: gui/mainframe.py:12540
 msgid "&Move to category:"
 msgstr "&Flytta till kategori:"
 
-#: gui/mainframe.py:12399
+#: gui/mainframe.py:12551
 msgid "Also &label with category:"
 msgstr "Märk även &med kategori:"
 
-#: gui/mainframe.py:12513
+#: gui/mainframe.py:12665
 msgid "Rules run top to bottom for each incoming article, like email filters."
 msgstr ""
-"Regler körs uppifrån och ner för varje inkommande artikel, precis som "
-"e-postfilter."
+"Regler körs uppifrån och ner för varje inkommande artikel, precis som e-"
+"postfilter."
 
-#: gui/mainframe.py:435
+#: gui/mainframe.py:442
 msgid ""
-"Would you like to install them automatically (via winget/Ninite) and add them to PATH?\n"
+"Would you like to install them automatically (via winget/Ninite) and add "
+"them to PATH?\n"
 "\n"
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
-"Vill du installera dem automatiskt (via winget/Ninite) och lägga till dem i PATH?\n"
+"Vill du installera dem automatiskt (via winget/Ninite) och lägga till dem i "
+"PATH?\n"
 "\n"
 "Tips: du kan inaktivera den här frågan i Inställningar > YouTube."
 
-#: gui/mainframe.py:455
+#: gui/mainframe.py:462
 msgid "Missing Dependencies"
 msgstr "Saknade beroenden"
 
-#: gui/mainframe.py:556
+#: gui/mainframe.py:563
 msgid "Filter current view (Enter)"
 msgstr "Filtrera aktuell vy (Enter)"
 
-#: gui/mainframe.py:1480 gui/mainframe.py:1433 gui/mainframe.py:1805
+#: gui/mainframe.py:1487 gui/mainframe.py:1440 gui/mainframe.py:1812
 msgid "Filter: {count} of {total}"
 msgstr "Filter: {count} av {total}"
 
-#: gui/mainframe.py:1604
+#: gui/mainframe.py:1611
 msgid "{elapsed} / {total} ({remaining} left)"
 msgstr "{elapsed} / {total} ({remaining} kvar)"
 
-#: gui/mainframe.py:2116
+#: gui/mainframe.py:2123
 msgid "{speed}x"
 msgstr "{speed}x"
 
-#: gui/mainframe.py:3961
+#: gui/mainframe.py:4037
 msgid "Refresh Feed"
 msgstr "Uppdatera flöde"
 
-#: gui/mainframe.py:3976
+#: gui/mainframe.py:4052
 msgid "Edit Feed..."
 msgstr "Redigera flöde..."
 
-#: gui/mainframe.py:4015 gui/mainframe.py:4024
+#: gui/mainframe.py:4091 gui/mainframe.py:4100
 msgid "New Smart Folder..."
 msgstr "Ny smart mapp..."
 
-#: gui/mainframe.py:4161
+#: gui/mainframe.py:4286
 msgid "Delete Smart Folder \"{name}\"? Your articles are not affected."
 msgstr "Ta bort smarta mappen \"{name}\"? Dina artiklar påverkas inte."
 
-#: gui/mainframe.py:4233
+#: gui/mainframe.py:4358
 msgid "Mark {count} as &Read"
 msgstr "Markera {count} som &lästa"
 
-#: gui/mainframe.py:4234
+#: gui/mainframe.py:4359
 msgid "Mark {count} as &Unread"
 msgstr "Markera {count} som o&lästa"
 
-#: gui/mainframe.py:4245
+#: gui/mainframe.py:4370
 msgid "Delete {count} Articles\tDel"
 msgstr "Ta bort {count} artiklar\tDel"
 
-#: gui/mainframe.py:4260
+#: gui/mainframe.py:4385
 msgid "Restore {count} Articles"
 msgstr "Återställ {count} artiklar"
 
-#: gui/mainframe.py:4271
+#: gui/mainframe.py:4396
 msgid "Copy Text ({count} articles)"
 msgstr "Kopiera text ({count} artiklar)"
 
-#: gui/mainframe.py:4286
+#: gui/mainframe.py:4411
 msgid "Copy Media Link"
 msgstr "Kopiera medialänk"
 
-#: gui/mainframe.py:4295
+#: gui/mainframe.py:4420
 msgid "Copy Image Link"
 msgstr "Kopiera bildlänk"
 
-#: gui/mainframe.py:4371
+#: gui/mainframe.py:4496
 msgid "Remove from Favorites"
 msgstr "Ta bort från favoriter"
 
-#: gui/mainframe.py:4373
+#: gui/mainframe.py:4498
 msgid "Add to Favorites"
 msgstr "Lägg till i favoriter"
 
-#: gui/mainframe.py:4381
+#: gui/mainframe.py:4506
 msgid "View History..."
 msgstr "Visa historik..."
 
-#: gui/mainframe.py:4728
+#: gui/mainframe.py:4853
 msgid "Loading full text..."
 msgstr "Läser in fulltext..."
 
-#: gui/mainframe.py:5212
+#: gui/mainframe.py:5337
 msgid "{total} versions of: {title}"
 msgstr "{total} versioner av: {title}"
 
-#: gui/mainframe.py:5224
+#: gui/mainframe.py:5349
 msgid "Version {num} - {when}{suffix}"
 msgstr "Version {num} - {when}{suffix}"
 
-#: gui/mainframe.py:5335
+#: gui/mainframe.py:5460
 msgid ", {position} of {total}"
 msgstr ", {position} av {total}"
 
-#: gui/mainframe.py:5339
+#: gui/mainframe.py:5464
 msgid ", {total}"
 msgstr ", {total}"
 
-#: gui/mainframe.py:5341
+#: gui/mainframe.py:5466
 msgid ", {position} played"
 msgstr ", {position} uppspelad"
 
-#: gui/mainframe.py:5476
+#: gui/mainframe.py:5601
 msgid "Added {count} to play queue ({total} queued)."
 msgstr "Lade till {count} i uppspelningskön ({total} i kö)."
 
-#: gui/mainframe.py:5497
+#: gui/mainframe.py:5622
 msgid "Removed {count} from play queue ({total} queued)."
 msgstr "Tog bort {count} från uppspelningskön ({total} i kö)."
 
-#: gui/mainframe.py:5878
+#: gui/mainframe.py:6003
 msgid "Permanently delete {count} articles? They cannot be restored."
 msgstr "Ta bort {count} artiklar permanent? De kan inte återställas."
 
-#: gui/mainframe.py:6046
+#: gui/mainframe.py:6171
 msgid "Could not restore article."
 msgstr "Kunde inte återställa artikeln."
 
-#: gui/mainframe.py:6158
+#: gui/mainframe.py:6283
 msgid "Parent category:"
 msgstr "Överordnad kategori:"
 
-#: gui/mainframe.py:6179
+#: gui/mainframe.py:6304
 msgid "Could not add category."
 msgstr "Kunde inte lägga till kategorin."
 
-#: gui/mainframe.py:6197
+#: gui/mainframe.py:6322
 msgid "Could not add subcategory."
 msgstr "Kunde inte lägga till underkategorin."
 
-#: gui/mainframe.py:6262
+#: gui/mainframe.py:6387
 msgid "Delete category '{title}'{note} and its {count} feed?"
 msgid_plural "Delete category '{title}'{note} and its {count} feeds?"
 msgstr[0] "Ta bort kategorin '{title}'{note} och dess {count} flöde?"
 msgstr[1] "Ta bort kategorin '{title}'{note} och dess {count} flöden?"
 
-#: gui/mainframe.py:6328
+#: gui/mainframe.py:6453
 msgid "Category '{title}' could not be deleted."
 msgstr "Kategorin '{title}' kunde inte tas bort."
 
-#: gui/mainframe.py:6333
+#: gui/mainframe.py:6458
 msgid "{n} feed could not be removed."
 msgid_plural "{n} feeds could not be removed."
 msgstr[0] "{n} flöde kunde inte tas bort."
 msgstr[1] "{n} flöden kunde inte tas bort."
 
-#: gui/mainframe.py:7237
+#: gui/mainframe.py:7362
 msgid "Deleted Articles"
 msgstr "Borttagna artiklar"
 
-#: gui/mainframe.py:7249
+#: gui/mainframe.py:7374
 msgid "Smart Folders"
 msgstr "Smarta mappar"
 
-#: gui/mainframe.py:10967 gui/mainframe.py:10885
+#: gui/mainframe.py:11119 gui/mainframe.py:11037
 msgid "Download complete"
 msgstr "Nedladdning klar"
 
-#: gui/mainframe.py:10970 gui/mainframe.py:10888
+#: gui/mainframe.py:11122 gui/mainframe.py:11040
 msgid "Download complete: {title}"
 msgstr "Nedladdning klar: {title}"
 
-#: gui/mainframe.py:11207
+#: gui/mainframe.py:11359
 msgid "Are you sure you want to remove this feed?"
 msgstr "Är du säker på att du vill ta bort det här flödet?"
 
-#: gui/mainframe.py:11438 gui/mainframe.py:11626 gui/mainframe.py:11675
+#: gui/mainframe.py:11590 gui/mainframe.py:11778 gui/mainframe.py:11827
 msgid "OPML files"
 msgstr "OPML-filer"
 
-#: gui/mainframe.py:11632 gui/mainframe.py:11685
+#: gui/mainframe.py:11784 gui/mainframe.py:11837
 msgid "Export successful."
 msgstr "Export lyckades."
 
-#: gui/mainframe.py:11634 gui/mainframe.py:11687
+#: gui/mainframe.py:11786 gui/mainframe.py:11839
 msgid "Export failed."
 msgstr "Export misslyckades."
 
-#: gui/mainframe.py:11750
+#: gui/mainframe.py:11902
 msgid "Storage Location"
 msgstr "Lagringsplats"
 
-#: gui/mainframe.py:11755
+#: gui/mainframe.py:11907
 msgid ""
 "Config has been moved. The feed database will be migrated to the new "
 "location the next time BlindRSS starts."
@@ -3198,33 +3324,33 @@ msgstr ""
 "Konfigurationen har flyttats. Flödesdatabasen migreras till den nya platsen "
 "nästa gång BlindRSS startar."
 
-#: gui/mainframe.py:11759
+#: gui/mainframe.py:11911
 msgid "Storage Location Changed"
 msgstr "Lagringsplats ändrad"
 
-#: gui/mainframe.py:12635
-msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
+#: gui/mainframe.py:12787
+msgid ""
+"Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
-"Ta bort filterregeln \"{name}\"? Artiklar den redan har sorterat ändras "
-"inte."
+"Ta bort filterregeln \"{name}\"? Artiklar den redan har sorterat ändras inte."
 
-#: gui/mainframe.py:429
+#: gui/mainframe.py:436
 msgid "VLC Media Player (required for playback)"
 msgstr "VLC Media Player (krävs för uppspelning)"
 
-#: gui/mainframe.py:431
+#: gui/mainframe.py:438
 msgid "FFmpeg (required for some podcasts)"
 msgstr "FFmpeg (krävs för vissa poddar)"
 
-#: gui/mainframe.py:433
+#: gui/mainframe.py:440
 msgid "yt-dlp (required for YouTube and many media sources)"
 msgstr "yt-dlp (krävs för YouTube och många andra mediekällor)"
 
-#: gui/mainframe.py:440
+#: gui/mainframe.py:447
 msgid "Install Dependencies"
 msgstr "Installera beroenden"
 
-#: gui/mainframe.py:467
+#: gui/mainframe.py:474
 msgid ""
 "Some dependencies are still missing.\n"
 "\n"
@@ -3234,11 +3360,11 @@ msgstr ""
 "\n"
 "Se loggen: {log_path}"
 
-#: gui/mainframe.py:479
+#: gui/mainframe.py:486
 msgid "Installation failed: {error}"
 msgstr "Installationen misslyckades: {error}"
 
-#: gui/mainframe.py:506
+#: gui/mainframe.py:513
 msgid ""
 "Could not add shortcuts:\n"
 "{error}"
@@ -3246,101 +3372,108 @@ msgstr ""
 "Kunde inte lägga till genvägar:\n"
 "{error}"
 
-#: gui/mainframe.py:2677
+#: gui/mainframe.py:2439
+#, fuzzy
+msgid "Stop Refresh"
+msgstr "S&toppa uppdatering"
+
+#: gui/mainframe.py:2730
 msgid "Playing {position} of {total}: {title}"
 msgstr "Spelar upp {position} av {total}: {title}"
 
-#: gui/mainframe.py:2681
+#: gui/mainframe.py:2734
 msgid "Playing {position} of {total}"
 msgstr "Spelar upp {position} av {total}"
 
-#: gui/mainframe.py:3966
+#: gui/mainframe.py:4042
 msgid "Mark all items in \"{feed}\" as read?"
 msgstr "Markera alla objekt i \"{feed}\" som lästa?"
 
-#: gui/mainframe.py:3981
+#: gui/mainframe.py:4057
 msgid "Reset Title to Feed Default"
 msgstr "Återställ titel till flödets standard"
 
-#: gui/mainframe.py:4020
+#: gui/mainframe.py:4096
 msgid "Edit Smart Folder..."
 msgstr "Redigera smart mapp..."
 
-#: gui/mainframe.py:4121
+#: gui/mainframe.py:4246
 msgid "Could not create the Smart Folder."
 msgstr "Kunde inte skapa den smarta mappen."
 
-#: gui/mainframe.py:4145
+#: gui/mainframe.py:4270
 msgid "Could not update the Smart Folder."
 msgstr "Kunde inte uppdatera den smarta mappen."
 
-#: gui/mainframe.py:4252
+#: gui/mainframe.py:4377
 msgid "Delete {count} Articles Permanently\tDel"
 msgstr "Ta bort {count} artiklar permanent\tDel"
 
-#: gui/mainframe.py:4333
+#: gui/mainframe.py:4458
 msgid "Remove from Play Queue"
 msgstr "Ta bort från uppspelningskön"
 
-#: gui/mainframe.py:4340
+#: gui/mainframe.py:4465
 msgid "Add to Play Queue"
 msgstr "Lägg till i uppspelningskön"
 
-#: gui/mainframe.py:4357
+#: gui/mainframe.py:4482
 msgid "Open {chapter}"
 msgstr "Öppna {chapter}"
 
-#: gui/mainframe.py:5332
+#: gui/mainframe.py:5457
 msgid ", played, {total}"
 msgstr ", uppspelad, {total}"
 
-#: gui/mainframe.py:5367
+#: gui/mainframe.py:5492
 msgid "played {position}"
 msgstr "uppspelad {position}"
 
-#: gui/mainframe.py:6228
+#: gui/mainframe.py:6353
 msgid "Could not remove category."
 msgstr "Kunde inte ta bort kategorin."
 
-#: gui/mainframe.py:6330
+#: gui/mainframe.py:6455
 msgid "Error: {error}"
 msgstr "Fel: {error}"
 
-#: gui/mainframe.py:6426
+#: gui/mainframe.py:6551
 msgid "Error fetching feeds: {error}"
 msgstr "Fel vid hämtning av flöden: {error}"
 
-#: gui/mainframe.py:10313
+#: gui/mainframe.py:10465
 msgid ""
 "Could not open the article with your custom command:\n"
 "\n"
 "{err}\n"
 "\n"
-"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
+"Opening in the default browser instead. You can change this in Settings > "
+"General > Article opening method."
 msgstr ""
 "Det gick inte att öppna artikeln med ditt anpassade kommando:\n"
 "\n"
 "{err}\n"
 "\n"
-"Öppnar i standardwebbläsaren istället. Du kan ändra detta i Inställningar > Allmänt > Metod för att öppna artiklar."
+"Öppnar i standardwebbläsaren istället. Du kan ändra detta i Inställningar > "
+"Allmänt > Metod för att öppna artiklar."
 
-#: gui/mainframe.py:10901
+#: gui/mainframe.py:11053
 msgid "Download failed: {error}"
 msgstr "Nedladdning misslyckades: {error}"
 
-#: gui/mainframe.py:11749
+#: gui/mainframe.py:11901
 msgid "Could not move config file."
 msgstr "Kunde inte flytta konfigurationsfilen."
 
-#: gui/mainframe.py:12593
+#: gui/mainframe.py:12745
 msgid "Could not create the rule."
 msgstr "Kunde inte skapa regeln."
 
-#: gui/mainframe.py:12622
+#: gui/mainframe.py:12774
 msgid "Could not update the rule."
 msgstr "Kunde inte uppdatera regeln."
 
-#: gui/mainframe.py:12698
+#: gui/mainframe.py:12850
 msgid ""
 "Could not apply rules.\n"
 "\n"
@@ -3350,7 +3483,7 @@ msgstr ""
 "\n"
 "{error}"
 
-#: gui/mainframe.py:450
+#: gui/mainframe.py:457
 msgid ""
 "This macOS/Linux build should already bundle these tools.\n"
 "If they still appear missing, see the log: {log_path}\n"
@@ -3362,43 +3495,43 @@ msgstr ""
 "\n"
 "Tips: du kan inaktivera den här frågan i Inställningar > YouTube."
 
-#: gui/mainframe.py:2969
+#: gui/mainframe.py:3045
 msgid "Current chapter, {label}"
 msgstr "Aktuellt kapitel, {label}"
 
-#: gui/mainframe.py:3934
+#: gui/mainframe.py:4010
 msgid "Mark all items in category \"{category}\" as read?"
 msgstr "Markera alla objekt i kategorin \"{category}\" som lästa?"
 
-#: gui/mainframe.py:4316
+#: gui/mainframe.py:4441
 msgid "Add {count} to Play Queue"
 msgstr "Lägg till {count} i uppspelningskön"
 
-#: gui/mainframe.py:4324
+#: gui/mainframe.py:4449
 msgid "Remove {count} from Play Queue"
 msgstr "Ta bort {count} från uppspelningskön"
 
-#: gui/mainframe.py:5001
+#: gui/mainframe.py:5126
 msgid "Error detecting audio: {error}"
 msgstr "Fel vid identifiering av ljud: {error}"
 
-#: gui/mainframe.py:6047
+#: gui/mainframe.py:6172
 msgid "Could not restore {count} articles."
 msgstr "Kunde inte återställa {count} artiklar."
 
-#: gui/mainframe.py:6218
+#: gui/mainframe.py:6343
 msgid "Remove category '{category}'? Feeds will be moved to Uncategorized."
 msgstr "Ta bort kategorin '{category}'? Flöden flyttas till Okategoriserad."
 
-#: gui/mainframe.py:9591
+#: gui/mainframe.py:9736
 msgid "No webpage URL for this item. Showing feed content."
 msgstr "Det finns ingen webbadress för objektet. Flödets innehåll visas."
 
-#: gui/mainframe.py:9593
+#: gui/mainframe.py:9738
 msgid "Full-text extraction failed. Showing feed content."
 msgstr "Hämtning av fulltext misslyckades. Flödets innehåll visas."
 
-#: gui/mainframe.py:10966 gui/mainframe.py:10884
+#: gui/mainframe.py:11118 gui/mainframe.py:11036
 msgid ""
 "Downloaded to:\n"
 "{path}"
@@ -3406,16 +3539,16 @@ msgstr ""
 "Nedladdad till:\n"
 "{path}"
 
-#: gui/mainframe.py:11689
+#: gui/mainframe.py:11841
 msgid "Export failed: {error}"
 msgstr "Export misslyckades: {error}"
 
-#: gui/mainframe.py:11830
+#: gui/mainframe.py:11982
 msgid "Windows notification prerequisites could not be fully configured."
 msgstr ""
 "Windows-aviseringsförutsättningarna kunde inte konfigureras fullständigt."
 
-#: gui/mainframe.py:10864
+#: gui/mainframe.py:11016
 msgid ""
 "yt-dlp is not installed. Install it via Settings to download YouTube items."
 msgstr ""
@@ -3446,11 +3579,11 @@ msgstr "Koppla &från cast"
 msgid "&Cast to Device..."
 msgstr "&Casta till enhet..."
 
-#: gui/player.py:4083
+#: gui/player.py:4122
 msgid "Connecting..."
 msgstr "Ansluter..."
 
-#: gui/player.py:6372 gui/player.py:6484
+#: gui/player.py:6411 gui/player.py:6523
 msgid "Stopped"
 msgstr "Stoppad"
 
@@ -3518,27 +3651,27 @@ msgstr "&Uppspelning"
 msgid "&Chapters"
 msgstr "&Kapitel"
 
-#: gui/player.py:2542
+#: gui/player.py:2581
 msgid "Cast device disconnected; resuming local playback"
 msgstr "Castenheten frånkopplad; återupptar lokal uppspelning"
 
-#: gui/player.py:3279 gui/player.py:3800
+#: gui/player.py:3318 gui/player.py:3839
 msgid "Failed to load media"
 msgstr "Det gick inte att läsa in media"
 
-#: gui/player.py:3802
+#: gui/player.py:3841
 msgid "VLC is not initialized. Playback is unavailable."
 msgstr "VLC är inte initierat. Uppspelning är inte tillgänglig."
 
-#: gui/player.py:3946
+#: gui/player.py:3985
 msgid "Buffering..."
 msgstr "Buffrar..."
 
-#: gui/player.py:4143
+#: gui/player.py:4182
 msgid "Downloading for playback..."
 msgstr "Laddar ner för uppspelning..."
 
-#: gui/player.py:5291
+#: gui/player.py:5330
 msgid "Elapsed {elapsed}, Remaining {remaining}, Total {total}"
 msgstr "Förflutet {elapsed}, Återstår {remaining}, Totalt {total}"
 
@@ -3562,11 +3695,11 @@ msgstr "Kapitellänk inte tillgänglig"
 msgid "Could not open chapter link"
 msgstr "Det gick inte att öppna kapitellänken"
 
-#: gui/player.py:4062
+#: gui/player.py:4101
 msgid "Loading media..."
 msgstr "Läser in media..."
 
-#: gui/player.py:5289
+#: gui/player.py:5328
 msgid "Elapsed {elapsed}"
 msgstr "Förflutet {elapsed}"
 
@@ -3582,7 +3715,7 @@ msgstr "Parkoppling misslyckades: {error}"
 msgid "Open Link for {chapter}"
 msgstr "Öppna länk för {chapter}"
 
-#: gui/player.py:2430
+#: gui/player.py:2469
 msgid "Casting failed: {error}"
 msgstr "Castning misslyckades: {error}"
 
@@ -3619,8 +3752,8 @@ msgstr "BlindRSS körs redan."
 #~ "Hämta alltid fullständiga flöden i bakgrunden (ignorera flödescachning)"
 
 #~ msgid ""
-#~ "Articles cannot be deleted while feeds are refreshing. Try again after the "
-#~ "refresh is complete."
+#~ "Articles cannot be deleted while feeds are refreshing. Try again after "
+#~ "the refresh is complete."
 #~ msgstr ""
 #~ "Artiklar kan inte tas bort medan flöden uppdateras. Försök igen när "
 #~ "uppdateringen är klar."
@@ -3629,8 +3762,8 @@ msgstr "BlindRSS körs redan."
 #~ msgstr "Uppdatering pågår"
 
 #~ msgid ""
-#~ "Articles cannot be restored while feeds are refreshing. Try again after the "
-#~ "refresh is complete."
+#~ "Articles cannot be restored while feeds are refreshing. Try again after "
+#~ "the refresh is complete."
 #~ msgstr ""
 #~ "Artiklar kan inte återställas medan flöden uppdateras. Försök igen när "
 #~ "uppdateringen är klar."

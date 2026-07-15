@@ -2295,7 +2295,9 @@ class PlayerFrame(wx.Frame):
         idx = self._active_chapter_index()
         if idx <= 0:
             return
-        self._jump_to_chapter_index(int(idx) - 1)
+        target = int(idx) - 1
+        self._jump_to_chapter_index(target)
+        self._announce_chapter_nav(target)
 
     def on_next_chapter(self, event) -> None:
         idx = self._active_chapter_index()
@@ -2307,10 +2309,47 @@ class PlayerFrame(wx.Frame):
             return
         if idx < 0:
             self._jump_to_chapter_index(0)
+            self._announce_chapter_nav(0)
             return
         if idx >= (total - 1):
             return
-        self._jump_to_chapter_index(int(idx) + 1)
+        target = int(idx) + 1
+        self._jump_to_chapter_index(target)
+        self._announce_chapter_nav(target)
+
+    def _announce_chapter_nav(self, idx: int) -> None:
+        """Announce the chapter jumped to (issue #67). Best-effort: never let a
+        missing announcer/name break navigation."""
+        try:
+            self._announce_media_nav(self._chapter_announce_text(idx))
+        except Exception:
+            log.debug("Chapter navigation announcement failed", exc_info=True)
+
+    def _chapter_announce_text(self, idx: int) -> str:
+        """Chapter name for announcement (issue #67): title, else timestamp label."""
+        try:
+            chapters = list(getattr(self, "current_chapters", []) or [])
+            if 0 <= int(idx) < len(chapters):
+                chapter = chapters[int(idx)]
+                title = str(chapter.get("title", "") or "").strip()
+                return title or self._format_chapter_menu_label(chapter)
+        except Exception:
+            pass
+        return ""
+
+    def _announce_media_nav(self, text: str) -> None:
+        """Route a media/chapter navigation announcement through the main frame's
+        configurable announcer (issue #67). Fully guarded and non-blocking."""
+        text = str(text or "").strip()
+        if not text:
+            return
+        try:
+            mf = self.GetParent()
+            announce = getattr(mf, "_announce_event", None)
+            if callable(announce):
+                announce("media_navigation", text)
+        except Exception:
+            log.debug("Chapter navigation announcement failed", exc_info=True)
 
     def on_cast(self, event):
         if self.is_casting:

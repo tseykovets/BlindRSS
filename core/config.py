@@ -263,6 +263,10 @@ DEFAULT_CONFIG = {
     # User overrides for editable keyboard shortcuts (see core.shortcuts):
     # {command_id: "Ctrl+Shift+X"} or "" to unbind. Empty = all defaults.
     "keyboard_shortcuts": {},
+    # Per-event screen-reader announcement modes (issue #67, see
+    # core.announcements): {event_id: "none"|"speech"|"braille"|"both"}. Empty
+    # or partial maps fall back to the "both" (speech + Braille) default.
+    "announcements": {},
     "volume": 100,
     "volume_step": 5,
     "seek_back_ms": 10000,

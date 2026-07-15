@@ -665,6 +665,9 @@ def test_previous_and_next_chapter_navigation_use_playback_position():
         def _jump_to_chapter_index(self, idx):
             self.jumps.append(idx)
 
+        def _announce_chapter_nav(self, idx):
+            pass
+
     middle = _Frame(active_idx=1)
     PlayerFrame.on_prev_chapter(middle, None)
     PlayerFrame.on_next_chapter(middle, None)
@@ -689,6 +692,9 @@ def test_next_chapter_navigation_starts_first_chapter_before_chapter_timeline():
 
         def _jump_to_chapter_index(self, idx):
             self.jumps.append(idx)
+
+        def _announce_chapter_nav(self, idx):
+            pass
 
     frame = _Frame()
     PlayerFrame.on_next_chapter(frame, None)

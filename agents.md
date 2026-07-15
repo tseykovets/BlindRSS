@@ -184,6 +184,9 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
   - `dialogs.py`: Add feed, settings, provider auth, feed discovery search, and notification controls.
     - Settings has a Translate tab for automatic article translation. API keys are local config only; do not introduce cloud sync or logging of keys.
     - New-article notifications work on Windows (toast) AND macOS (Notification Center) via `wx.adv.NotificationMessage`. Gate everything on `core.utils.platform_supports_notifications()` (win+darwin), not `sys.platform.startswith("win")`; the config keys keep their `windows_notifications_*` names for back-compat. The Windows-only AppUserModelID prerequisite (`main.py`/`mainframe._ensure_notification_prerequisites`) stays Windows-gated — macOS needs no prerequisite.
+    - Settings has an Announcements tab (issue #67): one dropdown per event (`core.announcements.EVENTS`) with modes None / Only speech / Only Braille / Speech and Braille (default both), collected by `_collect_announcement_modes` into config `announcements`. Event/mode labels are displayed with dynamic `_()`, so their English msgids are anchored for extraction via the gettext-noop `_`/`_POT_ANCHORS` block in `core/announcements.py` — keep that list in sync with `EVENTS`/`MODE_LABELS`.
+
+- Screen-reader announcements (issue #67): `core/announcements.py` (`Announcer`) speaks and/or brailles key-event feedback through `accessible-output2` (bundled; `main.spec` collects `accessible_output2`/`platform_utils`/`libloader`), falling back to the direct NVDA/JAWS adapters in `core/screen_reader_announce.py` (+ NVDA Braille via `braille_message`) when it is absent. `MainFrame._announce_event(event_id, msg)` is the GUI entry point and mirrors to status field 0. Announcements are keyboard-only where it matters: filter change (Ctrl+1–6) and F5/Shift+F5 are handled in `on_char_hook` before the menu accelerator fires; playback speed announces from `dispatch_shortcut` (the menu path keeps `_apply_playback_speed` status-bar-only); status toggle announces from the Backspace path (which is why `toggle_selected_article_read_status` returns the new "Read"/"Unread" label). Media/chapter navigation announces from `_play_queue_step` and `PlayerFrame._announce_chapter_nav` (best-effort, guarded). Do not add these as `\t` menu accelerators or they will double-fire and announce on menu clicks.
 
 - `providers/`
   - `base.py`: `RSSProvider` interface.
@@ -348,6 +351,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-fetch-fallback-chain.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-prefetch-refresh-starvation.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\installed-app-debug-landscape.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\localization-guardrails.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\playback-rate-gap-and-render-lag.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\podcast-signed-url-reresolve.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\provider-flat-vs-nested.md

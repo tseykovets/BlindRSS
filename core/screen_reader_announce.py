@@ -38,6 +38,33 @@ def speak_status(message: str, *, interrupt: bool = True) -> bool:
     return False
 
 
+def braille_message(message: str) -> bool:
+    """Show a short message on the NVDA Braille display, if NVDA is running.
+
+    Returns True only when NVDA's controller client accepts the message. This is
+    the direct-Braille fallback used when accessible-output2 is not available;
+    JAWS has no comparable simple Braille COM entry point, so it is NVDA-only.
+    """
+    if not sys.platform.startswith("win"):
+        return False
+    text = str(message or "").strip()
+    if not text:
+        return False
+    dll = _load_nvda_controller()
+    if dll is None:
+        return False
+    try:
+        if int(dll.nvdaController_testIfRunning()) != 0:
+            return False
+        fn = getattr(dll, "nvdaController_brailleMessage", None)
+        if fn is None:
+            return False
+        return int(fn(str(text))) == 0
+    except Exception as exc:
+        LOG.debug("NVDA controller Braille failed: %s", exc)
+        return False
+
+
 def _speak_nvda(text: str, *, interrupt: bool = True) -> bool:
     dll = _load_nvda_controller()
     if dll is None:
@@ -70,6 +97,12 @@ def _load_nvda_controller():
             dll.nvdaController_speakText.restype = ctypes.c_ulong
             dll.nvdaController_cancelSpeech.argtypes = []
             dll.nvdaController_cancelSpeech.restype = ctypes.c_ulong
+            try:
+                dll.nvdaController_brailleMessage.argtypes = [ctypes.c_wchar_p]
+                dll.nvdaController_brailleMessage.restype = ctypes.c_ulong
+            except Exception:
+                # Older controller clients may lack the Braille entry point.
+                pass
             _NVDA_DLL = dll
             return _NVDA_DLL
         except Exception as exc:

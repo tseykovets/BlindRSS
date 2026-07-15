@@ -81,6 +81,8 @@ class _PlayerStub:
 class _DummyMain:
     on_char_hook = mainframe.MainFrame.on_char_hook
     _is_text_input_focused = mainframe.MainFrame._is_text_input_focused
+    _is_editable_text_input_focused = mainframe.MainFrame._is_editable_text_input_focused
+    _filter_shortcut_targets = mainframe.MainFrame._filter_shortcut_targets
 
     def __init__(self):
         self.list_ctrl = object()

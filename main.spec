@@ -122,6 +122,11 @@ packages_to_collect = [
     # Rich full-text reader (opt-in). Pure-python but imported lazily, so
     # PyInstaller's analysis misses it unless collected explicitly.
     'wx_accessible_webview',
+    # Screen-reader speech + Braille announcements (issue #67). Ships per-output
+    # backends plus bundled DLLs/sound data it loads at runtime, and is imported
+    # lazily, so collect the whole package (with its deps) or the frozen build
+    # falls back to the direct NVDA/JAWS speech path only.
+    'accessible_output2', 'platform_utils', 'libloader',
 ]
 
 datas = []

@@ -135,6 +135,129 @@ def _image_alt_marker(alt: str | None) -> str:
     return f"[Image: {alt}]" if alt else "[Image]"
 
 
+# Data tables larger than this are almost certainly scraped page furniture
+# (finance tickers, stats dumps), not article content worth reading linearly.
+_TABLE_MAX_ROWS = 100
+# A cell longer than this means the "table" is holding article prose (old
+# table-based page layouts), where flattening would destroy the body text.
+_TABLE_MAX_CELL_LEN = 400
+# Block-level content inside a cell marks a layout table, not a data table.
+_TABLE_LAYOUT_TAGS = (
+    "p", "h1", "h2", "h3", "h4", "h5", "h6",
+    "article", "section", "aside", "nav", "form",
+    "ul", "ol", "blockquote", "figure", "table",
+)
+
+
+def _table_cell_text(cell) -> str:
+    return " ".join(cell.get_text(" ", strip=True).split())
+
+
+def format_table_text(table) -> str:
+    """Linearize a BeautifulSoup ``<table>`` into screen-reader-friendly text.
+
+    Plain-text reader panes have no real table semantics, so each data row
+    becomes one line pairing every cell with its column header::
+
+        Table with 3 rows and 2 columns: Caption.
+        Row 1: Year: 2025; Flaws patched: 140.
+        ...
+        End of table.
+
+    Returns "" for layout tables (block content or very long prose inside
+    cells) so callers keep their existing behavior for those. Markers stay
+    English on purpose, like the ``[Image: alt]`` marker: downstream merge
+    heuristics in the extractor recognize them by pattern.
+    """
+    try:
+        if table.find(_TABLE_LAYOUT_TAGS) is not None:
+            return ""
+        grid: list[list[str]] = []
+        header_row: list[str] | None = None
+        for tr in table.find_all("tr"):
+            cells = tr.find_all(["th", "td"], recursive=False)
+            if not cells:
+                continue
+            texts = [_table_cell_text(c) for c in cells]
+            if not any(texts):
+                continue
+            if any(len(t) > _TABLE_MAX_CELL_LEN for t in texts):
+                return ""
+            is_head = tr.find_parent("thead") is not None or all(c.name == "th" for c in cells)
+            if header_row is None and not grid and is_head:
+                header_row = texts
+                continue
+            grid.append(texts)
+            if len(grid) > _TABLE_MAX_ROWS:
+                return ""
+        if not grid and not header_row:
+            return ""
+        ncols = max(len(r) for r in (grid or [header_row]))
+        if ncols < 2 or not grid:
+            # A single-column (or header-only) table isn't tabular data; read
+            # its cells as plain lines without table framing.
+            lines = list(header_row or [])
+            lines.extend(t for row in grid for t in row)
+            return "\n".join(lines)
+
+        caption = ""
+        cap = table.find("caption")
+        if cap is not None:
+            caption = _table_cell_text(cap)
+
+        head = f"Table with {len(grid)} rows and {ncols} columns"
+        lines = [f"{head}: {caption}." if caption else f"{head}."]
+        for i, row in enumerate(grid, 1):
+            if header_row and len(row) == len(header_row):
+                pairs = [f"{h}: {v}" for h, v in zip(header_row, row) if v]
+            else:
+                pairs = [v for v in row if v]
+            lines.append(f"Row {i}: " + "; ".join(pairs) + ".")
+        lines.append("End of table.")
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
+def replace_tables_with_text(soup, as_paragraphs: bool = False) -> list[str]:
+    """Replace each data ``<table>`` in ``soup`` with its linearized text.
+
+    Innermost tables are processed first so a nested data table inside a
+    layout table still gets formatted. Layout tables are left untouched.
+    ``as_paragraphs`` emits one ``<p>`` per line (for HTML re-extraction,
+    where a raw text node's newlines would be collapsed); otherwise a plain
+    text node is inserted (for direct ``get_text`` conversion). Returns the
+    formatted text blocks (used by the extractor to patch JSON-LD results
+    that dropped tables).
+    """
+    blocks: list[str] = []
+    try:
+        for tbl in reversed(soup.find_all("table")):
+            text = format_table_text(tbl)
+            if not text:
+                continue
+            if text in blocks:
+                # Pages often ship the same table twice (desktop + mobile
+                # markup); with tables previously dropped outright, keeping
+                # one copy is strictly more than the old behavior.
+                tbl.decompose()
+                continue
+            blocks.append(text)
+            if as_paragraphs:
+                container = soup.new_tag("div")
+                for line in text.split("\n"):
+                    p = soup.new_tag("p")
+                    p.string = line
+                    container.append(p)
+                tbl.replace_with(container)
+            else:
+                tbl.replace_with(soup.new_string("\n\n" + text + "\n\n"))
+    except Exception:
+        pass
+    blocks.reverse()
+    return blocks
+
+
 def html_to_text(html: str | None, include_images: bool = False) -> str:
     """Convert feed/article HTML to readable plain text.
 
@@ -156,6 +279,9 @@ def html_to_text(html: str | None, include_images: bool = False) -> str:
                 if isinstance(alt, (list, tuple)):
                     alt = " ".join(str(a) for a in alt)
                 img.replace_with(soup.new_string(_image_alt_marker(str(alt))))
+        # Data tables read as one cell per paragraph through get_text, losing
+        # all row/column association; linearize them into header-value lines.
+        replace_tables_with_text(soup)
         return (soup.get_text(separator="\n\n") or "").strip()
     except Exception:
         return str(html)

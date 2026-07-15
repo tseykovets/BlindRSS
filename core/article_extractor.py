@@ -2074,7 +2074,67 @@ def _patch_json_ld_missing_lead(json_text: str, *alts: str) -> str:
     return patched
 
 
+# Lines produced by utils.format_table_text. _merge_texts must not drop or
+# de-duplicate them: rows can be shorter than its 25-char paragraph floor, and
+# the fixed "End of table." marker repeats once per table.
+_TABLE_MARKER_LINE_RE = re.compile(r"^(?:Table with \d+ rows? and \d+ columns?[:.]|Row \d+: .*\.$|End of table\.$)")
+
+
+def _linearize_tables_html(html: str, url: str = "") -> Tuple[str, List[str]]:
+    """Replace data tables in page HTML with accessible per-row paragraphs.
+
+    Runs before all extraction passes so the linearized rows flow through
+    trafilatura/site-specific/soup extraction at the table's original position
+    (trafilatura's include_tables=False otherwise drops them entirely, and its
+    include_tables=True pipe-grid loses header association for screen-reader
+    users). Layout tables are left alone, keeping the old behavior for them.
+    """
+    if not html or "<table" not in html.lower():
+        return html, []
+    soup = _parse_html_soup(html, context="table linearization")
+    if soup is None:
+        return html, []
+    try:
+        blocks = utils.replace_tables_with_text(soup, as_paragraphs=True)
+    except Exception:
+        LOG.debug("Table linearization failed for %s", url, exc_info=True)
+        return html, []
+    if not blocks:
+        return html, []
+    return str(soup), blocks
+
+
+def _append_missing_tables(text: str, table_blocks: List[str], dom_text: str) -> str:
+    """Append tables that the DOM extraction kept but ``text`` (JSON-LD) lacks.
+
+    JSON-LD articleBody usually flattens or omits tables. Only blocks whose
+    first data row appears in ``dom_text`` are considered — that scopes the
+    patch to tables trafilatura judged to be inside the article body, so page
+    furniture tables never get appended.
+    """
+    if not text or not table_blocks or not dom_text:
+        return text
+    dom_norm = _normalize_for_match(dom_text)
+    text_norm = _normalize_for_match(text)
+    extra: List[str] = []
+    for block in table_blocks:
+        lines = block.split("\n")
+        first_row = next((ln for ln in lines if ln.startswith("Row ")), "")
+        if not first_row:
+            continue
+        sig = _normalize_for_match(first_row)
+        if sig in dom_norm and sig not in text_norm:
+            extra.append(block)
+    if not extra:
+        return text
+    return _normalize_whitespace(text + "\n\n" + "\n\n".join(extra))
+
+
 def _extract_text_any(html: str, url: str = "") -> str:
+    # Linearize data tables first so every extraction path below sees them as
+    # ordinary in-place paragraphs (screen-reader-friendly header-value rows).
+    html, table_blocks = _linearize_tables_html(html, url)
+
     # 0. Site-specific structured body (e.g. Axios __NEXT_DATA__). Some Axios page variants
     # ship no article body in the DOM, so trafilatura only finds related-story cards and the
     # "Add Axios as your preferred source ... on Google" promo; the CMS JSON always has the
@@ -2096,13 +2156,15 @@ def _extract_text_any(html: str, url: str = "") -> str:
         txt_norm = _normalize_whitespace(txt)
         json_norm = _normalize_whitespace(json_txt)
         # If JSON-LD is significantly longer, prefer it, but re-attach any lead
-        # paragraphs that only trafilatura captured.
+        # paragraphs that only trafilatura captured, plus any in-article tables
+        # the articleBody flattened away.
         if len(json_norm) > len(txt_norm) * 1.1:
-            return _patch_json_ld_missing_lead(
+            patched = _patch_json_ld_missing_lead(
                 json_norm,
                 txt_norm,
                 _extract_article_paragraph_text(html),
             )
+            return _append_missing_tables(patched, table_blocks, txt_norm)
         return txt_norm
 
     if json_txt:
@@ -2220,14 +2282,40 @@ def _merge_texts(texts: List[str]) -> str:
         # de-dupe paragraph by paragraph
         paras = [p.strip() for p in t.split("\n") if p.strip()]
         merged_paras: List[str] = []
-        for p in paras:
-            key = re.sub(r"\s+", " ", p).strip().lower()
-            if len(key) < 25:
+        i = 0
+        while i < len(paras):
+            p = paras[i]
+            # Linearized table blocks are kept or dropped as a unit: their
+            # lines bypass the per-line length floor and dedupe (data rows
+            # are often shorter than 25 chars and the "End of table." marker
+            # repeats per table), while a table repeated across pagination
+            # pages is deduped on the whole block.
+            if p.startswith("Table with") and _TABLE_MARKER_LINE_RE.match(p):
+                block = [p]
+                j = i + 1
+                while j < len(paras) and _TABLE_MARKER_LINE_RE.match(paras[j]):
+                    block.append(paras[j])
+                    j += 1
+                    if block[-1] == "End of table.":
+                        break
+                key = re.sub(r"\s+", " ", " ".join(block)).strip().lower()
+                if key not in seen:
+                    seen.add(key)
+                    merged_paras.extend(block)
+                i = j
                 continue
-            if key in seen:
+            if _TABLE_MARKER_LINE_RE.match(p):
+                # Stray row/end line without its block header: keep as-is.
+                merged_paras.append(p)
+                i += 1
+                continue
+            key = re.sub(r"\s+", " ", p).strip().lower()
+            if len(key) < 25 or key in seen:
+                i += 1
                 continue
             seen.add(key)
             merged_paras.append(p)
+            i += 1
 
         if merged_paras:
             out.append("\n".join(merged_paras))

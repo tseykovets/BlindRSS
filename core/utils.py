@@ -258,13 +258,146 @@ def replace_tables_with_text(soup, as_paragraphs: bool = False) -> list[str]:
     return blocks
 
 
-def html_to_text(html: str | None, include_images: bool = False) -> str:
+# ---------------------------------------------------------------------------
+# Article structure linearization (headings / lists / block quotes).
+#
+# The reader pane is a plain text control, so structural HTML is preserved as
+# short English marker lines, exactly like the table linearization above:
+# downstream merge heuristics in the extractor recognize the markers by
+# pattern, so they must never be localized or reworded. Each element type is
+# an opt-in Settings toggle; the GUI pushes the config values in here so core
+# code stays config-free.
+# ---------------------------------------------------------------------------
+
+ARTICLE_STRUCTURE_DEFAULTS = {
+    # Tables ship enabled (v1.100.0 behavior); the rest are opt-in extras.
+    "tables": True,
+    "headings": False,
+    "lists": False,
+    "quotes": False,
+}
+_article_structure_options = dict(ARTICLE_STRUCTURE_DEFAULTS)
+
+
+def set_article_structure_options(options: dict | None) -> None:
+    """Set which structural elements are linearized into article text."""
+    global _article_structure_options
+    merged = dict(ARTICLE_STRUCTURE_DEFAULTS)
+    for key, value in (options or {}).items():
+        if key in merged:
+            merged[key] = bool(value)
+    _article_structure_options = merged
+
+
+def get_article_structure_options() -> dict:
+    return dict(_article_structure_options)
+
+
+def apply_article_structure_config(config_get) -> None:
+    """Load the ``article_structure_*`` config keys via ``config_get(key, default)``."""
+    try:
+        set_article_structure_options({
+            key: config_get(f"article_structure_{key}", default)
+            for key, default in ARTICLE_STRUCTURE_DEFAULTS.items()
+        })
+    except Exception:
+        set_article_structure_options(None)
+
+
+_HEADING_TAGS = ("h1", "h2", "h3", "h4", "h5", "h6")
+
+
+def linearize_structure(soup, *, headings: bool = False, lists: bool = False, quotes: bool = False) -> None:
+    """Rewrite structural HTML in ``soup`` into screen-reader marker paragraphs.
+
+    Inline children (links, emphasis) are kept in place so extraction
+    heuristics that rely on link density still work; only the containers are
+    renamed and prefixed:
+
+    - ``<h2>Why</h2>``            -> ``<p>Heading level 2: Why</p>``
+    - ``<li>`` in ``<ul>``/``<ol>`` -> ``<p>• item</p>`` / ``<p>1. item</p>``
+    - ``<blockquote>``            -> ``Quote:`` ... ``End of quote.`` paragraphs
+    """
+    if headings:
+        for h in soup.find_all(_HEADING_TAGS):
+            if not h.get_text(strip=True):
+                continue
+            h.insert(0, soup.new_string(f"Heading level {h.name[1]}: "))
+            h.name = "p"
+    if lists:
+        # Innermost-first so a nested list is already linearized (its <li>
+        # renamed) before the outer list counts its own direct items.
+        for lst in reversed(soup.find_all(["ul", "ol"])):
+            ordered = lst.name == "ol"
+            index = 0
+            for li in lst.find_all("li", recursive=False):
+                if not li.get_text(strip=True):
+                    continue
+                index += 1
+                prefix = f"{index}. " if ordered else "• "
+                li.insert(0, soup.new_string(prefix))
+                li.name = "p"
+            lst.name = "div"
+    if quotes:
+        for bq in reversed(soup.find_all("blockquote")):
+            if not bq.get_text(strip=True):
+                continue
+            start = soup.new_tag("p")
+            start.string = "Quote:"
+            end = soup.new_tag("p")
+            end.string = "End of quote."
+            bq.insert(0, start)
+            bq.append(end)
+            bq.name = "div"
+
+
+# Block-level elements that separate paragraphs in the plain-text rendering.
+_BLOCK_TEXT_TAGS = (
+    "address", "article", "aside", "blockquote", "caption", "dd", "details",
+    "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form",
+    "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main", "nav",
+    "ol", "p", "pre", "section", "summary", "table", "tbody", "td", "tfoot",
+    "th", "thead", "tr", "ul",
+)
+_NONVISIBLE_TAGS = ("script", "style", "noscript", "template")
+
+
+def _soup_to_block_text(soup) -> str:
+    """Render ``soup`` as plain text: inline markup joins, block tags separate.
+
+    ``get_text(separator=...)`` puts the separator between EVERY pair of text
+    nodes, so a paragraph with a link or emphasis used to shred into several
+    fake paragraphs. Instead, collapse whitespace inside the original text
+    nodes (keeping their boundary spaces), then insert explicit paragraph
+    breaks only around block-level elements.
+    """
+    for tag in soup.find_all(_NONVISIBLE_TAGS):
+        tag.decompose()
+    for s in soup.find_all(string=True):
+        collapsed = re.sub(r"\s+", " ", str(s))
+        if collapsed != str(s):
+            s.replace_with(soup.new_string(collapsed))
+    for br in soup.find_all("br"):
+        br.replace_with(soup.new_string("\n"))
+    for tag in soup.find_all(_BLOCK_TEXT_TAGS):
+        tag.insert_before(soup.new_string("\n\n"))
+        tag.insert_after(soup.new_string("\n\n"))
+    text = soup.get_text()
+    lines = [ln.strip() for ln in text.split("\n")]
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
+    return text.strip()
+
+
+def html_to_text(html: str | None, include_images: bool = False, structure: dict | None = None) -> str:
     """Convert feed/article HTML to readable plain text.
 
     When ``include_images`` is True, each ``<img>`` is replaced in document order
     with its alt text as ``[Image: alt]`` (or ``[Image]`` when there is no alt), so
     screen-reader users hear that an image is present without the image URL. When
     False, images are dropped (the historical behavior).
+
+    ``structure`` overrides the module-level article-structure options (see
+    :func:`set_article_structure_options`); ``None`` uses those options.
     """
     if not html:
         return ""
@@ -273,16 +406,26 @@ def html_to_text(html: str | None, include_images: bool = False) -> str:
     except Exception:
         return str(html)
     try:
+        opts = dict(_article_structure_options)
+        opts.update(structure or {})
         if include_images:
             for img in soup.find_all("img"):
                 alt = img.get("alt") or img.get("title") or ""
                 if isinstance(alt, (list, tuple)):
                     alt = " ".join(str(a) for a in alt)
                 img.replace_with(soup.new_string(_image_alt_marker(str(alt))))
-        # Data tables read as one cell per paragraph through get_text, losing
-        # all row/column association; linearize them into header-value lines.
-        replace_tables_with_text(soup)
-        return (soup.get_text(separator="\n\n") or "").strip()
+        # Data tables read as one cell per line through plain conversion,
+        # losing all row/column association; linearize them into header-value
+        # lines. Structure markers reuse the same in-place rewriting.
+        if opts.get("tables", True):
+            replace_tables_with_text(soup, as_paragraphs=True)
+        linearize_structure(
+            soup,
+            headings=bool(opts.get("headings")),
+            lists=bool(opts.get("lists")),
+            quotes=bool(opts.get("quotes")),
+        )
+        return _soup_to_block_text(soup)
     except Exception:
         return str(html)
 

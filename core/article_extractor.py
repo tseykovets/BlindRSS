@@ -178,7 +178,14 @@ def _looks_like_link_list(text: str) -> bool:
     """Return True if short extracted `text` is mostly navigation/headline-like link captions."""
     if not text or len(text) > _LINK_LIST_MAX_BODY_LEN:
         return False
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    # Structure marker lines (tables, headings, list items, quotes) are
+    # intentional short lines, not navigation captions; a short article that
+    # is mostly a real list must not be rejected as a link list.
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not _is_marker_line(line.strip())
+    ]
     if len(lines) < _LINK_LIST_MIN_LINES:
         return False
     linky = sum(
@@ -2079,27 +2086,55 @@ def _patch_json_ld_missing_lead(json_text: str, *alts: str) -> str:
 # the fixed "End of table." marker repeats once per table.
 _TABLE_MARKER_LINE_RE = re.compile(r"^(?:Table with \d+ rows? and \d+ columns?[:.]|Row \d+: .*\.$|End of table\.$)")
 
+# Lines produced by utils.linearize_structure (opt-in heading/list/quote
+# markers). Like table lines, they are intentional short lines: _merge_texts
+# must keep them below its paragraph-length floor, and the fixed quote
+# markers repeat once per quote so they must bypass de-duplication too.
+_STRUCTURE_MARKER_LINE_RE = re.compile(
+    r"^(?:Heading level [1-6]: .+|Quote:$|End of quote\.$|• .+|\d{1,3}\. .+)"
+)
+
+
+def _is_marker_line(line: str) -> bool:
+    return bool(_TABLE_MARKER_LINE_RE.match(line) or _STRUCTURE_MARKER_LINE_RE.match(line))
+
 
 def _linearize_tables_html(html: str, url: str = "") -> Tuple[str, List[str]]:
-    """Replace data tables in page HTML with accessible per-row paragraphs.
+    """Replace structural HTML with accessible marker paragraphs, pre-extraction.
 
-    Runs before all extraction passes so the linearized rows flow through
-    trafilatura/site-specific/soup extraction at the table's original position
-    (trafilatura's include_tables=False otherwise drops them entirely, and its
-    include_tables=True pipe-grid loses header association for screen-reader
-    users). Layout tables are left alone, keeping the old behavior for them.
+    Runs before all extraction passes so the linearized text flows through
+    trafilatura/site-specific/soup extraction at its original position
+    (trafilatura's include_tables=False otherwise drops tables entirely, and
+    its include_tables=True pipe-grid loses header association for
+    screen-reader users). Layout tables are left alone, keeping the old
+    behavior for them. Heading/list/quote markers are opt-in Settings toggles
+    (see utils.set_article_structure_options); inline children such as links
+    stay in place so link-density boilerplate heuristics keep working.
     """
-    if not html or "<table" not in html.lower():
+    if not html:
         return html, []
-    soup = _parse_html_soup(html, context="table linearization")
+    opts = utils.get_article_structure_options()
+    low = html.lower()
+    want_tables = bool(opts.get("tables", True)) and "<table" in low
+    want_headings = bool(opts.get("headings")) and "<h" in low
+    want_lists = bool(opts.get("lists")) and ("<ul" in low or "<ol" in low)
+    want_quotes = bool(opts.get("quotes")) and "<blockquote" in low
+    if not (want_tables or want_headings or want_lists or want_quotes):
+        return html, []
+    soup = _parse_html_soup(html, context="structure linearization")
     if soup is None:
         return html, []
+    blocks: List[str] = []
     try:
-        blocks = utils.replace_tables_with_text(soup, as_paragraphs=True)
+        if want_tables:
+            blocks = utils.replace_tables_with_text(soup, as_paragraphs=True)
+        utils.linearize_structure(
+            soup, headings=want_headings, lists=want_lists, quotes=want_quotes
+        )
     except Exception:
-        LOG.debug("Table linearization failed for %s", url, exc_info=True)
+        LOG.debug("Structure linearization failed for %s", url, exc_info=True)
         return html, []
-    if not blocks:
+    if not (blocks or want_headings or want_lists or want_quotes):
         return html, []
     return str(soup), blocks
 
@@ -2304,8 +2339,11 @@ def _merge_texts(texts: List[str]) -> str:
                     merged_paras.extend(block)
                 i = j
                 continue
-            if _TABLE_MARKER_LINE_RE.match(p):
-                # Stray row/end line without its block header: keep as-is.
+            if _is_marker_line(p):
+                # Stray table row/end line without its block header, or a
+                # structure marker (heading/list/quote) line: keep as-is —
+                # markers are intentional short lines and the fixed quote
+                # markers repeat once per quote.
                 merged_paras.append(p)
                 i += 1
                 continue

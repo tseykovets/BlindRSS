@@ -188,6 +188,16 @@ DEFAULT_CONFIG = {
     # When True, article text includes image alt text as "[Image: alt]" so screen
     # readers announce images. Off by default; can be overridden per feed.
     "show_image_alt": False,
+    # Article structure markers (core.utils.linearize_structure): preserve
+    # structural HTML as screen-reader text lines. Tables ship enabled
+    # (v1.100.0 behavior: "Table with N rows..."); headings ("Heading level
+    # 2: ..."), list bullets/numbers, and quote markers ("Quote:" ... "End of
+    # quote.") are opt-in extras. Marker text stays English by design — the
+    # extractor's merge heuristics match it by pattern.
+    "article_structure_tables": True,
+    "article_structure_headings": False,
+    "article_structure_lists": False,
+    "article_structure_quotes": False,
     # Controls how the local provider handles automatic refreshes:
     # ``cached`` uses validators at startup and later, ``startup_full`` fetches
     # every feed at startup only, and ``always_full`` bypasses validators for

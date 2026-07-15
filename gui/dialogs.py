@@ -838,6 +838,39 @@ class SettingsDialog(wx.Dialog):
             10,
         )
 
+        structure_label = wx.StaticText(
+            feeds_panel,
+            label=_(
+                "Article formatting: preserve structure from the original page as spoken text "
+                "markers. Applies to newly loaded articles and full text."
+            ),
+        )
+        feeds_sizer.Add(structure_label, 0, wx.LEFT | wx.TOP, 5)
+        self.structure_tables_chk = wx.CheckBox(
+            feeds_panel,
+            label=_("Describe tables (\"Table with 3 rows...\" and one line per row)"),
+        )
+        self.structure_tables_chk.SetValue(bool(config.get("article_structure_tables", True)))
+        feeds_sizer.Add(self.structure_tables_chk, 0, wx.ALL, 5)
+        self.structure_headings_chk = wx.CheckBox(
+            feeds_panel,
+            label=_("Announce headings (\"Heading level 2:\" before each heading)"),
+        )
+        self.structure_headings_chk.SetValue(bool(config.get("article_structure_headings", False)))
+        feeds_sizer.Add(self.structure_headings_chk, 0, wx.ALL, 5)
+        self.structure_lists_chk = wx.CheckBox(
+            feeds_panel,
+            label=_("Mark list items with bullets and numbers"),
+        )
+        self.structure_lists_chk.SetValue(bool(config.get("article_structure_lists", False)))
+        feeds_sizer.Add(self.structure_lists_chk, 0, wx.ALL, 5)
+        self.structure_quotes_chk = wx.CheckBox(
+            feeds_panel,
+            label=_("Mark quotations (\"Quote:\" before and \"End of quote.\" after)"),
+        )
+        self.structure_quotes_chk.SetValue(bool(config.get("article_structure_quotes", False)))
+        feeds_sizer.Add(self.structure_quotes_chk, 0, wx.ALL, 5)
+
         self.show_image_alt_chk = wx.CheckBox(
             general_panel,
             label=_("Include image alt text in articles (announces images, can override per feed)"),
@@ -2818,6 +2851,10 @@ class SettingsDialog(wx.Dialog):
                 "startup_full",
             ) == "always_full",
             "show_image_alt": self.show_image_alt_chk.GetValue(),
+            "article_structure_tables": self.structure_tables_chk.GetValue(),
+            "article_structure_headings": self.structure_headings_chk.GetValue(),
+            "article_structure_lists": self.structure_lists_chk.GetValue(),
+            "article_structure_quotes": self.structure_quotes_chk.GetValue(),
             "ytdlp_cookies_file": self.ytdlp_cookies_ctrl.GetValue().strip(),
             "auto_import_browser_cookies": self.auto_import_cookies_chk.GetValue(),
             "youtube_play_via_download": self.youtube_play_via_download_chk.GetValue(),

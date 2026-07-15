@@ -117,6 +117,9 @@ class MainFrame(wx.Frame):
         super().__init__(None, title="BlindRSS", size=(1000, 700), style=style)
         self.provider = provider
         self.config_manager = config_manager
+        # Push the article structure-marker toggles into core.utils so both
+        # display conversion and full-text extraction honor them.
+        utils.apply_article_structure_config(config_manager.get)
         self._start_maximized = start_maximized
         self._start_in_system_tray = bool(config_manager.get("start_in_system_tray", False))
         if self._start_maximized and not self._start_in_system_tray:
@@ -11410,6 +11413,12 @@ class MainFrame(wx.Frame):
             try:
                 for k, v in data.items():
                     self.config_manager.set(k, v)
+            except Exception:
+                pass
+
+            # Structure-marker toggles take effect on the next article render.
+            try:
+                utils.apply_article_structure_config(self.config_manager.get)
             except Exception:
                 pass
 

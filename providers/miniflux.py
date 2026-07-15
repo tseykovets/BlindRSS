@@ -201,18 +201,27 @@ class MinifluxProvider(RSSProvider):
         return min(1800.0, 60.0 * (2 ** (n - 1)))  # 60s, 120s, 240s... cap 30m
 
     def _should_attempt_targeted_refresh(self, feed_id: str, *, force: bool = False) -> bool:
-        if force:
-            return True
         fid = str(feed_id or "").strip()
         if not fid:
             return False
+        now_mono = time.monotonic()
         try:
             with self._targeted_refresh_backoff_lock:
                 block_until = float(self._targeted_refresh_backoff_until.get(fid, 0.0) or 0.0)
+                fail_count = int(self._targeted_refresh_fail_counts.get(fid, 0) or 0)
         except Exception:
-            block_until = 0.0
-        now_mono = time.monotonic()
-        if block_until > now_mono:
+            block_until, fail_count = 0.0, 0
+        in_backoff = block_until > now_mono
+
+        if force:
+            # A manual refresh retries a feed's first failure (usually transient), but
+            # keeps skipping a feed that keeps failing while it is inside its backoff
+            # window: an immediate synchronous retry won't fix a chronically-broken feed
+            # and it holds a worker for the full timeout, dragging out the background
+            # straggler drain. The server's own poller keeps retrying it on schedule.
+            return not (in_backoff and fail_count >= 2)
+
+        if in_backoff:
             return False
         try:
             with self._targeted_refresh_backoff_lock:
@@ -220,6 +229,16 @@ class MinifluxProvider(RSSProvider):
         except Exception:
             pass
         return True
+
+    def _force_skip_error_count(self) -> int:
+        """parsing_error_count at/above which a manual refresh skips a feed as
+        chronically broken (the server has failed to parse it this many times in a
+        row). 0 disables server-side skipping. Default 3 -- past a transient hiccup."""
+        try:
+            val = int(self.config.get("miniflux_force_skip_error_count", 3))
+        except Exception:
+            val = 3
+        return max(0, val)
 
     def _record_targeted_refresh_attempt_result(self, feed_id: str, ok: bool, status_code: int | None) -> None:
         fid = str(feed_id or "").strip()
@@ -1295,6 +1314,8 @@ class MinifluxProvider(RSSProvider):
             stale_cutoff = now - timedelta(hours=3)
             retry_budget = len(feeds) if force else 15
             per_feed_retry_ids = []
+            chronic_skipped = 0
+            force_skip_threshold = self._force_skip_error_count()
 
             for feed in feeds:
                 if self._refresh_cancelled(cancel_event):
@@ -1304,7 +1325,11 @@ class MinifluxProvider(RSSProvider):
 
                 checked_dt = self._parse_checked_at(feed.get("checked_at"))
 
-                if (feed.get("parsing_error_count") or 0) > 0:
+                try:
+                    parse_errors = int(feed.get("parsing_error_count") or 0)
+                except Exception:
+                    parse_errors = 0
+                if parse_errors > 0:
                     status = "error"
                 elif checked_dt and checked_dt < stale_cutoff:
                     status = "stale"
@@ -1312,18 +1337,29 @@ class MinifluxProvider(RSSProvider):
                 # Manual refresh in BlindRSS sets force=True. Respect it by explicitly
                 # refreshing every feed so CDN-cached feeds (e.g., Simplecast) update
                 # immediately instead of waiting for Miniflux's next scheduled check.
+                # BUT skip a feed the server has failed to parse repeatedly: a
+                # synchronous retry won't fix a chronically-broken feed and it holds a
+                # worker for the full timeout, dragging out the background straggler
+                # drain (a dead feed can hang the full 18s every refresh). The server's
+                # own poller keeps retrying it; the client failure-backoff (checked in
+                # _should_attempt_targeted_refresh) catches feeds that fail our own
+                # targeted refresh repeatedly within a session.
                 if force:
+                    if force_skip_threshold > 0 and parse_errors >= force_skip_threshold:
+                        chronic_skipped += 1
+                        continue
                     per_feed_retry_ids.append(feed_id)
                 elif status in ("error", "stale"):
                     per_feed_retry_ids.append(feed_id)
 
             allow_targeted_refresh = bool(global_refresh_ok and (not feeds_from_cache))
             log.info(
-                "Miniflux refresh feed metadata force=%s feeds=%s feeds_from_cache=%s targeted_candidates=%s retry_budget=%s allow_targeted=%s",
+                "Miniflux refresh feed metadata force=%s feeds=%s feeds_from_cache=%s targeted_candidates=%s chronic_skipped=%s retry_budget=%s allow_targeted=%s",
                 force,
                 len(feeds or []),
                 feeds_from_cache,
                 len(per_feed_retry_ids),
+                chronic_skipped,
                 retry_budget,
                 allow_targeted_refresh,
             )

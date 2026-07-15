@@ -580,6 +580,69 @@ def _extract_without_dom_boilerplate(html: str, url: str, selectors: Tuple[str, 
     return _trafilatura_extract_text(str(soup), url=url)
 
 
+# socast / Pattison Interactive "Portals" radio-station CMS (used by many local
+# news sites, e.g. fraservalleytoday.ca). It splits the story body across a lead in
+# div.wpb-content-wrapper and a continuation in a second <article class="mainArticle">
+# inside an sc-content column, with related-post / newsletter / ad widgets interleaved.
+# The generic extractor picks only the short lead, so both text and rich views lose
+# most of the story. These class tokens mark the interleaved non-body widgets to skip.
+_SOCAST_JUNK_CLASS_TOKENS = (
+    "posts", "items-wrapper", "bnl-pp-happening", "bnl-info", "bnl-title",
+    "bnl-content", "pp-more-wrapper", "wpb_raw_html", "wpb_raw_code",
+    "sc-author", "entry-footer", "entry-meta", "report_an_error",
+    "highlight-text", "newsletter", "scwidgetcontainer", "sc-item-detail",
+)
+
+
+def _is_socast_page(html: str) -> bool:
+    """True for socast/Pattison-portals radio-CMS article pages (split-body layout)."""
+    if not html:
+        return False
+    low = html.lower()
+    if "socastsrm.com" in low:
+        return True
+    # Theme fingerprint when the CDN host is absent: the split-body class trio.
+    return (
+        "wpb-content-wrapper" in low
+        and "mainarticle" in low
+        and "sc-content" in low
+    )
+
+
+def _socast_node_in_junk(node) -> bool:
+    for ancestor in node.parents:
+        joined = " ".join(ancestor.get("class") or []).lower()
+        if joined and any(tok in joined for tok in _SOCAST_JUNK_CLASS_TOKENS):
+            return True
+    return False
+
+
+def _extract_socast_text(html: str, url: str) -> str:
+    """Rebuild a socast story body from its split containers, skipping the interleaved
+    related-post/newsletter/ad widgets. Returns body text only (no title)."""
+    soup = _parse_html_soup(html, context="socast body")
+    if soup is None:
+        return ""
+    paras: List[str] = []
+    seen: Set[str] = set()
+    for container in soup.select("div.wpb-content-wrapper, article.mainArticle"):
+        for node in container.find_all(["p", "li"]):
+            # Skip container paragraphs (a <p> wrapping other <p>/<li>) to avoid dupes.
+            if node.find(["p", "li"]) is not None:
+                continue
+            if _socast_node_in_junk(node):
+                continue
+            text = _normalize_whitespace(node.get_text(" ", strip=True))
+            if not text:
+                continue
+            key = _normalize_for_match(text)
+            if key in seen:
+                continue
+            seen.add(key)
+            paras.append(text)
+    return _normalize_whitespace("\n\n".join(paras))
+
+
 def _extract_site_specific_text(html: str, url: str) -> str:
     """Site-specific structured body extraction that outranks generic heuristics."""
     if _is_bloomberg_video_url(url):
@@ -592,6 +655,8 @@ def _extract_site_specific_text(html: str, url: str) -> str:
         return _extract_without_dom_boilerplate(html, url, ("section.contributions-container",))
     if _host_matches(url, "rebelnews.com"):
         return _extract_without_dom_boilerplate(html, url, ("section.posts-profile",))
+    if _is_socast_page(html):
+        return _extract_socast_text(html, url)
     return ""
 
 

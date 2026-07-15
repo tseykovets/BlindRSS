@@ -406,6 +406,77 @@ def _harvest_embeds_html(node) -> list:
     return out
 
 
+# socast / Pattison-portals radio-CMS: the story body is split across a lead in
+# div.wpb-content-wrapper and a continuation in a second <article class="mainArticle">,
+# with related-post/newsletter/ad widgets interleaved. _pick_main_node grabs only the
+# lead article, and the trafilatura prune (keep_text) then sees only the lead and would
+# strip the continuation. _socast_reconstruct merges both body containers (keeping the
+# header image), and clean_article_html disables the prune for the merged node.
+_SOCAST_JUNK_TOKENS = (
+    "items-wrapper", "bnl-pp-happening", "bnl-info", "bnl-title", "bnl-content",
+    "pp-more-wrapper", "wpb_raw", "sc-author", "entry-footer", "entry-meta",
+    "report_an_error", "highlight-text", "scwidgetcontainer", "sc-item-detail",
+    "parallax-breakout", "pp-btn-container",
+)
+
+
+def _looks_socast(html: str) -> bool:
+    if not html:
+        return False
+    low = html.lower()
+    if "socastsrm.com" in low:
+        return True
+    return (
+        "wpb-content-wrapper" in low
+        and "mainarticle" in low
+        and "sc-content" in low
+    )
+
+
+def _strip_socast_junk(node) -> None:
+    for el in node.find_all(True):
+        if getattr(el, "decomposed", False):
+            continue
+        ident = (" ".join(el.get("class") or []) + " " + str(el.get("id") or "")).lower()
+        if ident.strip() and any(tok in ident for tok in _SOCAST_JUNK_TOKENS):
+            el.decompose()
+
+
+def _socast_reconstruct(soup, url: str):
+    """Merge a socast split story body into one node, junk removed.
+
+    The body is split across *multiple* <article class="mainArticle"> elements
+    (lead — with the header image/caption — plus one or more continuations). Merge
+    them all, plus any lead wrapper that sits outside a mainArticle (a theme variant
+    where the lead lives in a plain content article). Dedup and drop nested containers
+    so nothing is included twice.
+    """
+    candidates = []
+    # A lead wrapper whose surrounding article is NOT a mainArticle (variant layout).
+    for lead in soup.select("div.wpb-content-wrapper"):
+        if lead.find_parent("article", class_="mainArticle") is not None:
+            continue
+        candidates.append(lead.find_parent("article") or lead)
+    candidates.extend(soup.select("article.mainArticle"))
+
+    parts = []
+    for el in candidates:
+        if any(el is kept or el in kept.descendants for kept in parts):
+            continue  # already covered by an ancestor we kept
+        parts = [kept for kept in parts if kept not in el.descendants]  # drop nested
+        parts.append(el)
+    if not parts:
+        return None
+
+    container = soup.new_tag("article")
+    for part in parts:
+        container.append(part.extract())
+    _strip_socast_junk(container)
+    if _text_len(container) < 200:
+        return None
+    return container
+
+
 def clean_article_html(html: str, url: str = "", *, use_traf_prune: bool = True) -> str:
     """Return a sanitized article-body HTML fragment, or '' if none is usable.
 
@@ -421,14 +492,26 @@ def clean_article_html(html: str, url: str = "", *, use_traf_prune: bool = True)
     except Exception:
         return ""
 
-    node = _pick_main_node(soup)
+    # socast/Pattison-portals pages split the body across two containers; reconstruct
+    # the whole body before the generic pick, and disable the trafilatura prune for it
+    # (keep_text would reflect only the short lead and strip the continuation).
+    socast = _looks_socast(str(html))
+    node = None
+    if socast:
+        try:
+            node = _socast_reconstruct(soup, url)
+        except Exception:
+            node = None
+    if node is None:
+        socast = False
+        node = _pick_main_node(soup)
     if node is None:
         return ""
 
     # Ground-truth article text (recall mode). Computed on the full page before
     # we mutate the node, and reused both to prune non-article blocks and to
     # detect a broken main-node pick (paywall stub) below.
-    keep_text = _article_keep_text(str(html), url) if use_traf_prune else ""
+    keep_text = "" if socast else (_article_keep_text(str(html), url) if use_traf_prune else "")
 
     # Turn script-hydrated social embeds into iframes/permalinks first, so the
     # generic sanitize below keeps the resulting <iframe>/<a> nodes.

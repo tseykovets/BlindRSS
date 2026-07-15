@@ -2692,13 +2692,161 @@ def _run_ytdlp_flat_listing(url: str, max_items: int = 60, timeout: float = 30.0
     return feed_title, items
 
 
+def _soundcloud_api_v2_get_next(next_href: str, timeout: float = 15.0):
+    """Follow a SoundCloud api-v2 `next_href` pagination cursor.
+
+    `next_href` is an absolute api-v2 URL that already carries a (possibly stale)
+    client_id; we re-route it through `_soundcloud_api_v2_get` so the path/params
+    are re-signed with a fresh client_id and the 401/403 refresh retry applies.
+    """
+    raw = str(next_href or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = urlparse(raw)
+        path = parsed.path or ""
+        if not path:
+            return None
+        params = {k: v[0] for k, v in parse_qs(parsed.query).items() if k != "client_id"}
+        return _soundcloud_api_v2_get(path, params, timeout=timeout)
+    except Exception:
+        return None
+
+
+def _soundcloud_track_to_item(track: dict, default_author: str = "") -> "MediaListingItem | None":
+    """Convert a SoundCloud api-v2 track object into a MediaListingItem.
+
+    The api-v2 track carries a real publish date (`created_at`/`display_date`),
+    which the yt-dlp `--flat-playlist` path does not — without it every episode
+    normalizes to the year-1 sentinel and never surfaces as new on refresh.
+    """
+    if not isinstance(track, dict) or str(track.get("kind") or "track") != "track":
+        return None
+    it_url = str(track.get("permalink_url") or "").strip()
+    if not it_url:
+        return None
+    title = str(track.get("title") or "").strip() or it_url
+    author = ""
+    try:
+        author = str((track.get("user") or {}).get("username") or "").strip()
+    except Exception:
+        author = ""
+    author = author or (str(default_author or "").strip() or None)
+    published = str(
+        track.get("created_at") or track.get("display_date") or track.get("release_date") or ""
+    ).strip()
+    return MediaListingItem(url=it_url, title=title, author=author, published=published)
+
+
+def _fetch_soundcloud_listing_via_api(url: str, kind: str, max_items: int, timeout: float):
+    """Enumerate a SoundCloud user/playlist via api-v2 (with real publish dates).
+
+    Returns (feed_title, list[MediaListingItem]); items is empty when the API is
+    unavailable (e.g. client_id could not be scraped) so the caller can fall back.
+    """
+    resolved = _soundcloud_api_v2_get("/resolve", {"url": url}, timeout=timeout)
+    if not isinstance(resolved, dict):
+        return None, []
+
+    if kind == "user":
+        uid = resolved.get("id")
+        if not uid:
+            return None, []
+        feed_title = str(resolved.get("username") or "").strip() or None
+        items: list[MediaListingItem] = []
+        seen: set[str] = set()
+        page = _soundcloud_api_v2_get(
+            f"/users/{uid}/tracks",
+            {"limit": min(200, max_items), "linked_partitioning": 1},
+            timeout=timeout,
+        )
+        guard = 0
+        while isinstance(page, dict) and guard < 8 and len(items) < max_items:
+            guard += 1
+            for t in (page.get("collection") or []):
+                item = _soundcloud_track_to_item(t, feed_title or "")
+                if item is None or item.url in seen:
+                    continue
+                seen.add(item.url)
+                items.append(item)
+                if len(items) >= max_items:
+                    break
+            nxt = str(page.get("next_href") or "").strip()
+            if not nxt or len(items) >= max_items:
+                break
+            page = _soundcloud_api_v2_get_next(nxt, timeout=timeout)
+        return feed_title, items[:max_items]
+
+    # Playlist / set: the resolve payload carries the ordered track list, but only
+    # the leading tracks are hydrated; the rest are {id, kind} stubs we batch-fetch.
+    feed_title = str(resolved.get("title") or "").strip() or None
+    owner = ""
+    try:
+        owner = str((resolved.get("user") or {}).get("username") or "").strip()
+    except Exception:
+        owner = ""
+    if feed_title and owner:
+        feed_title = f"{feed_title} ({owner})"
+
+    raw_tracks = resolved.get("tracks") or []
+    ordered_ids: list[int] = []
+    hydrated: dict = {}
+    for t in raw_tracks:
+        if not isinstance(t, dict):
+            continue
+        tid = t.get("id")
+        if tid is None:
+            continue
+        ordered_ids.append(tid)
+        if t.get("title") or t.get("permalink_url"):
+            hydrated[tid] = t
+        if len(ordered_ids) >= max_items:
+            break
+
+    stub_ids = [tid for tid in ordered_ids if tid not in hydrated]
+    for i in range(0, len(stub_ids), 50):
+        batch = stub_ids[i:i + 50]
+        data = _soundcloud_api_v2_get(
+            "/tracks", {"ids": ",".join(str(x) for x in batch)}, timeout=timeout
+        )
+        if isinstance(data, list):
+            for t in data:
+                if isinstance(t, dict) and t.get("id") is not None:
+                    hydrated[t.get("id")] = t
+
+    items = []
+    seen = set()
+    for tid in ordered_ids:
+        item = _soundcloud_track_to_item(hydrated.get(tid) or {}, owner)
+        if item is None or item.url in seen:
+            continue
+        seen.add(item.url)
+        items.append(item)
+        if len(items) >= max_items:
+            break
+    return feed_title, items
+
+
 def fetch_soundcloud_listing(url: str, max_items: int = 60, timeout: float = 30.0):
     """Enumerate a SoundCloud user's tracks or a playlist for refresh.
 
-    Returns (feed_title, list[MediaListingItem]).
+    Uses SoundCloud's api-v2 first so each item carries its real publish date;
+    falls back to yt-dlp `--flat-playlist` (dateless) only if the API is
+    unavailable. Returns (feed_title, list[MediaListingItem]).
     """
-    if soundcloud_listing_kind(url) not in ("user", "playlist"):
+    kind = soundcloud_listing_kind(url)
+    if kind not in ("user", "playlist"):
         return None, []
+    try:
+        max_items = max(1, min(300, int(max_items or 60)))
+    except Exception:
+        max_items = 60
+    try:
+        title, items = _fetch_soundcloud_listing_via_api(url, kind, max_items, float(timeout or 30.0))
+    except Exception:
+        title, items = None, []
+    if items:
+        return title, items
     return _run_ytdlp_flat_listing(url, max_items=max_items, timeout=timeout)
 
 

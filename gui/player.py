@@ -59,6 +59,27 @@ _SEEKABLE_EXTENSIONS = (
 # if nothing is under that height at all.
 _YTDLP_VLC_AUDIO_FORMAT = "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio/best[height<=480]/worst"
 
+# SoundCloud exposes (anonymously) a 128k progressive MP3, a 128k HLS MP3, and a
+# 96k HLS AAC. The generic selector above leads with [ext=m4a], which forces the
+# lowest-bitrate 96k AAC. Here we lead with the progressive 128k MP3 instead:
+# it is both higher quality and a direct seekable HTTP stream (works with the
+# range-cache proxy), unlike HLS. Falls back to any MP3, then bestaudio, then best.
+_YTDLP_SOUNDCLOUD_AUDIO_FORMAT = "bestaudio[protocol^=http][ext=mp3]/bestaudio[ext=mp3]/bestaudio/best"
+
+
+def _ytdlp_audio_format_for(url: str) -> str:
+    """Return the best yt-dlp audio format selector for a given media URL.
+
+    SoundCloud gets a progressive-MP3-first selector for higher quality and
+    reliable seeking; everything else keeps the generic (YouTube-tuned) selector.
+    """
+    try:
+        if discovery.is_soundcloud_url(url):
+            return _YTDLP_SOUNDCLOUD_AUDIO_FORMAT
+    except Exception:
+        pass
+    return _YTDLP_VLC_AUDIO_FORMAT
+
 
 def _normalize_chapter_start(value) -> float:
     try:
@@ -203,7 +224,7 @@ def _extract_ytdlp_info_via_cli(
         "--dump-single-json",
         "--no-playlist",
         "--format",
-        _YTDLP_VLC_AUDIO_FORMAT,
+        _ytdlp_audio_format_for(target_url),
         "--extractor-args",
         discovery.youtube_player_client_arg(player_clients),
         "--quiet",
@@ -3415,7 +3436,7 @@ class PlayerFrame(wx.Frame):
                         ytdlp_headers["Origin"] = origin
 
                     base_opts = {
-                        'format': _YTDLP_VLC_AUDIO_FORMAT,
+                        'format': _ytdlp_audio_format_for(url),
                         'quiet': True,
                         'no_warnings': True,
                         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',

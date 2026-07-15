@@ -4,6 +4,13 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.102.1 - 2026-07-15
+
+- Escape literal ampersands in settings tab labels across all locales (#66).
+- Merge PR #65: Fix ampersand display in UI labels and Russian translation (@tseykovets).
+- Fix Russian translation.
+- Fix incorrect display of ampersands in settings tab labels.
+
 ## v1.102.0 - 2026-07-15
 
 - Opt-in rich full-text reader with links, embeds, and clean article HTML.

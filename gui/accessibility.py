@@ -2,6 +2,7 @@ import logging
 import math
 import subprocess
 import threading
+import webbrowser
 from collections import deque
 from collections.abc import Mapping
 
@@ -540,7 +541,31 @@ class AccessibleBrowserFrame(wx.Frame):
             if focused is self.article_list:
                 self.on_open_article(event)
                 return
+            if focused is self.content_ctrl and self._open_content_link_at_cursor():
+                return
         event.Skip()
+
+    def _open_content_link_at_cursor(self) -> bool:
+        """Open the link under the reader caret (opt-in). Mirrors the main frame."""
+        mainframe = getattr(self, "mainframe", None)
+        if mainframe is None or not mainframe._content_links_enabled():
+            return False
+        try:
+            text = self.content_ctrl.GetValue()
+            pos = self.content_ctrl.GetInsertionPoint()
+        except Exception:
+            return False
+        url = mainframe._find_url_at_content_position(text, pos)
+        if not url:
+            return False
+        safe_url = mainframe._validated_chapter_web_url(url)
+        if safe_url is None:
+            return False
+        try:
+            webbrowser.open(safe_url)
+            return True
+        except Exception:
+            return False
 
     def refresh_views(self, selected_view_id=None):
         selected_view_id = selected_view_id or self.current_view_id or getattr(self.mainframe, "current_feed_id", None) or "all"

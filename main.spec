@@ -119,6 +119,9 @@ packages_to_collect = [
     # data directory it loads at import time; without collecting it, every
     # `import extruct` in the frozen app dies with FileNotFoundError.
     'extruct', 'mf2py',
+    # Rich full-text reader (opt-in). Pure-python but imported lazily, so
+    # PyInstaller's analysis misses it unless collected explicitly.
+    'wx_accessible_webview',
 ]
 
 datas = []
@@ -141,6 +144,19 @@ except Exception:
 
 if importlib.util.find_spec('win32com') is not None:
     hiddenimports.extend(['pythoncom', 'pywintypes', 'win32com', 'win32com.client'])
+
+# WebView2 loader for the rich full-text reader's wx.html2.WebView (Edge
+# WebView2 backend). wxPython ships WebView2Loader.dll inside its package;
+# include it so the frozen build can create the control. The Edge WebView2
+# *runtime* is a system component (present on Windows 11 and updated Windows
+# 10); the reader falls back to plain text when it is missing.
+try:
+    import wx as _wx_for_webview2
+    _webview2_dll = os.path.join(os.path.dirname(_wx_for_webview2.__file__), 'WebView2Loader.dll')
+    if os.path.isfile(_webview2_dll):
+        binaries.append((_webview2_dll, '.'))
+except Exception:
+    pass
 
 nvda_controller_path = os.path.join(bin_path, 'nvdaControllerClient.dll')
 if os.path.isfile(nvda_controller_path):

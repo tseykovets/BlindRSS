@@ -13,7 +13,7 @@ from core import utils
 from core import article_extractor
 
 
-ALL_ON = {"tables": True, "headings": True, "lists": True, "quotes": True}
+ALL_ON = {"tables": True, "headings": True, "lists": True, "quotes": True, "links": True}
 
 
 class StructureOptionState(unittest.TestCase):
@@ -126,8 +126,69 @@ class ModuleOptionTests(StructureOptionState):
         opts = utils.get_article_structure_options()
         self.assertEqual(
             opts,
-            {"tables": True, "headings": False, "lists": False, "quotes": False},
+            {
+                "tables": True,
+                "headings": False,
+                "lists": False,
+                "quotes": False,
+                "links": False,
+            },
         )
+
+
+class LinkMarkerTests(StructureOptionState):
+    def test_link_target_shown_inline_when_enabled(self):
+        html = '<p>Read the <a href="https://example.com/report">full report</a> here.</p>'
+        out = utils.html_to_text(html, structure=ALL_ON)
+        self.assertIn("full report (https://example.com/report)", out)
+
+    def test_links_plain_when_disabled(self):
+        html = '<p>Read the <a href="https://example.com/report">full report</a> here.</p>'
+        out = utils.html_to_text(html)
+        self.assertIn("full report", out)
+        self.assertNotIn("https://example.com/report", out)
+
+    def test_bare_link_shows_url_once(self):
+        html = '<p>See <a href="https://example.com/x">https://example.com/x</a>.</p>'
+        out = utils.html_to_text(html, structure=ALL_ON)
+        self.assertEqual(out.count("https://example.com/x"), 1)
+
+    def test_relative_and_non_http_links_left_alone(self):
+        html = (
+            '<p><a href="/local/page">relative</a> and '
+            '<a href="mailto:a@b.com">mail</a>.</p>'
+        )
+        out = utils.html_to_text(html, structure=ALL_ON)
+        self.assertNotIn("(/local/page)", out)
+        self.assertNotIn("mailto:", out)
+        self.assertIn("relative", out)
+
+    def test_link_url_survives_extraction_when_enabled(self):
+        utils.set_article_structure_options({"links": True})
+        html = (
+            "<html><body><article>"
+            "<p>This is the opening paragraph of the article body, long enough to matter, "
+            'and it links to the <a href="https://example.com/source">source document</a> '
+            "for the reader to open.</p>"
+            "<p>This is the closing paragraph of the article body with enough text too.</p>"
+            "</article></body></html>"
+        )
+        text = article_extractor._extract_text_any(html, "https://example.com/a")
+        self.assertIn("https://example.com/source", text)
+
+    def test_extraction_has_no_urls_when_disabled(self):
+        utils.set_article_structure_options(None)
+        html = (
+            "<html><body><article>"
+            "<p>This is the opening paragraph of the article body, long enough to matter, "
+            'and it links to the <a href="https://example.com/source">source document</a> '
+            "for the reader to open.</p>"
+            "<p>This is the closing paragraph of the article body with enough text too.</p>"
+            "</article></body></html>"
+        )
+        text = article_extractor._extract_text_any(html, "https://example.com/a")
+        self.assertNotIn("https://example.com/source", text)
+        self.assertIn("source document", text)
 
 
 class ExtractionPipelineTests(StructureOptionState):

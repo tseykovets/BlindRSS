@@ -198,6 +198,14 @@ DEFAULT_CONFIG = {
     "article_structure_headings": False,
     "article_structure_lists": False,
     "article_structure_quotes": False,
+    # Show each link's target inline as "text (URL)" and let Enter open the link
+    # under the cursor in the reader pane. Opt-in; off keeps the current reader.
+    "article_structure_links": False,
+    # Render full text as real HTML (links, embedded videos, tweets, images) in
+    # an accessible WebView instead of the plain-text reader. Opt-in; off keeps
+    # the current plain-text reader as the default. Falls back to plain text when
+    # no WebView backend is available. See core.article_html.
+    "full_text_rich_view": False,
     # Controls how the local provider handles automatic refreshes:
     # ``cached`` uses validators at startup and later, ``startup_full`` fetches
     # every feed at startup only, and ``always_full`` bypasses validators for

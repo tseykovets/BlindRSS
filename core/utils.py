@@ -275,6 +275,9 @@ ARTICLE_STRUCTURE_DEFAULTS = {
     "headings": False,
     "lists": False,
     "quotes": False,
+    # Show each hyperlink's target inline as "text (URL)" so screen-reader
+    # users can tell it is a link and the reader pane can open it on Enter.
+    "links": False,
 }
 _article_structure_options = dict(ARTICLE_STRUCTURE_DEFAULTS)
 
@@ -307,7 +310,9 @@ def apply_article_structure_config(config_get) -> None:
 _HEADING_TAGS = ("h1", "h2", "h3", "h4", "h5", "h6")
 
 
-def linearize_structure(soup, *, headings: bool = False, lists: bool = False, quotes: bool = False) -> None:
+def linearize_structure(
+    soup, *, headings: bool = False, lists: bool = False, quotes: bool = False, links: bool = False
+) -> None:
     """Rewrite structural HTML in ``soup`` into screen-reader marker paragraphs.
 
     Inline children (links, emphasis) are kept in place so extraction
@@ -317,6 +322,12 @@ def linearize_structure(soup, *, headings: bool = False, lists: bool = False, qu
     - ``<h2>Why</h2>``            -> ``<p>Heading level 2: Why</p>``
     - ``<li>`` in ``<ul>``/``<ol>`` -> ``<p>• item</p>`` / ``<p>1. item</p>``
     - ``<blockquote>``            -> ``Quote:`` ... ``End of quote.`` paragraphs
+
+    When ``links`` is set, each absolute ``http(s)`` anchor keeps its ``<a>``
+    tag (so link-density boilerplate detection is unchanged) but has its target
+    appended to the visible text as ``text (URL)``. Bare links show just the
+    URL. The URL stays a single whitespace-free token so the reader pane can
+    recover it from the rendered plain text and open it on Enter.
     """
     if headings:
         for h in soup.find_all(_HEADING_TAGS):
@@ -349,6 +360,22 @@ def linearize_structure(soup, *, headings: bool = False, lists: bool = False, qu
             bq.insert(0, start)
             bq.append(end)
             bq.name = "div"
+    if links:
+        for a in soup.find_all("a"):
+            href = str(a.get("href") or "").strip()
+            if not href or not href.lower().startswith(("http://", "https://")):
+                continue
+            # Keep the URL a single openable token: skip anything with
+            # whitespace/control characters the reader pane could not recover.
+            if any(ch.isspace() or ord(ch) < 32 for ch in href):
+                continue
+            text = a.get_text(strip=True)
+            if not text or text == href:
+                # Bare link (or image link): make the URL itself the visible text.
+                a.clear()
+                a.append(soup.new_string(href))
+            elif href not in text:
+                a.append(soup.new_string(f" ({href})"))
 
 
 # Block-level elements that separate paragraphs in the plain-text rendering.
@@ -424,6 +451,7 @@ def html_to_text(html: str | None, include_images: bool = False, structure: dict
             headings=bool(opts.get("headings")),
             lists=bool(opts.get("lists")),
             quotes=bool(opts.get("quotes")),
+            links=bool(opts.get("links")),
         )
         return _soup_to_block_text(soup)
     except Exception:

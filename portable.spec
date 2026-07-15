@@ -57,10 +57,22 @@ packages_to_collect = [
     # `import extruct` in the frozen app dies with FileNotFoundError.
     "extruct",
     "mf2py",
+    # Rich full-text reader (opt-in); imported lazily so collect it explicitly.
+    "wx_accessible_webview",
 ]
 
 datas = []
 binaries = []
+# WebView2 loader for the rich full-text reader's wx.html2.WebView (Edge
+# WebView2 backend). wxPython ships it inside its package; the reader falls
+# back to plain text when the WebView2 runtime is missing.
+try:
+    import wx as _wx_for_webview2
+    _webview2_dll = os.path.join(os.path.dirname(_wx_for_webview2.__file__), 'WebView2Loader.dll')
+    if os.path.isfile(_webview2_dll):
+        binaries.append((_webview2_dll, '.'))
+except Exception:
+    pass
 hiddenimports = [
     "vlc",
     "trafilatura",

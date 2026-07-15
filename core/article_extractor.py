@@ -2119,7 +2119,8 @@ def _linearize_tables_html(html: str, url: str = "") -> Tuple[str, List[str]]:
     want_headings = bool(opts.get("headings")) and "<h" in low
     want_lists = bool(opts.get("lists")) and ("<ul" in low or "<ol" in low)
     want_quotes = bool(opts.get("quotes")) and "<blockquote" in low
-    if not (want_tables or want_headings or want_lists or want_quotes):
+    want_links = bool(opts.get("links")) and "<a" in low
+    if not (want_tables or want_headings or want_lists or want_quotes or want_links):
         return html, []
     soup = _parse_html_soup(html, context="structure linearization")
     if soup is None:
@@ -2129,12 +2130,12 @@ def _linearize_tables_html(html: str, url: str = "") -> Tuple[str, List[str]]:
         if want_tables:
             blocks = utils.replace_tables_with_text(soup, as_paragraphs=True)
         utils.linearize_structure(
-            soup, headings=want_headings, lists=want_lists, quotes=want_quotes
+            soup, headings=want_headings, lists=want_lists, quotes=want_quotes, links=want_links
         )
     except Exception:
         LOG.debug("Structure linearization failed for %s", url, exc_info=True)
         return html, []
-    if not (blocks or want_headings or want_lists or want_quotes):
+    if not (blocks or want_headings or want_lists or want_quotes or want_links):
         return html, []
     return str(soup), blocks
 

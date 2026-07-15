@@ -7,6 +7,7 @@ import threading
 import time
 import os
 import re
+import html as html_stdlib
 import logging
 import hashlib
 from copy import deepcopy
@@ -34,6 +35,7 @@ from core.config import APP_DIR, _default_download_dir
 from core.models import Article
 from core import utils
 from core import article_extractor
+from core import article_html
 from core import smart_folders as smart_folders_mod
 from core import filters as filters_mod
 from core import translation as translation_mod
@@ -54,6 +56,30 @@ import core.discovery
 from .shortcut_keys import event_to_accel
 
 log = logging.getLogger(__name__)
+
+# Recovers an http(s) URL from the plain reader text so Enter can open the link
+# under the caret. Matches to whitespace (URLs may contain parens, e.g.
+# Wikipedia's "_(disambiguation)"); the wrapping paren of the "text (URL)"
+# rendering and any trailing sentence punctuation are trimmed by
+# _trim_recovered_url.
+_CONTENT_URL_RE = re.compile(r'https?://\S+')
+
+
+def _trim_recovered_url(url: str) -> str:
+    """Trim wrapper/sentence punctuation a URL picked up from the reader text.
+
+    A recovered token can carry the closing paren of the "text (URL)" rendering
+    and trailing sentence punctuation (e.g. ``...report).``). Terminal
+    punctuation is dropped first, then a trailing ``)`` only when it is
+    unbalanced — so a URL that legitimately ends in ``)`` (Wikipedia's
+    ``Mercury_(element)``) keeps its own paren. ``/`` is always preserved.
+    """
+    url = str(url or "")
+    while url and url[-1] in ".,;:!?\"'>":
+        url = url[:-1]
+    while url.endswith(")") and url.count(")") > url.count("("):
+        url = url[:-1]
+    return url
 
 ARTICLE_COL_TITLE = 0
 ARTICLE_COL_AUTHOR = 1
@@ -269,6 +295,9 @@ class MainFrame(wx.Frame):
         self.init_ui()
         self.init_menus()
         self.init_shortcuts()
+        # Show the plain-text or rich reader per the (opt-in) setting. Deferred so
+        # the frame is realized before any WebView2 control is created.
+        wx.CallAfter(self._apply_reader_mode)
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self._load_persistent_searches()
         
@@ -548,11 +577,21 @@ class MainFrame(wx.Frame):
         self.list_ctrl.InsertColumn(ARTICLE_COL_DESCRIPTION, _("Description"), width=260)
         self.list_ctrl.InsertColumn(ARTICLE_COL_STATUS, _("Status"), width=80)
         
-        # Bottom Right: Content (No embedded player anymore)
-        self.content_ctrl = wx.TextCtrl(right_splitter, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2)
+        # Bottom Right: Content. A container panel holds the plain-text reader
+        # and (created on demand) the rich WebView reader, so the opt-in rich
+        # mode can swap in place without disturbing the splitter.
+        self.reader_panel = wx.Panel(right_splitter)
+        self._reader_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.content_ctrl = wx.TextCtrl(self.reader_panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2)
         self.content_ctrl.SetName("Article text")
-        
-        right_splitter.SplitHorizontally(self.list_ctrl, self.content_ctrl, 300)
+        self._reader_sizer.Add(self.content_ctrl, 1, wx.EXPAND)
+        self.reader_panel.SetSizer(self._reader_sizer)
+        self._rich_view = None            # AccessibleWebView, created on demand
+        self._rich_view_unavailable = False
+        self._fulltext_html_cache = {}    # cache_key -> rendered rich HTML
+        self._rich_debounce = None
+
+        right_splitter.SplitHorizontally(self.list_ctrl, self.reader_panel, 300)
         right_sizer.Add(right_splitter, 1, wx.EXPAND)
         right_panel.SetSizer(right_sizer)
 
@@ -2366,6 +2405,18 @@ class MainFrame(wx.Frame):
             log.exception("Error dispatching registry shortcut")
 
         if focus == self.content_ctrl:
+            if (
+                key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER)
+                and not event.ControlDown()
+                and not event.ShiftDown()
+                and not event.AltDown()
+                and not event.MetaDown()
+            ):
+                try:
+                    if self._open_link_at_content_cursor():
+                        return
+                except Exception:
+                    log.exception("Error opening link from reader pane")
             if (
                 event.ControlDown()
                 and not event.ShiftDown()
@@ -4550,6 +4601,220 @@ class MainFrame(wx.Frame):
             pass
         return displayed
 
+    # -- Rich (WebView) reader -------------------------------------------------
+
+    def _rich_view_enabled(self) -> bool:
+        """True when the user opted into the rich HTML reader in Settings."""
+        try:
+            return bool(self.config_manager.get("full_text_rich_view", False))
+        except Exception:
+            return False
+
+    def _ensure_rich_view(self):
+        """Create the AccessibleWebView on first use; None if no backend exists."""
+        if self._rich_view is not None:
+            return self._rich_view
+        if self._rich_view_unavailable:
+            return None
+        try:
+            from wx_accessible_webview import AccessibleWebView
+        except Exception:
+            self._rich_view_unavailable = True
+            return None
+        try:
+            rv = AccessibleWebView(
+                self.reader_panel,
+                title=_("Article text"),
+                live_region=False,
+                open_links_externally=True,
+                on_return=self._on_rich_view_return,
+            )
+        except Exception:
+            log.exception("Failed to create rich article view")
+            self._rich_view_unavailable = True
+            return None
+        if not getattr(rv, "using_webview", False):
+            # Degraded text fallback inside the library: prefer our own reader.
+            self._rich_view_unavailable = True
+            try:
+                rv.control.Destroy()
+            except Exception:
+                pass
+            return None
+        self._rich_view = rv
+        self._reader_sizer.Add(rv.control, 1, wx.EXPAND)
+        rv.control.Hide()
+        try:
+            rv.control.Bind(wx.EVT_SET_FOCUS, self._on_rich_view_focus)
+        except Exception:
+            pass
+        self.reader_panel.Layout()
+        return rv
+
+    def _rich_view_active(self) -> bool:
+        """True when the rich reader is the surface currently shown to the user."""
+        return bool(self._rich_view_enabled() and self._ensure_rich_view() is not None)
+
+    def _apply_reader_mode(self) -> bool:
+        """Show the plain-text or rich reader per the setting; return True if rich."""
+        use_rich = self._rich_view_active()
+        try:
+            if self._rich_view is not None:
+                self._rich_view.control.Show(use_rich)
+            self.content_ctrl.Show(not use_rich)
+            self.reader_panel.Layout()
+        except Exception:
+            log.exception("Failed to switch reader mode")
+        return use_rich
+
+    def _on_rich_view_return(self) -> None:
+        """Escape/F6 inside the web view hands focus back to the article list."""
+        try:
+            self.list_ctrl.SetFocus()
+        except Exception:
+            pass
+
+    def _on_rich_view_focus(self, event) -> None:
+        """Focusing the web view mirrors on_content_focus: mark read + load full text."""
+        try:
+            event.Skip()
+        except Exception:
+            pass
+        try:
+            idx = self.list_ctrl.GetFirstSelected()
+        except Exception:
+            idx = -1
+        if idx is None or idx < 0 or idx >= len(self.current_articles):
+            idx = self._index_of_selected_article()
+            if idx is None:
+                return
+        self.mark_article_read(idx)
+        try:
+            self._mark_article_opened(self.current_articles[idx])
+        except Exception:
+            pass
+        self._schedule_rich_load_for_index(idx, force=True)
+
+    def _render_rich_html(self, html_body: str) -> None:
+        rv = self._ensure_rich_view()
+        if rv is None:
+            return
+        try:
+            rv.set_content(html_body)
+        except Exception:
+            log.exception("Failed to set rich reader content")
+
+    def _rich_feed_content_html(self, article) -> str:
+        """Cleaned feed-content HTML shown instantly on selection (no network)."""
+        url = str(getattr(article, "url", "") or "")
+        title = str(getattr(article, "title", "") or "")
+        author = str(getattr(article, "author", "") or "")
+        date = utils.humanize_article_date(getattr(article, "date", "") or "")
+        body = ""
+        try:
+            body = article_html.clean_article_html(
+                getattr(article, "content", "") or "", url, use_traf_prune=False
+            )
+        except Exception:
+            body = ""
+        header = f"<h1>{html_stdlib.escape(title or url)}</h1>"
+        meta = " · ".join(p for p in (date, author) if p)
+        if meta:
+            header += f'<p class="awv-meta">{html_stdlib.escape(meta)}</p>'
+        if url:
+            safe = html_stdlib.escape(url, quote=True)
+            header += f'<p class="awv-source"><a href="{safe}">{html_stdlib.escape(url)}</a></p>'
+        if not body:
+            body = f"<p>{html_stdlib.escape(_('Loading full text...'))}</p>"
+        return f"<article>{header}<hr>{body}</article>"
+
+    def _schedule_rich_load_for_index(self, idx: int, force: bool = False) -> None:
+        """Debounced full-text fetch + render into the rich web view."""
+        if idx is None or idx < 0 or idx >= len(self.current_articles):
+            return
+        article = self.current_articles[idx]
+        cache_key, url, _aid = self._fulltext_cache_key_for_article(article, idx)
+        cached = self._fulltext_html_cache.get(cache_key)
+        if cached is not None:
+            self._render_rich_html(cached)
+            return
+        if getattr(self, "_rich_debounce", None) is not None:
+            try:
+                self._rich_debounce.Stop()
+            except Exception:
+                pass
+            self._rich_debounce = None
+        delay = 0 if force else int(getattr(self, "_fulltext_debounce_ms", 350))
+        token = int(getattr(self, "_fulltext_token", 0))
+        self._rich_debounce = wx.CallLater(delay, self._start_rich_load, idx, token)
+
+    def _start_rich_load(self, idx: int, token: int) -> None:
+        if token != int(getattr(self, "_fulltext_token", 0)):
+            return
+        if getattr(self, "selected_article_id", None):
+            resolved = self._index_of_selected_article()
+            if resolved is None:
+                return
+            idx = resolved
+        if idx is None or idx < 0 or idx >= len(self.current_articles):
+            return
+        article = self.current_articles[idx]
+        cache_key, url, article_id = self._fulltext_cache_key_for_article(article, idx)
+        cached = self._fulltext_html_cache.get(cache_key)
+        if cached is not None:
+            self._render_rich_html(cached)
+            return
+        req = {
+            "cache_key": cache_key,
+            "url": url,
+            "article_id": article_id,
+            "fallback_html": getattr(article, "content", "") or "",
+            "fallback_title": getattr(article, "title", "") or "",
+            "fallback_author": getattr(article, "author", "") or "",
+            "date": utils.humanize_article_date(getattr(article, "date", "") or ""),
+            "token": token,
+        }
+        threading.Thread(target=self._rich_load_worker, args=(req,), daemon=True).start()
+
+    def _rich_load_worker(self, req: dict) -> None:
+        html_body = None
+        try:
+            html_body = article_html.render_full_article_html(
+                req.get("url", ""),
+                fallback_html=req.get("fallback_html", ""),
+                fallback_title=req.get("fallback_title", ""),
+                fallback_author=req.get("fallback_author", ""),
+                date=req.get("date", ""),
+            )
+        except Exception:
+            log.debug("Rich full-text render failed", exc_info=True)
+            html_body = None
+        try:
+            wx.CallAfter(self._apply_rich_result, req.get("cache_key", ""), html_body, req.get("token"))
+        except Exception:
+            pass
+
+    def _apply_rich_result(self, cache_key: str, html_body, token) -> None:
+        if html_body:
+            self._fulltext_html_cache[cache_key] = html_body
+        if token is not None and int(token) != int(getattr(self, "_fulltext_token", 0)):
+            return
+        if not html_body:
+            return
+        try:
+            idx_now = self.list_ctrl.GetFirstSelected()
+        except Exception:
+            idx_now = -1
+        if idx_now is None or idx_now < 0 or idx_now >= len(self.current_articles):
+            idx_now = self._index_of_selected_article()
+            if idx_now is None:
+                return
+        article_now = self.current_articles[idx_now]
+        cur_key, _u, _a = self._fulltext_cache_key_for_article(article_now, idx_now)
+        if cur_key != cache_key:
+            return
+        self._render_rich_html(html_body)
+
     def _compose_article_copy_text(self, article, idx) -> str:
         """Build the readable article text for copying, mirroring the reading pane."""
         # If the full text has already been extracted (on focus or via prefetch),
@@ -4559,9 +4824,18 @@ class MainFrame(wx.Frame):
             cache_key, _url, _aid = self._fulltext_cache_key_for_article(article, idx)
             cached = self._fulltext_cache.get(cache_key)
         except Exception:
+            cache_key = None
             cached = None
         if cached and str(cached).strip():
             return self._compose_article_reader_text(str(cached), article=article)
+        # Rich reader: no plain-text extraction runs, so derive copy text from the
+        # rendered rich HTML when available.
+        if cache_key and self._rich_view_enabled():
+            rich_html = self._fulltext_html_cache.get(cache_key)
+            if rich_html:
+                text = utils.html_to_text(rich_html)
+                if text and text.strip():
+                    return self._compose_article_reader_text(text, article=article)
 
         # Not extracted yet: mirror the pre-extraction pane (title, date, author,
         # link header + cleaned feed content).
@@ -4629,6 +4903,68 @@ class MainFrame(wx.Frame):
             webbrowser.open(safe_url)
         except Exception:
             log.debug("Failed to open chapter link", exc_info=True)
+
+    def _content_links_enabled(self) -> bool:
+        """True when the opt-in reader-pane link handling is turned on."""
+        try:
+            return bool(self.config_manager.get("article_structure_links", False))
+        except Exception:
+            return False
+
+    def _find_url_at_content_position(self, text: str, pos: int) -> str | None:
+        """Return the http(s) URL the reader cursor sits on, or the one on its line.
+
+        The reader is a plain text control, so the URL is recovered from the
+        rendered text itself (it is written inline as ``text (URL)``): first the
+        link whose span contains the caret, otherwise the first link on the same
+        line. This survives translation, chapter composition, and caching
+        because nothing depends on stored character offsets.
+        """
+        if not text:
+            return None
+        try:
+            pos = max(0, min(int(pos), len(text)))
+        except Exception:
+            return None
+        # A caret resting just past a URL (very common after arrowing onto it)
+        # should still resolve, so accept start <= pos <= end.
+        for m in _CONTENT_URL_RE.finditer(text):
+            if m.start() <= pos <= m.end():
+                return _trim_recovered_url(m.group(0))
+        line_start = text.rfind("\n", 0, pos) + 1
+        line_end = text.find("\n", pos)
+        if line_end == -1:
+            line_end = len(text)
+        m = _CONTENT_URL_RE.search(text[line_start:line_end])
+        if m:
+            return _trim_recovered_url(m.group(0))
+        return None
+
+    def _open_link_at_content_cursor(self) -> bool:
+        """Open the link under the reader caret. Returns True if one was opened."""
+        if not self._content_links_enabled():
+            return False
+        try:
+            text = self.content_ctrl.GetValue()
+            pos = self.content_ctrl.GetInsertionPoint()
+        except Exception:
+            return False
+        url = self._find_url_at_content_position(text, pos)
+        if not url:
+            return False
+        safe_url = self._validated_chapter_web_url(url)
+        if safe_url is None:
+            return False
+        try:
+            webbrowser.open(safe_url)
+        except Exception:
+            log.debug("Failed to open link from reader pane", exc_info=True)
+            return False
+        try:
+            self._announce(_("Opening link."))
+        except Exception:
+            pass
+        return True
 
     def on_copy_image_link(self, idx):
         """Copy the first image URL found in the article content, if any."""
@@ -8170,7 +8506,18 @@ class MainFrame(wx.Frame):
             self._set_article_reader_text(article, full_text)
         except Exception:
             pass
-        
+
+        # Rich reader: show cleaned feed content instantly (no network); the full
+        # web extraction is fetched when the reader gains focus, mirroring the
+        # plain-text reader's "feed content on select, full text on focus" flow.
+        if self._rich_view_active():
+            try:
+                cache_key, _u, _a = self._fulltext_cache_key_for_article(article, idx)
+                cached = self._fulltext_html_cache.get(cache_key)
+                self._render_rich_html(cached if cached is not None else self._rich_feed_content_html(article))
+            except Exception:
+                log.debug("Rich feed-content render failed", exc_info=True)
+
         # Fetch chapters
         try:
             self._schedule_chapters_load(article)
@@ -11359,6 +11706,10 @@ class MainFrame(wx.Frame):
         except Exception:
             old_cache_full_text = False
         try:
+            old_rich_view = bool(self.config_manager.get("full_text_rich_view", False))
+        except Exception:
+            old_rich_view = False
+        try:
             old_search_mode = self._normalize_search_mode(self.config_manager.get("search_mode", "title_content"))
         except Exception:
             old_search_mode = "title_content"
@@ -11421,6 +11772,25 @@ class MainFrame(wx.Frame):
                 utils.apply_article_structure_config(self.config_manager.get)
             except Exception:
                 pass
+
+            # Rich-reader toggle: swap the reader surface and re-render the
+            # currently selected article so the change is visible immediately.
+            try:
+                new_rich_view = bool(self.config_manager.get("full_text_rich_view", False))
+            except Exception:
+                new_rich_view = old_rich_view
+            if new_rich_view != old_rich_view:
+                self._apply_reader_mode()
+                try:
+                    idx = self.list_ctrl.GetFirstSelected()
+                except Exception:
+                    idx = -1
+                if idx is not None and idx >= 0:
+                    self._fulltext_token += 1
+                    try:
+                        self._update_content_view(int(idx))
+                    except Exception:
+                        pass
 
             # Re-register any custom media-tool path overrides so detection picks
             # them up immediately (without restarting the app).

@@ -870,6 +870,21 @@ class SettingsDialog(wx.Dialog):
         )
         self.structure_quotes_chk.SetValue(bool(config.get("article_structure_quotes", False)))
         feeds_sizer.Add(self.structure_quotes_chk, 0, wx.ALL, 5)
+        self.structure_links_chk = wx.CheckBox(
+            feeds_panel,
+            label=_("Show links as \"text (address)\" and open the link at the cursor with Enter"),
+        )
+        self.structure_links_chk.SetValue(bool(config.get("article_structure_links", False)))
+        feeds_sizer.Add(self.structure_links_chk, 0, wx.ALL, 5)
+        self.rich_view_chk = wx.CheckBox(
+            feeds_panel,
+            label=_(
+                "Rich full-text view: show links, embedded videos, and tweets in a web view "
+                "(instead of plain text). Falls back to plain text if unavailable."
+            ),
+        )
+        self.rich_view_chk.SetValue(bool(config.get("full_text_rich_view", False)))
+        feeds_sizer.Add(self.rich_view_chk, 0, wx.ALL, 5)
 
         self.show_image_alt_chk = wx.CheckBox(
             general_panel,
@@ -2855,6 +2870,8 @@ class SettingsDialog(wx.Dialog):
             "article_structure_headings": self.structure_headings_chk.GetValue(),
             "article_structure_lists": self.structure_lists_chk.GetValue(),
             "article_structure_quotes": self.structure_quotes_chk.GetValue(),
+            "article_structure_links": self.structure_links_chk.GetValue(),
+            "full_text_rich_view": self.rich_view_chk.GetValue(),
             "ytdlp_cookies_file": self.ytdlp_cookies_ctrl.GetValue().strip(),
             "auto_import_browser_cookies": self.auto_import_cookies_chk.GetValue(),
             "youtube_play_via_download": self.youtube_play_via_download_chk.GetValue(),

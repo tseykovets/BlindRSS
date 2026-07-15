@@ -1079,11 +1079,11 @@ class SettingsDialog(wx.Dialog):
         general_panel.SetSizer(general_sizer)
         notebook.AddPage(general_panel, _("General"))
         feeds_panel.SetSizer(feeds_sizer)
-        notebook.AddPage(feeds_panel, _("Feeds & Articles"))
+        notebook.AddPage(feeds_panel, _("Feeds && Articles"))
         downloads_panel.SetSizer(downloads_sizer)
         notebook.AddPage(downloads_panel, _("Downloads"))
         startup_panel.SetSizer(startup_sizer)
-        notebook.AddPage(startup_panel, _("Startup & Tray"))
+        notebook.AddPage(startup_panel, _("Startup && Tray"))
         youtube_panel.SetSizer(youtube_sizer)
         notebook.AddPage(youtube_panel, _("YouTube"))
 

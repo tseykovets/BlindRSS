@@ -337,6 +337,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\always-commit-agents-md.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-filter-and-i18n.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-list-rebuild-lag.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-structure-markers.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\category-identity-model.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\curl-cffi-impersonation-transport.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\delete-restore-refresh-unguarded.md

@@ -114,7 +114,11 @@ packages_to_collect = [
     'yt_dlp', 'aiohttp', 'zeroconf', 'pydantic', 'lxml',
     'sgmllib', 'six', 'soupsieve',
     'defusedxml', 'didl_lite', 'ifaddr',
-    'certifi', 'curl_cffi'
+    'certifi', 'curl_cffi',
+    # extruct/mf2py: metadata enrichment. mf2py ships a 'backcompat-rules'
+    # data directory it loads at import time; without collecting it, every
+    # `import extruct` in the frozen app dies with FileNotFoundError.
+    'extruct', 'mf2py',
 ]
 
 datas = []

@@ -52,6 +52,11 @@ packages_to_collect = [
     "ifaddr",
     "certifi",
     "curl_cffi",
+    # extruct/mf2py: metadata enrichment. mf2py ships a 'backcompat-rules'
+    # data directory it loads at import time; without collecting it, every
+    # `import extruct` in the frozen app dies with FileNotFoundError.
+    "extruct",
+    "mf2py",
 ]
 
 datas = []

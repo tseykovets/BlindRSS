@@ -58,6 +58,11 @@ def test_miniflux_req_uses_configured_timeout_for_normal_endpoints(monkeypatch):
 
 
 def test_miniflux_refresh_uses_longer_timeout_floor(monkeypatch):
+    # A per-feed PUT .../refresh is a synchronous server-side upstream fetch. The
+    # client read timeout is deliberately kept on a generous floor (18s), well above
+    # the server's own HTTP_CLIENT_TIMEOUT, so the client never cancels a feed the
+    # server is still legitimately fetching (which would drop content from slow but
+    # live feeds). Dead feeds are bounded server-side, not by shortening this value.
     p = _provider(feed_timeout_seconds=10)
     seen = {}
 
@@ -67,7 +72,7 @@ def test_miniflux_refresh_uses_longer_timeout_floor(monkeypatch):
 
     monkeypatch.setattr(p._session, "request", _fake_request)
     p._req("PUT", "/v1/feeds/123/refresh")
-    assert seen.get("timeout") == (MinifluxProvider.CONNECT_TIMEOUT_SECONDS, 10)
+    assert seen.get("timeout") == (MinifluxProvider.CONNECT_TIMEOUT_SECONDS, 18)
 
 
 def test_miniflux_req_adds_revalidation_headers(monkeypatch):
@@ -329,7 +334,11 @@ def test_miniflux_targeted_refresh_transients_are_debug_only(monkeypatch, caplog
     caplog.set_level(logging.WARNING, logger="providers.miniflux")
     assert p._req("PUT", "/v1/feeds/97/refresh") is None
 
-    assert seen["calls"] == 2
+    # Per-feed refresh does not retry (retries=0): a retry would re-pay the full
+    # per-feed timeout and inflate a whole-account manual refresh, so a single
+    # attempt is made. Transient failures on this endpoint still stay debug-only
+    # (no WARNING spam) -- the server keeps fetching in the background regardless.
+    assert seen["calls"] == 1
     assert not [record for record in caplog.records if "Miniflux transient HTTP" in record.getMessage()]
 
 

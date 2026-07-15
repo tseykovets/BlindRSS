@@ -49,12 +49,15 @@ class MinifluxProvider(RSSProvider):
         # DNS advertises an unreachable AAAA also re-incurs the IPv6 connect timeout
         # on every call. One pooled connection turns ~6 handshakes per refresh into 1.
         self._session = requests.Session()
-        # pool_maxsize must exceed the targeted-refresh worker cap (12 in
+        # pool_maxsize must exceed the targeted-refresh worker cap (32 in
         # _targeted_refresh_worker_count) plus the handful of concurrent GETs the
-        # refresh and feed-tree-load threads issue during a force refresh.
-        # Otherwise urllib3 discards and re-handshakes the overflow connections
-        # ("Connection pool is full, discarding connection").
-        adapter = HTTPAdapter(pool_connections=4, pool_maxsize=24)
+        # refresh and feed-tree-load threads issue during a force refresh, PLUS the
+        # few straggler connections a previous manual refresh may still hold open
+        # while its slow feeds finish in the background. 48 keeps comfortable headroom
+        # so back-to-back refreshes don't overflow the pool. Otherwise urllib3 discards
+        # and re-handshakes the overflow connections ("Connection pool is full,
+        # discarding connection"), re-paying a TLS handshake per overflow worker.
+        adapter = HTTPAdapter(pool_connections=4, pool_maxsize=48)
         self._session.mount("https://", adapter)
         self._session.mount("http://", adapter)
         self._cached_get_responses: dict[str, Any] = {}
@@ -119,8 +122,21 @@ class MinifluxProvider(RSSProvider):
             # Global refresh can be slower on busy instances.
             return max(base_timeout, 20)
         if ep.endswith("/refresh"):
-            # Per-feed refresh should be quick; keep timeout tighter to avoid long UI stalls.
-            return max(base_timeout, 10)
+            # Per-feed refresh is a synchronous server-side upstream fetch: Miniflux
+            # goes out and fetches the feed while our HTTP request stays open. We must
+            # NOT cancel a feed the server is still legitimately fetching -- that would
+            # drop real content from slow-but-alive feeds. So the client read timeout
+            # is kept generous (>= the server's own HTTP_CLIENT_TIMEOUT plus margin).
+            # Bounding *dead* feeds is the server's job, not ours: Miniflux gives up on
+            # an unresponsive upstream at HTTP_CLIENT_TIMEOUT and returns an error,
+            # which we receive comfortably within this window. Lowering the server's
+            # HTTP_CLIENT_TIMEOUT -- not this client value -- is how you trade dead-feed
+            # patience for speed.
+            try:
+                floor = int(self.config.get("miniflux_per_feed_refresh_timeout_s", 18) or 18)
+            except Exception:
+                floor = 18
+            return max(base_timeout, floor)
         return base_timeout
 
     def _request_retry_attempts(self, endpoint: str = "") -> int:
@@ -134,8 +150,12 @@ class MinifluxProvider(RSSProvider):
             # Keep global refresh retries conservative to avoid long blocking loops when server is down.
             retries = min(retries, 2)
         elif ep.endswith("/refresh"):
-            # Per-feed refresh retries can explode total refresh time; cap hard.
-            retries = min(retries, 1)
+            # Per-feed refresh must not retry: a slow feed hits the per-feed timeout
+            # cap, and a retry would re-pay that full cap (turning one 8s stall into
+            # ~16s) and dominate the whole-account refresh wall-clock. One attempt is
+            # enough -- the server keeps fetching in the background and the global
+            # refresh / next scheduled cycle reconciles any straggler.
+            retries = 0
         return retries
 
     def _is_transient_status(self, status_code: int | None) -> bool:
@@ -160,7 +180,12 @@ class MinifluxProvider(RSSProvider):
             count = max(1, int(feed_count or 0))
         except Exception:
             count = 1
-        return max(1, min(12, configured, count))
+        # Cap at 32: enough parallelism to refresh a large (100+ feed) account in a
+        # few waves, while staying within the HTTP connection pool (pool_maxsize=48)
+        # and not overwhelming the upstream Miniflux server with outbound fetches.
+        # Users who want more can raise miniflux_targeted_refresh_workers, but the
+        # hard cap protects the shared connection pool from overflow re-handshakes.
+        return max(1, min(32, configured, count))
 
     def _retry_backoff_seconds(self, attempt_index: int) -> float:
         # attempt_index is 1-based
@@ -829,6 +854,160 @@ class MinifluxProvider(RSSProvider):
 
         return results
 
+    def _refresh_soft_deadline_seconds(self) -> float:
+        """Wall-clock budget (seconds) after which a manual refresh reports 'complete'
+        and lets any still-running (slow but live) feeds finish in the background.
+
+        0 disables streaming -- the refresh blocks until every targeted feed returns
+        (the classic behavior). Default 5s: on a large account the fast majority of
+        feeds finish well inside this window, so the user hears 'refresh complete'
+        promptly while a couple of genuinely slow feeds keep loading and stream their
+        new articles in a few seconds later. No feed is ever cancelled to hit this.
+        """
+        try:
+            val = float(self.config.get("miniflux_refresh_soft_deadline_s", 5) or 0)
+        except Exception:
+            val = 5.0
+        return max(0.0, val)
+
+    @staticmethod
+    def _future_result_info(fut, fid: str) -> dict[str, Any]:
+        """Extract a targeted-refresh worker result, normalizing cancellation/errors."""
+        try:
+            return fut.result()
+        except concurrent.futures.CancelledError:
+            return {
+                "ok": False, "used_cache": False, "status_code": None,
+                "endpoint": f"/v1/feeds/{fid}/refresh", "method": "PUT",
+                "error_body": None, "cancelled": True,
+            }
+        except Exception as e:
+            log.debug("Miniflux targeted refresh worker failed for feed %s: %s", fid, e)
+            return {
+                "ok": False, "used_cache": False, "status_code": None,
+                "endpoint": f"/v1/feeds/{fid}/refresh", "method": "PUT",
+                "error_body": None,
+            }
+
+    def _run_targeted_with_deadline(
+        self,
+        feed_ids,
+        *,
+        force: bool = False,
+        progress_cb=None,
+        progress_states: dict[str, dict[str, Any]] | None = None,
+        cancel_event: threading.Event | None = None,
+        soft_deadline_s: float = 5.0,
+        finalize_cb=None,
+        on_background_done=None,
+    ) -> list[str]:
+        """Per-feed targeted refresh that RETURNS after ``soft_deadline_s`` and hands any
+        still-pending (slow but live) feeds to a background daemon.
+
+        The daemon drains the remaining feeds -- it never cancels them, so no content is
+        dropped -- emitting per-feed progress as each finishes, then runs ``finalize_cb``
+        (to re-emit fresh unread counts once the slow feeds land) and ``on_background_done``
+        (to release the refresh cancel scope). Returns the list of straggler feed ids handed
+        off to the background (empty if everything finished within the deadline).
+        """
+        ordered_ids = []
+        seen = set()
+        for raw_id in list(feed_ids or []):
+            if self._refresh_cancelled(cancel_event):
+                break
+            fid = str(raw_id or "").strip()
+            if not fid or fid in seen:
+                continue
+            seen.add(fid)
+            if not self._should_attempt_targeted_refresh(fid, force=force):
+                continue
+            ordered_ids.append(fid)
+
+        if not ordered_ids:
+            return []
+
+        worker_count = self._targeted_refresh_worker_count(len(ordered_ids))
+        results_lock = threading.Lock()
+        results: dict[str, dict[str, Any]] = {}
+
+        def _store(fid: str, info: dict[str, Any]) -> None:
+            info = info or {}
+            with results_lock:
+                results[fid] = info
+            if info.get("cancelled"):
+                return
+            self._record_targeted_refresh_attempt_result(
+                fid, bool(info.get("ok", False)), info.get("status_code")
+            )
+            if progress_cb is not None:
+                self._emit_progress(
+                    progress_cb,
+                    self._targeted_refresh_progress_state(fid, info, progress_states),
+                )
+
+        executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=worker_count, thread_name_prefix="miniflux-refresh"
+        )
+        futures = {
+            executor.submit(self._request_targeted_refresh, fid, cancel_event): fid
+            for fid in ordered_ids
+            if not self._refresh_cancelled(cancel_event)
+        }
+        pending = set(futures)
+        deadline = time.monotonic() + max(0.0, float(soft_deadline_s or 0.0))
+
+        while pending:
+            if self._refresh_cancelled(cancel_event):
+                for f in pending:
+                    f.cancel()
+                break
+            remaining_time = deadline - time.monotonic()
+            if remaining_time <= 0:
+                break
+            done, pending = concurrent.futures.wait(
+                pending,
+                timeout=remaining_time,
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            for fut in done:
+                fid = futures[fut]
+                _store(fid, self._future_result_info(fut, fid))
+
+        if not pending:
+            executor.shutdown(wait=False)
+            return []
+
+        straggler_ids = [futures[f] for f in pending]
+        pending_snapshot = set(pending)
+
+        def _drain_stragglers() -> None:
+            try:
+                for fut in concurrent.futures.as_completed(pending_snapshot):
+                    if self._refresh_cancelled(cancel_event):
+                        for f in pending_snapshot:
+                            f.cancel()
+                    fid = futures[fut]
+                    _store(fid, self._future_result_info(fut, fid))
+            except Exception:
+                log.debug("Miniflux straggler drain failed", exc_info=True)
+            finally:
+                try:
+                    if finalize_cb is not None and not self._refresh_cancelled(cancel_event):
+                        finalize_cb(straggler_ids)
+                except Exception:
+                    log.debug("Miniflux straggler finalize failed", exc_info=True)
+                executor.shutdown(wait=False)
+                try:
+                    if on_background_done is not None:
+                        on_background_done(straggler_ids)
+                except Exception:
+                    log.debug("Miniflux straggler completion callback failed", exc_info=True)
+
+        threading.Thread(
+            target=_drain_stragglers, name="miniflux-stragglers", daemon=True
+        ).start()
+        return straggler_ids
+
     def _get_entries_paged(self, endpoint: str, params: Dict[str, Any] = None, limit: int = 200) -> List[Dict[str, Any]]:
         """Retrieve all entries by paging with limit/offset until total is reached.
 
@@ -1055,6 +1234,10 @@ class MinifluxProvider(RSSProvider):
     def refresh(self, progress_cb=None, force: bool = False, scheduled: bool = False) -> bool:
         started_at = datetime.now(timezone.utc)
         cancel_event = self._begin_refresh_cancel_scope()
+        # When a manual refresh reports "complete" while slow feeds keep loading, the
+        # background straggler daemon -- not this call's finally -- owns releasing the
+        # cancel scope, so a user "stop" still cancels those stragglers.
+        background_owns_scope = False
 
         def _stopped(feeds_count: int = 0) -> bool:
             duration_s = (datetime.now(timezone.utc) - started_at).total_seconds()
@@ -1068,24 +1251,33 @@ class MinifluxProvider(RSSProvider):
 
         try:
             log.info("Miniflux refresh start force=%s", force)
-            # Kick off a global refresh on the Miniflux server.
-            self._req("PUT", "/v1/feeds/refresh")
-            if self._refresh_cancelled(cancel_event):
-                return _stopped()
-            refresh_info = dict(getattr(self, "_last_request_info", {}) or {})
-            global_refresh_ok = True
-            if (
-                str(refresh_info.get("endpoint", "")) == "/v1/feeds/refresh"
-                and str(refresh_info.get("method", "")).upper() == "PUT"
-            ):
-                global_refresh_ok = bool(refresh_info.get("ok", False))
-            log.info(
-                "Miniflux global refresh request force=%s ok=%s status=%s error=%r",
-                force,
-                global_refresh_ok,
-                refresh_info.get("status_code"),
-                refresh_info.get("error_body"),
-            )
+            # A manual (force) refresh synchronously re-fetches *every* feed below
+            # via per-feed PUT .../refresh. The global background refresh would then
+            # just make the server compete with itself for the same upstream
+            # bandwidth, so skip it on force and let the targeted pass do the work.
+            # Scheduled (non-force) refreshes still kick off the cheap global
+            # background refresh and only retry stale/errored feeds individually.
+            if force:
+                global_refresh_ok = True
+            else:
+                # Kick off a global refresh on the Miniflux server.
+                self._req("PUT", "/v1/feeds/refresh")
+                if self._refresh_cancelled(cancel_event):
+                    return _stopped()
+                refresh_info = dict(getattr(self, "_last_request_info", {}) or {})
+                global_refresh_ok = True
+                if (
+                    str(refresh_info.get("endpoint", "")) == "/v1/feeds/refresh"
+                    and str(refresh_info.get("method", "")).upper() == "PUT"
+                ):
+                    global_refresh_ok = bool(refresh_info.get("ok", False))
+                log.info(
+                    "Miniflux global refresh request force=%s ok=%s status=%s error=%r",
+                    force,
+                    global_refresh_ok,
+                    refresh_info.get("status_code"),
+                    refresh_info.get("error_body"),
+                )
 
             # After triggering, fetch feed metadata so we can surface stale/error
             # feeds in the UI and optionally retry them individually.
@@ -1160,15 +1352,72 @@ class MinifluxProvider(RSSProvider):
                         )
                         for feed in feeds or []
                     }
-                self._refresh_targeted_feeds(
-                    per_feed_retry_ids[:retry_budget],
-                    force=force,
-                    progress_cb=progress_cb,
-                    progress_states=progress_states,
-                    cancel_event=cancel_event,
+
+                targeted_ids = per_feed_retry_ids[:retry_budget]
+                # A manual refresh streams: report "complete" once the fast majority
+                # of feeds are in, and let the slow-but-live stragglers finish in the
+                # background (they are never cancelled). Scheduled refreshes, tiny
+                # accounts, and the single-worker path keep the classic blocking flow.
+                soft_deadline_s = self._refresh_soft_deadline_seconds() if force else 0.0
+                use_streaming = (
+                    soft_deadline_s > 0
+                    and len(targeted_ids) >= 3
+                    and self._targeted_refresh_worker_count(len(targeted_ids)) > 1
                 )
-                if self._refresh_cancelled(cancel_event):
-                    return _stopped(len(feeds or []))
+
+                if use_streaming:
+                    def _straggler_finalize(straggler_ids):
+                        # Once the slow feeds land, re-emit their fresh unread counts so
+                        # their new articles/counts appear a few seconds after "complete".
+                        if self._refresh_cancelled(cancel_event):
+                            return
+                        feeds2 = self._req("GET", "/v1/feeds") or []
+                        counters2 = self._req("GET", "/v1/feeds/counters") or {}
+                        unread2 = counters2.get("unreads", {}) if isinstance(counters2, dict) else {}
+                        by_id2 = {str(f.get("id") or ""): f for f in feeds2}
+                        for sid in straggler_ids:
+                            feed2 = by_id2.get(str(sid))
+                            if feed2 is None:
+                                continue
+                            self._emit_progress(
+                                progress_cb,
+                                self._feed_progress_state_from_metadata(feed2, unread2, stale_cutoff),
+                            )
+
+                    def _straggler_done(straggler_ids):
+                        total_dur = (datetime.now(timezone.utc) - started_at).total_seconds()
+                        log.info(
+                            "Miniflux refresh stragglers finished force=%s stragglers=%s total_duration_s=%.2f",
+                            force, len(straggler_ids or []), total_dur,
+                        )
+                        self._end_refresh_cancel_scope(cancel_event)
+
+                    straggler_ids = self._run_targeted_with_deadline(
+                        targeted_ids,
+                        force=force,
+                        progress_cb=progress_cb,
+                        progress_states=progress_states,
+                        cancel_event=cancel_event,
+                        soft_deadline_s=soft_deadline_s,
+                        finalize_cb=_straggler_finalize,
+                        on_background_done=_straggler_done,
+                    )
+                    if straggler_ids:
+                        background_owns_scope = True
+                        log.info(
+                            "Miniflux refresh reporting complete with %s straggler feed(s) finishing in background force=%s",
+                            len(straggler_ids), force,
+                        )
+                else:
+                    self._refresh_targeted_feeds(
+                        targeted_ids,
+                        force=force,
+                        progress_cb=progress_cb,
+                        progress_states=progress_states,
+                        cancel_event=cancel_event,
+                    )
+                    if self._refresh_cancelled(cancel_event):
+                        return _stopped(len(feeds or []))
 
             # Re-read feed/counter metadata after targeted refresh requests.
             feeds = self._req("GET", "/v1/feeds") or feeds
@@ -1188,10 +1437,17 @@ class MinifluxProvider(RSSProvider):
                 )
 
             duration_s = (datetime.now(timezone.utc) - started_at).total_seconds()
-            log.info("Miniflux refresh finished force=%s duration_s=%.2f feeds=%s", force, duration_s, len(feeds or []))
+            log.info(
+                "Miniflux refresh finished force=%s duration_s=%.2f feeds=%s stragglers_bg=%s",
+                force, duration_s, len(feeds or []), background_owns_scope,
+            )
             return True
         finally:
-            self._end_refresh_cancel_scope(cancel_event)
+            # When stragglers are still loading, the background daemon releases the
+            # cancel scope once it finishes; releasing it here would let a "stop"
+            # silently no-op against the in-flight stragglers.
+            if not background_owns_scope:
+                self._end_refresh_cancel_scope(cancel_event)
 
     def refresh_feed(self, feed_id: str, progress_cb=None) -> bool:
         """Refresh a single Miniflux feed and emit one progress state for the UI."""

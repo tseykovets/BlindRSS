@@ -26,6 +26,10 @@ class _Host:
     def _translation_fulltext_cache_suffix(self):
         return ""
 
+    def _rich_view_enabled(self):
+        # These tests exercise the plain-text reader path, not the rich HTML reader.
+        return False
+
     def _show_images_for_feed(self, feed_id):
         return False
 

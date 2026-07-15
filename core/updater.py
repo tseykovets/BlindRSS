@@ -146,22 +146,22 @@ def _fetch_latest_release() -> Tuple[Optional[dict], Optional[str]]:
     try:
         resp = safe_requests_get(url, headers=headers, timeout=15)
     except Exception as e:
-        return None, f"Network error while checking GitHub: {e}"
+        return None, _("Network error while checking GitHub: {error}").format(error=e)
 
     if resp.status_code == 403 and resp.headers.get("X-RateLimit-Remaining") == "0":
         reset = resp.headers.get("X-RateLimit-Reset", "")
         msg = "GitHub API rate limit reached. Try again later."
         if reset:
-            msg = f"{msg} Reset time (epoch): {reset}"
+            msg = _("{msg} Reset time (epoch): {reset}").format(msg=msg, reset=reset)
         return None, msg
 
     if not resp.ok:
-        return None, f"GitHub API error: HTTP {resp.status_code}"
+        return None, _("GitHub API error: HTTP {status}").format(status=resp.status_code)
 
     try:
         return resp.json(), None
     except Exception as e:
-        return None, f"Invalid GitHub response: {e}"
+        return None, _("Invalid GitHub response: {error}").format(error=e)
 
 
 def _find_release_asset(release: dict, name: str) -> Optional[dict]:
@@ -178,7 +178,7 @@ def _download_json(url: str, timeout: int = 20) -> Tuple[Optional[dict], Optiona
         resp.raise_for_status()
         return resp.json(), None
     except Exception as e:
-        return None, f"Failed to download update metadata: {e}"
+        return None, _("Failed to download update metadata: {error}").format(error=e)
 
 
 def check_for_updates() -> UpdateCheckResult:
@@ -344,7 +344,7 @@ def _extract_archive(archive_path: str, dest_dir: str) -> None:
         with tarfile.open(archive_path, "r:gz") as tf:
             tf.extractall(dest_dir)
     else:
-        raise ValueError(f"Unsupported update archive type: {os.path.basename(archive_path)}")
+        raise ValueError(_("Unsupported update archive type: {type}").format(type=os.path.basename(archive_path)))
 
 
 def _find_staging_root(extract_dir: str) -> str:
@@ -423,7 +423,7 @@ def _verify_authenticode_signature(exe_path: str, allowed_thumbprints: Iterable[
             # accepted. With no allowlist configured, accept the valid signature.
             if allowed and thumbprint not in allowed:
                 suffix = f" (thumbprint {thumbprint})." if thumbprint else "."
-                return False, f"Update is signed but not by a trusted certificate{suffix}"
+                return False, _("Update is signed but not by a trusted certificate{suffix}").format(suffix=suffix)
             return True, ""
         # Status is not 'Valid' (e.g. an untrusted root for a self-signed cert):
         # accept only if the signer thumbprint is explicitly pinned in the allowlist.
@@ -435,7 +435,7 @@ def _verify_authenticode_signature(exe_path: str, allowed_thumbprints: Iterable[
         return False, message
 
     if last_error:
-        return False, f"Authenticode verification failed: {last_error}"
+        return False, _("Authenticode verification failed: {error}").format(error=last_error)
     return False, "Authenticode verification failed: PowerShell was not found."
 
 
@@ -527,7 +527,7 @@ def _launch_update_helper(
 
         return True, ""
     except Exception as e:
-        return False, f"Failed to start update helper: {e}"
+        return False, _("Failed to start update helper: {error}").format(error=e)
 
 
 def _make_update_temp_root(install_dir: str) -> str:
@@ -677,7 +677,7 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
                     if not report("Downloading update…", fraction):
                         return False, UPDATE_CANCELED_MESSAGE
     except Exception as e:
-        return False, f"Failed to download update: {e}"
+        return False, _("Failed to download update: {error}").format(error=e)
 
     report("Verifying download…", None)
     digest = _sha256_file(archive_path)
@@ -698,7 +698,7 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
     try:
         _extract_archive(archive_path, extract_dir)
     except Exception as e:
-        return False, f"Failed to extract update: {e}"
+        return False, _("Failed to extract update: {error}").format(error=e)
 
     # --- Platform-specific verification + apply --------------------------------
     if platform == "windows":
@@ -707,18 +707,18 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
         return _apply_macos(install_dir, temp_root, extract_dir, report)
     if platform == "linux":
         return _apply_linux(install_dir, temp_root, extract_dir, report)
-    return False, f"Auto-update is not supported on this platform ({sys.platform})."
+    return False, _("Auto-update is not supported on this platform ({platform}).").format(platform=sys.platform)
 
 
 def _apply_windows(info, install_dir, temp_root, extract_dir, debug_mode, report) -> Tuple[bool, str]:
     helper_path = os.path.join(install_dir, WINDOWS_UPDATE_HELPER_NAME)
     if not os.path.isfile(helper_path):
-        return False, f"{WINDOWS_UPDATE_HELPER_NAME} is missing from the install directory."
+        return False, _("{name} is missing from the install directory.").format(name=WINDOWS_UPDATE_HELPER_NAME)
 
     staging_root = _find_staging_root(extract_dir)
     exe_path = os.path.join(staging_root, EXE_NAME)
     if not os.path.isfile(exe_path):
-        return False, f"Update package is missing {EXE_NAME}."
+        return False, _("Update package is missing {name}.").format(name=EXE_NAME)
 
     report("Verifying signature…", None)
     ok, msg = _verify_authenticode_signature(exe_path, info.signing_thumbprints)
@@ -770,9 +770,9 @@ def _apply_windows_installer(
 ) -> Tuple[bool, str]:
     helper_path = os.path.join(install_dir, WINDOWS_UPDATE_HELPER_NAME)
     if not os.path.isfile(helper_path):
-        return False, f"{WINDOWS_UPDATE_HELPER_NAME} is missing from the install directory."
+        return False, _("{name} is missing from the install directory.").format(name=WINDOWS_UPDATE_HELPER_NAME)
     if not os.path.isfile(installer_path):
-        return False, "Downloaded Windows installer is missing."
+        return False, _("Downloaded Windows installer is missing.")
 
     report("Verifying signature…", None)
     ok, msg = _verify_authenticode_signature(installer_path, info.signing_thumbprints)
@@ -834,7 +834,7 @@ def _verify_macos_codesign(app_path: str) -> Tuple[bool, str]:
         return True, ""
     if proc.returncode == 0:
         return True, ""
-    return False, f"Update signature verification failed: {(proc.stderr or proc.stdout).strip()}"
+    return False, _("Update signature verification failed: {error}").format(error=(proc.stderr or proc.stdout).strip())
 
 
 def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str]:
@@ -844,7 +844,7 @@ def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str
 
     helper_path = os.path.join(install_dir, POSIX_UPDATE_HELPER_NAME)
     if not os.path.isfile(helper_path):
-        return False, f"{POSIX_UPDATE_HELPER_NAME} is missing from the app bundle."
+        return False, _("{name} is missing from the app bundle.").format(name=POSIX_UPDATE_HELPER_NAME)
 
     staging_app = _find_macos_app_staging(extract_dir)
     if not staging_app:
@@ -871,7 +871,7 @@ def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str
 def _apply_linux(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str]:
     helper_path = os.path.join(install_dir, POSIX_UPDATE_HELPER_NAME)
     if not os.path.isfile(helper_path):
-        return False, f"{POSIX_UPDATE_HELPER_NAME} is missing from the install directory."
+        return False, _("{name} is missing from the install directory.").format(name=POSIX_UPDATE_HELPER_NAME)
 
     staging_dir = _find_linux_staging(extract_dir)
     if not staging_dir:
@@ -935,4 +935,4 @@ def _launch_posix_helper(
         )
         return True, "Update prepared. The app will restart after it exits."
     except Exception as e:
-        return False, f"Failed to start update helper: {e}"
+        return False, _("Failed to start update helper: {error}").format(error=e)

@@ -1968,7 +1968,7 @@ class PlayerFrame(wx.Frame):
         # Time Labels
         time_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.current_time_lbl = wx.StaticText(panel, label="00:00")
-        self.current_time_lbl.SetName("Elapsed Time: 00:00")
+        self.current_time_lbl.SetName(_("Elapsed Time: 00:00"))
         self.total_time_lbl = wx.StaticText(panel, label="00:00")
         self.total_time_lbl.SetName("Total Time: 00:00")
         time_sizer.Add(self.current_time_lbl, 0, wx.LEFT, 5)
@@ -5301,7 +5301,7 @@ class PlayerFrame(wx.Frame):
         control.SetName(f"{name}: {text}")
 
     def _set_elapsed_time_label(self, value: str) -> None:
-        self._set_named_value_label(self.current_time_lbl, "Elapsed Time", value)
+        self._set_named_value_label(self.current_time_lbl, _("Elapsed Time"), value)
 
     def _set_total_time_label(self, value: str) -> None:
         self._set_named_value_label(self.total_time_lbl, "Total Time", value)

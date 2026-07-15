@@ -5119,9 +5119,9 @@ class MainFrame(wx.Frame):
                         wx.CallAfter(self._refresh_article_in_list, self._article_cache_id(article))
                         wx.CallAfter(wx.MessageBox, "Audio detected and added!", "Success", wx.ICON_INFORMATION)
                     else:
-                         wx.CallAfter(wx.MessageBox, "Provider does not support updating media.", "Error", wx.ICON_ERROR)
+                         wx.CallAfter(wx.MessageBox, _("Provider does not support updating media."), _("Error"), wx.ICON_ERROR)
                 else:
-                    wx.CallAfter(wx.MessageBox, "No audio found.", "Result", wx.ICON_INFORMATION)
+                    wx.CallAfter(wx.MessageBox, _("No audio found."), _("Result"), wx.ICON_INFORMATION)
             except Exception as e:
                 wx.CallAfter(wx.MessageBox, _("Error detecting audio: {error}").format(error=e), _("Error"), wx.ICON_ERROR)
                 
@@ -12183,8 +12183,8 @@ class MainFrame(wx.Frame):
         # A real progress dialog (with a Cancel button) instead of just a busy
         # cursor, so the multi-megabyte download doesn't make the app look frozen.
         self._update_progress_dlg = wx.ProgressDialog(
-            "Updating BlindRSS",
-            "Starting update…",
+            _("Updating BlindRSS"),
+            _("Starting update..."),
             maximum=100,
             parent=self,
             style=wx.PD_APP_MODAL | wx.PD_CAN_ABORT | wx.PD_SMOOTH | wx.PD_ELAPSED_TIME,

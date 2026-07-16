@@ -1665,9 +1665,20 @@ class MainFrame(wx.Frame):
                 article._media_label_cached = _(ARTICLE_MEDIA_YES)
                 article._has_media_cached = True
             label = self._article_media_label(article)
+            # The row may not exist yet: selecting/expanding a category rebuilds
+            # the list (DeleteAllItems + a batched re-insert), so current_articles
+            # can be longer than the number of rows rendered so far. This method
+            # runs on the player's progress timer, so it can land mid-rebuild.
+            # Reading or writing an out-of-range index makes wx emit
+            # "Couldn't retrieve information about list control item N" via
+            # wxLogError, which surfaces as a modal error dialog and CANNOT be
+            # caught by the try/except below. Guard the index; the article's
+            # cached label was already corrected above, so the pending render
+            # paints the right value once the row exists.
             try:
-                if self.list_ctrl.GetItemText(index, ARTICLE_COL_MEDIA) != label:
-                    self.list_ctrl.SetItem(index, ARTICLE_COL_MEDIA, label)
+                if 0 <= index < self.list_ctrl.GetItemCount():
+                    if self.list_ctrl.GetItemText(index, ARTICLE_COL_MEDIA) != label:
+                        self.list_ctrl.SetItem(index, ARTICLE_COL_MEDIA, label)
             except Exception:
                 pass
             break

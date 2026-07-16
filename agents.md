@@ -337,6 +337,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 ## Memories (shared from ~/.claude - project: C--Users-admin-git-BlindRSS)
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\MEMORY.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\accessible-table-linearization.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\active-backend-miniflux-server.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\always-commit-agents-md.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-filter-and-i18n.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-list-rebuild-lag.md
@@ -371,5 +372,6 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\volume-jump-root-cause.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\wx-callafter-timer-starvation.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\wx-searchctrl-setmenu-ownership.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\wxlogerror-listctrl-modal.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\youtube-live-format-selection.md
 <!-- claude-memory:end -->

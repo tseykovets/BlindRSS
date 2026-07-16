@@ -121,6 +121,52 @@ def _build_media_actions(pw):
     }
 
 
+class _ListItemErrorLogFilter(wx.Log):
+    """Drop only the benign "list control item" wxLogError; forward everything else.
+
+    wx.ListCtrl.GetItem/GetItemText/SetItem on an out-of-range row do not raise a
+    Python exception — they call wxLogError("Couldn't retrieve information about
+    list control item N."), which the default wx log target flushes as a modal
+    "BlindRSS Error" dialog. try/except around the call cannot suppress it. Those
+    reads are always momentary and harmless here (e.g. a timer callback touching a
+    row while the article list is mid-rebuild after expanding/selecting a category),
+    so this filter swallows that one message and passes all other wx log records
+    through to the previously active target unchanged.
+    """
+
+    _NEEDLE = "information about list control item"
+
+    def __init__(self, previous):
+        super().__init__()
+        self._previous = previous
+
+    def DoLogRecord(self, level, msg, info):
+        try:
+            if self._NEEDLE in (msg or ""):
+                return
+        except Exception:
+            pass
+        prev = self._previous
+        if prev is not None:
+            try:
+                prev.LogRecord(level, msg, info)
+            except Exception:
+                pass
+
+
+def _install_wx_log_filter():
+    """Route wx logging through _ListItemErrorLogFilter (see its docstring)."""
+    try:
+        previous = wx.Log.GetActiveTarget()
+        if previous is None:
+            # No default target yet: installing a forwarder with nowhere to
+            # forward would swallow every wx error. Leave wx's default in place.
+            return
+        wx.Log.SetActiveTarget(_ListItemErrorLogFilter(previous))
+    except Exception as e:
+        log.debug(f"Could not install wx log filter: {e}")
+
+
 class GlobalMediaKeyFilter(wx.EventFilter):
     """Capture media shortcuts globally so they work in dialogs too."""
 
@@ -213,6 +259,8 @@ class RSSApp(wx.App):
             i18n.setup(self.config_manager.get("language", "auto"))
         except Exception:
             log.debug("Failed to initialize translations", exc_info=True)
+
+        _install_wx_log_filter()
 
         self.instance_checker = wx.SingleInstanceChecker("BlindRSS-Instance-Lock")
         if self.instance_checker.IsAnotherRunning():

@@ -83,6 +83,12 @@ _BOILERPLATE_TEXT_RE = re.compile(
     r"|open this photo in gallery"
     r"|follow us on\b.{0,20}\b(?:google|discover|flipboard|twitter|facebook|instagram|threads|youtube|tiktok|linkedin|mastodon|bluesky|whatsapp|telegram)"
     r"|add us as (?:a )?preferred source"
+    # Community / comment-policy footer (Valnet network: Android Authority,
+    # Android Police, How-To Geek, etc. — "Thank you for being part of our
+    # community. Read our Comment Policy before posting.")
+    r"|thank you for being part of our community"
+    r"|read our comment policy"
+    r"|comment policy before posting"
     r")"
 )
 # Short label-only widget headers ("ZDNET Recommends", "Related stories",
@@ -742,9 +748,13 @@ def _traf_body_html(html: str, url: str) -> str:
     txt = (txt or "").strip()
     if not txt:
         return ""
+    # trafilatura's txt output puts each block (paragraph, heading, list item) on
+    # its own line separated by a SINGLE newline — not a blank line — so split on
+    # any run of newlines. Splitting on \n{2,} collapsed the whole article into
+    # one giant <p> on sites that hit this rebuild path (e.g. Wired's paywall stub).
     return "".join(
         f"<p>{_html.escape(block.strip())}</p>"
-        for block in re.split(r"\n{2,}", txt)
+        for block in re.split(r"\n+", txt)
         if block.strip()
     )
 

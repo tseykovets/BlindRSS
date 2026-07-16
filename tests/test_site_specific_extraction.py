@@ -102,6 +102,54 @@ class SimonWillisonExtractionTests(unittest.TestCase):
         self.assertNotIn("Sponsored by SomeCo", self.text)
 
 
+class TopTechTidbitsExtractionTests(unittest.TestCase):
+    def _issue_html(self):
+        para = (
+            "<p>This is a substantial newsletter paragraph with several real "
+            "sentences describing an access technology news item in enough detail "
+            "to be extracted as body content by the reader engine.</p>"
+        )
+        sections = "".join(
+            f'<div id="border-container-{i}">{para * 3}</div>' for i in range(1, 6)
+        )
+        return (
+            '<html><body><section class="main"><div class="post-container">'
+            '<div class="post-byline">By Editor</div>'
+            '<div class="post-content"><h2>Top Tech Tidbits</h2>'
+            "<p>Section Jumper: News</p></div>"
+            f"{sections}"
+            '<div class="sd-content"><ul><li>Share on Facebook</li>'
+            "<li>Share on X</li></ul></div>"
+            '<div class="jp-relatedposts"><h3>Related</h3>'
+            "<p>Some other unrelated newsletter issue</p></div>"
+            "</div></section></body></html>"
+        )
+
+    def test_full_issue_body_is_extracted(self):
+        # The issue body lives in border-container section divs the generic
+        # extractor discards; the site handler must return the whole issue.
+        text = article_extractor._extract_site_specific_text(
+            self._issue_html(), "https://toptechtidbits.com/newsletter-01-01-2026/"
+        )
+        self.assertGreater(len(text), 2000)
+        self.assertIn("access technology news item", text)
+
+    def test_share_and_related_chrome_dropped(self):
+        text = article_extractor._extract_site_specific_text(
+            self._issue_html(), "https://toptechtidbits.com/newsletter-01-01-2026/"
+        )
+        self.assertNotIn("Share on Facebook", text)
+        self.assertNotIn("other unrelated newsletter", text)
+
+    def test_absent_structure_falls_through(self):
+        self.assertEqual(
+            article_extractor._extract_toptechtidbits_text(
+                "<html><body><p>hi</p></body></html>", "https://toptechtidbits.com/x/"
+            ),
+            "",
+        )
+
+
 class PaywallStubGuardTests(unittest.TestCase):
     def test_subscribe_to_unlock_stub_is_detected(self):
         stub = (

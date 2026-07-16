@@ -637,6 +637,37 @@ def _extract_reuters_text(html: str) -> str:
     return text
 
 
+# Top Tech Tidbits (blind-community access-technology newsletter). Each weekly
+# issue is a WordPress ``div.post-container`` split into many ``border-container-N``
+# section divs — an email-style table/div layout. The generic extractor keeps only
+# the small semantic ``div.post-content`` header and discards the section divs as
+# boilerplate, dropping ~95% of the issue. Isolating ``post-container`` (minus
+# share/subscribe/related chrome) and extracting that returns the whole issue.
+_TOPTECHTIDBITS_CHROME = (
+    ".sd-content", ".sharedaddy", ".jp-relatedposts",
+    ".jetpack-subscription-modal", ".post-meta", ".post-byline",
+)
+_TOPTECHTIDBITS_MIN_TEXT_LEN = 2000
+
+
+def _extract_toptechtidbits_text(html: str, url: str) -> str:
+    """Extract a full Top Tech Tidbits newsletter issue (see note above).
+
+    Returns '' when the expected structure is absent so the generic path runs.
+    """
+    soup = _parse_html_soup(html, context="toptechtidbits body")
+    if soup is None:
+        return ""
+    node = soup.select_one("div.post-container")
+    if node is None:
+        return ""
+    for selector in _TOPTECHTIDBITS_CHROME:
+        for junk in node.select(selector):
+            junk.decompose()
+    text = _trafilatura_extract_text(str(node), url=url)
+    return text if len(text or "") >= _TOPTECHTIDBITS_MIN_TEXT_LEN else ""
+
+
 def _extract_without_dom_boilerplate(html: str, url: str, selectors: Tuple[str, ...]) -> str:
     """Run normal extraction after removing known non-article DOM sections."""
     soup = _parse_html_soup(html, context="site boilerplate removal")
@@ -725,6 +756,8 @@ def _extract_site_specific_text(html: str, url: str) -> str:
         return _extract_theregister_text(html)
     if _host_matches(url, "reuters.com"):
         return _extract_reuters_text(html)
+    if _host_matches(url, "toptechtidbits.com"):
+        return _extract_toptechtidbits_text(html, url)
     if _host_matches(url, "thepostmillennial.com"):
         return _extract_without_dom_boilerplate(html, url, ("section.contributions-container",))
     if _host_matches(url, "rebelnews.com"):

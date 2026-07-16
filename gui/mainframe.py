@@ -1998,6 +1998,17 @@ class MainFrame(wx.Frame):
         show_search_item = view_menu.AppendCheckItem(wx.ID_ANY, _("Show &Search Field"), _("Show or hide the search field"))
         show_search_item.Check(bool(getattr(self, "_search_visible", True)))
         self._show_search_item = show_search_item
+        # Reader-surface toggle: checked = rich HTML view, unchecked = plain
+        # full-text reader. Mirrors the Settings option so it can be flipped
+        # quickly while reading (also editable in Settings).
+        rich_view_item = view_menu.AppendCheckItem(
+            wx.ID_ANY,
+            _("&Rich Full-Text View"),
+            _("Switch the reader between plain full text and the rich HTML view"),
+        )
+        rich_view_item.Check(self._rich_view_enabled())
+        self._rich_view_menu_item = rich_view_item
+        self.Bind(wx.EVT_MENU, self.on_toggle_rich_view, rich_view_item)
         # Global read-status filter (issues #36/#40): lives here rather than in
         # the feed/category context menu because it applies to every view. When
         # not "All", the category tree hides branches with no matching articles.
@@ -2315,6 +2326,21 @@ class MainFrame(wx.Frame):
         except Exception:
             return False
 
+    def _is_rich_view_focused(self, focus) -> bool:
+        """True when focus is inside the rich (WebView) reader surface.
+
+        The WebView is a reading surface like the plain-text reader, so app-level
+        Ctrl+arrow media shortcuts must not hijack it — the keys belong to the
+        document (paragraph navigation, caret movement) and the screen reader.
+        """
+        rv = getattr(self, "_rich_view", None)
+        if rv is None:
+            return False
+        try:
+            return self._window_is_or_child(focus, rv.control)
+        except Exception:
+            return False
+
     def _is_text_input_focused(self, focus) -> bool:
         try:
             if focus is None:
@@ -2584,7 +2610,9 @@ class MainFrame(wx.Frame):
                 return
 
         if event.ControlDown() and not event.ShiftDown() and not event.AltDown() and not event.MetaDown():
-            if key in (wx.WXK_LEFT, wx.WXK_RIGHT, wx.WXK_UP, wx.WXK_DOWN) and self._is_text_input_focused(focus):
+            if key in (wx.WXK_LEFT, wx.WXK_RIGHT, wx.WXK_UP, wx.WXK_DOWN) and (
+                self._is_text_input_focused(focus) or self._is_rich_view_focused(focus)
+            ):
                 event.Skip()
                 return
             pw = getattr(self, "player_window", None)
@@ -4802,6 +4830,42 @@ class MainFrame(wx.Frame):
         except Exception:
             log.exception("Failed to switch reader mode")
         return use_rich
+
+    def _sync_rich_view_menu_item(self) -> None:
+        """Reflect the current rich-view setting in the View-menu check item."""
+        item = getattr(self, "_rich_view_menu_item", None)
+        if item is None:
+            return
+        try:
+            item.Check(self._rich_view_enabled())
+        except Exception:
+            pass
+
+    def on_toggle_rich_view(self, event=None) -> None:
+        """View menu: switch the reader between plain full text and the rich view."""
+        # A check item flips its own state before the event fires, so IsChecked()
+        # already reflects the requested value; fall back to inverting the setting.
+        try:
+            new_val = bool(self._rich_view_menu_item.IsChecked())
+        except Exception:
+            new_val = not self._rich_view_enabled()
+        try:
+            self.config_manager.set("full_text_rich_view", new_val)
+        except Exception:
+            log.exception("Failed to save rich-view toggle")
+        self._apply_reader_mode()
+        self._sync_rich_view_menu_item()
+        # Re-render the selected article so the change is visible immediately.
+        try:
+            idx = self.list_ctrl.GetFirstSelected()
+        except Exception:
+            idx = -1
+        if idx is not None and idx >= 0:
+            self._fulltext_token += 1
+            try:
+                self._update_content_view(int(idx))
+            except Exception:
+                log.exception("Failed to refresh reader after rich-view toggle")
 
     def _on_rich_view_return(self) -> None:
         """Escape/F6 inside the web view hands focus back to the article list."""
@@ -8591,8 +8655,12 @@ class MainFrame(wx.Frame):
     def on_article_select(self, event):
         if self._updating_list:
             return
-            
+
         idx = event.GetIndex()
+        # Focus moved to a new row: apply any Status-cell updates we deferred
+        # while their rows were focused (see _set_or_defer_status_cell), now that
+        # those rows are no longer the reader's focused item.
+        self._flush_deferred_status_cells(except_idx=idx)
         if self._is_load_more_row(idx):
             # Keep focus on placeholder; do not try to load content
             self.selected_article_id = None
@@ -10094,6 +10162,62 @@ class MainFrame(wx.Frame):
 
             cat = self._category_hierarchy.get(cat)
 
+    def _set_or_defer_status_cell(self, idx, article, label) -> None:
+        """Update a row's Status cell — but never while that row is the focused item.
+
+        Mutating a SysListView32 item in place (SetItem) while it is the live
+        focused item leaves its MSAA column children inconsistent (childCount > 0
+        but no reachable children). That breaks NVDA column-review add-ons, which
+        read the focused item's cells and crash on the missing children. Since the
+        first article in every view is auto-selected and auto-marked-read, its row
+        was being mutated out from under the reader. Defer the cell update while
+        the row is focused; _flush_deferred_status_cells applies it once focus
+        moves elsewhere. The article model is already updated, so the correct
+        status also re-materializes on any later full render.
+        """
+        deferred = getattr(self, "_deferred_status_cells", None)
+        if deferred is None:
+            deferred = self._deferred_status_cells = {}
+        cache_id = self._article_cache_id(article)
+        try:
+            focused = self.list_ctrl.GetFocusedItem()
+        except Exception:
+            focused = -1
+        if idx == focused:
+            if cache_id is not None:
+                deferred[cache_id] = label
+            return
+        try:
+            if idx < self.list_ctrl.GetItemCount():
+                self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, label)
+        except Exception:
+            pass
+        if cache_id is not None:
+            deferred.pop(cache_id, None)
+
+    def _flush_deferred_status_cells(self, except_idx: int = -1) -> None:
+        """Apply status-cell updates deferred while their rows were focused."""
+        deferred = getattr(self, "_deferred_status_cells", None)
+        if not deferred:
+            return
+        try:
+            by_id = {
+                self._article_cache_id(a): i
+                for i, a in enumerate(getattr(self, "current_articles", []) or [])
+            }
+        except Exception:
+            return
+        for cache_id, label in list(deferred.items()):
+            i = by_id.get(cache_id)
+            if i is None or i == except_idx:
+                continue
+            try:
+                if i < self.list_ctrl.GetItemCount():
+                    self.list_ctrl.SetItem(i, ARTICLE_COL_STATUS, label)
+            except Exception:
+                pass
+            deferred.pop(cache_id, None)
+
     def mark_article_read(self, idx):
         if idx < 0 or idx >= len(self.current_articles):
             return
@@ -10101,13 +10225,9 @@ class MainFrame(wx.Frame):
         if not article.is_read:
             threading.Thread(target=self.provider.mark_read, args=(article.id,), daemon=True).start()
             article.is_read = True
-            try:
-                # Mid-rebuild the row may not be inserted yet; the pending
-                # render batch will pick the status up from the article model.
-                if idx < self.list_ctrl.GetItemCount():
-                    self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Read"))
-            except Exception:
-                pass
+            # Mid-rebuild the row may not be inserted yet; the pending render
+            # batch will pick the status up from the article model.
+            self._set_or_defer_status_cell(idx, article, _("Read"))
             self._update_feed_unread_count_ui(article.feed_id, -1)
 
     def mark_article_unread(self, idx):
@@ -10117,11 +10237,7 @@ class MainFrame(wx.Frame):
         if article.is_read:
             threading.Thread(target=self.provider.mark_unread, args=(article.id,), daemon=True).start()
             article.is_read = False
-            try:
-                if idx < self.list_ctrl.GetItemCount():
-                    self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Unread"))
-            except Exception:
-                pass
+            self._set_or_defer_status_cell(idx, article, _("Unread"))
             self._update_feed_unread_count_ui(article.feed_id, 1)
 
     def toggle_selected_article_read_status(self):
@@ -11944,6 +12060,7 @@ class MainFrame(wx.Frame):
                 new_rich_view = old_rich_view
             if new_rich_view != old_rich_view:
                 self._apply_reader_mode()
+                self._sync_rich_view_menu_item()
                 try:
                     idx = self.list_ctrl.GetFirstSelected()
                 except Exception:

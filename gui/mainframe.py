@@ -4806,6 +4806,21 @@ class MainFrame(wx.Frame):
                 pass
             return None
         self._rich_view = rv
+        # Native WebView2 swallows ALT before wx sees it, so the menu bar is
+        # unreachable while the rich reader is focused. AccessibleMenuBar injects
+        # an in-page ALT/F10 listener and drives the real native menu bar via
+        # WM_SYSCOMMAND; with capture_native_keys off it touches only the WebView
+        # (the tree/list/reader panes already route ALT natively). Best-effort:
+        # the reader still works if the package or WebView backend is absent.
+        try:
+            from wx_accessible_menubar import AccessibleMenuBar
+            menubar = self.GetMenuBar()
+            if menubar is not None and getattr(rv, "view", None) is not None:
+                self._accessible_menubar = AccessibleMenuBar(
+                    self, menubar, webview=rv.view, focus_target=rv.control,
+                )
+        except Exception:
+            log.debug("AccessibleMenuBar setup failed", exc_info=True)
         self._reader_sizer.Add(rv.control, 1, wx.EXPAND)
         rv.control.Hide()
         try:

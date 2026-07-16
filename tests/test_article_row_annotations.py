@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gui.mainframe as mainframe
+from core import article_columns
 
 
 class _Article:
@@ -44,6 +45,12 @@ class _Host:
     _update_cached_views_for_article = mainframe.MainFrame._update_cached_views_for_article
     _next_articles_request_id = mainframe.MainFrame._next_articles_request_id
     _is_articles_load_current = mainframe.MainFrame._is_articles_load_current
+    # Column layout (issue #70): media-column writes resolve their index through
+    # _col, so the host needs the default key->index map.
+    _col = mainframe.MainFrame._col
+    _set_col = mainframe.MainFrame._set_col
+    _column_index = {key: i for i, key in enumerate(article_columns.DEFAULT_ORDER)}
+    _column_keys = list(article_columns.DEFAULT_ORDER)
 
 
 def test_precompute_fills_both_memos():

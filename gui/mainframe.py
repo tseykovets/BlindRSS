@@ -34,6 +34,7 @@ from providers.base import RSSProvider
 from core.config import APP_DIR, _default_download_dir
 from core.models import Article
 from core import utils
+from core import article_columns
 from core import article_extractor
 from core import article_html
 from core import smart_folders as smart_folders_mod
@@ -82,6 +83,11 @@ def _trim_recovered_url(url: str) -> str:
         url = url[:-1]
     return url
 
+# Default column indices, valid only for the built-in layout. Columns are now
+# reorderable/hideable per feed (issue #70), so runtime code MUST resolve an
+# index through MainFrame._col(key) instead of using these -- a hidden column has
+# no index at all, and a reordered one does not sit where its constant says.
+# These remain as the default layout's indices and for tests.
 ARTICLE_COL_TITLE = 0
 ARTICLE_COL_AUTHOR = 1
 ARTICLE_COL_MEDIA = 2
@@ -576,13 +582,12 @@ class MainFrame(wx.Frame):
         # to extend a range) so bulk actions like Delete/Copy work on the whole selection.
         self.list_ctrl = wx.ListCtrl(right_splitter, style=wx.LC_REPORT)
         self.list_ctrl.SetName(_("Articles"))
-        self.list_ctrl.InsertColumn(ARTICLE_COL_TITLE, _("Title"), width=320)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_AUTHOR, _("Author"), width=110)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_MEDIA, _("Media"), width=110)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_DATE, _("Date"), width=120)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_FEED, _("Feed"), width=140)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_DESCRIPTION, _("Description"), width=260)
-        self.list_ctrl.InsertColumn(ARTICLE_COL_STATUS, _("Status"), width=80)
+        # Columns are built from the configured layout rather than hardcoded, so
+        # they can be reordered/hidden globally or per feed (issue #70).
+        self._column_keys = []
+        self._column_index = {}
+        self._applied_column_keys = None
+        self._apply_column_layout(self._resolve_column_layout(None))
         
         # Bottom Right: Content. A container panel holds the plain-text reader
         # and (created on demand) the rich WebView reader, so the opt-in rich
@@ -1117,6 +1122,11 @@ class MainFrame(wx.Frame):
         self._render_generation = generation
         feed_id = getattr(self, "current_feed_id", None)
 
+        # Every list render funnels through here, so this is where a view's
+        # column layout takes effect (a feed with an override, or back to the
+        # global layout when leaving it). It no-ops unless the columns differ.
+        self._apply_column_layout(self._resolve_column_layout(feed_id))
+
         # Refresh the played-media time annotations shown after each title.
         try:
             refresh_fn = getattr(self, "_refresh_playback_states_cache", None)
@@ -1163,6 +1173,93 @@ class MainFrame(wx.Frame):
         # keyboard/NVDA events real slices instead of back-to-back inserts.
         return 15 if getattr(self, "_refresh_ui_batch_active", False) else 1
 
+    # --- Column layout (issue #70) -------------------------------------------
+
+    def _global_column_layout(self):
+        """The configured global layout (normalized; default when unset)."""
+        try:
+            stored = self.config_manager.get("article_columns", None)
+        except Exception:
+            stored = None
+        if stored is None:
+            return article_columns.default_layout()
+        return article_columns.normalize_layout(stored)
+
+    def _feed_column_override(self, view_id):
+        """Per-feed column override for `view_id`, or None to use the global.
+
+        Only a view that IS a single feed can carry an override: a category or
+        "All Articles" view mixes feeds into one header row, so there is no one
+        feed whose layout could apply. Those views always use the global layout.
+        """
+        if not view_id or view_id not in getattr(self, "feed_map", {}):
+            return None
+        try:
+            from core import db as _db
+            settings = _db.get_feed_settings(view_id)
+        except Exception:
+            return None
+        return article_columns.feed_layout_from_settings(settings)
+
+    def _resolve_column_layout(self, view_id):
+        """Layout for `view_id`: its per-feed override when set, else global."""
+        try:
+            return article_columns.resolve_layout(
+                self._global_column_layout(), self._feed_column_override(view_id)
+            )
+        except Exception:
+            log.debug("Falling back to default column layout", exc_info=True)
+            return article_columns.default_layout()
+
+    def _apply_column_layout(self, layout) -> bool:
+        """Rebuild the list's columns to match `layout`. Returns True if changed.
+
+        Rebuilding drops every row's cell text, so callers must be about to
+        (re)populate the list. No-ops when the visible columns already match,
+        which is what keeps this off the hot path of throttled mid-refresh
+        reloads.
+        """
+        keys = article_columns.visible_keys(layout)
+        if keys == getattr(self, "_applied_column_keys", None):
+            return False
+        try:
+            self.list_ctrl.DeleteAllItems()
+            self.list_ctrl.DeleteAllColumns()
+            for index, key in enumerate(keys):
+                self.list_ctrl.InsertColumn(
+                    index, article_columns.label_for(key), width=article_columns.width_for(key)
+                )
+        except Exception:
+            log.exception("Failed to apply article column layout")
+            return False
+        self._column_keys = list(keys)
+        self._column_index = {key: i for i, key in enumerate(keys)}
+        self._applied_column_keys = list(keys)
+        return True
+
+    def _col(self, key):
+        """Visible index of column `key`, or None when it is hidden."""
+        return self._column_index.get(key)
+
+    def _refresh_article_columns(self) -> None:
+        """Re-render the list if the current view's column layout changed.
+
+        Called after Settings or Feed Properties is accepted. Re-rendering is
+        what rebuilds the columns (see _render_articles_list), so this is a
+        no-op unless the visible columns actually differ.
+        """
+        layout = self._resolve_column_layout(getattr(self, "current_feed_id", None))
+        if article_columns.visible_keys(layout) == getattr(self, "_applied_column_keys", None):
+            return
+        self._render_articles_list(list(getattr(self, "current_articles", []) or []))
+
+    def _set_col(self, row: int, key: str, text: str) -> None:
+        """Write a cell by column key, skipping columns the layout hides."""
+        index = self._col(key)
+        if index is None:
+            return
+        self.list_ctrl.SetItem(row, index, text)
+
     def _insert_article_row(self, index: int, article) -> None:
         """Insert one fully-populated article row at `index`.
 
@@ -1176,12 +1273,12 @@ class MainFrame(wx.Frame):
             if feed:
                 feed_title = feed.title or ""
 
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_MEDIA, self._article_media_label(article))
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_AUTHOR, article.author or "")
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_DATE, utils.humanize_article_date(article.date))
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_FEED, feed_title)
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_DESCRIPTION, self._article_description_preview(article))
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, _("Read") if article.is_read else _("Unread"))
+        self._set_col(idx, article_columns.KEY_MEDIA, self._article_media_label(article))
+        self._set_col(idx, article_columns.KEY_AUTHOR, article.author or "")
+        self._set_col(idx, article_columns.KEY_DATE, utils.humanize_article_date(article.date))
+        self._set_col(idx, article_columns.KEY_FEED, feed_title)
+        self._set_col(idx, article_columns.KEY_DESCRIPTION, self._article_description_preview(article))
+        self._set_col(idx, article_columns.KEY_STATUS, _("Read") if article.is_read else _("Unread"))
 
     def _render_articles_batch(self, articles, start, generation, feed_id) -> None:
         """Append one bounded batch of article rows, then queue the next batch."""
@@ -1676,9 +1773,10 @@ class MainFrame(wx.Frame):
             # cached label was already corrected above, so the pending render
             # paints the right value once the row exists.
             try:
-                if 0 <= index < self.list_ctrl.GetItemCount():
-                    if self.list_ctrl.GetItemText(index, ARTICLE_COL_MEDIA) != label:
-                        self.list_ctrl.SetItem(index, ARTICLE_COL_MEDIA, label)
+                media_col = self._col(article_columns.KEY_MEDIA)
+                if media_col is not None and 0 <= index < self.list_ctrl.GetItemCount():
+                    if self.list_ctrl.GetItemText(index, media_col) != label:
+                        self.list_ctrl.SetItem(index, media_col, label)
             except Exception:
                 pass
             break
@@ -5338,7 +5436,7 @@ class MainFrame(wx.Frame):
             # Recompute and repaint the Media column for this row.
             self._invalidate_article_media_label(article)
             try:
-                self.list_ctrl.SetItem(idx, ARTICLE_COL_MEDIA, self._article_media_label(article))
+                self._set_col(idx, article_columns.KEY_MEDIA, self._article_media_label(article))
             except Exception:
                 pass
             # Update the cached view so if the user navigates away and back, it's there.
@@ -8406,12 +8504,7 @@ class MainFrame(wx.Frame):
             return
         label = self._loading_label if loading else self._load_more_label
         idx = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(), label)
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_MEDIA, "")
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_AUTHOR, "")
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_DATE, "")
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_FEED, "")
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_DESCRIPTION, "")
-        self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, "")
+        self._clear_non_title_cells(idx)
         self._loading_more_placeholder = True
 
     def _remove_loading_more_placeholder(self):
@@ -8430,15 +8523,22 @@ class MainFrame(wx.Frame):
             return
         label = text or self._load_more_label
         try:
-            self.list_ctrl.SetItem(count - 1, ARTICLE_COL_TITLE, label)
-            self.list_ctrl.SetItem(count - 1, ARTICLE_COL_MEDIA, "")
-            self.list_ctrl.SetItem(count - 1, ARTICLE_COL_AUTHOR, "")
-            self.list_ctrl.SetItem(count - 1, ARTICLE_COL_DATE, "")
-            self.list_ctrl.SetItem(count - 1, ARTICLE_COL_FEED, "")
-            self.list_ctrl.SetItem(count - 1, ARTICLE_COL_DESCRIPTION, "")
-            self.list_ctrl.SetItem(count - 1, ARTICLE_COL_STATUS, "")
+            # Column 0 is the item label whatever the layout, so the placeholder
+            # text always goes there (see core.article_columns).
+            self.list_ctrl.SetItem(count - 1, 0, label)
+            self._clear_non_title_cells(count - 1)
         except Exception:
             pass
+
+    def _clear_non_title_cells(self, row: int) -> None:
+        """Blank every column except the item label, whatever the layout is.
+
+        Placeholder rows ("Loading more...", "No articles found.") carry no
+        article, so their non-title cells must be empty rather than stale.
+        """
+        for index in range(1, len(getattr(self, "_column_keys", []) or [])):
+            self.list_ctrl.SetItem(row, index, "")
+
     def _is_load_more_row(self, idx: int) -> bool:
         if idx is None or idx < 0:
             return False
@@ -10297,7 +10397,7 @@ class MainFrame(wx.Frame):
             return
         try:
             if idx < self.list_ctrl.GetItemCount():
-                self.list_ctrl.SetItem(idx, ARTICLE_COL_STATUS, label)
+                self._set_col(idx, article_columns.KEY_STATUS, label)
         except Exception:
             pass
         if cache_id is not None:
@@ -10321,7 +10421,7 @@ class MainFrame(wx.Frame):
                 continue
             try:
                 if i < self.list_ctrl.GetItemCount():
-                    self.list_ctrl.SetItem(i, ARTICLE_COL_STATUS, label)
+                    self._set_col(i, article_columns.KEY_STATUS, label)
             except Exception:
                 pass
             deferred.pop(cache_id, None)
@@ -10546,7 +10646,7 @@ class MainFrame(wx.Frame):
                     article.is_read = True
                     if not self._is_load_more_row(i):
                         try:
-                            self.list_ctrl.SetItem(i, ARTICLE_COL_STATUS, _("Read"))
+                            self._set_col(i, article_columns.KEY_STATUS, _("Read"))
                         except Exception:
                             pass
         except Exception:
@@ -11717,6 +11817,15 @@ class MainFrame(wx.Frame):
         finally:
             dlg.Destroy()
 
+        # The dialog has already persisted the per-feed settings (including any
+        # column override). Apply the columns here, BEFORE the "nothing changed"
+        # early return below -- editing only the columns leaves title/url/category
+        # untouched, so that return would otherwise discard the change (issue #70).
+        try:
+            self._refresh_article_columns()
+        except Exception:
+            log.debug("Failed to re-render article columns after feed properties", exc_info=True)
+
         old_title = str(getattr(feed, "title", "") or "")
         old_url = str(getattr(feed, "url", "") or "")
         old_cat = str(getattr(feed, "category", "") or UNCATEGORIZED)
@@ -12159,6 +12268,13 @@ class MainFrame(wx.Frame):
                 utils.apply_article_structure_config(self.config_manager.get)
             except Exception:
                 pass
+
+            # A changed global column layout only reaches the list on a render,
+            # and the current view may well be one that just changed (issue #70).
+            try:
+                self._refresh_article_columns()
+            except Exception:
+                log.debug("Failed to re-render article columns after settings", exc_info=True)
 
             # Rich-reader toggle: swap the reader surface and re-render the
             # currently selected article so the change is visible immediately.

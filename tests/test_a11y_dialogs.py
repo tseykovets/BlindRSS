@@ -267,3 +267,70 @@ def test_settings_dialog_provider_credential_fields_named(parent):
         assert dlg._inoreader_redirect_uri_ctrl.GetName() == "Redirect URI"
     finally:
         dlg.Destroy()
+
+
+# --- Article list columns (issue #70) ---------------------------------------
+
+
+def test_column_layout_panel_is_named_and_reorders(parent):
+    """The column editor is driven entirely by keyboard: the CheckListBox is the
+    order AND the visibility, so it must be named, and Move up/down must move
+    the selected column while keeping it selected (NVDA announces the new spot)."""
+    from core import article_columns
+
+    panel = dialogs.ColumnLayoutPanel(parent, layout=None)
+    try:
+        assert panel.list_box.GetName() == "Article list columns"
+        assert panel.get_layout() is not None
+
+        # Select "author" (index 1 in the default layout) and move it down.
+        panel.list_box.SetSelection(1)
+        assert panel._selected_key() == "author"
+        panel._move(1)
+
+        keys = [e["key"] for e in panel.get_layout()]
+        assert keys[1] != "author"
+        # Focus follows the moved column, not the index it vacated.
+        assert panel._selected_key() == "author"
+        # Title stays pinned first no matter what.
+        assert keys[0] == article_columns.PINNED_KEY
+    finally:
+        panel.Destroy()
+
+
+def test_column_layout_panel_inherit_mode_disables_editing(parent):
+    """The per-feed tab's 'use global' checkbox must return None (inherit) and
+    grey out the editor, so a feed cannot silently freeze today's global layout."""
+    panel = dialogs.ColumnLayoutPanel(parent, layout=None, allow_inherit=True)
+    try:
+        assert panel.inherit_ctrl is not None
+        assert panel.inherit_ctrl.GetValue() is True
+        assert panel.get_layout() is None
+        assert not panel.list_box.IsEnabled()
+        assert not panel.up_btn.IsEnabled()
+
+        panel.inherit_ctrl.SetValue(False)
+        panel._sync_enabled()
+        assert panel.list_box.IsEnabled()
+        assert panel.get_layout() is not None
+    finally:
+        panel.Destroy()
+
+
+def test_feed_properties_dialog_has_a_columns_tab(parent):
+    class _Feed:
+        id = "feed-1"
+        title = "Example"
+        url = "https://example.com/feed"
+        category = "News"
+
+    dlg = dialogs.FeedPropertiesDialog(parent, _Feed(), ["News", "Uncategorized"])
+    try:
+        labels = [dlg.notebook.GetPageText(i) for i in range(dlg.notebook.GetPageCount())]
+        assert labels == ["General", "List Headers"]
+        # Defaults to inheriting the global layout.
+        assert dlg.columns_panel.get_layout() is None
+        # The General fields still work after the notebook refactor.
+        assert dlg.title_ctrl.GetName() == "Feed title"
+    finally:
+        dlg.Destroy()

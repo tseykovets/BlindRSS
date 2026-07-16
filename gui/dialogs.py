@@ -28,6 +28,7 @@ from core.discovery import (
     search_bluesky_feeds,
     search_piefed_feeds,
 )
+from core import article_columns
 from core import utils
 from core import config as config_mod
 from core import equalizer as equalizer_mod
@@ -54,6 +55,130 @@ from core.categories import (
 )
 
 log = logging.getLogger(__name__)
+
+
+class ColumnLayoutPanel(wx.Panel):
+    """Reorder/show/hide the article-list columns (issue #70).
+
+    Shared by the Settings dialog (global layout) and the Feed Properties dialog
+    (per-feed override), so both places behave identically. With
+    ``allow_inherit`` the panel grows a "use the global layout" checkbox and
+    ``get_layout()`` returns None while it is ticked, meaning "inherit".
+
+    A CheckListBox carries both jobs at once for a screen reader: the item order
+    IS the column order, and the checkbox IS visibility, so NVDA announces
+    position and state together without a separate widget to correlate.
+    """
+
+    def __init__(self, parent, layout=None, allow_inherit: bool = False):
+        super().__init__(parent)
+        self._allow_inherit = bool(allow_inherit)
+        self._layout = article_columns.normalize_layout(layout)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.inherit_ctrl = None
+        if self._allow_inherit:
+            self.inherit_ctrl = wx.CheckBox(self, label=_("&Use the global column layout"))
+            self.inherit_ctrl.SetName(_("Use the global column layout"))
+            self.inherit_ctrl.SetValue(layout is None)
+            self.inherit_ctrl.Bind(wx.EVT_CHECKBOX, lambda e: self._sync_enabled())
+            sizer.Add(self.inherit_ctrl, 0, wx.ALL, 5)
+
+        sizer.Add(
+            wx.StaticText(self, label=_("Columns (checked = shown). Use Move up / Move down to reorder:")),
+            0, wx.ALL, 5,
+        )
+        self.list_box = wx.CheckListBox(self, choices=[])
+        self.list_box.SetName(_("Article list columns"))
+        self.list_box.Bind(wx.EVT_CHECKLISTBOX, self._on_check)
+        sizer.Add(self.list_box, 1, wx.EXPAND | wx.ALL, 5)
+
+        btn_row = wx.BoxSizer(wx.HORIZONTAL)
+        # Reuse the exact msgids the Keyboard Shortcuts and Equalizer dialogs
+        # already use -- a case-variant near-duplicate ("Move &up") would be a
+        # second msgid meaning the same thing, which every translator then has
+        # to translate again and which msgmerge only ever fuzzy-matches.
+        self.up_btn = wx.Button(self, label=_("Move &Up"))
+        self.down_btn = wx.Button(self, label=_("Move &Down"))
+        self.reset_btn = wx.Button(self, label=_("Reset All to &Defaults"))
+        self.up_btn.Bind(wx.EVT_BUTTON, lambda e: self._move(-1))
+        self.down_btn.Bind(wx.EVT_BUTTON, lambda e: self._move(1))
+        self.reset_btn.Bind(wx.EVT_BUTTON, lambda e: self._reset())
+        btn_row.Add(self.up_btn, 0, wx.ALL, 5)
+        btn_row.Add(self.down_btn, 0, wx.ALL, 5)
+        btn_row.Add(self.reset_btn, 0, wx.ALL, 5)
+        sizer.Add(btn_row, 0)
+
+        sizer.Add(
+            wx.StaticText(self, label=_("Title is always the first column and cannot be hidden.")),
+            0, wx.ALL, 5,
+        )
+
+        self.SetSizer(sizer)
+        self._rebuild()
+        self._sync_enabled()
+
+    def _item_label(self, entry) -> str:
+        label = article_columns.label_for(entry["key"])
+        if entry["key"] == article_columns.PINNED_KEY:
+            return _("{column} (always first)").format(column=label)
+        return label
+
+    def _rebuild(self, select_key: str | None = None) -> None:
+        """Repaint the list from self._layout, keeping `select_key` focused."""
+        self.list_box.Set([self._item_label(e) for e in self._layout])
+        for i, entry in enumerate(self._layout):
+            self.list_box.Check(i, bool(entry.get("visible", True)))
+        if select_key is not None:
+            index = next((i for i, e in enumerate(self._layout) if e["key"] == select_key), 0)
+            self.list_box.SetSelection(index)
+            # Keep the moved row focused so a screen reader announces its new
+            # position instead of dropping the user back at the top.
+            self.list_box.EnsureVisible(index)
+        elif self._layout:
+            self.list_box.SetSelection(0)
+
+    def _selected_key(self) -> str | None:
+        index = self.list_box.GetSelection()
+        if index is None or index < 0 or index >= len(self._layout):
+            return None
+        return self._layout[index]["key"]
+
+    def _on_check(self, event) -> None:
+        index = event.GetInt()
+        if 0 <= index < len(self._layout):
+            key = self._layout[index]["key"]
+            if key == article_columns.PINNED_KEY:
+                # Title cannot be hidden: undo the tick rather than let the
+                # checkbox disagree with what set_visible will actually store.
+                self.list_box.Check(index, True)
+                return
+            self._layout = article_columns.set_visible(
+                self._layout, key, self.list_box.IsChecked(index)
+            )
+
+    def _move(self, delta: int) -> None:
+        key = self._selected_key()
+        if not key or key == article_columns.PINNED_KEY:
+            return
+        self._layout = article_columns.move_key(self._layout, key, delta)
+        self._rebuild(select_key=key)
+
+    def _reset(self) -> None:
+        self._layout = article_columns.default_layout()
+        self._rebuild()
+
+    def _sync_enabled(self) -> None:
+        enabled = not (self.inherit_ctrl is not None and self.inherit_ctrl.GetValue())
+        for ctrl in (self.list_box, self.up_btn, self.down_btn, self.reset_btn):
+            ctrl.Enable(enabled)
+
+    def get_layout(self):
+        """The edited layout, or None when it should inherit the global one."""
+        if self.inherit_ctrl is not None and self.inherit_ctrl.GetValue():
+            return None
+        return article_columns.normalize_layout(self._layout)
 
 
 class AddFeedDialog(wx.Dialog):
@@ -1853,6 +1978,16 @@ class SettingsDialog(wx.Dialog):
         translate_panel.SetSizer(translate_sizer)
         notebook.AddPage(translate_panel, _("Translate"))
 
+        # Global article-list column layout (issue #70); individual feeds can
+        # override it from their Feed Properties dialog. Appended near the end
+        # rather than next to "Feeds && Articles" on purpose: inserting a page
+        # mid-notebook renumbers every tab after it, and the Ctrl+Tab position
+        # of these pages is muscle memory for screen-reader users.
+        self.columns_panel = ColumnLayoutPanel(
+            notebook, layout=config.get("article_columns", None)
+        )
+        notebook.AddPage(self.columns_panel, _("List Headers"))
+
         # Advanced Tab
         advanced_panel = wx.Panel(notebook)
         advanced_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -2968,6 +3103,7 @@ class SettingsDialog(wx.Dialog):
             "translation_qwen_model": (self.translation_qwen_model_ctrl.GetValue() or "").strip(),
             "translation_qwen_api_key": (self.translation_qwen_api_key_ctrl.GetValue() or "").strip(),
             "enable_adult_search": self.enable_adult_search_chk.GetValue(),
+            "article_columns": self.columns_panel.get_layout(),
             "active_provider": self.provider_choice.GetStringSelection(),
             "providers": providers,
             "data_location": self._storage_location_map.get(
@@ -2994,18 +3130,25 @@ class FeedPropertiesDialog(wx.Dialog):
             self._feed_settings = {}
         self._impersonate_values = ["auto", "always", "never"]
 
+        # Tabbed so the per-feed column layout gets room without burying the
+        # fields people actually open this dialog for (issue #70). Everything
+        # that was previously parented to the dialog now lives on general_panel.
+        outer = wx.BoxSizer(wx.VERTICAL)
+        notebook = wx.Notebook(self)
+        self.notebook = notebook
+        general_panel = wx.Panel(notebook)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         title_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        title_sizer.Add(wx.StaticText(self, label=_("Title:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.title_ctrl = wx.TextCtrl(self, value=str(feed.title or ""))
+        title_sizer.Add(wx.StaticText(general_panel, label=_("Title:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.title_ctrl = wx.TextCtrl(general_panel, value=str(feed.title or ""))
         self.title_ctrl.SetName("Feed title")
         title_sizer.Add(self.title_ctrl, 1, wx.ALL, 5)
         sizer.Add(title_sizer, 0, wx.EXPAND)
 
         url_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        url_sizer.Add(wx.StaticText(self, label=_("URL:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
-        self.url_ctrl = wx.TextCtrl(self, value=str(feed.url or ""))
+        url_sizer.Add(wx.StaticText(general_panel, label=_("URL:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.url_ctrl = wx.TextCtrl(general_panel, value=str(feed.url or ""))
         self.url_ctrl.SetName("Feed URL")
         if not bool(allow_url_edit):
             try:
@@ -3015,15 +3158,15 @@ class FeedPropertiesDialog(wx.Dialog):
         url_sizer.Add(self.url_ctrl, 1, wx.ALL, 5)
         sizer.Add(url_sizer, 0, wx.EXPAND)
 
-        sizer.Add(wx.StaticText(self, label=_("Category:")), 0, wx.ALL, 5)
-        self.cat_ctrl = wx.ComboBox(self, choices=self.categories, style=wx.CB_DROPDOWN)
+        sizer.Add(wx.StaticText(general_panel, label=_("Category:")), 0, wx.ALL, 5)
+        self.cat_ctrl = wx.ComboBox(general_panel, choices=self.categories, style=wx.CB_DROPDOWN)
         self.cat_ctrl.SetName("Category")
         self.cat_ctrl.SetValue(category_display_name(feed.category or UNCATEGORIZED))
         sizer.Add(self.cat_ctrl, 0, wx.EXPAND | wx.ALL, 5)
 
         # Per-feed refresh interval override. "Use global setting" (None) follows
         # the Settings dialog interval; 0 means the feed only refreshes manually.
-        sizer.Add(wx.StaticText(self, label=_("Refresh interval for this feed:")), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(general_panel, label=_("Refresh interval for this feed:")), 0, wx.ALL, 5)
         self._refresh_interval_choices = [
             (None, _("Use global setting")),
             (0, _("Never (manual refresh only)")),
@@ -3041,7 +3184,7 @@ class FeedPropertiesDialog(wx.Dialog):
             (10800, _("3 hours")),
             (14400, _("4 hours")),
         ]
-        self.refresh_interval_ctrl = wx.Choice(self, choices=[lbl for _v, lbl in self._refresh_interval_choices])
+        self.refresh_interval_ctrl = wx.Choice(general_panel, choices=[lbl for _v, lbl in self._refresh_interval_choices])
         self.refresh_interval_ctrl.SetName(_("Refresh interval for this feed"))
         try:
             current_interval = self._feed_settings.get("refresh_interval_seconds")
@@ -3067,7 +3210,7 @@ class FeedPropertiesDialog(wx.Dialog):
 
         # --- Per-feed HTTP fetch overrides (issue #29) ---
         sizer.Add(
-            wx.StaticText(self, label=_("Custom request headers (one per line, Name: Value):")),
+            wx.StaticText(general_panel, label=_("Custom request headers (one per line, Name: Value):")),
             0, wx.ALL, 5,
         )
         headers_value = ""
@@ -3077,13 +3220,13 @@ class FeedPropertiesDialog(wx.Dialog):
                 headers_value = "\n".join(f"{k}: {v}" for k, v in existing_headers.items())
         except Exception:
             headers_value = ""
-        self.headers_ctrl = wx.TextCtrl(self, value=headers_value, style=wx.TE_MULTILINE, size=(-1, 110))
+        self.headers_ctrl = wx.TextCtrl(general_panel, value=headers_value, style=wx.TE_MULTILINE, size=(-1, 110))
         self.headers_ctrl.SetName("Custom request headers")
         sizer.Add(self.headers_ctrl, 1, wx.EXPAND | wx.ALL, 5)
 
         timeout_sizer = wx.BoxSizer(wx.HORIZONTAL)
         timeout_sizer.Add(
-            wx.StaticText(self, label=_("Request timeout in seconds (blank = default):")),
+            wx.StaticText(general_panel, label=_("Request timeout in seconds (blank = default):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         timeout_value = ""
@@ -3093,13 +3236,13 @@ class FeedPropertiesDialog(wx.Dialog):
                 timeout_value = str(int(ts))
         except Exception:
             timeout_value = ""
-        self.timeout_ctrl = wx.TextCtrl(self, value=timeout_value)
+        self.timeout_ctrl = wx.TextCtrl(general_panel, value=timeout_value)
         self.timeout_ctrl.SetName("Request timeout seconds")
         timeout_sizer.Add(self.timeout_ctrl, 1, wx.ALL, 5)
         sizer.Add(timeout_sizer, 0, wx.EXPAND)
 
-        sizer.Add(wx.StaticText(self, label=_("Browser impersonation:")), 0, wx.ALL, 5)
-        self.impersonate_ctrl = wx.Choice(self, choices=[_("Auto"), _("Always"), _("Never")])
+        sizer.Add(wx.StaticText(general_panel, label=_("Browser impersonation:")), 0, wx.ALL, 5)
+        self.impersonate_ctrl = wx.Choice(general_panel, choices=[_("Auto"), _("Always"), _("Never")])
         self.impersonate_ctrl.SetName("Browser impersonation")
         try:
             current_imp = str(self._feed_settings.get("impersonate") or "auto").lower()
@@ -3111,7 +3254,7 @@ class FeedPropertiesDialog(wx.Dialog):
 
         proxy_sizer = wx.BoxSizer(wx.HORIZONTAL)
         proxy_sizer.Add(
-            wx.StaticText(self, label=_("Proxy URL (optional, e.g. http://host:port):")),
+            wx.StaticText(general_panel, label=_("Proxy URL (optional, e.g. http://host:port):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
         proxy_value = ""
@@ -3119,7 +3262,7 @@ class FeedPropertiesDialog(wx.Dialog):
             proxy_value = str(self._feed_settings.get("proxy") or "")
         except Exception:
             proxy_value = ""
-        self.proxy_ctrl = wx.TextCtrl(self, value=proxy_value)
+        self.proxy_ctrl = wx.TextCtrl(general_panel, value=proxy_value)
         self.proxy_ctrl.SetName("Proxy URL")
         proxy_sizer.Add(self.proxy_ctrl, 1, wx.ALL, 5)
         sizer.Add(proxy_sizer, 0, wx.EXPAND)
@@ -3132,7 +3275,7 @@ class FeedPropertiesDialog(wx.Dialog):
             self._feed_delete_behavior = _db.get_feed_delete_behavior(getattr(feed, "id", "") or "")
         except Exception:
             self._feed_delete_behavior = None
-        sizer.Add(wx.StaticText(self, label=_("When I delete an article from this feed:")), 0, wx.ALL, 5)
+        sizer.Add(wx.StaticText(general_panel, label=_("When I delete an article from this feed:")), 0, wx.ALL, 5)
         del_row = wx.BoxSizer(wx.HORIZONTAL)
         self._feed_delete_choices = [
             (None, _("Use global setting")),
@@ -3140,10 +3283,10 @@ class FeedPropertiesDialog(wx.Dialog):
             ("purge", _("Remove it permanently")),
             ("category", _("Move it to a category")),
         ]
-        self.feed_delete_ctrl = wx.Choice(self, choices=[lbl for _k, lbl in self._feed_delete_choices])
+        self.feed_delete_ctrl = wx.Choice(general_panel, choices=[lbl for _k, lbl in self._feed_delete_choices])
         self.feed_delete_ctrl.SetName("Delete behavior for this feed")
         del_row.Add(self.feed_delete_ctrl, 0, wx.ALL, 5)
-        self.feed_delete_category_ctrl = wx.TextCtrl(self)
+        self.feed_delete_category_ctrl = wx.TextCtrl(general_panel)
         self.feed_delete_category_ctrl.SetName("Delete target category (full path)")
         self.feed_delete_category_ctrl.SetHint(_("Category / Path"))
         del_row.Add(self.feed_delete_category_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
@@ -3164,13 +3307,29 @@ class FeedPropertiesDialog(wx.Dialog):
         self.feed_delete_ctrl.Bind(wx.EVT_CHOICE, lambda e: self._sync_feed_delete_category_enabled())
         self._sync_feed_delete_category_enabled()
 
-        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
-        sizer.Add(btn_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        general_panel.SetSizer(sizer)
+        notebook.AddPage(general_panel, _("General"))
 
-        self.SetSizer(sizer)
+        # Per-feed column override (issue #70): None = follow the global layout.
+        self.columns_panel = ColumnLayoutPanel(
+            notebook,
+            layout=article_columns.feed_layout_from_settings(self._feed_settings),
+            allow_inherit=True,
+        )
+        notebook.AddPage(self.columns_panel, _("List Headers"))
+
+        outer.Add(notebook, 1, wx.EXPAND | wx.ALL, 5)
+        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
+        outer.Add(btn_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        self.SetSizer(outer)
         self.Centre()
 
-        # Fix tab order: Title -> URL -> Category -> Refresh interval -> Headers -> Timeout -> Impersonate -> Proxy -> Delete behavior -> Delete category -> OK -> Cancel
+        # Fix tab order within the General page: Title -> URL -> Category ->
+        # Refresh interval -> Headers -> Timeout -> Impersonate -> Proxy ->
+        # Delete behavior -> Delete category. MoveAfterInTabOrder only works
+        # between siblings, so the chain stops at the page boundary: OK/Cancel
+        # are children of the dialog, and wx already tabs notebook -> buttons.
         self.title_ctrl.SetFocus()
         if self.url_ctrl.AcceptsFocus():
             self.url_ctrl.MoveAfterInTabOrder(self.title_ctrl)
@@ -3188,7 +3347,6 @@ class FeedPropertiesDialog(wx.Dialog):
         cancel_btn = self.FindWindow(wx.ID_CANCEL)
 
         if ok_btn:
-            ok_btn.MoveAfterInTabOrder(self.feed_delete_category_ctrl)
             ok_btn.Bind(wx.EVT_BUTTON, self.on_ok)
         if cancel_btn and ok_btn:
             cancel_btn.MoveAfterInTabOrder(ok_btn)
@@ -3267,6 +3425,13 @@ class FeedPropertiesDialog(wx.Dialog):
             )
         except Exception:
             settings["refresh_interval_seconds"] = None
+
+        # None means "inherit the global layout" -- store it as such rather than
+        # freezing today's global layout into this feed (issue #70).
+        try:
+            settings["columns"] = self.columns_panel.get_layout()
+        except Exception:
+            settings["columns"] = None
 
         try:
             from core import db as _db

@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gui.mainframe as mainframe
+from core import article_columns
 from gui.mainframe import (
     ARTICLE_COL_TITLE,
     ARTICLE_COL_AUTHOR,
@@ -28,6 +29,16 @@ class _FakeFeed:
         self.title = title
 
 
+class _FakeConfig:
+    """Stand-in for ConfigManager exposing just the get() the layout code uses."""
+
+    def __init__(self, values=None):
+        self.values = dict(values or {})
+
+    def get(self, key, default=None):
+        return self.values.get(key, default)
+
+
 class _FakeListCtrl:
     """Minimal non-virtual ListCtrl double that records rows as column dicts."""
 
@@ -38,10 +49,18 @@ class _FakeListCtrl:
         self.focused = -1
         self.selected = -1
         self.top = 0
+        self.columns = []  # list of header labels, in display order
 
     def DeleteAllItems(self):
         self.delete_all_calls += 1
         self.rows = []
+
+    def DeleteAllColumns(self):
+        self.columns = []
+
+    def InsertColumn(self, index, label, width=0):
+        self.columns.insert(index, label)
+        return index
 
     def InsertItem(self, index, label):
         index = max(0, min(int(index), len(self.rows)))
@@ -117,11 +136,25 @@ class _RenderHost:
     _remove_loading_more_placeholder = mainframe.MainFrame._remove_loading_more_placeholder
     _update_loading_placeholder = mainframe.MainFrame._update_loading_placeholder
     _is_load_more_row = mainframe.MainFrame._is_load_more_row
+    # Column layout (issue #70): the real methods, so renders exercise the same
+    # key->index resolution the app uses.
+    _apply_column_layout = mainframe.MainFrame._apply_column_layout
+    _resolve_column_layout = mainframe.MainFrame._resolve_column_layout
+    _global_column_layout = mainframe.MainFrame._global_column_layout
+    _feed_column_override = mainframe.MainFrame._feed_column_override
+    _col = mainframe.MainFrame._col
+    _set_col = mainframe.MainFrame._set_col
+    _clear_non_title_cells = mainframe.MainFrame._clear_non_title_cells
 
-    def __init__(self, *, first_chunk=2, batch_size=2, feed_map=None):
+    def __init__(self, *, first_chunk=2, batch_size=2, feed_map=None, columns=None):
         self.list_ctrl = _FakeListCtrl()
         self.feed_map = feed_map or {}
         self.current_feed_id = "all"
+        self.config_manager = _FakeConfig({"article_columns": columns})
+        self._column_keys = []
+        self._column_index = {}
+        self._applied_column_keys = None
+        self._apply_column_layout(self._resolve_column_layout(None))
         self._render_generation = 0
         self._render_first_chunk = first_chunk
         self._render_batch_size = batch_size
@@ -429,3 +462,88 @@ def test_quick_merge_updates_capped_page_without_full_native_rebuild():
     assert host.list_ctrl.titles()[4] == host._load_more_label
     assert host.list_ctrl.focused == 2
     assert host.list_ctrl.selected == 2
+
+
+# --- Column layout (issue #70) ----------------------------------------------
+
+
+def test_render_honors_a_custom_global_column_layout(monkeypatch):
+    """Hiding Media and moving Feed ahead of Author must move the actual cells,
+    not just the headers: a stale key->index map would write Author's text into
+    whatever column now sits at index 1."""
+    captured = _install_capturing_call_after(monkeypatch)
+    feed_map = {"feed-1": _FakeFeed("My Feed")}
+    layout = article_columns.set_visible(
+        article_columns.move_key(article_columns.default_layout(), "feed", -3),
+        "media",
+        False,
+    )
+    host = _RenderHost(first_chunk=10, batch_size=10, feed_map=feed_map, columns=layout)
+    article = _make_article(0)
+
+    host._render_articles_list([article])
+    _drain(captured)
+
+    assert host.list_ctrl.columns == ["Title", "Feed", "Author", "Date", "Description", "Status"]
+    row = host.list_ctrl.rows[0]
+    assert row[0] == article.title
+    assert row[1] == "My Feed"
+    assert row[2] == article.author
+    # The hidden Media column has no index at all -- nothing may be written past
+    # the last real column.
+    assert host._col("media") is None
+    assert max(row.keys()) == len(host.list_ctrl.columns) - 1
+
+
+def test_render_applies_per_feed_override_and_reverts_for_mixed_views(monkeypatch):
+    """A single-feed view uses that feed's override; a category/All view (whose
+    id is not a feed) falls back to the global layout."""
+    captured = _install_capturing_call_after(monkeypatch)
+    feed_map = {"feed-1": _FakeFeed("My Feed")}
+    host = _RenderHost(first_chunk=10, batch_size=10, feed_map=feed_map)
+
+    feed_layout = article_columns.set_visible(article_columns.default_layout(), "media", False)
+    monkeypatch.setattr(
+        host, "_feed_column_override",
+        lambda view_id: feed_layout if view_id == "feed-1" else None,
+    )
+
+    host.current_feed_id = "feed-1"
+    host._render_articles_list([_make_article(0)])
+    _drain(captured)
+    assert "Media" not in host.list_ctrl.columns
+
+    host.current_feed_id = "all"
+    host._render_articles_list([_make_article(1)])
+    _drain(captured)
+    assert "Media" in host.list_ctrl.columns
+
+
+def test_repeat_render_does_not_rebuild_unchanged_columns(monkeypatch):
+    """Column rebuilds clear the list, so the throttled mid-refresh reload path
+    must not pay for one on every cycle."""
+    captured = _install_capturing_call_after(monkeypatch)
+    host = _RenderHost(first_chunk=10, batch_size=10, feed_map={"feed-1": _FakeFeed("My Feed")})
+
+    assert host._apply_column_layout(host._resolve_column_layout(None)) is False
+    before = list(host.list_ctrl.columns)
+    host._render_articles_list([_make_article(0)])
+    _drain(captured)
+    assert host.list_ctrl.columns == before
+
+
+def test_placeholder_rows_clear_cells_under_a_custom_layout(monkeypatch):
+    """'No articles found.' must own column 0 whatever the layout, with no stale
+    text in the remaining columns."""
+    captured = _install_capturing_call_after(monkeypatch)
+    layout = article_columns.set_visible(article_columns.default_layout(), "media", False)
+    host = _RenderHost(first_chunk=10, batch_size=10, columns=layout)
+
+    host._render_articles_list([])
+    _drain(captured)
+    assert host.list_ctrl.rows[0][0] == "No articles found."
+
+    host._add_loading_more_placeholder()
+    row = host.list_ctrl.rows[-1]
+    assert row[0] == host._load_more_label
+    assert all(row[i] == "" for i in range(1, len(host.list_ctrl.columns)))

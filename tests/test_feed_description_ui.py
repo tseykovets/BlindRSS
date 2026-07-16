@@ -1,15 +1,24 @@
 from types import SimpleNamespace
 
 import gui.mainframe as mainframe
+from core import article_columns
 
 
 class _ListCtrl:
     def __init__(self):
         self.rows = []
         self.frozen = False
+        self.columns = []
 
     def DeleteAllItems(self):
         self.rows = []
+
+    def DeleteAllColumns(self):
+        self.columns = []
+
+    def InsertColumn(self, index, label, width=0):
+        self.columns.insert(index, label)
+        return index
 
     def InsertItem(self, idx, text):
         row = [""] * 7
@@ -35,10 +44,21 @@ class _Host:
     _raw_article_description = mainframe.MainFrame._raw_article_description
     _article_description_text = mainframe.MainFrame._article_description_text
     _article_description_preview = mainframe.MainFrame._article_description_preview
+    _apply_column_layout = mainframe.MainFrame._apply_column_layout
+    _resolve_column_layout = mainframe.MainFrame._resolve_column_layout
+    _global_column_layout = mainframe.MainFrame._global_column_layout
+    _feed_column_override = mainframe.MainFrame._feed_column_override
+    _col = mainframe.MainFrame._col
+    _set_col = mainframe.MainFrame._set_col
 
     def __init__(self):
         self.list_ctrl = _ListCtrl()
         self.feed_map = {"f1": SimpleNamespace(title="Example Feed")}
+        self.config_manager = SimpleNamespace(get=lambda key, default=None: default)
+        self._column_keys = []
+        self._column_index = {}
+        self._applied_column_keys = None
+        self._apply_column_layout(self._resolve_column_layout(None))
 
     def _get_display_title(self, article):
         return article.title

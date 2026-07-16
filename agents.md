@@ -363,6 +363,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\refresh-throttled-list-reload.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\release-build-process.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\rich-fulltext-webview.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\rich-view-keyboard-bridge.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\soundcloud-mixcloud-feeds.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\speed-shortcut-interception.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\test-suite-live-stream-hazard.md

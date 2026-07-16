@@ -22,6 +22,13 @@ from bs4 import BeautifulSoup
 
 from core import utils
 
+# User-facing extraction failures are translated (PR #69). Every _() call here
+# MUST run at raise time, never at module import: this module is pulled in via
+# gui.mainframe from main.py's import block, which runs BEFORE main.py calls
+# i18n.setup(). A module-level `MSG = _("...")` therefore captures the English
+# NullTranslations fallback permanently, and no catalog can replace it later --
+# that is exactly why the messages looked untranslated. Message constants are
+# functions for this reason; do not "simplify" them back into constants.
 from core.i18n import _
 
 LOG = logging.getLogger(__name__)
@@ -136,11 +143,12 @@ _BOT_INTERSTITIAL_MARKERS = (
 # discarded. Only treat a post-extraction body as a gate when it is small.
 _BOT_INTERSTITIAL_MAX_BODY_LEN = 1500
 
-_BLOCKED_INTERSTITIAL_MESSAGE = (
-    "This page is behind an anti-bot / human-verification check "
-    "(e.g. Cloudflare or a \"you're not a robot\" page), so the full text can't be fetched "
-    "automatically. Open the original link in your browser to read it."
-)
+def _blocked_interstitial_message() -> str:
+    return _(
+        "This page is behind an anti-bot / human-verification check "
+        "(e.g. Cloudflare or a \"you're not a robot\" page), so the full text can't be fetched "
+        "automatically. Open the original link in your browser to read it."
+    )
 
 # Video-only and index pages have no article body, so extraction returns the page's navigation
 # and related-story headlines instead (e.g. local-TV video pages reached via Google News). Such
@@ -152,10 +160,11 @@ _LINK_LIST_MAX_LINE_LEN = 90
 _LINK_LIST_MIN_FRACTION = 0.6
 _LINK_LIST_SENTENCE_END_RE = re.compile(r"[.!?…](\s|$)")
 
-_LINK_LIST_ONLY_MESSAGE = (
-    "The page has no readable article text — only navigation or related-story links were "
-    "found (common for video-only pages). Open the original link in your browser to view it."
-)
+def _link_list_only_message() -> str:
+    return _(
+        "The page has no readable article text — only navigation or related-story links were "
+        "found (common for video-only pages). Open the original link in your browser to view it."
+    )
 
 
 def _looks_like_bot_interstitial(content: str) -> bool:
@@ -214,10 +223,11 @@ _PAYWALL_CTA_RE = re.compile(
     r")"
 )
 
-_PAYWALL_MESSAGE = (
-    "This article is behind a paywall (subscription required), so the full text can't be "
-    "fetched automatically. Open the original link in your browser to read it."
-)
+def _paywall_message() -> str:
+    return _(
+        "This article is behind a paywall (subscription required), so the full text can't be "
+        "fetched automatically. Open the original link in your browser to read it."
+    )
 
 
 def _looks_like_paywall_stub(text: str) -> bool:
@@ -1477,10 +1487,11 @@ _GOOGLE_NEWS_LOCALE_QUERY = "hl=en-US&gl=US&ceid=US:en"
 _GOOGLE_NEWS_OPAQUE_ID_RE = re.compile(r"[A-Za-z0-9_-]{12,}")
 _GOOGLE_NEWS_MAX_TIMESTAMP = 99_999_999_999
 _GOOGLE_NEWS_MAX_SIGNATURE_LENGTH = 4096
-_GOOGLE_NEWS_RESOLUTION_MESSAGE = (
-    "Google News could not resolve the original publisher link. "
-    "Open the original link in your browser to read it."
-)
+def _google_news_resolution_message() -> str:
+    return _(
+        "Google News could not resolve the original publisher link. "
+        "Open the original link in your browser to read it."
+    )
 
 # Google serves EEA/UK (and some other) IPs a cookie-consent interstitial instead of the article
 # redirect page. The resolver correctly refuses to treat that page as content, but without a
@@ -2562,7 +2573,7 @@ def extract_full_article(
     if not url or _looks_like_media_url(url):
         return None
     if trafilatura is None:
-        raise ExtractionError("trafilatura is not installed or failed to import. Reinstall requirements.")
+        raise ExtractionError(_("trafilatura is not installed or failed to import. Reinstall requirements."))
 
     visited: Set[str] = set()
     page_texts: List[str] = []
@@ -2582,7 +2593,7 @@ def extract_full_article(
             # URLs (no valid token) still fail closed without any request.
             proxy_markdown = _download_via_jina(url, timeout) if _google_news_article_token(url) else None
             if not proxy_markdown or _looks_like_bot_interstitial(proxy_markdown):
-                raise ExtractionError(_GOOGLE_NEWS_RESOLUTION_MESSAGE)
+                raise ExtractionError(_google_news_resolution_message())
             # The proxy already returns the rendered, readable page; running the HTML
             # extraction stack over it mis-detects the main content, so it bypasses
             # _extract_text_any and relies on _merge_texts dropping short nav lines.
@@ -2590,7 +2601,7 @@ def extract_full_article(
                 _strip_proxy_trailing_boilerplate(_markdown_links_to_text(proxy_markdown))
             )
             if not prefetched_text.strip():
-                raise ExtractionError(_GOOGLE_NEWS_RESOLUTION_MESSAGE)
+                raise ExtractionError(_google_news_resolution_message())
             extraction_url = url
 
     current = extraction_url
@@ -2642,25 +2653,25 @@ def extract_full_article(
 
     if not downloaded_any:
         if blocked:
-            raise ExtractionError(_BLOCKED_INTERSTITIAL_MESSAGE)
-        raise ExtractionError("Download failed (site blocked, offline, or connection problem).")
+            raise ExtractionError(_blocked_interstitial_message())
+        raise ExtractionError(_("Download failed (site blocked, offline, or connection problem)."))
 
     merged = _merge_texts(page_texts)
     merged = _postprocess_extracted_text(merged, extraction_url)
     # Guard against gate text that slipped through extraction (e.g. a short verification body).
     if merged and len(merged) < _BOT_INTERSTITIAL_MAX_BODY_LEN and _looks_like_bot_interstitial(merged):
-        raise ExtractionError(_BLOCKED_INTERSTITIAL_MESSAGE)
+        raise ExtractionError(_blocked_interstitial_message())
     # Guard against pages with no article body (video-only/index pages): extraction "succeeds"
     # but yields only the page's navigation or related-story headlines, which would be shown
     # (and read aloud) as if they were the story. Raising lets callers fall back to feed content.
     if merged and _looks_like_link_list(merged):
-        raise ExtractionError(_LINK_LIST_ONLY_MESSAGE)
+        raise ExtractionError(_link_list_only_message())
     # Guard against a hard-paywall stub (headline + byline + "Subscribe to unlock"): let the
     # caller fall back to feed content instead of presenting the subscribe nag as the article.
     if merged and _looks_like_paywall_stub(merged):
-        raise ExtractionError(_PAYWALL_MESSAGE)
+        raise ExtractionError(_paywall_message())
     if not merged:
-        raise ExtractionError("Downloaded page, but could not extract readable text (empty result).")
+        raise ExtractionError(_("Downloaded page, but could not extract readable text (empty result)."))
 
     return FullArticle(url=url, title=title or "", author=author or "", text=merged)
 
@@ -2749,7 +2760,7 @@ def render_full_article(
         # Remember why so we can surface it if there's no usable feed fallback either.
         extraction_error = e
     except Exception as e:
-        raise ExtractionError(str(e) or "Unknown extraction error")
+        raise ExtractionError(str(e) or _("Unknown extraction error"))
 
     # If URL extraction returned None, try fallback content.
     art = extract_from_html(fallback_html, url, title=fallback_title, author=fallback_author)
@@ -2758,7 +2769,7 @@ def render_full_article(
 
     if extraction_error is not None:
         raise extraction_error
-    raise ExtractionError("Could not extract full text from the webpage or from feed content.")
+    raise ExtractionError(_("Could not extract full text from the webpage or from feed content."))
 
 
 def _should_prefer_feed_content(url: str, html: str) -> bool:

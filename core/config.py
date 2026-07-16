@@ -131,6 +131,10 @@ def _default_download_dir() -> str:
 
 
 DEFAULT_CONFIG = {
+    # Article-list columns: order + visibility. None = the built-in default
+    # layout (see core.article_columns.default_layout); a saved value is a list
+    # of {"key", "visible"}. Feeds may override this via feed_settings["columns"].
+    "article_columns": None,
     "max_downloads": 32,
     "auto_download_podcasts": False,
     "auto_download_period": "unlimited",

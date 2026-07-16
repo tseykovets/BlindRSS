@@ -339,6 +339,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\accessible-table-linearization.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\active-backend-miniflux-server.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\always-commit-agents-md.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-column-layout.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-filter-and-i18n.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-list-rebuild-lag.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\article-structure-markers.md
@@ -351,6 +352,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\filter-rules-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-fetch-fallback-chain.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\fulltext-prefetch-refresh-starvation.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\gettext-import-time-freeze.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\installed-app-debug-landscape.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\localization-guardrails.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\miniflux-refresh-streaming.md

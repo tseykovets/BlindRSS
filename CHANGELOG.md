@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.105.3 - 2026-07-16
+
+- Treat feeds.soundcloud.com as plain podcast RSS, not a SoundCloud listing.
+
 ## v1.105.2 - 2026-07-16
 
 - Complete all 15 locale catalogs for the PR #68 update strings.

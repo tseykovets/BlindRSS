@@ -142,6 +142,10 @@ _ATTR_KEEP = {
 }
 _URL_ATTRS = {"href", "src", "poster"}
 
+# Zero-width characters some publishers (e.g. Reuters) sprinkle between words to
+# frustrate scraping — invisible, never real content, stripped from the body.
+_ZERO_WIDTH_RE = re.compile("[​‌‍⁠﻿]")
+
 
 def _text_len(node) -> int:
     try:
@@ -385,8 +389,19 @@ def _convert_social_embeds(soup, node, base_url: str) -> None:
 
 
 def _pick_main_node(soup: BeautifulSoup):
-    """Return the best guess at the main article node, or the body."""
-    for selector in ("article", "main", "[role=main]", "[itemprop=articleBody]"):
+    """Return the best guess at the main article node, or the body.
+
+    Semantic elements are tried first, then the content-body class names common
+    to blog/CMS templates (WordPress ``entry-content``, Simon Willison's blog
+    ``entry``, etc.). Isolating that node keeps sibling chrome — "Recent
+    articles" lists, tag boxes, sponsor promos — out of the cleaned body on
+    sites that ship no ``<article>``/``<main>`` element.
+    """
+    for selector in (
+        "article", "main", "[role=main]", "[itemprop=articleBody]",
+        ".entry-content", ".post-content", ".article-content", ".article-body",
+        ".entry-body", ".story-body", ".post-body", ".entry",
+    ):
         try:
             node = soup.select_one(selector)
         except Exception:
@@ -681,7 +696,11 @@ def clean_article_html(html: str, url: str = "", *, use_traf_prune: bool = True)
             tag.decompose()
 
     body = node.decode_contents() if hasattr(node, "decode_contents") else str(node)
-    body = body.strip()
+    # Strip zero-width characters (Reuters and others inject them between words as
+    # an anti-scraping measure): invisible, never meaningful content, and a source
+    # of screen-reader stumbles. Safe on the serialized fragment — they never occur
+    # meaningfully in tag/attribute syntax.
+    body = _ZERO_WIDTH_RE.sub("", body).strip()
 
     # Paywall / mis-picked node: when the sanitized body has far less text than
     # the extractor found (e.g. Wired's paywall stub), rebuild the body from the

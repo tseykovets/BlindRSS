@@ -164,6 +164,48 @@ class SocialEmbedTests(unittest.TestCase):
         self.assertIn("platform.twitter.com/embed/Tweet.html?id=20", out)
 
 
+class PickMainNodeTests(unittest.TestCase):
+    """Sites with no <article>/<main> must still isolate the content node so
+    sibling chrome (recent-articles lists, tag boxes, sponsor promos) is dropped."""
+
+    def test_entry_class_isolates_body_and_drops_sibling_chrome(self):
+        # Mirrors simonwillison.net: div.entry body with recent-articles + metabox siblings.
+        html = (
+            "<html><body>"
+            '<div id="sponsored-banner"><a>Sponsored by SomeCo</a></div>'
+            '<div id="primary">'
+            '<div class="entry entryPage"><h2>Grok build</h2>'
+            "<p>This is the real article body with plenty of prose so the cleaner keeps "
+            "it as the main content and returns it in full to the reader.</p>"
+            "<p>A second real paragraph continues the story with several more sentences "
+            "of detail so the entry node comfortably clears the minimum-length bar and "
+            "is chosen over the whole page body.</p></div>"
+            '<div class="recent-articles"><h2>Recent articles</h2>'
+            '<ul><li><a href="/x">Other unrelated story one</a> - 9th July 2026</li></ul>'
+            "</div></div>"
+            '<div id="secondary"><div class="metabox"><h3>Monthly briefing</h3>'
+            "<p>Sponsor me for ten dollars a month.</p></div></div>"
+            "</body></html>"
+        )
+        out = article_html.clean_article_html(html, "https://simonwillison.net/2026/Jul/15/grok-build/")
+        text = BeautifulSoup(out, "html.parser").get_text(" ", strip=True)
+        self.assertIn("real article body", text)
+        self.assertNotIn("Recent articles", text)
+        self.assertNotIn("Other unrelated story one", text)
+        self.assertNotIn("Monthly briefing", text)
+
+    def test_zero_width_characters_are_stripped(self):
+        # Reuters injects zero-width spaces between words; the cleaned body must not carry them.
+        html = (
+            "<article><h1>T</h1><p>Amazon veteran Dave\u200bBrown is leaving after "
+            "nineteen\u2060years, according to an internal\u200cmemo from the company.</p></article>"
+        )
+        out = article_html.clean_article_html(html, "https://www.reuters.com/x/")
+        for ch in ("\u200b", "\u200c", "\u200d", "\u2060", "\ufeff"):
+            self.assertNotIn(ch, out)
+        self.assertIn("DaveBrown", BeautifulSoup(out, "html.parser").get_text())
+
+
 class RenderFullArticleHtmlTests(unittest.TestCase):
     def test_falls_back_to_feed_content_when_no_url(self):
         feed = "<p>Feed body paragraph with enough words to render in the reader.</p>"

@@ -196,6 +196,39 @@ def _looks_like_link_list(text: str) -> bool:
     return linky / len(lines) >= _LINK_LIST_MIN_FRACTION
 
 
+# A hard paywall (e.g. The Information) server-renders only the headline, byline, and a
+# "Subscribe to unlock" call-to-action; the body is injected client-side after login and is
+# absent from the HTML we fetch. Generic extraction then "succeeds" with that tiny stub, which
+# would be shown (and read aloud) as if it were the article. Detecting it lets the caller fall
+# back to feed content — which, for a subscriber's full-text feed, is the whole story.
+_PAYWALL_STUB_MAX_LEN = 600
+_PAYWALL_CTA_RE = re.compile(
+    r"(?i)\b("
+    r"subscribe to (?:unlock|read|continue|view)"
+    r"|subscribe (?:now |today )?(?:for|to get) (?:full |unlimited )?access"
+    r"|to (?:continue|keep) reading[, ]"
+    r"|this (?:article|story|content) is (?:for|exclusive to|available to) (?:subscribers|members)"
+    r"|(?:sign in|log ?in) to (?:read|continue|unlock)"
+    r"|become a (?:subscriber|member) to"
+    r"|unlock this (?:article|story)"
+    r")"
+)
+
+_PAYWALL_MESSAGE = (
+    "This article is behind a paywall (subscription required), so the full text can't be "
+    "fetched automatically. Open the original link in your browser to read it."
+)
+
+
+def _looks_like_paywall_stub(text: str) -> bool:
+    """Return True if `text` is a short subscribe-to-read paywall stub, not an article."""
+    if not text:
+        return False
+    if len(text) > _PAYWALL_STUB_MAX_LEN:
+        return False
+    return bool(_PAYWALL_CTA_RE.search(text))
+
+
 def _lead_recovery_enabled(url: str) -> bool:
     if not url:
         return False
@@ -565,6 +598,45 @@ def _extract_theregister_text(html: str) -> str:
     return text
 
 
+# Reuters injects zero-width characters (U+200B/C/D, word-joiner, BOM) between words as an
+# anti-scraping measure. They are invisible but corrupt word matching and can make a screen
+# reader stumble, so they are stripped from the extracted body.
+_ZERO_WIDTH_RE = re.compile("[​‌‍⁠﻿]")
+# Reuters renders external links with a visually-hidden ", opens new tab" affordance that
+# get_text/trafilatura both surface as inline noise mid-sentence.
+_REUTERS_OPENS_NEW_TAB_RE = re.compile(r",?\s*opens new tab\b")
+_REUTERS_MIN_TEXT_LEN = 200
+
+
+def _extract_reuters_text(html: str) -> str:
+    """Extract Reuters' story body from its ``data-testid="paragraph-N"`` nodes.
+
+    The generic extractor sweeps in the trailing author bio, the "Our Standards:
+    The Thomson Reuters Trust Principles." line, the topics/share rail, and an
+    unrelated "Read Next" recommended story (which sits outside the body, so it
+    survives simple section removal). Reuters tags every real body paragraph
+    ``data-testid="paragraph-N"`` inside ``data-testid="ArticleBody"``, so reading
+    those directly yields the article prose and nothing else. Returns '' on any
+    layout where that structure is absent, so the generic path still runs.
+    """
+    soup = _parse_html_soup(html, context="reuters body")
+    if soup is None:
+        return ""
+    body = soup.select_one('[data-testid="ArticleBody"]')
+    if body is None:
+        return ""
+    paras: List[str] = []
+    for p in body.select('[data-testid^="paragraph-"]'):
+        text = _REUTERS_OPENS_NEW_TAB_RE.sub("", p.get_text(" ", strip=True))
+        text = _normalize_whitespace(_ZERO_WIDTH_RE.sub("", text))
+        if text:
+            paras.append(text)
+    text = _normalize_whitespace("\n\n".join(paras))
+    if len(text) < _REUTERS_MIN_TEXT_LEN:
+        return ""
+    return text
+
+
 def _extract_without_dom_boilerplate(html: str, url: str, selectors: Tuple[str, ...]) -> str:
     """Run normal extraction after removing known non-article DOM sections."""
     soup = _parse_html_soup(html, context="site boilerplate removal")
@@ -651,10 +723,22 @@ def _extract_site_specific_text(html: str, url: str) -> str:
         return _extract_axios_story_text(html)
     if _host_matches(url, "theregister.com") or _host_matches(url, "theregister.co.uk"):
         return _extract_theregister_text(html)
+    if _host_matches(url, "reuters.com"):
+        return _extract_reuters_text(html)
     if _host_matches(url, "thepostmillennial.com"):
         return _extract_without_dom_boilerplate(html, url, ("section.contributions-container",))
     if _host_matches(url, "rebelnews.com"):
         return _extract_without_dom_boilerplate(html, url, ("section.posts-profile",))
+    if _host_matches(url, "simonwillison.net"):
+        # The blog ships no <article>/<main>; each entry sits in div.entry with
+        # sibling chrome — a "Recent articles" list, a metabox of tag links, a
+        # sponsor banner. Trafilatura sweeps those in (trailing related links on
+        # long posts; whole-page link-list rejection on short quotation posts).
+        # Drop the sibling regions so only the entry body is extracted.
+        return _extract_without_dom_boilerplate(
+            html, url,
+            ("div.recent-articles", "#sponsored-banner", "#secondary", "#ft", "#smallhead"),
+        )
     if _is_socast_page(html):
         return _extract_socast_text(html, url)
     return ""
@@ -2538,6 +2622,10 @@ def extract_full_article(
     # (and read aloud) as if they were the story. Raising lets callers fall back to feed content.
     if merged and _looks_like_link_list(merged):
         raise ExtractionError(_LINK_LIST_ONLY_MESSAGE)
+    # Guard against a hard-paywall stub (headline + byline + "Subscribe to unlock"): let the
+    # caller fall back to feed content instead of presenting the subscribe nag as the article.
+    if merged and _looks_like_paywall_stub(merged):
+        raise ExtractionError(_PAYWALL_MESSAGE)
     if not merged:
         raise ExtractionError("Downloaded page, but could not extract readable text (empty result).")
 

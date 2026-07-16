@@ -5057,6 +5057,38 @@ class MainFrame(wx.Frame):
             log.exception("Failed to switch reader mode")
         return use_rich
 
+    def _reader_surface_focused(self) -> bool:
+        """True when the keyboard focus is inside either reader surface.
+
+        The WebView's real focus lives in a native child window wx knows nothing
+        about, so wx.Window.FindFocus() returns None while the rich reader is
+        focused; ask Windows directly in that case.
+        """
+        focus = self._get_focused_window()
+        if focus is not None:
+            if self._window_is_or_child(focus, getattr(self, "content_ctrl", None)):
+                return True
+            if self._is_rich_view_focused(focus):
+                return True
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            hwnd = user32.GetFocus()
+            panel = self.reader_panel.GetHandle()
+            return bool(hwnd) and (hwnd == panel or bool(user32.IsChild(panel, hwnd)))
+        except Exception:
+            return False
+
+    def _focus_reader_surface(self) -> None:
+        """Put focus on whichever reader surface is currently shown."""
+        try:
+            if self._rich_view_active() and self._rich_view is not None:
+                self._rich_view.control.SetFocus()
+            else:
+                self.content_ctrl.SetFocus()
+        except Exception:
+            log.exception("Failed to focus the reader after a rich-view toggle")
+
     def _sync_rich_view_menu_item(self) -> None:
         """Reflect the current rich-view setting in the View-menu check item."""
         item = getattr(self, "_rich_view_menu_item", None)
@@ -5075,6 +5107,9 @@ class MainFrame(wx.Frame):
             new_val = bool(self._rich_view_menu_item.IsChecked())
         except Exception:
             new_val = not self._rich_view_enabled()
+        # Whether the user was reading when they flipped this decides where focus
+        # belongs afterwards; sample it before the surfaces are swapped.
+        reading = self._reader_surface_focused()
         try:
             self.config_manager.set("full_text_rich_view", new_val)
         except Exception:
@@ -5092,6 +5127,13 @@ class MainFrame(wx.Frame):
                 self._update_content_view(int(idx))
             except Exception:
                 log.exception("Failed to refresh reader after rich-view toggle")
+        # Toggling from inside the reader leaves focus on the surface we just
+        # hid -- Windows restores it to the old WebView/text control when the
+        # menu closes -- so the screen reader keeps reading the stale view until
+        # the user tabs away and back. Hand focus to the new surface once the
+        # menu's own focus restore has run.
+        if reading:
+            wx.CallAfter(self._focus_reader_surface)
 
     def _on_rich_view_return(self) -> None:
         """Escape/F6 inside the web view hands focus back to the article list."""

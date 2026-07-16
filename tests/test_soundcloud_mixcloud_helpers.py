@@ -13,6 +13,17 @@ def test_soundcloud_url_and_kind():
     assert d.is_soundcloud_url("https://m.soundcloud.com/x") is True
     assert d.is_soundcloud_url("https://example.com/x") is False
 
+    # feeds.soundcloud.com serves podcast RSS (what iTunes returns for a
+    # SoundCloud-hosted show); it must NOT be treated as a SoundCloud web-app URL,
+    # or it would be misrouted into the yt-dlp/api-v2 listing path and show no
+    # episodes instead of parsing as ordinary RSS.
+    assert d.is_soundcloud_url(
+        "https://feeds.soundcloud.com/users/soundcloud:users:686761388/sounds.rss"
+    ) is False
+    assert d.soundcloud_listing_kind(
+        "https://feeds.soundcloud.com/users/soundcloud:users:686761388/sounds.rss"
+    ) == ""
+
     assert d.soundcloud_listing_kind("https://soundcloud.com/lofi_girl") == "user"
     assert d.soundcloud_listing_kind("https://soundcloud.com/lofi_girl/sets/chill") == "playlist"
     assert d.soundcloud_listing_kind("https://soundcloud.com/lofi_girl/some-track") == "track"

@@ -2463,9 +2463,18 @@ _SOUNDCLOUD_CLIENT_ID_LOCK = threading.Lock()
 
 
 def is_soundcloud_url(url: str) -> bool:
+    """True for SoundCloud *web-app* URLs (the /user, /user/track, /sets pages).
+
+    Excludes ``feeds.soundcloud.com``, which serves ordinary podcast RSS
+    (``/users/soundcloud:users:<id>/sounds.rss``, what iTunes/Apple Podcasts hand
+    back for a SoundCloud-hosted show). Those are complete RSS feeds and must go
+    through the normal RSS parse path, never the yt-dlp/api-v2 listing enumeration.
+    """
     try:
         host = (urlparse(str(url or "")).hostname or "").lower()
     except Exception:
+        return False
+    if host == "feeds.soundcloud.com":
         return False
     return host == "soundcloud.com" or host.endswith(".soundcloud.com")
 

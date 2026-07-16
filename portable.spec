@@ -59,8 +59,6 @@ packages_to_collect = [
     "mf2py",
     # Rich full-text reader (opt-in); imported lazily so collect it explicitly.
     "wx_accessible_webview",
-    # ALT-to-menu bridge for the rich reader's WebView; imported lazily.
-    "wx_accessible_menubar",
 ]
 
 datas = []

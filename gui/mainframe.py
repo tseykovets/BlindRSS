@@ -4792,6 +4792,7 @@ class MainFrame(wx.Frame):
                 live_region=False,
                 open_links_externally=True,
                 on_return=self._on_rich_view_return,
+                on_message=self._on_rich_view_message,
             )
         except Exception:
             log.exception("Failed to create rich article view")
@@ -4806,29 +4807,121 @@ class MainFrame(wx.Frame):
                 pass
             return None
         self._rich_view = rv
-        # Native WebView2 swallows ALT before wx sees it, so the menu bar is
-        # unreachable while the rich reader is focused. AccessibleMenuBar injects
-        # an in-page ALT/F10 listener and drives the real native menu bar via
-        # WM_SYSCOMMAND; with capture_native_keys off it touches only the WebView
-        # (the tree/list/reader panes already route ALT natively). Best-effort:
-        # the reader still works if the package or WebView backend is absent.
-        try:
-            from wx_accessible_menubar import AccessibleMenuBar
-            menubar = self.GetMenuBar()
-            if menubar is not None and getattr(rv, "view", None) is not None:
-                self._accessible_menubar = AccessibleMenuBar(
-                    self, menubar, webview=rv.view, focus_target=rv.control,
-                )
-        except Exception:
-            log.debug("AccessibleMenuBar setup failed", exc_info=True)
+        # Native WebView2 swallows ALT (and F6/Shift+F6/Shift+Tab) before wx sees
+        # them, so the menu bar and pane navigation are unreachable while the rich
+        # reader is focused. We bridge those keys out of the page through the
+        # WebView library's own script-message channel (window.awv -> on_message)
+        # and act on them here; ALT posts the native menu-bar signal
+        # (WM_SYSCOMMAND / SC_KEYMENU). See _RICH_VIEW_KEYS_JS / _on_rich_view_message.
         self._reader_sizer.Add(rv.control, 1, wx.EXPAND)
         rv.control.Hide()
         try:
             rv.control.Bind(wx.EVT_SET_FOCUS, self._on_rich_view_focus)
         except Exception:
             pass
+        # Inject the in-page key bridge now and on every (re)load; set_content
+        # swaps innerHTML and keeps document-level listeners, so one install
+        # persists, but re-injecting is idempotent (guarded in JS).
+        try:
+            import wx.html2 as _webview2
+            rv.view.Bind(_webview2.EVT_WEBVIEW_LOADED, self._on_rich_view_loaded)
+        except Exception:
+            pass
+        self._inject_rich_view_keys()
         self.reader_panel.Layout()
         return rv
+
+    # In-page key bridge for the rich reader. WebView2 hides these keys from wx,
+    # so a document-level listener catches them and posts to window.awv (the
+    # WebView library's message channel), handled in _on_rich_view_message.
+    #   * bare ALT / F10 -> open the native menu bar
+    #   * Shift+F6       -> focus the category tree
+    #   * Shift+Tab at the top of the article -> focus the article list
+    # (Plain F6 / Escape are already bridged to the article list by the library.)
+    # Registered on `window` in the CAPTURE phase so it runs before the WebView
+    # library's own (bubble-phase) F6/Escape bridge. For the keys we fully own we
+    # call stopPropagation() so that bridge never also fires — notably Shift+F6,
+    # which it would otherwise treat as a plain F6 (it ignores modifiers) and send
+    # to the article list. Plain F6 / Escape are deliberately left to propagate,
+    # so the library still returns focus to the list even if this inject fails.
+    _RICH_VIEW_KEYS_JS = r"""
+(function(){
+  if(window.__blindrssKeys) return;
+  window.__blindrssKeys = true;
+  function content(){ return document.getElementById('content'); }
+  function post(t){ try{ if(window.awv&&window.awv.postMessage){ window.awv.postMessage(JSON.stringify({type:t})); } }catch(e){} }
+  var altAlone = false;
+  window.addEventListener('keyup', function(e){
+    if(e.key==='Alt'){ if(altAlone){ e.stopPropagation(); e.preventDefault(); post('__menu'); } altAlone=false; }
+  }, true);
+  window.addEventListener('keydown', function(e){
+    if(e.key==='Alt' && !e.ctrlKey && !e.shiftKey && !e.metaKey){ altAlone=true; return; }
+    altAlone = false;
+    if(e.key==='F10' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey){ e.stopPropagation(); e.preventDefault(); post('__menu'); return; }
+    if(e.key==='F6' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey){ e.stopPropagation(); e.preventDefault(); post('__focus_tree'); return; }
+    if(e.key==='Tab' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey){
+      var c = content(); var a = document.activeElement;
+      if(!c || a===c || a===document.body || a===null || !c.contains(a)){
+        e.stopPropagation(); e.preventDefault(); post('__focus_list');
+      }
+    }
+  }, true);
+})();
+"""
+
+    def _inject_rich_view_keys(self) -> None:
+        rv = getattr(self, "_rich_view", None)
+        if rv is None or getattr(rv, "view", None) is None:
+            return
+        try:
+            rv.view.RunScript(self._RICH_VIEW_KEYS_JS)
+        except Exception:
+            pass
+
+    def _on_rich_view_loaded(self, event) -> None:
+        try:
+            event.Skip()
+        except Exception:
+            pass
+        self._inject_rich_view_keys()
+
+    def _on_rich_view_message(self, data) -> None:
+        """Handle keys bridged out of the rich reader's WebView (see JS above)."""
+        try:
+            kind = data.get("type") if isinstance(data, dict) else None
+        except Exception:
+            kind = None
+        if kind == "__menu":
+            self._open_menu_bar_from_rich_view()
+        elif kind == "__focus_tree":
+            try:
+                self.tree.SetFocus()
+            except Exception:
+                pass
+        elif kind == "__focus_list":
+            try:
+                self.list_ctrl.SetFocus()
+            except Exception:
+                pass
+
+    def _open_menu_bar_from_rich_view(self) -> None:
+        """Open the native menu bar from the focused WebView (ALT/F10).
+
+        Posts the exact signal ALT sends (WM_SYSCOMMAND / SC_KEYMENU, lparam 0)
+        to the frame, entering Windows' native menu-bar keyboard loop with the
+        first menu highlighted. Windows restores focus to the WebView when the
+        menu closes. No-op off Windows (other WebView backends route ALT natively).
+        """
+        try:
+            import ctypes
+            from ctypes import wintypes
+            user32 = ctypes.windll.user32
+            user32.PostMessageW.argtypes = [
+                wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM,
+            ]
+            user32.PostMessageW(self.GetHandle(), 0x0112, 0xF100, 0)
+        except Exception:
+            pass
 
     def _rich_view_active(self) -> bool:
         """True when the rich reader is the surface currently shown to the user."""

@@ -193,6 +193,11 @@ def test_live_player_duration_refreshes_visible_media_column():
         def __init__(self):
             self.value = mainframe.ARTICLE_MEDIA_YES + ", not played"
 
+        def GetItemCount(self):
+            # See _MediaColList.GetItemCount: the live-annotation path
+            # bounds-checks the row before writing the cell.
+            return 1
+
         def GetItemText(self, _row, _col):
             return self.value
 
@@ -220,8 +225,16 @@ def test_live_player_duration_refreshes_visible_media_column():
 class _MediaColList:
     """Minimal list_ctrl capturing writes to the Media column."""
 
-    def __init__(self, initial):
+    def __init__(self, initial, item_count=1):
         self.value = initial
+        self._item_count = item_count
+
+    def GetItemCount(self):
+        # The live-annotation path bounds-checks the row against this before
+        # touching it (an out-of-range read makes wx raise an uncatchable
+        # wxLogError modal). Without it the AttributeError is swallowed by that
+        # path's except-clause and the cell write is silently skipped.
+        return self._item_count
 
     def GetItemText(self, _row, _col):
         return self.value

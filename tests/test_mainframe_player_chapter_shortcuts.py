@@ -82,11 +82,19 @@ class _DummyMain:
     on_char_hook = mainframe.MainFrame.on_char_hook
     _is_text_input_focused = mainframe.MainFrame._is_text_input_focused
     _is_editable_text_input_focused = mainframe.MainFrame._is_editable_text_input_focused
+    _is_rich_view_focused = mainframe.MainFrame._is_rich_view_focused
     _filter_shortcut_targets = mainframe.MainFrame._filter_shortcut_targets
+
+    def dispatch_shortcut(self, event, focus=None, apply_text_guard=True):
+        # These tests cover the char-hook fallback, so no registry shortcut
+        # matches. Returning False is what the real method does then.
+        return False
 
     def __init__(self):
         self.list_ctrl = object()
         self.tree = object()
+        # Rich view off: the plain reader is what these shortcuts run against.
+        self._rich_view = None
         self.player_window = type(
             "_ChapterPlayer",
             (),

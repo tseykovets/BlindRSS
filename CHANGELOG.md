@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.107.0 - 2026-07-16
+
+- Favorites/test announcements, localized reader menu, rich-view language.
+
 ## v1.106.0 - 2026-07-16
 
 - Per-feed and global article list columns; fix untranslated extraction errors.

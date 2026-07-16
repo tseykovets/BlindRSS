@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.105.7 - 2026-07-16
+
+- ALT opens the menu bar while the rich full-text reader is focused.
+
 ## v1.105.6 - 2026-07-16
 
 - Full newsletter/paragraph extraction, rich-view toggle, and NVDA column-review.

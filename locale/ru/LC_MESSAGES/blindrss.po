@@ -15,91 +15,89 @@ msgstr ""
 "X-Generator: Poedit 3.9\n"
 
 #: core/announcements.py:129
-#, fuzzy
 msgid "Filter change"
-msgstr "Правило фильтрации"
+msgstr "Изменение фильтра"
 
 #: core/announcements.py:130
 msgid "Announce the applied article filter (Ctrl+1 to Ctrl+6)."
-msgstr ""
+msgstr "Объявлять применённый фильтр статей (с Ctrl+1 по Ctrl+6)."
 
 #: core/announcements.py:131
 msgid "Read/unread status change"
-msgstr ""
+msgstr "Изменение статуса прочитано/непрочитано"
 
 #: core/announcements.py:132
 msgid "Announce the new status when toggling read/unread (Backspace)."
 msgstr ""
+"Объявлять новый статус при переключении прочитано/непрочитано (Backspace)."
 
 #: core/announcements.py:133
-#, fuzzy
 msgid "Start update"
-msgstr "Меню \"Пуск\""
+msgstr "Запуск обновления"
 
 #: core/announcements.py:134
 msgid "Announce when a feed refresh is started (F5)."
-msgstr ""
+msgstr "Объявлять, когда начинается обновление каналов (F5)."
 
 #: core/announcements.py:135
-#, fuzzy
 msgid "Stop update"
-msgstr "Обновлений нет"
+msgstr "Остановка обновления"
 
 #: core/announcements.py:136
 msgid "Announce when a feed refresh is stopped (Shift+F5)."
-msgstr ""
+msgstr "Объявлять, когда останавливается обновление каналов (Shift+F5)."
 
 #: core/announcements.py:137
-#, fuzzy
 msgid "Playback speed change"
-msgstr "Скорость воспроизведения {speed}x"
+msgstr "Изменение скорости воспроизведения"
 
 #: core/announcements.py:138
 msgid "Announce the current playback speed when it is changed by keyboard."
 msgstr ""
+"Объявлять текущую скорость воспроизведения, когда она изменяется при помощи "
+"клавиатуры."
 
 #: core/announcements.py:139
 msgid "Media and chapter navigation"
-msgstr ""
+msgstr "Навигация по мультимедиа и тайм-кодам"
 
 #: core/announcements.py:140
 msgid "Announce the item or chapter when moving to the next/previous one."
-msgstr ""
+msgstr "Объявлять элемент или тайм-код при  переходе к следующему/предыдущему."
 
 #: core/announcements.py:141
-#, fuzzy
 msgid "Other notifications"
-msgstr "Уведомления"
+msgstr "Другие уведомления"
 
 #: core/announcements.py:142
 msgid "Announce other significant interface changes and notifications."
-msgstr ""
+msgstr "Объявлять другие существенные изменения интерфейса  и уведомления."
 
 #: core/announcements.py:143
 msgid "None"
-msgstr ""
+msgstr "Нет"
 
 #: core/announcements.py:144
 msgid "Only speech"
-msgstr ""
+msgstr "Только речь"
 
 #: core/announcements.py:145
 msgid "Only Braille"
-msgstr ""
+msgstr "Только брайль"
 
 #: core/announcements.py:146
 msgid "Speech and Braille"
-msgstr ""
+msgstr "Речь и брайль"
 
-#: core/article_extractor.py:2526
+#: core/article_extractor.py:2591
 msgid "(unknown)"
 msgstr "(неизвестно)"
 
-#: core/article_extractor.py:2527 gui/dialogs.py:3000
+#: core/article_extractor.py:2592 gui/dialogs.py:3000
 msgid "Title:"
 msgstr "Заголовок:"
 
-#: core/article_extractor.py:2528 gui/accessibility.py:872
+#: core/article_extractor.py:2593 gui/accessibility.py:872
 #: gui/mainframe.py:4970 gui/mainframe.py:8623
 msgid "Author:"
 msgstr "Автор:"
@@ -246,6 +244,27 @@ msgstr "В манифесте обновления отсутствует URL-а
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr "Манифест обновления имеет недопустимый хэш SHA-256."
 
+#: core/updater.py:775
+msgid "Downloaded Windows installer is missing."
+msgstr "Загруженный Windows-установщик отсутствует."
+
+#: core/updater.py:710 core/updater.py:205
+msgid "Auto-update is not supported on this platform ({platform})."
+msgstr ""
+"Автоматическое обновление на этой платформе не поддерживается ({platform})."
+
+#: core/updater.py:837
+msgid "Update signature verification failed: {error}"
+msgstr "Ошибка проверки подписи обновления: {error}"
+
+#: core/updater.py:155
+msgid "{msg} Reset time (epoch): {reset}"
+msgstr "{msg} Время сброса (Unix epoch): {reset}"
+
+#: core/updater.py:159
+msgid "GitHub API error: HTTP {status}"
+msgstr "Ошибка API GitHub: HTTP {status}"
+
 #: core/updater.py:187
 msgid "Invalid current version: {version}"
 msgstr "Недопустимая текущая версия: {version}"
@@ -257,11 +276,6 @@ msgstr "Тег последнего релиза не соответствует
 #: core/updater.py:201
 msgid "BlindRSS is up to date ({version})."
 msgstr "Установлена последняя версия BlindRSS ({version})."
-
-#: core/updater.py:205
-msgid "Auto-update is not supported on this platform ({platform})."
-msgstr ""
-"Автоматическое обновление на этой платформе не поддерживается ({platform})."
 
 #: core/updater.py:212
 msgid "Update manifest '{manifest}' not found in release assets."
@@ -287,9 +301,57 @@ msgstr "Программа установки обновления имеет н
 msgid "Update installer is missing a download URL."
 msgstr "В программе установки обновления отсутствует URL-адрес для загрузки."
 
+#: core/updater.py:438
+msgid "Authenticode verification failed: {error}"
+msgstr "Не удалось выполнить проверку аутентификационного кода: {error}"
+
+#: core/updater.py:716 core/updater.py:773 core/updater.py:874
+msgid "{name} is missing from the install directory."
+msgstr "{name} отсутствует в директории установки."
+
+#: core/updater.py:721
+msgid "Update package is missing {name}."
+msgstr "Отсутствует пакет обновления {name}."
+
+#: core/updater.py:847
+msgid "{name} is missing from the app bundle."
+msgstr "{name} отсутствует в пакете приложения."
+
+#: core/updater.py:149
+msgid "Network error while checking GitHub: {error}"
+msgstr "Сетевая ошибка при проверке GitHub: {error}"
+
+#: core/updater.py:164
+msgid "Invalid GitHub response: {error}"
+msgstr "Неверный ответ GitHub: {error}"
+
+#: core/updater.py:181
+msgid "Failed to download update metadata: {error}"
+msgstr "Не удалось загрузить метаданные обновления: {error}"
+
+#: core/updater.py:347
+msgid "Unsupported update archive type: {type}"
+msgstr "Неподдерживаемый тип архива обновления: {type}"
+
+#: core/updater.py:530 core/updater.py:938
+msgid "Failed to start update helper: {error}"
+msgstr "Не удалось запустить помощника по обновлению: {error}"
+
+#: core/updater.py:680
+msgid "Failed to download update: {error}"
+msgstr "Не удалось загрузить обновление: {error}"
+
+#: core/updater.py:701
+msgid "Failed to extract update: {error}"
+msgstr "Не удалось извлечь обновление: {error}"
+
 #: core/updater.py:265
 msgid "Update installer '{name}' not found in release assets."
 msgstr "Программа установки обновления '{name}' не найдена в ресурсах релиза."
+
+#: core/updater.py:426
+msgid "Update is signed but not by a trusted certificate{suffix}"
+msgstr "Обновление подписано, но не доверенным сертификатом{suffix}"
 
 #: core/utils.py:1199
 msgid "Just now"
@@ -705,7 +767,7 @@ msgstr "Уведомления"
 
 #: gui/dialogs.py:1503
 msgid "Announcements"
-msgstr ""
+msgstr "Объявления"
 
 #: gui/dialogs.py:1854
 msgid "Translate"
@@ -2064,9 +2126,8 @@ msgid "Export feeds to OPML"
 msgstr "Экспорт каналов в OPML"
 
 #: gui/mainframe.py:1968
-#, fuzzy
 msgid "Configure &Persistent Search..."
-msgstr "&Настройка постоянного поиска..."
+msgstr "Настройка &постоянного поиска..."
 
 #: gui/mainframe.py:1968
 msgid "Configure saved search queries"
@@ -2129,9 +2190,8 @@ msgid "Show or hide the media player window"
 msgstr "Показать или скрыть окно медиапроигрывателя"
 
 #: gui/mainframe.py:2057
-#, fuzzy
 msgid "&Ascending"
-msgstr "По возрастанию"
+msgstr "По &возрастанию"
 
 #: gui/mainframe.py:2058
 msgid "Sort in ascending order (default is descending by date)"
@@ -2395,6 +2455,14 @@ msgstr "Экспорт OPML"
 msgid "Release notes are available on GitHub."
 msgstr "Примечания к релизу доступны на GitHub."
 
+#: gui/mainframe.py:12186
+msgid "Updating BlindRSS"
+msgstr "Обновление BlindRSS"
+
+#: gui/mainframe.py:12187
+msgid "Starting update..."
+msgstr "Запуск обновления..."
+
 #: gui/mainframe.py:791
 msgid "(No saved searches)"
 msgstr "(Нет сохранённых поисковых запросов)"
@@ -2492,54 +2560,48 @@ msgid "Show only articles that have no playable media"
 msgstr "Показывать только статьи без воспроизводимого мультимедиа"
 
 #: gui/mainframe.py:2040
-#, fuzzy
 msgid "&Date"
-msgstr "Дата"
+msgstr "&Дата"
 
 #: gui/mainframe.py:2040
 msgid "Sort articles by date"
 msgstr "Сортировать статьи по дате"
 
 #: gui/mainframe.py:2041
-#, fuzzy
 msgid "&Name"
-msgstr "Название"
+msgstr "&Название"
 
 #: gui/mainframe.py:2041
 msgid "Sort articles by name"
 msgstr "Сортировать статьи по названию"
 
 #: gui/mainframe.py:2042
-#, fuzzy
 msgid "A&uthor"
-msgstr "Автор"
+msgstr "&Автор"
 
 #: gui/mainframe.py:2042
 msgid "Sort articles by author"
 msgstr "Сортировать статьи по автору"
 
 #: gui/mainframe.py:2043
-#, fuzzy
 msgid "De&scription"
-msgstr "Описание"
+msgstr "&Описание"
 
 #: gui/mainframe.py:2043
 msgid "Sort articles by description"
 msgstr "Сортировать статьи по описанию"
 
 #: gui/mainframe.py:2044
-#, fuzzy
 msgid "&Feed"
-msgstr "Канал"
+msgstr "&Канал"
 
 #: gui/mainframe.py:2044
 msgid "Sort articles by feed"
 msgstr "Сортировать статьи по каналу"
 
 #: gui/mainframe.py:2045
-#, fuzzy
 msgid "S&tatus"
-msgstr "Статус"
+msgstr "&Статус"
 
 #: gui/mainframe.py:2045
 msgid "Sort articles by status"
@@ -3244,6 +3306,14 @@ msgstr "Просмотреть историю..."
 msgid "Loading full text..."
 msgstr "Загрузка полного текста..."
 
+#: gui/mainframe.py:5124
+msgid "No audio found."
+msgstr "Аудио не найдено."
+
+#: gui/mainframe.py:5124
+msgid "Result"
+msgstr "Результат"
+
 #: gui/mainframe.py:5337
 msgid "{total} versions of: {title}"
 msgstr "{total} версий: {title}"
@@ -3405,9 +3475,8 @@ msgstr ""
 "{error}"
 
 #: gui/mainframe.py:2439
-#, fuzzy
 msgid "Stop Refresh"
-msgstr "О&становить обновление"
+msgstr "Остановить обновление"
 
 #: gui/mainframe.py:2730
 msgid "Playing {position} of {total}: {title}"
@@ -3452,6 +3521,10 @@ msgstr "Добавить в очередь воспроизведения"
 #: gui/mainframe.py:4482
 msgid "Open {chapter}"
 msgstr "Открыть {chapter}"
+
+#: gui/mainframe.py:5122
+msgid "Provider does not support updating media."
+msgstr "Поставщик не поддерживает обновление мультимедиа."
 
 #: gui/mainframe.py:5457
 msgid ", played, {total}"
@@ -3595,6 +3668,10 @@ msgstr ""
 msgid "Scanning..."
 msgstr "Сканирование..."
 
+#: gui/player.py:1971
+msgid "Elapsed Time: 00:00"
+msgstr "Прошло времени: 00:00"
+
 #: gui/player.py:1988
 msgid "Playback Time"
 msgstr "Время воспроизведения"
@@ -3618,6 +3695,10 @@ msgstr "&Трансляция на устройство..."
 #: gui/player.py:4122
 msgid "Connecting..."
 msgstr "Подключение..."
+
+#: gui/player.py:5304
+msgid "Elapsed Time"
+msgstr "Прошло времени"
 
 #: gui/player.py:6411 gui/player.py:6523
 msgid "Stopped"

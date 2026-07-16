@@ -233,6 +233,27 @@ msgstr ""
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr ""
 
+#: core/updater.py:775
+msgid "Downloaded Windows installer is missing."
+msgstr ""
+
+#: core/updater.py:710
+#: core/updater.py:205
+msgid "Auto-update is not supported on this platform ({platform})."
+msgstr ""
+
+#: core/updater.py:837
+msgid "Update signature verification failed: {error}"
+msgstr ""
+
+#: core/updater.py:155
+msgid "{msg} Reset time (epoch): {reset}"
+msgstr ""
+
+#: core/updater.py:159
+msgid "GitHub API error: HTTP {status}"
+msgstr ""
+
 #: core/updater.py:187
 msgid "Invalid current version: {version}"
 msgstr ""
@@ -243,10 +264,6 @@ msgstr ""
 
 #: core/updater.py:201
 msgid "BlindRSS is up to date ({version})."
-msgstr ""
-
-#: core/updater.py:205
-msgid "Auto-update is not supported on this platform ({platform})."
 msgstr ""
 
 #: core/updater.py:212
@@ -273,8 +290,59 @@ msgstr ""
 msgid "Update installer is missing a download URL."
 msgstr ""
 
+#: core/updater.py:438
+msgid "Authenticode verification failed: {error}"
+msgstr ""
+
+#: core/updater.py:716
+#: core/updater.py:773
+#: core/updater.py:874
+msgid "{name} is missing from the install directory."
+msgstr ""
+
+#: core/updater.py:721
+msgid "Update package is missing {name}."
+msgstr ""
+
+#: core/updater.py:847
+msgid "{name} is missing from the app bundle."
+msgstr ""
+
+#: core/updater.py:149
+msgid "Network error while checking GitHub: {error}"
+msgstr ""
+
+#: core/updater.py:164
+msgid "Invalid GitHub response: {error}"
+msgstr ""
+
+#: core/updater.py:181
+msgid "Failed to download update metadata: {error}"
+msgstr ""
+
+#: core/updater.py:347
+msgid "Unsupported update archive type: {type}"
+msgstr ""
+
+#: core/updater.py:530
+#: core/updater.py:938
+msgid "Failed to start update helper: {error}"
+msgstr ""
+
+#: core/updater.py:680
+msgid "Failed to download update: {error}"
+msgstr ""
+
+#: core/updater.py:701
+msgid "Failed to extract update: {error}"
+msgstr ""
+
 #: core/updater.py:265
 msgid "Update installer '{name}' not found in release assets."
+msgstr ""
+
+#: core/updater.py:426
+msgid "Update is signed but not by a trusted certificate{suffix}"
 msgstr ""
 
 #: core/utils.py:1199
@@ -2325,6 +2393,14 @@ msgstr ""
 msgid "Release notes are available on GitHub."
 msgstr ""
 
+#: gui/mainframe.py:12186
+msgid "Updating BlindRSS"
+msgstr ""
+
+#: gui/mainframe.py:12187
+msgid "Starting update..."
+msgstr ""
+
 #: gui/mainframe.py:791
 msgid "(No saved searches)"
 msgstr ""
@@ -3151,6 +3227,14 @@ msgstr ""
 msgid "Loading full text..."
 msgstr ""
 
+#: gui/mainframe.py:5124
+msgid "No audio found."
+msgstr ""
+
+#: gui/mainframe.py:5124
+msgid "Result"
+msgstr ""
+
 #: gui/mainframe.py:5337
 msgid "{total} versions of: {title}"
 msgstr ""
@@ -3345,6 +3429,10 @@ msgstr ""
 msgid "Open {chapter}"
 msgstr ""
 
+#: gui/mainframe.py:5122
+msgid "Provider does not support updating media."
+msgstr ""
+
 #: gui/mainframe.py:5457
 msgid ", played, {total}"
 msgstr ""
@@ -3450,6 +3538,10 @@ msgstr ""
 msgid "Scanning..."
 msgstr ""
 
+#: gui/player.py:1971
+msgid "Elapsed Time: 00:00"
+msgstr ""
+
 #: gui/player.py:1988
 msgid "Playback Time"
 msgstr ""
@@ -3474,6 +3566,10 @@ msgstr ""
 
 #: gui/player.py:4122
 msgid "Connecting..."
+msgstr ""
+
+#: gui/player.py:5304
+msgid "Elapsed Time"
 msgstr ""
 
 #: gui/player.py:6411

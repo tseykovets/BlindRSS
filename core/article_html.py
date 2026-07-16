@@ -28,6 +28,7 @@ from urllib.parse import quote, urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
+from core import article_lang
 from core import utils
 
 
@@ -786,11 +787,19 @@ def render_full_article_html(
     fallback_author: str = "",
     date: str = "",
     timeout: int = 20,
+    feed_lang: str = "",
+    feed_item_lang: str = "",
+    translation_target: str = "",
 ) -> Optional[str]:
     """Fetch ``url`` and return a full rich-reader HTML fragment (header + body).
 
     Falls back to cleaned feed content when the page can't be fetched or yields
     no usable body. Returns None only when there is nothing at all to show.
+
+    The returned ``<article>`` carries a ``lang`` attribute resolved by issue
+    #72's priority order (translation target > source page > feed > UI
+    language), so assistive tech picks the right voice, Braille table and text
+    direction for the content instead of always assuming English.
     """
     from core import article_extractor as ae  # lazy: avoid import cycle at load
 
@@ -798,6 +807,7 @@ def render_full_article_html(
     title = str(fallback_title or "")
     author = str(fallback_author or "")
     body = ""
+    page_lang = None  # source page's <html lang>, when the fetch succeeds
     display_url = url  # publisher URL once a Google News redirect is resolved
 
     if url and not ae._looks_like_media_url(url):
@@ -821,6 +831,9 @@ def render_full_article_html(
                 t, a = ae._extract_title_author_from_meta(page_html, fetch_url)
                 title = title or t
                 author = author or a
+                # Read the source page's declared language before cleaning: the
+                # cleaner keeps only the body, so <html lang> is gone after it.
+                page_lang = article_lang.lang_from_page_html(page_html)
                 body = clean_article_html(page_html, fetch_url)
 
         # Blocked/unresolvable Google News: fall back to the read-proxy rendering
@@ -870,4 +883,15 @@ def render_full_article_html(
             f'<p class="awv-source"><a href="{safe_url}">{_html.escape(display_url)}</a></p>'
         )
     header = "".join(header_bits)
-    return f"<article>{header}<hr>{body}</article>"
+    # lang goes on <article> (the "relevant container" issue #72 allows) rather
+    # than <html>: the document skeleton is created once by the webview library
+    # and reused for every article, so the root cannot follow per-article
+    # language. lang on an ancestor applies to its whole subtree, so the content
+    # is announced correctly either way.
+    lang = article_lang.resolve_content_language(
+        translation_target=translation_target or None,
+        page_lang=page_lang,
+        feed_item_lang=feed_item_lang or None,
+        feed_lang=feed_lang or None,
+    )
+    return f'<article lang="{_html.escape(lang, quote=True)}">{header}<hr>{body}</article>'

@@ -269,7 +269,7 @@ def test_settings_dialog_provider_credential_fields_named(parent):
         dlg.Destroy()
 
 
-# --- Article list columns (issue #70) ---------------------------------------
+# --- Article list columns (article list columns) ---------------------------------------
 
 
 def test_column_layout_panel_is_named_and_reorders(parent):

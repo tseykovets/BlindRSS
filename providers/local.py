@@ -33,6 +33,7 @@ from core.db import (
     list_filter_rules,
     get_feed_delete_behavior,
 )
+from core import article_lang
 from core import smart_folders as smart_folders_mod
 from core import filters as filters_mod
 from core.discovery import discover_feed
@@ -2937,6 +2938,11 @@ class LocalProvider(RSSProvider):
                     feed_title, title_is_custom, upstream_title, final_title, feed_url
                 )
                 upstream_to_store = str(final_title or "").strip()
+                # The channel's declared content language (RSS <language> /
+                # Atom xml:lang), normalized to BCP-47. None when the feed does
+                # not say -- stored as NULL so the rich reader can tell "not
+                # declared" from a real value (issue #72).
+                language_to_store = article_lang.normalize_lang(d.feed.get('language'))
                 # The feeds UPDATE is deferred to the write phase below: it is
                 # the statement that opens the write transaction, and SQLite has
                 # a single writer, so nothing may be written until all per-entry
@@ -3195,14 +3201,22 @@ class LocalProvider(RSSProvider):
                 # Phase 2: all row changes in one short write transaction. The
                 # feeds UPDATE is the first write statement, so this is where
                 # the write lock is taken — after all parsing and network work.
+                # COALESCE on language: a conditional GET or a transiently
+                # language-less parse must not erase a language the feed
+                # declared earlier -- keep the last one we actually saw.
                 if canonical_feed_url:
                     c.execute(
-                        "UPDATE feeds SET url = ?, title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                        (canonical_feed_url, title_to_store, custom_to_store, upstream_to_store, new_etag, new_last_modified, feed_id),
+                        "UPDATE feeds SET url = ?, title = ?, title_is_custom = ?, upstream_title = ?, "
+                        "language = COALESCE(?, language), etag = ?, last_modified = ? WHERE id = ?",
+                        (canonical_feed_url, title_to_store, custom_to_store, upstream_to_store,
+                         language_to_store, new_etag, new_last_modified, feed_id),
                     )
                 else:
-                    c.execute("UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
-                              (title_to_store, custom_to_store, upstream_to_store, new_etag, new_last_modified, feed_id))
+                    c.execute(
+                        "UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, "
+                        "language = COALESCE(?, language), etag = ?, last_modified = ? WHERE id = ?",
+                        (title_to_store, custom_to_store, upstream_to_store,
+                         language_to_store, new_etag, new_last_modified, feed_id))
 
                 # Re-read tombstones now that the write lock is held: a delete
                 # committed while phase 1 was busy (e.g. fetching NPR pages)
@@ -3573,15 +3587,15 @@ class LocalProvider(RSSProvider):
         conn = get_connection()
         try:
             c = conn.cursor()
-            c.execute("SELECT id, title, url, category, icon_url FROM feeds")
+            c.execute("SELECT id, title, url, category, icon_url, language FROM feeds")
             rows = c.fetchall()
 
             c.execute("SELECT feed_id, COUNT(*) FROM articles WHERE is_read = 0 GROUP BY feed_id")
             unread_map = {row[0]: row[1] for row in c.fetchall()}
-            
+
             feeds = []
             for row in rows:
-                f = Feed(id=row[0], title=row[1], url=row[2], category=row[3], icon_url=row[4])
+                f = Feed(id=row[0], title=row[1], url=row[2], category=row[3], icon_url=row[4], language=row[5])
                 f.unread_count = unread_map.get(f.id, 0)
                 feeds.append(f)
             return feeds

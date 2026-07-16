@@ -586,6 +586,15 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+        # Language the feed declares for its content (RSS <language> / Atom
+        # xml:lang), as a BCP-47 tag. NULL = the feed never said, which is a real
+        # answer, not a default: the rich reader falls back to the UI language
+        # rather than claiming a language the publisher never declared (issue #72).
+        try:
+            c.execute("ALTER TABLE feeds ADD COLUMN language TEXT")
+        except sqlite3.OperationalError:
+            pass
+
         # Per-feed delete-behavior override: NULL = inherit the global
         # `delete_behavior` setting; otherwise "deleted" (tombstone/Deleted view),
         # "purge" (remove permanently), or "category:<path>" (move to a category).

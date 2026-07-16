@@ -161,3 +161,74 @@ def test_ao2_speak_signature_without_interrupt():
     out = Old()
     assert ann.Announcer._ao2_speak(out, "hi") is True
     assert out.calls == ["hi"]
+
+
+# --- Favorites announcements (issue #70) ------------------------------------
+
+
+def test_favorite_toggle_is_a_configurable_event():
+    """Ctrl+D needs its own row in Settings > Announcements, so it must be a
+    first-class event rather than borrowing the "general" bucket."""
+    event = ann.event_by_id("favorite_toggle")
+    assert event is not None
+    assert event.default == ann.DEFAULT_MODE
+    assert "favorite_toggle" in ann.default_modes()
+    # The Settings grid is built from iter_events(), so this is what puts the
+    # combobox on screen.
+    assert "favorite_toggle" in [e.id for e in ann.iter_events()]
+
+
+def test_favorite_toggle_respects_its_own_mode(monkeypatch):
+    out = _FakeOutput()
+    a = _announcer_with_output({"favorite_toggle": ann.MODE_SPEECH}, out)
+    assert a.announce("favorite_toggle", "Added to favorites") is True
+    assert out.spoke == [("Added to favorites", True)]
+    assert out.brailled == []
+
+    out2 = _FakeOutput()
+    a2 = _announcer_with_output({"favorite_toggle": ann.MODE_NONE}, out2)
+    assert a2.announce("favorite_toggle", "Added to favorites") is False
+    assert out2.spoke == [] and out2.brailled == []
+
+
+def test_every_event_label_and_help_is_a_pot_anchor():
+    """The POT anchors are hand-maintained, and a missing one silently ships an
+    untranslatable label (the extractor cannot see _(event.label))."""
+    anchors = set(ann._POT_ANCHORS)
+    for event in ann.iter_events():
+        assert event.label in anchors, f"{event.id}: label missing from _POT_ANCHORS"
+        assert event.help in anchors, f"{event.id}: help missing from _POT_ANCHORS"
+    for label in ann.MODE_LABELS.values():
+        assert label in anchors, f"mode label {label!r} missing from _POT_ANCHORS"
+
+
+# --- Test announcement (issue #71) ------------------------------------------
+
+
+def test_announce_test_emits_both_channels_ignoring_config():
+    """The button proves the pipeline works, so it must not honor "none" --
+    otherwise a disabled setting is indistinguishable from a broken setup."""
+    out = _FakeOutput()
+    a = _announcer_with_output({"general": ann.MODE_NONE, "filter_change": ann.MODE_NONE}, out)
+
+    assert a.announce_test("Announcement test") is True
+    assert out.spoke == [("Announcement test", True)]
+    assert out.brailled == ["Announcement test"]
+
+
+def test_announce_test_reports_failure_when_no_output_path(monkeypatch):
+    """A False return is what lets the dialog tell the user nothing arrived."""
+    a = ann.Announcer(lambda: {})
+    a._ao2 = None
+    a._ao2_attempted = True
+    monkeypatch.setattr(screen_reader_announce, "speak_status", lambda *a, **k: False)
+    monkeypatch.setattr(screen_reader_announce, "braille_message", lambda *a, **k: False)
+
+    assert a.announce_test("Announcement test") is False
+
+
+def test_announce_test_blank_message_is_noop():
+    out = _FakeOutput()
+    a = _announcer_with_output({}, out)
+    assert a.announce_test("   ") is False
+    assert out.spoke == [] and out.brailled == []

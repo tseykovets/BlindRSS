@@ -36,6 +36,7 @@ from core.models import Article
 from core import utils
 from core import article_columns
 from core import article_extractor
+from core import article_lang
 from core import article_html
 from core import smart_folders as smart_folders_mod
 from core import filters as filters_mod
@@ -84,7 +85,7 @@ def _trim_recovered_url(url: str) -> str:
     return url
 
 # Default column indices, valid only for the built-in layout. Columns are now
-# reorderable/hideable per feed (issue #70), so runtime code MUST resolve an
+# reorderable/hideable per feed (article list columns), so runtime code MUST resolve an
 # index through MainFrame._col(key) instead of using these -- a hidden column has
 # no index at all, and a reordered one does not sit where its constant says.
 # These remain as the default layout's indices and for tests.
@@ -583,7 +584,7 @@ class MainFrame(wx.Frame):
         self.list_ctrl = wx.ListCtrl(right_splitter, style=wx.LC_REPORT)
         self.list_ctrl.SetName(_("Articles"))
         # Columns are built from the configured layout rather than hardcoded, so
-        # they can be reordered/hidden globally or per feed (issue #70).
+        # they can be reordered/hidden globally or per feed (article list columns).
         self._column_keys = []
         self._column_index = {}
         self._applied_column_keys = None
@@ -627,6 +628,9 @@ class MainFrame(wx.Frame):
         # When tabbing into the content field, load full article text.
         self.content_ctrl.Bind(wx.EVT_SET_FOCUS, self.on_content_focus)
         self.content_ctrl.Bind(wx.EVT_TEXT_COPY, self.on_content_copy)
+        # Replace the native (English) read-only text menu with our own so it
+        # follows the app's language (issue #73).
+        self.content_ctrl.Bind(wx.EVT_CONTEXT_MENU, self.on_content_context_menu)
 
         # Full-text extraction cache (url -> rendered text)
         self._fulltext_cache = {}
@@ -1173,7 +1177,7 @@ class MainFrame(wx.Frame):
         # keyboard/NVDA events real slices instead of back-to-back inserts.
         return 15 if getattr(self, "_refresh_ui_batch_active", False) else 1
 
-    # --- Column layout (issue #70) -------------------------------------------
+    # --- Column layout (article list columns) -------------------------------------------
 
     def _global_column_layout(self):
         """The configured global layout (normalized; default when unset)."""
@@ -4884,9 +4888,15 @@ class MainFrame(wx.Frame):
             self._rich_view_unavailable = True
             return None
         try:
+            # The library defaults to lang="en", which is what made every
+            # article claim to be English (issue #72). The skeleton is built
+            # once and reused, so the root gets the UI language (rule 4, and the
+            # right language for our own chrome); per-article content language
+            # rides on the <article lang> that article_html emits.
             rv = AccessibleWebView(
                 self.reader_panel,
                 title=_("Article text"),
+                lang=article_lang.app_ui_language(),
                 live_region=False,
                 open_links_externally=True,
                 on_return=self._on_rich_view_return,
@@ -5132,7 +5142,29 @@ class MainFrame(wx.Frame):
             header += f'<p class="awv-source"><a href="{safe}">{html_stdlib.escape(url)}</a></p>'
         if not body:
             body = f"<p>{html_stdlib.escape(_('Loading full text...'))}</p>"
-        return f"<article>{header}<hr>{body}</article>"
+        # Instant feed-content view: no page was fetched, so the only language
+        # signal is whatever the feed declared for this article (issue #72).
+        lang = article_lang.resolve_content_language(
+            feed_item_lang=getattr(article, "language", None),
+            feed_lang=self._feed_language_for(getattr(article, "feed_id", None)),
+        )
+        safe_lang = html_stdlib.escape(lang, quote=True)
+        return f'<article lang="{safe_lang}">{header}<hr>{body}</article>'
+
+    def _feed_language_for(self, feed_id):
+        """The feed's declared language, or None when it isn't known.
+
+        Providers that expose a feed language set Feed.language; those that do
+        not (the Miniflux API has no such field) simply yield None, and the
+        resolver falls through to the UI language.
+        """
+        if not feed_id:
+            return None
+        try:
+            feed = self.feed_map.get(feed_id)
+        except Exception:
+            return None
+        return getattr(feed, "language", None) if feed else None
 
     def _schedule_rich_load_for_index(self, idx: int, force: bool = False) -> None:
         """Debounced full-text fetch + render into the rich web view."""
@@ -5178,6 +5210,9 @@ class MainFrame(wx.Frame):
             "fallback_title": getattr(article, "title", "") or "",
             "fallback_author": getattr(article, "author", "") or "",
             "date": utils.humanize_article_date(getattr(article, "date", "") or ""),
+            # Language signals for the <article lang> the renderer emits (#72).
+            "feed_item_lang": getattr(article, "language", "") or "",
+            "feed_lang": self._feed_language_for(getattr(article, "feed_id", None)) or "",
             "token": token,
         }
         threading.Thread(target=self._rich_load_worker, args=(req,), daemon=True).start()
@@ -5191,6 +5226,8 @@ class MainFrame(wx.Frame):
                 fallback_title=req.get("fallback_title", ""),
                 fallback_author=req.get("fallback_author", ""),
                 date=req.get("date", ""),
+                feed_item_lang=req.get("feed_item_lang", ""),
+                feed_lang=req.get("feed_lang", ""),
             )
         except Exception:
             log.debug("Rich full-text render failed", exc_info=True)
@@ -6503,6 +6540,13 @@ class MainFrame(wx.Frame):
             return
 
         article.is_favorite = bool(new_state)
+
+        # Ctrl+D has no other feedback for a screen-reader user: the row's text
+        # does not change, so without this the action is silent (issue #70).
+        self._announce_event(
+            "favorite_toggle",
+            _("Added to favorites") if new_state else _("Removed from favorites"),
+        )
 
         self._sync_favorite_flag_in_cached_views(self._article_cache_id(article), bool(new_state))
         self._update_cached_favorites_view(article, bool(new_state))
@@ -8948,6 +8992,56 @@ class MainFrame(wx.Frame):
         if copy_textctrl_selection_to_clipboard(self.content_ctrl):
             return
         event.Skip()
+
+    def on_content_context_menu(self, event):
+        """Show a localized context menu for the read-only reader (issue #73).
+
+        The native menu wx hands a wx.TextCtrl comes from the OS and is labelled
+        in the *system* language -- English on an English Windows install -- no
+        matter what BlindRSS is set to. wx.Locale cannot reliably fix that
+        either: it would need the wx translation catalog for that language
+        present on the machine, which is not something we ship or control. So we
+        build the menu ourselves from our own catalog, which always matches the
+        app's language.
+
+        Only Copy and Select All appear: the control is read-only, so Cut, Paste
+        and Delete could only ever be greyed-out entries, and dead items are
+        noise for a screen-reader user arrowing through the menu.
+        """
+        menu = wx.Menu()
+        copy_item = menu.Append(wx.ID_COPY, _("&Copy") + "\tCtrl+C")
+        menu.AppendSeparator()
+        menu.Append(wx.ID_SELECTALL, _("Select &All") + "\tCtrl+A")
+
+        # Copy is meaningless with nothing selected; Select All is meaningless
+        # with no text. Reflect that instead of offering no-ops.
+        try:
+            start, end = self.content_ctrl.GetSelection()
+            copy_item.Enable(start != end)
+        except Exception:
+            pass
+
+        self.content_ctrl.Bind(wx.EVT_MENU, self._on_content_menu_copy, id=wx.ID_COPY)
+        self.content_ctrl.Bind(wx.EVT_MENU, self._on_content_menu_select_all, id=wx.ID_SELECTALL)
+        try:
+            self.content_ctrl.PopupMenu(menu)
+        finally:
+            menu.Destroy()
+
+    def _on_content_menu_copy(self, event):
+        # Route through the same helper as Ctrl+C / EVT_TEXT_COPY so the menu
+        # and the shortcut cannot drift apart.
+        if not copy_textctrl_selection_to_clipboard(self.content_ctrl):
+            try:
+                self.content_ctrl.Copy()
+            except Exception:
+                pass
+
+    def _on_content_menu_select_all(self, event):
+        try:
+            self.content_ctrl.SelectAll()
+        except Exception:
+            pass
 
     def on_content_focus(self, event):
         """When the content field receives focus, force an immediate full-text load for the selected article."""
@@ -11820,7 +11914,7 @@ class MainFrame(wx.Frame):
         # The dialog has already persisted the per-feed settings (including any
         # column override). Apply the columns here, BEFORE the "nothing changed"
         # early return below -- editing only the columns leaves title/url/category
-        # untouched, so that return would otherwise discard the change (issue #70).
+        # untouched, so that return would otherwise discard the change (article list columns).
         try:
             self._refresh_article_columns()
         except Exception:
@@ -12270,7 +12364,7 @@ class MainFrame(wx.Frame):
                 pass
 
             # A changed global column layout only reaches the list on a render,
-            # and the current view may well be one that just changed (issue #70).
+            # and the current view may well be one that just changed (article list columns).
             try:
                 self._refresh_article_columns()
             except Exception:

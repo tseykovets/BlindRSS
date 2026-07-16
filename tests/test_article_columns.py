@@ -1,4 +1,4 @@
-"""Tests for the article-list column layout model (issue #70).
+"""Tests for the article-list column layout model (article list columns).
 
 Covers the normalization contract (what survives round-tripping through config
 or a feed_settings row), the Title pin, and the global-vs-per-feed resolution

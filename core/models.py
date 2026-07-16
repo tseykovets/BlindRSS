@@ -37,10 +37,14 @@ class Article:
                 self.timestamp = dt.timestamp()
 
 class Feed:
-    def __init__(self, id: str, title: str, url: str, category: str = UNCATEGORIZED, icon_url: str = None):
+    def __init__(self, id: str, title: str, url: str, category: str = UNCATEGORIZED, icon_url: str = None, language: str = None):
         self.id = id
         self.title = title
         self.url = url
         self.category = category
         self.icon_url = icon_url
+        # BCP-47 tag the feed declares for its content, or None when it declares
+        # none. Used to mark the rich reader's content language (issue #72);
+        # providers whose API has no such field (e.g. Miniflux) leave it None.
+        self.language = language
         self.unread_count = 0

@@ -45,7 +45,7 @@ class _Host:
     _update_cached_views_for_article = mainframe.MainFrame._update_cached_views_for_article
     _next_articles_request_id = mainframe.MainFrame._next_articles_request_id
     _is_articles_load_current = mainframe.MainFrame._is_articles_load_current
-    # Column layout (issue #70): media-column writes resolve their index through
+    # Column layout (article list columns): media-column writes resolve their index through
     # _col, so the host needs the default key->index map.
     _col = mainframe.MainFrame._col
     _set_col = mainframe.MainFrame._set_col

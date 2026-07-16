@@ -1,4 +1,4 @@
-"""Article-list column layout: which columns show, and in what order (issue #70).
+"""Article-list column layout: which columns show, and in what order (article list columns).
 
 The layout is a list of ``{"key": <column key>, "visible": <bool>}`` entries in
 display order. It is stored globally in config under ``"article_columns"`` and,

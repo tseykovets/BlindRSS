@@ -136,7 +136,7 @@ class _RenderHost:
     _remove_loading_more_placeholder = mainframe.MainFrame._remove_loading_more_placeholder
     _update_loading_placeholder = mainframe.MainFrame._update_loading_placeholder
     _is_load_more_row = mainframe.MainFrame._is_load_more_row
-    # Column layout (issue #70): the real methods, so renders exercise the same
+    # Column layout (article list columns): the real methods, so renders exercise the same
     # key->index resolution the app uses.
     _apply_column_layout = mainframe.MainFrame._apply_column_layout
     _resolve_column_layout = mainframe.MainFrame._resolve_column_layout
@@ -464,7 +464,7 @@ def test_quick_merge_updates_capped_page_without_full_native_rebuild():
     assert host.list_ctrl.selected == 2
 
 
-# --- Column layout (issue #70) ----------------------------------------------
+# --- Column layout (article list columns) ----------------------------------------------
 
 
 def test_render_honors_a_custom_global_column_layout(monkeypatch):

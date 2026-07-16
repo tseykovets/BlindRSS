@@ -90,6 +90,12 @@ EVENTS: List[Event] = [
         DEFAULT_MODE,
     ),
     Event(
+        "favorite_toggle",
+        "Favorites change",
+        "Announce when an article is added to or removed from favorites (Ctrl+D).",
+        DEFAULT_MODE,
+    ),
+    Event(
         "playback_speed",
         "Playback speed change",
         "Announce the current playback speed when it is changed by keyboard.",
@@ -134,6 +140,8 @@ _POT_ANCHORS = (
     _("Announce when a feed refresh is started (F5)."),
     _("Stop update"),
     _("Announce when a feed refresh is stopped (Shift+F5)."),
+    _("Favorites change"),
+    _("Announce when an article is added to or removed from favorites (Ctrl+D)."),
     _("Playback speed change"),
     _("Announce the current playback speed when it is changed by keyboard."),
     _("Media and chapter navigation"),
@@ -256,6 +264,20 @@ class Announcer:
         want_speech = mode in (MODE_SPEECH, MODE_BOTH)
         want_braille = mode in (MODE_BRAILLE, MODE_BOTH)
         return self._emit(text, want_speech, want_braille)
+
+    def announce_test(self, message: str) -> bool:
+        """Emit ``message`` through speech AND Braille, ignoring configuration.
+
+        Backs the Settings > Announcements test button (issue #71). It
+        deliberately does not consult the per-event modes: the button exists to
+        prove the output pipeline reaches the screen reader, and honoring a
+        "none" would make a working setup indistinguishable from a broken one.
+        The caller can surface the False return as "no output path available".
+        """
+        text = str(message or "").strip()
+        if not text:
+            return False
+        return self._emit(text, want_speech=True, want_braille=True)
 
     def _emit(self, text: str, want_speech: bool, want_braille: bool) -> bool:
         handled = False

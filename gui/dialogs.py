@@ -58,7 +58,7 @@ log = logging.getLogger(__name__)
 
 
 class ColumnLayoutPanel(wx.Panel):
-    """Reorder/show/hide the article-list columns (issue #70).
+    """Reorder/show/hide the article-list columns (article list columns).
 
     Shared by the Settings dialog (global layout) and the Feed Properties dialog
     (per-feed override), so both places behave identically. With
@@ -1624,6 +1624,17 @@ class SettingsDialog(wx.Dialog):
             announce_grid.Add(choice, 0, wx.EXPAND)
         announcements_sizer.Add(announce_grid, 0, wx.EXPAND | wx.ALL, 8)
 
+        # Test button (issue #71), mirroring "Test Notification" on the
+        # Notifications tab. Speaks and brailles regardless of the per-event
+        # modes above -- see Announcer.announce_test.
+        self.test_announcement_btn = wx.Button(announcements_panel, label=_("Test Announcement"))
+        self.test_announcement_btn.SetName(_("Test Announcement"))
+        self.test_announcement_btn.SetToolTip(
+            _("Send a test announcement to your screen reader via speech and Braille.")
+        )
+        self.test_announcement_btn.Bind(wx.EVT_BUTTON, self.on_test_announcement)
+        announcements_sizer.Add(self.test_announcement_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
         announcements_panel.SetSizer(announcements_sizer)
         notebook.AddPage(announcements_panel, _("Announcements"))
 
@@ -1978,7 +1989,7 @@ class SettingsDialog(wx.Dialog):
         translate_panel.SetSizer(translate_sizer)
         notebook.AddPage(translate_panel, _("Translate"))
 
-        # Global article-list column layout (issue #70); individual feeds can
+        # Global article-list column layout (article list columns); individual feeds can
         # override it from their Feed Properties dialog. Appended near the end
         # rather than next to "Feeds && Articles" on purpose: inserting a page
         # mid-notebook renumbers every tab after it, and the Ctrl+Tab position
@@ -2319,6 +2330,49 @@ class SettingsDialog(wx.Dialog):
                 _("Notifications"),
                 wx.ICON_WARNING,
             )
+
+    def on_test_announcement(self, event):
+        """Send a test announcement to the screen reader (issue #71).
+
+        Reuses the running MainFrame's announcer when there is one so the test
+        exercises the exact object that announces real events; only falls back
+        to a fresh Announcer if the dialog has no such parent.
+        """
+        announcer = getattr(self.GetParent(), "announcer", None)
+        if announcer is None:
+            try:
+                announcer = announcements_mod.Announcer()
+            except Exception:
+                announcer = None
+
+        delivered = False
+        if announcer is not None:
+            try:
+                delivered = bool(
+                    announcer.announce_test(
+                        _("BlindRSS announcement test. If you can hear or read this, announcements are working.")
+                    )
+                )
+            except Exception:
+                logging.getLogger(__name__).debug("Test announcement failed", exc_info=True)
+                delivered = False
+
+        if delivered:
+            return
+
+        # Nothing reached speech or Braille. Say so in a dialog: staying silent
+        # is exactly the failure being tested for, so a silent no-op would be
+        # indistinguishable from success to the user who needs this button.
+        wx.MessageBox(
+            _(
+                "The announcement could not be delivered.\n\n"
+                "No screen reader output was available. Check that your screen "
+                "reader is running, and that the accessible-output2 library is "
+                "installed for full speech and Braille support."
+            ),
+            _("Announcements"),
+            wx.ICON_WARNING,
+        )
 
     def _update_notification_controls(self):
         supported = utils.platform_supports_notifications()
@@ -3131,7 +3185,7 @@ class FeedPropertiesDialog(wx.Dialog):
         self._impersonate_values = ["auto", "always", "never"]
 
         # Tabbed so the per-feed column layout gets room without burying the
-        # fields people actually open this dialog for (issue #70). Everything
+        # fields people actually open this dialog for (article list columns). Everything
         # that was previously parented to the dialog now lives on general_panel.
         outer = wx.BoxSizer(wx.VERTICAL)
         notebook = wx.Notebook(self)
@@ -3310,7 +3364,7 @@ class FeedPropertiesDialog(wx.Dialog):
         general_panel.SetSizer(sizer)
         notebook.AddPage(general_panel, _("General"))
 
-        # Per-feed column override (issue #70): None = follow the global layout.
+        # Per-feed column override (article list columns): None = follow the global layout.
         self.columns_panel = ColumnLayoutPanel(
             notebook,
             layout=article_columns.feed_layout_from_settings(self._feed_settings),
@@ -3427,7 +3481,7 @@ class FeedPropertiesDialog(wx.Dialog):
             settings["refresh_interval_seconds"] = None
 
         # None means "inherit the global layout" -- store it as such rather than
-        # freezing today's global layout into this feed (issue #70).
+        # freezing today's global layout into this feed (article list columns).
         try:
             settings["columns"] = self.columns_panel.get_layout()
         except Exception:

@@ -29,6 +29,9 @@ DOMAIN = "blindrss"
 
 _translation = gettext.NullTranslations()
 
+# BCP-47 code of the catalog currently installed; see current_language().
+_active_language = "en"
+
 
 def locale_dir() -> str:
     """Directory holding <lang>/LC_MESSAGES/blindrss.mo, source tree or frozen."""
@@ -85,6 +88,38 @@ def setup(language: str = "auto") -> None:
     except Exception:
         log.debug("Failed to load translations for %r", languages, exc_info=True)
         _translation = gettext.NullTranslations()
+    _remember_active_language(languages)
+
+
+def _remember_active_language(languages: list) -> None:
+    """Record the catalog language that actually loaded (see current_language)."""
+    global _active_language
+    resolved = ""
+    # A real catalog reports its own language; NullTranslations (no catalog for
+    # any requested language) has no info(), which is itself the answer: the
+    # untranslated English source strings are what the user sees.
+    try:
+        info = _translation.info()
+        resolved = str(info.get("language") or "").strip()
+    except Exception:
+        resolved = ""
+    if not resolved:
+        resolved = "en" if isinstance(_translation, gettext.NullTranslations) else ""
+    if not resolved:
+        resolved = str(languages[0]) if languages else "en"
+    _active_language = resolved.replace("_", "-")
+
+
+def current_language() -> str:
+    """BCP-47 code of the UI language in effect (e.g. "ru", "pt-BR", "en").
+
+    This is what the app is actually speaking, not what was requested: "auto"
+    resolves to the OS locale, and a language with no catalog resolves to "en"
+    because English source strings are the fallback. Used as the document
+    language for the rich reader (issue #72) -- assistive tech needs to know
+    which synthesizer and Braille table to use.
+    """
+    return _active_language or "en"
 
 
 def _(message: str) -> str:

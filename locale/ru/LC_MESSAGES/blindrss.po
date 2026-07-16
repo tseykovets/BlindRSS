@@ -49,12 +49,13 @@ msgstr "Объявлять, когда останавливается обнов
 
 #: core/announcements.py:143
 msgid "Favorites change"
-msgstr ""
+msgstr "Изменение избранного"
 
 #: core/announcements.py:144
 msgid ""
 "Announce when an article is added to or removed from favorites (Ctrl+D)."
 msgstr ""
+"Объявлять, когда статья добавляется или удаляется из избранного (Ctrl+D)."
 
 #: core/announcements.py:145
 msgid "Playback speed change"
@@ -678,7 +679,7 @@ msgstr ""
 
 #: gui/dialogs.py:2299
 msgid "BlindRSS notification test"
-msgstr "Проверка уведомлений BlindRSS"
+msgstr "Проверочное уведомление BlindRSS"
 
 #: gui/dialogs.py:2300
 msgid "If you can read this, notifications are working."
@@ -686,7 +687,7 @@ msgstr "Если вы можете прочитать это, значит, ув
 
 #: gui/dialogs.py:93
 msgid "Article list columns"
-msgstr ""
+msgstr "Столбцы списка статей"
 
 #: gui/dialogs.py:198
 msgid "https://example.com/feed or a YouTube/podcast URL"
@@ -875,11 +876,13 @@ msgstr "Уведомления"
 
 #: gui/dialogs.py:1631 gui/dialogs.py:1630
 msgid "Test Announcement"
-msgstr ""
+msgstr "Проверить объявления"
 
 #: gui/dialogs.py:1633
 msgid "Send a test announcement to your screen reader via speech and Braille."
 msgstr ""
+"Отправить проверочное объявление для вашей программы экранного доступа через "
+"речь и брайль."
 
 #: gui/dialogs.py:1639 gui/dialogs.py:2373
 msgid "Announcements"
@@ -891,7 +894,7 @@ msgstr "Перевод"
 
 #: gui/dialogs.py:2000 gui/dialogs.py:3373
 msgid "List Headers"
-msgstr ""
+msgstr "Заголовки списка"
 
 #: gui/dialogs.py:2020
 msgid "User Data Folder"
@@ -913,6 +916,11 @@ msgid ""
 "running, and that the accessible-output2 library is installed for full "
 "speech and Braille support."
 msgstr ""
+"Отправить объявление не удалось.\n"
+"\n"
+"Нет доступных программ экранного доступа для вывода. Убедитесь, что "
+"программа экранного доступа запущена, и что установлена библиотека "
+"accessible-output2 для полной поддержки речи и брайля."
 
 #: gui/dialogs.py:2755
 msgid "Choose yt-dlp cookies.txt"
@@ -1078,7 +1086,7 @@ msgstr "Сохранить предустановку"
 
 #: gui/dialogs.py:83
 msgid "Use the global column layout"
-msgstr ""
+msgstr "Использовать глобальную компановку столбцов"
 
 #: gui/dialogs.py:102 gui/dialogs.py:6428 gui/mainframe.py:13125
 msgid "Move &Up"
@@ -1351,7 +1359,7 @@ msgstr "Показывать сводное уведомление при дос
 
 #: gui/dialogs.py:1569
 msgid "Test Notification"
-msgstr "Проверка уведомления"
+msgstr "Проверить уведомления"
 
 #: gui/dialogs.py:1573
 msgid "Exclude Feeds..."
@@ -1678,19 +1686,21 @@ msgstr "Удалить предустановку"
 
 #: gui/dialogs.py:82
 msgid "&Use the global column layout"
-msgstr ""
+msgstr "&Использовать глобальную компановку столбцов"
 
 #: gui/dialogs.py:89
 msgid "Columns (checked = shown). Use Move up / Move down to reorder:"
 msgstr ""
+"Столбцы (отмеченный= показывается). Используйте \"Переместить вверх\" / "
+"\"Переместить вниз\", чттобы изменить порядок:"
 
 #: gui/dialogs.py:114
 msgid "Title is always the first column and cannot be hidden."
-msgstr ""
+msgstr "Заголовок всегда находится в первом столбце и не может быть скрыт."
 
 #: gui/dialogs.py:125
 msgid "{column} (always first)"
-msgstr ""
+msgstr "{column} (всегда первый)"
 
 #: gui/dialogs.py:195
 msgid "Feed or Media URL:"
@@ -2064,6 +2074,8 @@ msgid ""
 "BlindRSS announcement test. If you can hear or read this, announcements are "
 "working."
 msgstr ""
+"Проверка объявлений BlindRSS. Если вы слышите или читаете это, значит, "
+"объявления работают."
 
 #: gui/dialogs.py:2757 gui/dialogs.py:2875
 msgid "Cookies"
@@ -2913,11 +2925,11 @@ msgstr "Безвозвратно удалить эту статью? Её нел
 
 #: gui/mainframe.py:6548
 msgid "Added to favorites"
-msgstr ""
+msgstr "Добавлено в избранное"
 
 #: gui/mainframe.py:6548
 msgid "Removed from favorites"
-msgstr ""
+msgstr "Удалено из избранного"
 
 #: gui/mainframe.py:6569 gui/mainframe.py:6586
 msgid "Could not rename category."

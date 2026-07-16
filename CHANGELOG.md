@@ -4,6 +4,13 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.107.1 - 2026-07-16
+
+- Repair four test doubles that had drifted from production.
+- Show the localized reader context menu on Windows (#73).
+- Merge PR #74: Update Russian translation (@tseykovets).
+- Update Russian translation.
+
 ## v1.107.0 - 2026-07-16
 
 - Favorites/test announcements, localized reader menu, rich-view language.

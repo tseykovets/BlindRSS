@@ -44,7 +44,10 @@ def test_ambiguous_controls_have_accessible_names():
         "chapters_btn": "Chapters Menu",
     }
     for attr, name in expected.items():
-        assert f'self.{attr}.SetName("{name}")' in src, f"missing accessible name for {attr}"
+        # Accept either a plain literal or a gettext-wrapped accessible name.
+        plain = f'self.{attr}.SetName("{name}")'
+        wrapped = f'self.{attr}.SetName(_("{name}"))'
+        assert plain in src or wrapped in src, f"missing accessible name for {attr}"
     assert 'self.volume_value_lbl.SetName(f"Volume Level: ' in src
 
 

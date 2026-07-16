@@ -232,6 +232,26 @@ msgstr "更新清单缺少下载链接。"
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr "更新清单的 SHA-256 哈希值无效。"
 
+#: core/updater.py:775
+msgid "Downloaded Windows installer is missing."
+msgstr "下载的 Windows 安装程序丢失。"
+
+#: core/updater.py:710 core/updater.py:205
+msgid "Auto-update is not supported on this platform ({platform})."
+msgstr "此平台不支持自动更新({platform})。"
+
+#: core/updater.py:837
+msgid "Update signature verification failed: {error}"
+msgstr "更新签名验证失败：{error}"
+
+#: core/updater.py:155
+msgid "{msg} Reset time (epoch): {reset}"
+msgstr "{msg} 重置时间（epoch）：{reset}"
+
+#: core/updater.py:159
+msgid "GitHub API error: HTTP {status}"
+msgstr "GitHub API 错误：HTTP {status}"
+
 #: core/updater.py:187
 msgid "Invalid current version: {version}"
 msgstr "当前版本无效:{version}"
@@ -243,10 +263,6 @@ msgstr "最新发布标签不是有效的语义化版本:{tag}"
 #: core/updater.py:201
 msgid "BlindRSS is up to date ({version})."
 msgstr "BlindRSS 已是最新版本({version})。"
-
-#: core/updater.py:205
-msgid "Auto-update is not supported on this platform ({platform})."
-msgstr "此平台不支持自动更新({platform})。"
 
 #: core/updater.py:212
 msgid "Update manifest '{manifest}' not found in release assets."
@@ -272,9 +288,57 @@ msgstr "更新安装程序的 SHA-256 哈希值无效。"
 msgid "Update installer is missing a download URL."
 msgstr "更新安装程序缺少下载链接。"
 
+#: core/updater.py:438
+msgid "Authenticode verification failed: {error}"
+msgstr "Authenticode 验证失败：{error}"
+
+#: core/updater.py:716 core/updater.py:773 core/updater.py:874
+msgid "{name} is missing from the install directory."
+msgstr "安装目录中缺少 {name}。"
+
+#: core/updater.py:721
+msgid "Update package is missing {name}."
+msgstr "更新包缺少 {name}。"
+
+#: core/updater.py:847
+msgid "{name} is missing from the app bundle."
+msgstr "应用程序包中缺少 {name}。"
+
+#: core/updater.py:149
+msgid "Network error while checking GitHub: {error}"
+msgstr "检查 GitHub 时发生网络错误：{error}"
+
+#: core/updater.py:164
+msgid "Invalid GitHub response: {error}"
+msgstr "无效的 GitHub 响应：{error}"
+
+#: core/updater.py:181
+msgid "Failed to download update metadata: {error}"
+msgstr "无法下载更新元数据：{error}"
+
+#: core/updater.py:347
+msgid "Unsupported update archive type: {type}"
+msgstr "不支持的更新存档类型：{type}"
+
+#: core/updater.py:530 core/updater.py:938
+msgid "Failed to start update helper: {error}"
+msgstr "无法启动更新助手：{error}"
+
+#: core/updater.py:680
+msgid "Failed to download update: {error}"
+msgstr "无法下载更新：{error}"
+
+#: core/updater.py:701
+msgid "Failed to extract update: {error}"
+msgstr "无法解压更新：{error}"
+
 #: core/updater.py:265
 msgid "Update installer '{name}' not found in release assets."
 msgstr "在发布资源中未找到更新安装程序“{name}”。"
+
+#: core/updater.py:426
+msgid "Update is signed but not by a trusted certificate{suffix}"
+msgstr "更新已签名，但并非由受信任的证书签名{suffix}"
 
 #: core/utils.py:1199
 msgid "Just now"
@@ -715,7 +779,7 @@ msgstr "查找我的导出文件"
 msgid "Open extension page"
 msgstr "打开扩展页面"
 
-#: gui/dialogs.py:2647 gui/dialogs.py:2678 gui/player.py:380
+#: gui/dialogs.py:2647 gui/dialogs.py:2678 gui/player.py:401
 msgid "Cancel"
 msgstr "取消"
 
@@ -794,7 +858,7 @@ msgstr "类型"
 msgid "Close"
 msgstr "关闭"
 
-#: gui/dialogs.py:5826 gui/player.py:2001
+#: gui/dialogs.py:5826 gui/player.py:2022
 msgid "Play"
 msgstr "播放"
 
@@ -2072,7 +2136,7 @@ msgstr "播放/暂停"
 msgid "Toggle play/pause"
 msgstr "切换播放/暂停"
 
-#: gui/mainframe.py:2087 gui/player.py:2006 gui/tray.py:105
+#: gui/mainframe.py:2087 gui/player.py:2027 gui/tray.py:105
 msgid "Stop"
 msgstr "停止"
 
@@ -2172,7 +2236,7 @@ msgstr "调低音量(Ctrl+↓)"
 msgid "Decrease volume"
 msgstr "调低音量"
 
-#: gui/mainframe.py:2144 gui/player.py:2029
+#: gui/mainframe.py:2144 gui/player.py:2050
 msgid "Chapters"
 msgstr "章节"
 
@@ -2311,6 +2375,14 @@ msgstr "导出 OPML"
 #: gui/mainframe.py:12159
 msgid "Release notes are available on GitHub."
 msgstr "发行说明可在 GitHub 上查看。"
+
+#: gui/mainframe.py:12186
+msgid "Updating BlindRSS"
+msgstr "正在更新 BlindRSS"
+
+#: gui/mainframe.py:12187
+msgid "Starting update..."
+msgstr "正在启动更新..."
 
 #: gui/mainframe.py:791
 msgid "(No saved searches)"
@@ -2832,12 +2904,12 @@ msgstr "依赖项已安装,PATH 已更新。建议重启。"
 msgid "Success"
 msgstr "成功"
 
-#: gui/mainframe.py:1616 gui/player.py:3924 gui/player.py:6299
-#: gui/player.py:5991
+#: gui/mainframe.py:1616 gui/player.py:3945 gui/player.py:6320
+#: gui/player.py:6012
 msgid "Playing"
 msgstr "正在播放"
 
-#: gui/mainframe.py:1616 gui/player.py:6355 gui/player.py:6372
+#: gui/mainframe.py:1616 gui/player.py:6376 gui/player.py:6393
 msgid "Paused"
 msgstr "已暂停"
 
@@ -2849,7 +2921,7 @@ msgstr "已到播放队列末尾。"
 msgid "Start of play queue."
 msgstr "已到播放队列开头。"
 
-#: gui/mainframe.py:3030 gui/player.py:2239
+#: gui/mainframe.py:3030 gui/player.py:2260
 msgid "No chapters available"
 msgstr "没有可用章节"
 
@@ -3136,6 +3208,14 @@ msgstr "查看历史记录..."
 msgid "Loading full text..."
 msgstr "正在加载全文……"
 
+#: gui/mainframe.py:5124
+msgid "No audio found."
+msgstr "未找到音频。"
+
+#: gui/mainframe.py:5124
+msgid "Result"
+msgstr "结果"
+
 #: gui/mainframe.py:5337
 msgid "{total} versions of: {title}"
 msgstr "{title} 的 {total} 个版本"
@@ -3334,6 +3414,10 @@ msgstr "添加到播放队列"
 msgid "Open {chapter}"
 msgstr "打开 {chapter}"
 
+#: gui/mainframe.py:5122
+msgid "Provider does not support updating media."
+msgstr "该提供程序不支持更新媒体。"
+
 #: gui/mainframe.py:5457
 msgid ", played, {total}"
 msgstr ",已播放,{total}"
@@ -3463,167 +3547,175 @@ msgid ""
 "yt-dlp is not installed. Install it via Settings to download YouTube items."
 msgstr "未安装 yt-dlp。请通过设置安装它以下载 YouTube 内容。"
 
-#: gui/player.py:396
+#: gui/player.py:417
 msgid "Scanning..."
 msgstr "正在扫描..."
 
-#: gui/player.py:1988
+#: gui/player.py:1992
+msgid "Elapsed Time: 00:00"
+msgstr "已用时间：00:00"
+
+#: gui/player.py:2009
 msgid "Playback Time"
 msgstr "播放时间"
 
-#: gui/player.py:2102
+#: gui/player.py:2123
 msgid "Disconnect"
 msgstr "断开连接"
 
-#: gui/player.py:2102 gui/player.py:2024
+#: gui/player.py:2123 gui/player.py:2045
 msgid "Cast"
 msgstr "投放"
 
-#: gui/player.py:2103
+#: gui/player.py:2124
 msgid "&Disconnect Cast"
 msgstr "断开投放(&D)"
 
-#: gui/player.py:2103 gui/player.py:2072
+#: gui/player.py:2124 gui/player.py:2093
 msgid "&Cast to Device..."
 msgstr "投放到设备(&C)..."
 
-#: gui/player.py:4122
+#: gui/player.py:4143
 msgid "Connecting..."
 msgstr "正在连接..."
 
-#: gui/player.py:6411 gui/player.py:6523
+#: gui/player.py:5325
+msgid "Elapsed Time"
+msgstr "已用时间"
+
+#: gui/player.py:6432 gui/player.py:6544
 msgid "Stopped"
 msgstr "已停止"
 
-#: gui/player.py:358
+#: gui/player.py:379
 msgid "Cast to Device"
 msgstr "投放到设备"
 
-#: gui/player.py:372
+#: gui/player.py:393
 msgid "Refresh"
 msgstr "刷新"
 
-#: gui/player.py:376
+#: gui/player.py:397
 msgid "Connect"
 msgstr "连接"
 
-#: gui/player.py:412
+#: gui/player.py:433
 msgid "No devices found"
 msgstr "未找到设备"
 
-#: gui/player.py:549
+#: gui/player.py:570
 msgid "Audio Player"
 msgstr "音频播放器"
 
-#: gui/player.py:1949
+#: gui/player.py:1970
 msgid "No Track Loaded"
 msgstr "未加载曲目"
 
-#: gui/player.py:1985
+#: gui/player.py:2006
 msgid "No media loaded"
 msgstr "未加载媒体"
 
-#: gui/player.py:1995
+#: gui/player.py:2016
 msgid "-10s"
 msgstr "-10秒"
 
-#: gui/player.py:2011
+#: gui/player.py:2032
 msgid "+10s"
 msgstr "+10秒"
 
-#: gui/player.py:2038 gui/tray.py:117
+#: gui/player.py:2059 gui/tray.py:117
 msgid "Volume"
 msgstr "音量"
 
-#: gui/player.py:2076
+#: gui/player.py:2097
 msgid "Show &Chapters\tCtrl+M"
 msgstr "显示章节(&C)\tCtrl+M"
 
-#: gui/player.py:2079
+#: gui/player.py:2100
 msgid "Open Chapter &Link\tCtrl+Shift+L"
 msgstr "打开章节链接(&L)\tCtrl+Shift+L"
 
-#: gui/player.py:2082
+#: gui/player.py:2103
 msgid "&Previous Chapter\tCtrl+Shift+Left"
 msgstr "上一章(&P)\tCtrl+Shift+左"
 
-#: gui/player.py:2083
+#: gui/player.py:2104
 msgid "&Next Chapter\tCtrl+Shift+Right"
 msgstr "下一章(&N)\tCtrl+Shift+右"
 
-#: gui/player.py:2085
+#: gui/player.py:2106
 msgid "&Playback"
 msgstr "播放(&P)"
 
-#: gui/player.py:2086
+#: gui/player.py:2107
 msgid "&Chapters"
 msgstr "章节(&C)"
 
-#: gui/player.py:2581
+#: gui/player.py:2602
 msgid "Cast device disconnected; resuming local playback"
 msgstr "投放设备已断开连接;正在恢复本地播放"
 
-#: gui/player.py:3318 gui/player.py:3839
+#: gui/player.py:3339 gui/player.py:3860
 msgid "Failed to load media"
 msgstr "媒体加载失败"
 
-#: gui/player.py:3841
+#: gui/player.py:3862
 msgid "VLC is not initialized. Playback is unavailable."
 msgstr "VLC 尚未初始化。播放不可用。"
 
-#: gui/player.py:3985
+#: gui/player.py:4006
 msgid "Buffering..."
 msgstr "正在缓冲..."
 
-#: gui/player.py:4182
+#: gui/player.py:4203
 msgid "Downloading for playback..."
 msgstr "正在下载以供播放..."
 
-#: gui/player.py:5330
+#: gui/player.py:5351
 msgid "Elapsed {elapsed}, Remaining {remaining}, Total {total}"
 msgstr "已用 {elapsed},剩余 {remaining},总计 {total}"
 
-#: gui/player.py:503
+#: gui/player.py:524
 msgid "Enter the PIN code shown on the device:"
 msgstr "请输入设备上显示的 PIN 码:"
 
-#: gui/player.py:504
+#: gui/player.py:525
 msgid "AirPlay Pairing"
 msgstr "AirPlay 配对"
 
-#: gui/player.py:520
+#: gui/player.py:541
 msgid "Connection failed: {error}"
 msgstr "连接失败:{error}"
 
-#: gui/player.py:2175
+#: gui/player.py:2196
 msgid "Chapter link unavailable"
 msgstr "章节链接不可用"
 
-#: gui/player.py:2186
+#: gui/player.py:2207
 msgid "Could not open chapter link"
 msgstr "无法打开章节链接"
 
-#: gui/player.py:4101
+#: gui/player.py:4122
 msgid "Loading media..."
 msgstr "正在加载媒体..."
 
-#: gui/player.py:5328
+#: gui/player.py:5349
 msgid "Elapsed {elapsed}"
 msgstr "已用 {elapsed}"
 
-#: gui/player.py:472
+#: gui/player.py:493
 msgid "Could not start pairing: {error}"
 msgstr "无法开始配对:{error}"
 
-#: gui/player.py:490
+#: gui/player.py:511
 msgid "Pairing failed: {error}"
 msgstr "配对失败:{error}"
 
-#: gui/player.py:2246
+#: gui/player.py:2267
 msgid "Open Link for {chapter}"
 msgstr "打开 {chapter} 的链接"
 
-#: gui/player.py:2469
+#: gui/player.py:2490
 msgid "Casting failed: {error}"
 msgstr "投放失败:{error}"
 

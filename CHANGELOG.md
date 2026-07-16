@@ -4,6 +4,13 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.105.2 - 2026-07-16
+
+- Complete all 15 locale catalogs for the PR #68 update strings.
+- Enumerate SoundCloud via api-v2 with real dates and best-quality audio.
+- Merge PR #68: add gettext support to new strings and update Russian translation.
+- Add gettext support to new strings and update Russian translation.
+
 ## v1.105.1 - 2026-07-15
 
 - Complete all locale catalogs except Russian.

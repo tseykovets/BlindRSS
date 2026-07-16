@@ -630,7 +630,17 @@ class MainFrame(wx.Frame):
         self.content_ctrl.Bind(wx.EVT_TEXT_COPY, self.on_content_copy)
         # Replace the native (English) read-only text menu with our own so it
         # follows the app's language (issue #73).
+        #
+        # EVT_CONTEXT_MENU alone is not enough: this is a TE_RICH2 control, and
+        # the native rich-edit shows its own menu straight from the Win32 layer
+        # without wx ever delivering the event here (verified on wxWidgets
+        # 3.2.9 -- the handler simply never runs). So bind the triggers that do
+        # reach us and swallow them, which also stops the native menu from
+        # being raised. EVT_CONTEXT_MENU stays bound for the non-rich case and
+        # for platforms that do deliver it.
         self.content_ctrl.Bind(wx.EVT_CONTEXT_MENU, self.on_content_context_menu)
+        self.content_ctrl.Bind(wx.EVT_KEY_DOWN, self.on_content_key_down)
+        self.content_ctrl.Bind(wx.EVT_RIGHT_UP, self.on_content_right_up)
 
         # Full-text extraction cache (url -> rendered text)
         self._fulltext_cache = {}
@@ -9007,7 +9017,40 @@ class MainFrame(wx.Frame):
         Only Copy and Select All appear: the control is read-only, so Cut, Paste
         and Delete could only ever be greyed-out entries, and dead items are
         noise for a screen-reader user arrowing through the menu.
+
+        Note this handler is not reached on MSW for the TE_RICH2 reader -- see
+        on_content_key_down / on_content_right_up, which are what actually fire
+        there. It is kept for the plain-control and non-MSW cases.
         """
+        self._show_content_context_menu()
+
+    @staticmethod
+    def _is_context_menu_key(event):
+        """True for the two keyboard ways to ask for a context menu."""
+        code = event.GetKeyCode()
+        if code == wx.WXK_WINDOWS_MENU:
+            # Dedicated Menu/Application key.
+            return True
+        return (
+            code == wx.WXK_F10
+            and event.ShiftDown()
+            and not event.ControlDown()
+            and not event.AltDown()
+        )
+
+    def on_content_key_down(self, event):
+        if self._is_context_menu_key(event):
+            # Deliberately no event.Skip(): letting this through to the native
+            # rich-edit is what raises the English menu we are replacing.
+            self._show_content_context_menu()
+            return
+        event.Skip()
+
+    def on_content_right_up(self, event):
+        # Same reasoning as on_content_key_down: do not Skip.
+        self._show_content_context_menu()
+
+    def _show_content_context_menu(self):
         menu = wx.Menu()
         copy_item = menu.Append(wx.ID_COPY, _("&Copy") + "\tCtrl+C")
         menu.AppendSeparator()

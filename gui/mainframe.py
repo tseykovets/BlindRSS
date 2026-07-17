@@ -2116,7 +2116,7 @@ class MainFrame(wx.Frame):
         # quickly while reading (also editable in Settings).
         rich_view_item = view_menu.AppendCheckItem(
             wx.ID_ANY,
-            _("&Rich Full-Text View"),
+            _("&Rich Full-Text View") + "\tCtrl+Shift+H",
             _("Switch the reader between plain full text and the rich HTML view"),
         )
         rich_view_item.Check(self._rich_view_enabled())
@@ -4979,6 +4979,7 @@ class MainFrame(wx.Frame):
     altAlone = false;
     if(e.key==='F10' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey){ e.stopPropagation(); e.preventDefault(); post('__menu'); return; }
     if(e.key==='F6' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey){ e.stopPropagation(); e.preventDefault(); post('__focus_tree'); return; }
+    if((e.key==='H'||e.key==='h'||e.code==='KeyH') && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey){ e.stopPropagation(); e.preventDefault(); post('__toggle_rich'); return; }
     if(e.key==='Tab' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey){
       var c = content(); var a = document.activeElement;
       if(!c || a===c || a===document.body || a===null || !c.contains(a)){
@@ -5013,6 +5014,10 @@ class MainFrame(wx.Frame):
             kind = None
         if kind == "__menu":
             self._open_menu_bar_from_rich_view()
+        elif kind == "__toggle_rich":
+            # Ctrl+Shift+H inside the WebView: wx never sees the key, so the
+            # menu accelerator can't fire; toggle directly instead.
+            self.on_toggle_rich_view()
         elif kind == "__focus_tree":
             try:
                 self.tree.SetFocus()
@@ -5102,13 +5107,14 @@ class MainFrame(wx.Frame):
             pass
 
     def on_toggle_rich_view(self, event=None) -> None:
-        """View menu: switch the reader between plain full text and the rich view."""
-        # A check item flips its own state before the event fires, so IsChecked()
-        # already reflects the requested value; fall back to inverting the setting.
-        try:
-            new_val = bool(self._rich_view_menu_item.IsChecked())
-        except Exception:
-            new_val = not self._rich_view_enabled()
+        """View menu / Ctrl+Shift+H: switch between plain full text and the rich view.
+
+        The new value is derived from the stored setting, not the check item:
+        a menu click pre-flips the item but the accelerator and the WebView key
+        bridge do not, so IsChecked() means different things per path.
+        _sync_rich_view_menu_item() re-syncs the item below either way.
+        """
+        new_val = not self._rich_view_enabled()
         # Whether the user was reading when they flipped this decides where focus
         # belongs afterwards; sample it before the surfaces are swapped.
         reading = self._reader_surface_focused()

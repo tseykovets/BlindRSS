@@ -96,3 +96,33 @@ def test_toggling_from_outside_the_reader_leaves_focus_alone(monkeypatch):
     assert host.config_manager.get("full_text_rich_view") is False
     assert host.updated == [0]
     assert host.focused == 0
+
+
+def test_accelerator_path_toggles_even_without_preflipped_menu_item(monkeypatch):
+    # Ctrl+Shift+H (menu accelerator or WebView bridge) does not pre-flip the
+    # check item the way a menu click does; the toggle must not depend on it.
+    host = _Host(rich_before=True, reading=False)
+    host._rich_view_menu_item = _MenuItem(True)  # still shows the CURRENT state
+    monkeypatch.setattr(mainframe.wx, "CallAfter", lambda fn, *a, **kw: fn(*a, **kw))
+    host.on_toggle_rich_view()
+    assert host.config_manager.get("full_text_rich_view") is False
+    # And the check item was re-synced to the new value.
+    assert host._rich_view_menu_item.IsChecked() is False
+
+
+def test_webview_bridge_message_toggles_rich_view(monkeypatch):
+    # Ctrl+Shift+H inside the WebView arrives as a bridged '__toggle_rich'
+    # message (wx never sees the keystroke there).
+    host = _Host(rich_before=True, reading=False)
+    host._on_rich_view_message = mainframe.MainFrame._on_rich_view_message.__get__(host)
+    monkeypatch.setattr(mainframe.wx, "CallAfter", lambda fn, *a, **kw: fn(*a, **kw))
+    host._on_rich_view_message({"type": "__toggle_rich"})
+    assert host.config_manager.get("full_text_rich_view") is False
+
+
+def test_rich_view_key_bridge_script_covers_ctrl_shift_h():
+    # The JS injected into the rich reader must bridge Ctrl+Shift+H out, or the
+    # shortcut silently dies whenever focus is inside the WebView.
+    js = mainframe.MainFrame._RICH_VIEW_KEYS_JS
+    assert "__toggle_rich" in js
+    assert "KeyH" in js

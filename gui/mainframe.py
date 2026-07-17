@@ -3894,7 +3894,7 @@ class MainFrame(wx.Frame):
                 wx.CallAfter(
                     self._show_windows_notification,
                     "BlindRSS",
-                    f"{hidden} new article notification(s) were suppressed by your cap.",
+                    _("{hidden} new article notification(s) were suppressed by your cap.").format(hidden=hidden),
                 )
             # We don't need to call refresh_feeds() (full tree rebuild) if we just updated one feed.
             # The progress callback updates the tree item label.
@@ -4804,7 +4804,7 @@ class MainFrame(wx.Frame):
         article = self.current_articles[idx]
         description = self._article_description_text(article)
         if not description:
-            description = "No feed description is available for this item."
+            description = _("No feed description is available for this item.")
 
         dlg = wx.Dialog(self, title=_("Feed Description"), size=(720, 520))
 

@@ -159,7 +159,7 @@ msgstr ""
 "текст не может быть получен автоматически. Откройте исходную ссылку в вашем "
 "браузере, чтобы прочитать её."
 
-#: core/article_extractor.py:1492
+#: core/article_extractor.py:1493
 msgid ""
 "Google News could not resolve the original publisher link. Open the original "
 "link in your browser to read it."
@@ -167,43 +167,43 @@ msgstr ""
 "Google News не смог найти исходную ссылку на издателя. Откройте исходную "
 "ссылку в вашем браузере, чтобы прочитать её."
 
-#: core/article_extractor.py:2746
+#: core/article_extractor.py:2771
 msgid "(unknown)"
 msgstr "(неизвестно)"
 
-#: core/article_extractor.py:2797
+#: core/article_extractor.py:2822
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr ""
 "Не удалось извлечь полный текст с веб-страницы или из содержимого канала."
 
-#: core/article_extractor.py:2593
+#: core/article_extractor.py:2613
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr ""
 "trafilatura не установлена или её не удалось импортировать. Переустановите "
 "требуемые компоненты."
 
-#: core/article_extractor.py:2679
+#: core/article_extractor.py:2701
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr ""
 "Ошибка загрузки (сайт заблокирован, отключён или проблема с подключением)."
 
-#: core/article_extractor.py:2696
+#: core/article_extractor.py:2721
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr ""
 "Страница загружена, но не удалось извлечь удобочитаемый текст (пустой "
 "результат)."
 
-#: core/article_extractor.py:2747 gui/dialogs.py:3201
+#: core/article_extractor.py:2772 gui/dialogs.py:3201
 msgid "Title:"
 msgstr "Заголовок:"
 
-#: core/article_extractor.py:2748 gui/accessibility.py:872
+#: core/article_extractor.py:2773 gui/accessibility.py:872
 #: gui/mainframe.py:5348 gui/mainframe.py:9014
 msgid "Author:"
 msgstr "Автор:"
 
-#: core/article_extractor.py:2788
+#: core/article_extractor.py:2813
 msgid "Unknown extraction error"
 msgstr "Неизвестная ошибка извлечения"
 
@@ -321,6 +321,23 @@ msgstr "Неограничено"
 msgid "Update available."
 msgstr "Доступно обновление."
 
+#: core/updater.py:682
+msgid "Verifying download…"
+msgstr "Проверка загрузки…"
+
+#: core/updater.py:697
+msgid "Extracting update…"
+msgstr "Извлечение обновления…"
+
+#: core/updater.py:723 core/updater.py:777 core/updater.py:855
+msgid "Verifying signature…"
+msgstr "Проверка подписи…"
+
+#: core/updater.py:728 core/updater.py:782 core/updater.py:860
+#: core/updater.py:880
+msgid "Preparing restart…"
+msgstr "Подготовка к перезапуску…"
+
 #: core/updater.py:193
 msgid "No release data from GitHub."
 msgstr "На GitHub нет данных о релизе."
@@ -349,9 +366,21 @@ msgstr "В манифесте обновления отсутствует URL-а
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr "Манифест обновления имеет недопустимый хэш SHA-256."
 
+#: core/updater.py:650
+msgid "Auto-update is not available for this build."
+msgstr "Автоматическое обновление для этой сборки недоступно."
+
+#: core/updater.py:685
+msgid "Downloaded update failed SHA-256 verification."
+msgstr "Загруженное обновление не прошло проверку соответствия SHA-256."
+
 #: core/updater.py:775
 msgid "Downloaded Windows installer is missing."
 msgstr "Загруженный Windows-установщик отсутствует."
+
+#: core/updater.py:669 core/updater.py:677
+msgid "Downloading update…"
+msgstr "Загрузка обновления…"
 
 #: core/updater.py:710 core/updater.py:205
 msgid "Auto-update is not supported on this platform ({platform})."
@@ -1586,7 +1615,7 @@ msgstr "Copyright (c) 2024-2026 serrebidev и участники проекта"
 
 #: gui/dialogs.py:6440
 msgid "Follow me on GitHub (@serrebidev)"
-msgstr "Подписывайтесь на меня на GitHub (@serrebidev)"
+msgstr "Подписаться на меня на GitHub (@serrebidev)"
 
 #: gui/dialogs.py:6441
 msgid "Visit Repository"
@@ -1989,7 +2018,8 @@ msgstr "URL-адрес прокси-сервера (необязательно, 
 
 #: gui/dialogs.py:3332
 msgid "Feed encoding (blank = automatic, e.g. utf-8, windows-1251):"
-msgstr "Кодировка канала (пусто = автоматически, напр. utf-8, windows-1251):"
+msgstr ""
+"Кодировка канала (пусто = автоматически, например: utf-8, windows-1251):"
 
 #: gui/dialogs.py:3347
 msgid "Full text extraction encoding (blank = automatic):"
@@ -2004,9 +2034,9 @@ msgid ""
 "Unknown text encoding: %s. Use a Python codec name such as utf-8, "
 "windows-1251 or koi8-r, or leave the field blank for automatic detection."
 msgstr ""
-"Неизвестная кодировка текста: %s. Укажите имя кодека Python, например utf-8, "
-"windows-1251 или koi8-r, либо оставьте поле пустым для автоматического "
-"определения."
+"Неизвестная кодировка текста: %s. Укажите имя из codec Python, например, "
+"utf-8, windows-1251 или koi8-r, либо оставьте поле пустым для "
+"автоматического определения."
 
 #: gui/dialogs.py:3805
 msgid "Refreshing '{title}'..."
@@ -2223,11 +2253,12 @@ msgstr "Добавить новый RSS-канал"
 
 #: gui/mainframe.py:2079
 msgid "Detect Feeds on &Page..."
-msgstr "Найти каналы на &странице..."
+msgstr "О&бнаружить каналы на странице..."
 
 #: gui/mainframe.py:2079
 msgid "Scan a webpage for RSS, Atom, or JSON feed links"
-msgstr "Найти на веб-странице ссылки на каналы RSS, Atom или JSON"
+msgstr ""
+"Сканировать веб-страницу на наличие ссылок на каналы RSS, Atom или JSON"
 
 #: gui/mainframe.py:2080
 msgid "&Remove Feed"
@@ -2569,6 +2600,10 @@ msgstr "Открыть статью"
 msgid "Open in Default Browser"
 msgstr "Открыть в браузере по умолчанию"
 
+#: gui/mainframe.py:4807
+msgid "No feed description is available for this item."
+msgstr "Описание канала для этого элемента недоступно."
+
 #: gui/mainframe.py:5484
 msgid "Scanning for audio... This may take a few seconds."
 msgstr "Поиск аудио... Это может занять несколько секунд."
@@ -2615,11 +2650,11 @@ msgstr "Отметить все элементы во всех каналах к
 
 #: gui/mainframe.py:11770
 msgid "Enter the address of a webpage to scan for feeds:"
-msgstr "Введите адрес веб-страницы для поиска каналов:"
+msgstr "Введите адрес веб-страницы для сканирования на предмет каналов:"
 
 #: gui/mainframe.py:11771 gui/mainframe.py:11806 gui/mainframe.py:11791
 msgid "Detect Feeds on Page"
-msgstr "Найти каналы на странице"
+msgstr "Обнаружение каналов на странице"
 
 #: gui/mainframe.py:11821
 msgid "Select a feed to subscribe to:"
@@ -2627,7 +2662,7 @@ msgstr "Выберите канал для подписки:"
 
 #: gui/mainframe.py:11822
 msgid "Detected Feeds"
-msgstr "Найденные каналы"
+msgstr "Обнаруженные каналы"
 
 #: gui/mainframe.py:12206
 msgid "Import OPML"
@@ -3023,7 +3058,7 @@ msgstr "Загрузка отключена"
 
 #: gui/mainframe.py:11805
 msgid "No feeds detected on this page."
-msgstr "На этой странице каналы не найдены."
+msgstr "На этой странице каналы не обнаружены."
 
 #: gui/mainframe.py:11959
 msgid "Failed to add feed."
@@ -3691,6 +3726,10 @@ msgstr "Воспроизводится  {position} из {total}: {title}"
 #: gui/mainframe.py:2887
 msgid "Playing {position} of {total}"
 msgstr "Воспроизводится {position} из {total}"
+
+#: gui/mainframe.py:3897
+msgid "{hidden} new article notification(s) were suppressed by your cap."
+msgstr "{hidden} уведомлений о новых статьях были скрыты вашим ограничением."
 
 #: gui/mainframe.py:4195
 msgid "Mark all items in \"{feed}\" as read?"

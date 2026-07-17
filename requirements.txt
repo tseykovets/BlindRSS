@@ -20,9 +20,10 @@ trafilatura>=2.1.0
 # author/tags/section enrichment used by Filter Rules categorization.
 extruct
 webrtcvad-wheels
-# Pin setuptools to avoid pkg_resources deprecation warnings until upstream drops pkg_resources.
-setuptools<81
-pytest
+# Security floor (pip-audit 2026-07-17): setuptools <83 carries PYSEC-2026-3447.
+# The old <81 pin only silenced pkg_resources deprecation warnings; security wins.
+setuptools>=83
+pytest>=9.0.3
 pyinstaller
 packaging
 brotli
@@ -30,3 +31,19 @@ brotli
 curl_cffi
 html5lib
 lxml
+
+# --- Security floors (pip-audit, 2026-07-17) ---------------------------------
+# Mostly transitive dependencies; the floors force pip to take the patched
+# releases. Re-run `python -m pip_audit --local` in the build venv after
+# changing any of these.
+requests>=2.33.0
+urllib3>=2.7.0
+idna>=3.15
+aiohttp>=3.14.1
+cryptography>=48.0.1
+zeroconf>=0.149.16
+protobuf>=6.33.5
+soupsieve>=2.8.4
+pygments>=2.20.0
+tinytag>=2.2.1
+lxml-html-clean>=0.4.5

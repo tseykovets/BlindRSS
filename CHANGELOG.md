@@ -4,6 +4,12 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.109.2 - 2026-07-17
+
+- Complete gettext catalog coverage.
+- Merge PR #77: Add gettext support to new strings and update Russian translation (@tseykovets).
+- Add gettext support to new strings and update Russian translation.
+
 ## v1.109.1 - 2026-07-17
 
 - Classic full-text view no longer drops short headings.

@@ -1362,8 +1362,9 @@ class _FetchResult:
 
 
 # Read-proxy markdown keeps navigation as long "[label](very-long-url)" lines that survive the
-# short-line paragraph filter in _merge_texts. Inlining link/image syntax reduces nav entries to
-# their short labels, which the existing filters then drop, leaving the article sentences.
+# short-line paragraph filter _merge_texts applies to proxy renderings (drop_short_paragraphs).
+# Inlining link/image syntax reduces nav entries to their short labels, which that filter then
+# drops, leaving the article sentences.
 _MD_IMAGE_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 _MD_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 _MD_BULLET_RE = re.compile(r"(?m)^\s*[*+-]\s+")
@@ -2515,8 +2516,20 @@ def _find_next_page(html: str, base_url: str) -> Optional[str]:
     return None
 
 
-def _merge_texts(texts: List[str]) -> str:
-    """Merge multiple page texts while de-duplicating repeated blocks."""
+def _merge_texts(texts: List[str], *, drop_short_paragraphs: bool = False) -> str:
+    """Merge multiple page texts while de-duplicating repeated blocks.
+
+    ``drop_short_paragraphs`` enables the sub-25-char paragraph filter and is
+    ONLY for read-proxy markdown renderings, which bypass _extract_text_any and
+    keep site chrome as short label lines. HTML-extracted text must never use
+    it: trafilatura already stripped boilerplate there, and real articles have
+    legitimately short standalone lines — plain (unmarked) headings like
+    "Sofascore", one-word paragraphs, "Pros"/"Cons" labels — that the filter
+    was silently eating from the classic full-text view.
+
+    Short lines also stay out of the dedupe set: review roundups repeat short
+    headings ("Pros", "Cons") once per product, and those repeats are content.
+    """
     seen: Set[str] = set()
     out: List[str] = []
 
@@ -2559,7 +2572,14 @@ def _merge_texts(texts: List[str]) -> str:
                 i += 1
                 continue
             key = re.sub(r"\s+", " ", p).strip().lower()
-            if len(key) < 25 or key in seen:
+            if len(key) < 25:
+                if drop_short_paragraphs:
+                    i += 1
+                    continue
+                merged_paras.append(p)
+                i += 1
+                continue
+            if key in seen:
                 i += 1
                 continue
             seen.add(key)
@@ -2627,6 +2647,7 @@ def extract_full_article(
 
     downloaded_any = False
     blocked = False
+    used_proxy_text = False
 
     for _ in range(max_pages):
         if not current or current in visited:
@@ -2637,6 +2658,7 @@ def extract_full_article(
             page_texts.append(prefetched_text)
             prefetched_text = None
             downloaded_any = True
+            used_proxy_text = True
             break
 
         # Pass the override only when set: keeps compatibility with test
@@ -2678,7 +2700,10 @@ def extract_full_article(
             raise ExtractionError(_blocked_interstitial_message())
         raise ExtractionError(_("Download failed (site blocked, offline, or connection problem)."))
 
-    merged = _merge_texts(page_texts)
+    # Short-paragraph dropping is proxy-markdown-only: on HTML-extracted text it
+    # ate real content (plain short headings and their standalone lines) from the
+    # classic full-text view — e.g. Android Authority's "Sofascore" h3.
+    merged = _merge_texts(page_texts, drop_short_paragraphs=used_proxy_text)
     merged = _postprocess_extracted_text(merged, extraction_url)
     # Guard against gate text that slipped through extraction (e.g. a short verification body).
     if merged and len(merged) < _BOT_INTERSTITIAL_MAX_BODY_LEN and _looks_like_bot_interstitial(merged):

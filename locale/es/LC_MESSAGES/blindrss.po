@@ -43,12 +43,13 @@ msgstr "Anunciar cuando se detiene una actualización de fuentes (Shift+F5)."
 
 #: core/announcements.py:143
 msgid "Favorites change"
-msgstr ""
+msgstr "Cambio de favoritos"
 
 #: core/announcements.py:144
 msgid ""
 "Announce when an article is added to or removed from favorites (Ctrl+D)."
 msgstr ""
+"Anunciar cuando un artículo se agrega o se quita de favoritos (Ctrl+D)."
 
 #: core/announcements.py:145
 msgid "Playback speed change"
@@ -57,7 +58,8 @@ msgstr "Cambio de velocidad de reproducción"
 #: core/announcements.py:146
 msgid "Announce the current playback speed when it is changed by keyboard."
 msgstr ""
-"Anunciar la velocidad de reproducción actual cuando se cambia con el teclado."
+"Anunciar la velocidad de reproducción actual cuando se cambia con el "
+"teclado."
 
 #: core/announcements.py:147
 msgid "Media and chapter navigation"
@@ -126,6 +128,10 @@ msgid ""
 "or a \"you're not a robot\" page), so the full text can't be fetched "
 "automatically. Open the original link in your browser to read it."
 msgstr ""
+"Esta página está detrás de una verificación anti-bot / de humanidad (p. ej.,"
+" Cloudflare o una página de \"no soy un robot\"), por lo que el texto "
+"completo no se puede obtener automáticamente. Abra el enlace original en su "
+"navegador para leerla."
 
 #: core/article_extractor.py:165
 msgid ""
@@ -133,6 +139,9 @@ msgid ""
 "links were found (common for video-only pages). Open the original link in "
 "your browser to view it."
 msgstr ""
+"La página no tiene texto de artículo legible: solo se encontraron enlaces de"
+" navegación o de noticias relacionadas (habitual en páginas de solo vídeo). "
+"Abra el enlace original en su navegador para verla."
 
 #: core/article_extractor.py:228
 msgid ""
@@ -140,46 +149,58 @@ msgid ""
 "can't be fetched automatically. Open the original link in your browser to "
 "read it."
 msgstr ""
+"Este artículo está detrás de un muro de pago (se requiere suscripción), por "
+"lo que el texto completo no se puede obtener automáticamente. Abra el enlace"
+" original en su navegador para leerlo."
 
-#: core/article_extractor.py:1492
+#: core/article_extractor.py:1493
 msgid ""
-"Google News could not resolve the original publisher link. Open the original "
-"link in your browser to read it."
+"Google News could not resolve the original publisher link. Open the original"
+" link in your browser to read it."
 msgstr ""
+"Google News no pudo resolver el enlace original del editor. Abra el enlace "
+"original en su navegador para leerlo."
 
-#: core/article_extractor.py:2746
+#: core/article_extractor.py:2771
 msgid "(unknown)"
 msgstr "(desconocido)"
 
-#: core/article_extractor.py:2797
+#: core/article_extractor.py:2822
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr ""
+"No se pudo extraer el texto completo de la página web ni del contenido de la"
+" fuente."
 
-#: core/article_extractor.py:2593
+#: core/article_extractor.py:2613
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr ""
+"trafilatura no está instalada o no se pudo importar. Reinstale los "
+"requisitos."
 
-#: core/article_extractor.py:2679
+#: core/article_extractor.py:2701
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr ""
+"Error de descarga (sitio bloqueado, sin conexión o problema de conexión)."
 
-#: core/article_extractor.py:2696
+#: core/article_extractor.py:2721
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr ""
+"Se descargó la página, pero no se pudo extraer texto legible (resultado "
+"vacío)."
 
-#: core/article_extractor.py:2747 gui/dialogs.py:3201
+#: core/article_extractor.py:2772 gui/dialogs.py:3201
 msgid "Title:"
 msgstr "Título:"
 
-#: core/article_extractor.py:2748 gui/accessibility.py:872
+#: core/article_extractor.py:2773 gui/accessibility.py:872
 #: gui/mainframe.py:5348 gui/mainframe.py:9014
 msgid "Author:"
 msgstr "Autor:"
 
-#: core/article_extractor.py:2788
+#: core/article_extractor.py:2813
 msgid "Unknown extraction error"
-msgstr ""
+msgstr "Error de extracción desconocido"
 
 #: core/categories.py:20 core/categories.py:38 core/categories.py:57
 msgid "Uncategorized"
@@ -188,8 +209,8 @@ msgstr "Sin categoría"
 #: core/config.py:721
 msgid "Installed Windows builds store data in the User Data Folder."
 msgstr ""
-"Las compilaciones instaladas de Windows almacenan los datos en la carpeta de "
-"datos del usuario."
+"Las compilaciones instaladas de Windows almacenan los datos en la carpeta de"
+" datos del usuario."
 
 #: core/config.py:723
 msgid "No change."
@@ -296,6 +317,27 @@ msgstr "Ilimitado"
 msgid "Update available."
 msgstr "Actualización disponible."
 
+#: core/updater.py:439
+msgid "Authenticode verification failed: PowerShell was not found."
+msgstr "Error en la verificación de Authenticode: no se encontró PowerShell."
+
+#: core/updater.py:681
+msgid "Verifying download…"
+msgstr "Verificando la descarga…"
+
+#: core/updater.py:696
+msgid "Extracting update…"
+msgstr "Extrayendo la actualización…"
+
+#: core/updater.py:722 core/updater.py:776 core/updater.py:854
+msgid "Verifying signature…"
+msgstr "Verificando la firma…"
+
+#: core/updater.py:727 core/updater.py:781 core/updater.py:859
+#: core/updater.py:879
+msgid "Preparing restart…"
+msgstr "Preparando el reinicio…"
+
 #: core/updater.py:193
 msgid "No release data from GitHub."
 msgstr "No se recibieron datos de la versión desde GitHub."
@@ -311,7 +353,8 @@ msgstr "El manifiesto de actualización tiene una versión no válida."
 #: core/updater.py:224
 msgid "Update manifest version does not match the latest release."
 msgstr ""
-"La versión del manifiesto de actualización no coincide con la última versión."
+"La versión del manifiesto de actualización no coincide con la última "
+"versión."
 
 #: core/updater.py:228
 msgid "Update manifest is missing asset name."
@@ -325,17 +368,46 @@ msgstr "Al manifiesto de actualización le falta una URL de descarga."
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr "El manifiesto de actualización tiene un hash SHA-256 no válido."
 
-#: core/updater.py:775
+#: core/updater.py:649
+msgid "Auto-update is not available for this build."
+msgstr ""
+"Las actualizaciones automáticas no están disponibles para esta compilación."
+
+#: core/updater.py:684
+msgid "Downloaded update failed SHA-256 verification."
+msgstr "La actualización descargada no superó la verificación SHA-256."
+
+#: core/updater.py:774
 msgid "Downloaded Windows installer is missing."
 msgstr "Falta el instalador de Windows descargado."
 
-#: core/updater.py:710 core/updater.py:205
+#: core/updater.py:842
+msgid "Could not locate the running .app bundle to update."
+msgstr "No se pudo localizar el paquete .app en ejecución para actualizar."
+
+#: core/updater.py:850
+msgid "Update package does not contain a BlindRSS.app bundle."
+msgstr "El paquete de actualización no contiene un paquete BlindRSS.app."
+
+#: core/updater.py:852
+msgid "Update package .app is missing its executable."
+msgstr "Al paquete .app de la actualización le falta su ejecutable."
+
+#: core/updater.py:877
+msgid "Update package is missing the BlindRSS executable."
+msgstr "Al paquete de actualización le falta el ejecutable de BlindRSS."
+
+#: core/updater.py:668 core/updater.py:676
+msgid "Downloading update…"
+msgstr "Descargando la actualización…"
+
+#: core/updater.py:709 core/updater.py:205
 msgid "Auto-update is not supported on this platform ({platform})."
 msgstr ""
 "Las actualizaciones automáticas no son compatibles con esta plataforma "
 "({platform})."
 
-#: core/updater.py:837
+#: core/updater.py:836
 msgid "Update signature verification failed: {error}"
 msgstr "Error al verificar la firma de la actualización: {error}"
 
@@ -391,15 +463,15 @@ msgstr "Al instalador de actualización le falta una URL de descarga."
 msgid "Authenticode verification failed: {error}"
 msgstr "Error en la verificación de Authenticode: {error}"
 
-#: core/updater.py:716 core/updater.py:773 core/updater.py:874
+#: core/updater.py:715 core/updater.py:772 core/updater.py:873
 msgid "{name} is missing from the install directory."
 msgstr "Falta {name} en el directorio de instalación."
 
-#: core/updater.py:721
+#: core/updater.py:720
 msgid "Update package is missing {name}."
 msgstr "Al paquete de actualización le falta {name}."
 
-#: core/updater.py:847
+#: core/updater.py:846
 msgid "{name} is missing from the app bundle."
 msgstr "Falta {name} en el paquete de la aplicación."
 
@@ -419,23 +491,23 @@ msgstr "No se pudieron descargar los metadatos de la actualización: {error}"
 msgid "Unsupported update archive type: {type}"
 msgstr "Tipo de archivo de actualización no compatible: {type}"
 
-#: core/updater.py:530 core/updater.py:938
+#: core/updater.py:529 core/updater.py:937
 msgid "Failed to start update helper: {error}"
 msgstr "No se pudo iniciar el asistente de actualización: {error}"
 
-#: core/updater.py:680
+#: core/updater.py:679
 msgid "Failed to download update: {error}"
 msgstr "No se pudo descargar la actualización: {error}"
 
-#: core/updater.py:701
+#: core/updater.py:700
 msgid "Failed to extract update: {error}"
 msgstr "No se pudo extraer la actualización: {error}"
 
 #: core/updater.py:265
 msgid "Update installer '{name}' not found in release assets."
 msgstr ""
-"No se encontró el instalador de actualización «{name}» en los recursos de la "
-"versión."
+"No se encontró el instalador de actualización «{name}» en los recursos de la"
+" versión."
 
 #: core/updater.py:426
 msgid "Update is signed but not by a trusted certificate{suffix}"
@@ -586,8 +658,8 @@ msgstr "Vistas"
 
 #: gui/accessibility.py:438
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
-"to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
+" to expand and Left Arrow to collapse."
 msgstr ""
 "Las categorías se pueden expandir o contraer. Use los botones, o la flecha "
 "derecha para expandir y la flecha izquierda para contraer."
@@ -655,8 +727,7 @@ msgid ""
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Elija dónde agregar los accesos directos de BlindRSS.\n"
-"El anclaje a la barra de tareas puede estar limitado por su versión o "
-"directivas de Windows."
+"El anclaje a la barra de tareas puede estar limitado por su versión o directivas de Windows."
 
 #: gui/dialogs.py:2303
 msgid "BlindRSS notification test"
@@ -668,7 +739,7 @@ msgstr "Si puede leer esto, las notificaciones funcionan correctamente."
 
 #: gui/dialogs.py:93
 msgid "Article list columns"
-msgstr ""
+msgstr "Columnas de la lista de artículos"
 
 #: gui/dialogs.py:198
 msgid "https://example.com/feed or a YouTube/podcast URL"
@@ -857,11 +928,12 @@ msgstr "Notificaciones"
 
 #: gui/dialogs.py:1635 gui/dialogs.py:1634
 msgid "Test Announcement"
-msgstr ""
+msgstr "Anuncio de prueba"
 
 #: gui/dialogs.py:1637
 msgid "Send a test announcement to your screen reader via speech and Braille."
 msgstr ""
+"Enviar un anuncio de prueba a su lector de pantalla mediante voz y braille."
 
 #: gui/dialogs.py:1643 gui/dialogs.py:2377
 msgid "Announcements"
@@ -873,7 +945,7 @@ msgstr "Traducir"
 
 #: gui/dialogs.py:2004 gui/dialogs.py:3409
 msgid "List Headers"
-msgstr ""
+msgstr "Encabezados de lista"
 
 #: gui/dialogs.py:2024
 msgid "User Data Folder"
@@ -891,10 +963,11 @@ msgstr "Avanzado"
 msgid ""
 "The announcement could not be delivered.\n"
 "\n"
-"No screen reader output was available. Check that your screen reader is "
-"running, and that the accessible-output2 library is installed for full "
-"speech and Braille support."
+"No screen reader output was available. Check that your screen reader is running, and that the accessible-output2 library is installed for full speech and Braille support."
 msgstr ""
+"No se pudo entregar el anuncio.\n"
+"\n"
+"No había salida de lector de pantalla disponible. Compruebe que su lector de pantalla esté en ejecución y que la biblioteca accessible-output2 esté instalada para una compatibilidad completa con voz y braille."
 
 #: gui/dialogs.py:2759
 msgid "Choose yt-dlp cookies.txt"
@@ -1060,7 +1133,7 @@ msgstr "Guardar preajuste"
 
 #: gui/dialogs.py:83
 msgid "Use the global column layout"
-msgstr ""
+msgstr "Usar la disposición global de columnas"
 
 #: gui/dialogs.py:102 gui/dialogs.py:6508 gui/mainframe.py:13303
 msgid "Move &Up"
@@ -1181,12 +1254,12 @@ msgstr "Actualizar fuentes automáticamente al iniciar"
 
 #: gui/dialogs.py:973
 msgid ""
-"Article formatting: preserve structure from the original page as spoken text "
-"markers. Applies to newly loaded articles and full text."
+"Article formatting: preserve structure from the original page as spoken text"
+" markers. Applies to newly loaded articles and full text."
 msgstr ""
 "Formato del artículo: conservar la estructura de la página original como "
-"marcadores de texto hablados. Se aplica a los artículos recién cargados y al "
-"texto completo."
+"marcadores de texto hablados. Se aplica a los artículos recién cargados y al"
+" texto completo."
 
 #: gui/dialogs.py:981
 msgid "Describe tables (\"Table with 3 rows...\" and one line per row)"
@@ -1229,22 +1302,22 @@ msgstr ""
 
 #: gui/dialogs.py:1028
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
-"or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
+" or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
-"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
-"Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
+" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
+"Edge Canary."
 msgstr ""
 "Archivo de cookies para yt-dlp (cookies.txt); solo es necesario para "
 "contenido de YouTube restringido por edad, privado o exclusivo para "
 "miembros. Los navegadores instalados se detectan automáticamente; se "
-"recomienda Firefox. Chrome, Edge y Brave pueden fallar en Windows porque sus "
-"cookies pueden cifrarse de una forma que yt-dlp no puede leer, por lo que un "
-"cookies.txt es la alternativa confiable. LibreWolf usa cookies compatibles "
-"con Firefox. \"Nightly\" en Chrome significa Chrome Canary; \"Nightly\" en "
-"Edge significa Edge Canary."
+"recomienda Firefox. Chrome, Edge y Brave pueden fallar en Windows porque sus"
+" cookies pueden cifrarse de una forma que yt-dlp no puede leer, por lo que "
+"un cookies.txt es la alternativa confiable. LibreWolf usa cookies "
+"compatibles con Firefox. \"Nightly\" en Chrome significa Chrome Canary; "
+"\"Nightly\" en Edge significa Edge Canary."
 
 #: gui/dialogs.py:1047
 msgid "Import from browser..."
@@ -1343,16 +1416,16 @@ msgid ""
 "Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select "
 "'Groq (LLaMA, Mistral)' instead."
 msgstr ""
-"Grok es de xAI. Obtenga una clave en console.x.ai. Para Groq (LLaMA/"
-"Mistral), seleccione en su lugar 'Groq (LLaMA, Mistral)'."
+"Grok es de xAI. Obtenga una clave en console.x.ai. Para Groq "
+"(LLaMA/Mistral), seleccione en su lugar 'Groq (LLaMA, Mistral)'."
 
 #: gui/dialogs.py:1807
 msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
 msgstr ""
-"Groq NO es Grok. Obtenga una clave gratuita de Groq en console.groq.com/keys "
-"(ejecuta modelos LLaMA y Mistral)."
+"Groq NO es Grok. Obtenga una clave gratuita de Groq en console.groq.com/keys"
+" (ejecuta modelos LLaMA y Mistral)."
 
 #: gui/dialogs.py:1893
 msgid "Load OpenRouter Models"
@@ -1374,10 +1447,8 @@ msgid ""
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Dónde guarda BlindRSS los archivos config.json y rss.db.\n"
-"La carpeta de datos de usuario conserva su configuración y fuentes entre "
-"actualizaciones de la aplicación,\n"
-"especialmente en macOS, donde se reemplaza el paquete de la aplicación "
-"instalada."
+"La carpeta de datos de usuario conserva su configuración y fuentes entre actualizaciones de la aplicación,\n"
+"especialmente en macOS, donde se reemplaza el paquete de la aplicación instalada."
 
 #: gui/dialogs.py:2062 gui/mainframe.py:12801 gui/mainframe.py:12769
 msgid "Updates"
@@ -1484,14 +1555,11 @@ msgstr "&Quitar fuente"
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead "
-"URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Ningún feed informó errores durante su último intento de actualización.\n"
 "\n"
-"Los feeds aparecen aquí automáticamente cuando una actualización falla (por "
-"ejemplo, una URL muerta, un error HTTP, un tiempo de espera agotado o un "
-"formato de feed no válido)."
+"Los feeds aparecen aquí automáticamente cuando una actualización falla (por ejemplo, una URL muerta, un error HTTP, un tiempo de espera agotado o un formato de feed no válido)."
 
 #: gui/dialogs.py:3846
 msgid "Editing feed properties is not available here."
@@ -1657,19 +1725,21 @@ msgstr "Eliminar preajuste"
 
 #: gui/dialogs.py:82
 msgid "&Use the global column layout"
-msgstr ""
+msgstr "&Usar la disposición global de columnas"
 
 #: gui/dialogs.py:89
 msgid "Columns (checked = shown). Use Move up / Move down to reorder:"
 msgstr ""
+"Columnas (marcada = mostrada). Use \"Mover hacia arriba\" / \"Mover hacia "
+"abajo\" para reordenar:"
 
 #: gui/dialogs.py:114
 msgid "Title is always the first column and cannot be hidden."
-msgstr ""
+msgstr "El título es siempre la primera columna y no se puede ocultar."
 
 #: gui/dialogs.py:125
 msgid "{column} (always first)"
-msgstr ""
+msgstr "{column} (siempre en primer lugar)"
 
 #: gui/dialogs.py:195
 msgid "Feed or Media URL:"
@@ -1787,16 +1857,12 @@ msgstr "Proveedor activo:"
 
 #: gui/dialogs.py:1419
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
-"fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address "
-"bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
 "when prompted."
 msgstr ""
-"Nota: si su URI de redirección usa HTTPS (común/obligatorio), es posible que "
-"su navegador no pueda cargar\n"
-"localhost después de la autorización. Copie la URL completa redirigida desde "
-"la barra de direcciones y péguela\n"
+"Nota: si su URI de redirección usa HTTPS (común/obligatorio), es posible que su navegador no pueda cargar\n"
+"localhost después de la autorización. Copie la URL completa redirigida desde la barra de direcciones y péguela\n"
 "cuando se le solicite."
 
 #: gui/dialogs.py:1431
@@ -1878,13 +1944,10 @@ msgstr "Ubicación de almacenamiento:"
 #: gui/dialogs.py:2087
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to "
-"search them."
+"When on, adult sites are added and must still be selected explicitly to search them."
 msgstr ""
-"Cuando está desactivado, los sitios para adultos nunca aparecen en la lista "
-"de sitios de la búsqueda de vídeos.\n"
-"Cuando está activado, los sitios para adultos se agregan y aun así deben "
-"seleccionarse explícitamente para buscarlos."
+"Cuando está desactivado, los sitios para adultos nunca aparecen en la lista de sitios de la búsqueda de vídeos.\n"
+"Cuando está activado, los sitios para adultos se agregan y aun así deben seleccionarse explícitamente para buscarlos."
 
 #: gui/dialogs.py:2470
 msgid "Inoreader Authorization"
@@ -1973,8 +2036,8 @@ msgid ""
 "Unknown text encoding: %s. Use a Python codec name such as utf-8, "
 "windows-1251 or koi8-r, or leave the field blank for automatic detection."
 msgstr ""
-"Codificación de texto desconocida: %s. Use un nombre de códec de Python como "
-"utf-8, windows-1251 o koi8-r, o deje el campo vacío para la detección "
+"Codificación de texto desconocida: %s. Use un nombre de códec de Python como"
+" utf-8, windows-1251 o koi8-r, o deje el campo vacío para la detección "
 "automática."
 
 #: gui/dialogs.py:3805
@@ -1992,8 +2055,9 @@ msgstr "Fuente:"
 #: gui/dialogs.py:3991
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/"
-"Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source."
+"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit "
+"source."
 msgstr ""
 "Fuentes: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
 "Google News, Bing News, Feedsearch, análisis de sitios web, Reddit, "
@@ -2061,6 +2125,8 @@ msgid ""
 "BlindRSS announcement test. If you can hear or read this, announcements are "
 "working."
 msgstr ""
+"Prueba de anuncios de BlindRSS. Si puede oír o leer esto, los anuncios "
+"funcionan."
 
 #: gui/dialogs.py:2761 gui/dialogs.py:2879
 msgid "Cookies"
@@ -2298,6 +2364,8 @@ msgstr "Mostrar u ocultar el campo de búsqueda"
 #: gui/mainframe.py:2120
 msgid "Switch the reader between plain full text and the rich HTML view"
 msgstr ""
+"Cambiar el lector entre el texto completo sin formato y la vista HTML "
+"enriquecida"
 
 #: gui/mainframe.py:2161
 msgid "Article &Filter"
@@ -2535,6 +2603,10 @@ msgstr "Abrir artículo"
 msgid "Open in Default Browser"
 msgstr "Abrir en el navegador predeterminado"
 
+#: gui/mainframe.py:4807
+msgid "No feed description is available for this item."
+msgstr "No hay descripción de la fuente disponible para este elemento."
+
 #: gui/mainframe.py:5484
 msgid "Scanning for audio... This may take a few seconds."
 msgstr "Buscando audio... Esto puede tardar unos segundos."
@@ -2665,7 +2737,7 @@ msgstr "Seleccionar &todo"
 
 #: gui/mainframe.py:2119
 msgid "&Rich Full-Text View"
-msgstr ""
+msgstr "Vista &enriquecida de texto completo"
 
 #: gui/mainframe.py:2135
 msgid "&All Articles"
@@ -2915,8 +2987,8 @@ msgstr[1] "{n} artículos"
 
 #: gui/mainframe.py:6359
 msgid ""
-"Delete {subject}? Deleted articles can be restored from the Deleted Articles "
-"view."
+"Delete {subject}? Deleted articles can be restored from the Deleted Articles"
+" view."
 msgstr ""
 "¿Eliminar {subject}? Los artículos eliminados se pueden recuperar desde la "
 "vista Artículos eliminados."
@@ -2931,11 +3003,11 @@ msgstr "¿Eliminar permanentemente este artículo? No se podrá recuperar."
 
 #: gui/mainframe.py:6608
 msgid "Added to favorites"
-msgstr ""
+msgstr "Agregado a favoritos"
 
 #: gui/mainframe.py:6608
 msgid "Removed from favorites"
-msgstr ""
+msgstr "Quitado de favoritos"
 
 #: gui/mainframe.py:6629 gui/mainframe.py:6646
 msgid "Could not rename category."
@@ -3001,8 +3073,7 @@ msgid ""
 "The title and category will be updated, but the URL will stay the same."
 msgstr ""
 "Este proveedor no admite el cambio de la URL de la fuente.\n"
-"Se actualizarán el título y la categoría, pero la URL seguirá siendo la "
-"misma."
+"Se actualizarán el título y la categoría, pero la URL seguirá siendo la misma."
 
 #: gui/mainframe.py:12119
 msgid "Feed URL not supported"
@@ -3043,8 +3114,7 @@ msgid ""
 "Auto-update is only available in the packaged app build.\n"
 "Download the latest release from GitHub."
 msgstr ""
-"La actualización automática solo está disponible en la compilación "
-"empaquetada de la aplicación.\n"
+"La actualización automática solo está disponible en la compilación empaquetada de la aplicación.\n"
 "Descargue la última versión desde GitHub."
 
 #: gui/mainframe.py:12866
@@ -3094,8 +3164,8 @@ msgstr "Regla &habilitada"
 
 #: gui/mainframe.py:13259
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip "
-"notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip"
+" notification)."
 msgstr ""
 "Elija al menos una acción para esta regla (mover, etiquetar, marcar, "
 "eliminar u omitir notificación)."
@@ -3383,13 +3453,11 @@ msgstr ""
 
 #: gui/mainframe.py:449
 msgid ""
-"Would you like to install them automatically (via winget/Ninite) and add "
-"them to PATH?\n"
+"Would you like to install them automatically (via winget/Ninite) and add them to PATH?\n"
 "\n"
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
-"¿Desea instalarlas automáticamente (mediante winget/Ninite) y añadirlas a "
-"PATH?\n"
+"¿Desea instalarlas automáticamente (mediante winget/Ninite) y añadirlas a PATH?\n"
 "\n"
 "Consejo: puede desactivar este aviso en Configuración > YouTube."
 
@@ -3600,8 +3668,7 @@ msgid "Storage Location Changed"
 msgstr "Ubicación de almacenamiento modificada"
 
 #: gui/mainframe.py:13411
-msgid ""
-"Delete filter rule \"{name}\"? Articles it already filed are not changed."
+msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
 "¿Eliminar la regla de filtro \"{name}\"? Los artículos que ya archivó no se "
 "modifican."
@@ -3655,6 +3722,12 @@ msgstr "Reproduciendo {position} de {total}: {title}"
 #: gui/mainframe.py:2887
 msgid "Playing {position} of {total}"
 msgstr "Reproduciendo {position} de {total}"
+
+#: gui/mainframe.py:3897
+msgid "{hidden} new article notification(s) were suppressed by your cap."
+msgstr ""
+"{hidden} notificación(es) de artículos nuevos fueron suprimidas por su "
+"límite."
 
 #: gui/mainframe.py:4195
 msgid "Mark all items in \"{feed}\" as read?"
@@ -3722,15 +3795,13 @@ msgid ""
 "\n"
 "{err}\n"
 "\n"
-"Opening in the default browser instead. You can change this in Settings > "
-"General > Article opening method."
+"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
 msgstr ""
 "No se pudo abrir el artículo con su comando personalizado:\n"
 "\n"
 "{err}\n"
 "\n"
-"Se abrirá en el navegador predeterminado. Puede cambiar esto en "
-"Configuración > General > Método de apertura de artículos."
+"Se abrirá en el navegador predeterminado. Puede cambiar esto en Configuración > General > Método de apertura de artículos."
 
 #: gui/mainframe.py:11589
 msgid "Download failed: {error}"
@@ -3776,8 +3847,7 @@ msgstr "Capítulo actual, {label}"
 
 #: gui/mainframe.py:4163
 msgid "Mark all items in category \"{category}\" as read?"
-msgstr ""
-"¿Marcar como leídos todos los elementos de la categoría \"{category}\"?"
+msgstr "¿Marcar como leídos todos los elementos de la categoría \"{category}\"?"
 
 #: gui/mainframe.py:4594
 msgid "Add {count} to Play Queue"
@@ -3803,8 +3873,8 @@ msgstr ""
 #: gui/mainframe.py:10224
 msgid "No webpage URL for this item. Showing feed content."
 msgstr ""
-"No hay una URL de página web para este elemento. Se muestra el contenido del "
-"canal."
+"No hay una URL de página web para este elemento. Se muestra el contenido del"
+" canal."
 
 #: gui/mainframe.py:10226
 msgid "Full-text extraction failed. Showing feed content."

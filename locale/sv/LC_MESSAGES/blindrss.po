@@ -43,12 +43,13 @@ msgstr "Meddela när en flödesuppdatering stoppas (Shift+F5)."
 
 #: core/announcements.py:143
 msgid "Favorites change"
-msgstr ""
+msgstr "Ändring av favoriter"
 
 #: core/announcements.py:144
 msgid ""
 "Announce when an article is added to or removed from favorites (Ctrl+D)."
 msgstr ""
+"Meddela när en artikel läggs till i eller tas bort från favoriter (Ctrl+D)."
 
 #: core/announcements.py:145
 msgid "Playback speed change"
@@ -126,6 +127,9 @@ msgid ""
 "or a \"you're not a robot\" page), so the full text can't be fetched "
 "automatically. Open the original link in your browser to read it."
 msgstr ""
+"Den här sidan skyddas av en anti-bot-/människoverifiering (t.ex. Cloudflare "
+"eller en \"jag är ingen robot\"-sida), så hela texten kan inte hämtas "
+"automatiskt. Öppna originallänken i din webbläsare för att läsa den."
 
 #: core/article_extractor.py:165
 msgid ""
@@ -133,6 +137,9 @@ msgid ""
 "links were found (common for video-only pages). Open the original link in "
 "your browser to view it."
 msgstr ""
+"Sidan har ingen läsbar artikeltext — endast navigeringslänkar eller länkar "
+"till relaterade artiklar hittades (vanligt för sidor med enbart video). "
+"Öppna originallänken i din webbläsare för att visa den."
 
 #: core/article_extractor.py:228
 msgid ""
@@ -140,46 +147,58 @@ msgid ""
 "can't be fetched automatically. Open the original link in your browser to "
 "read it."
 msgstr ""
+"Den här artikeln ligger bakom en betalvägg (prenumeration krävs), så hela "
+"texten kan inte hämtas automatiskt. Öppna originallänken i din webbläsare "
+"för att läsa den."
 
-#: core/article_extractor.py:1492
+#: core/article_extractor.py:1493
 msgid ""
-"Google News could not resolve the original publisher link. Open the original "
-"link in your browser to read it."
+"Google News could not resolve the original publisher link. Open the original"
+" link in your browser to read it."
 msgstr ""
+"Google News kunde inte hitta den ursprungliga utgivarlänken. Öppna "
+"originallänken i din webbläsare för att läsa den."
 
-#: core/article_extractor.py:2746
+#: core/article_extractor.py:2771
 msgid "(unknown)"
 msgstr "(okänd)"
 
-#: core/article_extractor.py:2797
+#: core/article_extractor.py:2822
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr ""
+"Det gick inte att extrahera hela texten från webbsidan eller från "
+"flödesinnehållet."
 
-#: core/article_extractor.py:2593
+#: core/article_extractor.py:2613
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr ""
+"trafilatura är inte installerat eller kunde inte importeras. Installera om "
+"beroendena."
 
-#: core/article_extractor.py:2679
+#: core/article_extractor.py:2701
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr ""
+"Hämtningen misslyckades (webbplatsen blockerad, offline eller "
+"anslutningsproblem)."
 
-#: core/article_extractor.py:2696
+#: core/article_extractor.py:2721
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr ""
+"Sidan hämtades, men ingen läsbar text kunde extraheras (tomt resultat)."
 
-#: core/article_extractor.py:2747 gui/dialogs.py:3201
+#: core/article_extractor.py:2772 gui/dialogs.py:3201
 msgid "Title:"
 msgstr "Titel:"
 
-#: core/article_extractor.py:2748 gui/accessibility.py:872
+#: core/article_extractor.py:2773 gui/accessibility.py:872
 #: gui/mainframe.py:5348 gui/mainframe.py:9014
 msgid "Author:"
 msgstr "Författare:"
 
-#: core/article_extractor.py:2788
+#: core/article_extractor.py:2813
 msgid "Unknown extraction error"
-msgstr ""
+msgstr "Okänt extraheringsfel"
 
 #: core/categories.py:20 core/categories.py:38 core/categories.py:57
 msgid "Uncategorized"
@@ -231,8 +250,8 @@ msgid ""
 "Could not register BlindRSS to start at login: {error} (the failed plist "
 "could not be removed: {cleanup_error})"
 msgstr ""
-"Det gick inte att registrera BlindRSS för start vid inloggning: {error} (den "
-"misslyckade plist-filen kunde inte tas bort: {cleanup_error})"
+"Det gick inte att registrera BlindRSS för start vid inloggning: {error} (den"
+" misslyckade plist-filen kunde inte tas bort: {cleanup_error})"
 
 #: core/retention.py:90
 msgid "1 day"
@@ -294,6 +313,27 @@ msgstr "Obegränsat"
 msgid "Update available."
 msgstr "Uppdatering tillgänglig."
 
+#: core/updater.py:439
+msgid "Authenticode verification failed: PowerShell was not found."
+msgstr "Authenticode-verifiering misslyckades: PowerShell hittades inte."
+
+#: core/updater.py:681
+msgid "Verifying download…"
+msgstr "Verifierar hämtningen…"
+
+#: core/updater.py:696
+msgid "Extracting update…"
+msgstr "Packar upp uppdateringen…"
+
+#: core/updater.py:722 core/updater.py:776 core/updater.py:854
+msgid "Verifying signature…"
+msgstr "Verifierar signaturen…"
+
+#: core/updater.py:727 core/updater.py:781 core/updater.py:859
+#: core/updater.py:879
+msgid "Preparing restart…"
+msgstr "Förbereder omstart…"
+
 #: core/updater.py:193
 msgid "No release data from GitHub."
 msgstr "Ingen versionsdata mottogs från GitHub."
@@ -322,16 +362,44 @@ msgstr "Uppdateringsmanifestet saknar en nedladdnings-URL."
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr "Uppdateringsmanifestet har en ogiltig SHA-256-hash."
 
-#: core/updater.py:775
+#: core/updater.py:649
+msgid "Auto-update is not available for this build."
+msgstr "Automatiska uppdateringar är inte tillgängliga för det här bygget."
+
+#: core/updater.py:684
+msgid "Downloaded update failed SHA-256 verification."
+msgstr "Den hämtade uppdateringen klarade inte SHA-256-verifieringen."
+
+#: core/updater.py:774
 msgid "Downloaded Windows installer is missing."
 msgstr "Den nedladdade Windows-installeraren saknas."
 
-#: core/updater.py:710 core/updater.py:205
+#: core/updater.py:842
+msgid "Could not locate the running .app bundle to update."
+msgstr "Det gick inte att hitta det körande .app-paketet som ska uppdateras."
+
+#: core/updater.py:850
+msgid "Update package does not contain a BlindRSS.app bundle."
+msgstr "Uppdateringspaketet innehåller inget BlindRSS.app-paket."
+
+#: core/updater.py:852
+msgid "Update package .app is missing its executable."
+msgstr "Uppdateringspaketets .app saknar sin körbara fil."
+
+#: core/updater.py:877
+msgid "Update package is missing the BlindRSS executable."
+msgstr "Uppdateringspaketet saknar den körbara BlindRSS-filen."
+
+#: core/updater.py:668 core/updater.py:676
+msgid "Downloading update…"
+msgstr "Hämtar uppdateringen…"
+
+#: core/updater.py:709 core/updater.py:205
 msgid "Auto-update is not supported on this platform ({platform})."
 msgstr ""
 "Automatiska uppdateringar stöds inte på den här plattformen ({platform})."
 
-#: core/updater.py:837
+#: core/updater.py:836
 msgid "Update signature verification failed: {error}"
 msgstr "Verifiering av uppdateringssignatur misslyckades: {error}"
 
@@ -384,15 +452,15 @@ msgstr "Uppdateringsinstallationsprogrammet saknar en nedladdnings-URL."
 msgid "Authenticode verification failed: {error}"
 msgstr "Authenticode-verifiering misslyckades: {error}"
 
-#: core/updater.py:716 core/updater.py:773 core/updater.py:874
+#: core/updater.py:715 core/updater.py:772 core/updater.py:873
 msgid "{name} is missing from the install directory."
 msgstr "{name} saknas i installationskatalogen."
 
-#: core/updater.py:721
+#: core/updater.py:720
 msgid "Update package is missing {name}."
 msgstr "Uppdateringspaketet saknar {name}."
 
-#: core/updater.py:847
+#: core/updater.py:846
 msgid "{name} is missing from the app bundle."
 msgstr "{name} saknas i appaketet."
 
@@ -412,15 +480,15 @@ msgstr "Det gick inte att ladda ner uppdateringens metadata: {error}"
 msgid "Unsupported update archive type: {type}"
 msgstr "Arkivtyp för uppdatering stöds inte: {type}"
 
-#: core/updater.py:530 core/updater.py:938
+#: core/updater.py:529 core/updater.py:937
 msgid "Failed to start update helper: {error}"
 msgstr "Det gick inte att starta uppdateringshjälpen: {error}"
 
-#: core/updater.py:680
+#: core/updater.py:679
 msgid "Failed to download update: {error}"
 msgstr "Det gick inte att ladda ner uppdateringen: {error}"
 
-#: core/updater.py:701
+#: core/updater.py:700
 msgid "Failed to extract update: {error}"
 msgstr "Det gick inte att extrahera uppdateringen: {error}"
 
@@ -577,8 +645,8 @@ msgstr "Vyer"
 
 #: gui/accessibility.py:438
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
-"to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
+" to expand and Left Arrow to collapse."
 msgstr ""
 "Kategorier kan expanderas eller fällas ihop. Använd knapparna, eller "
 "högerpil för att expandera och vänsterpil för att fälla ihop."
@@ -646,8 +714,7 @@ msgid ""
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Välj var BlindRSS-genvägar ska läggas till.\n"
-"Fastnålning i aktivitetsfältet kan begränsas av din Windows-version/dina "
-"principer."
+"Fastnålning i aktivitetsfältet kan begränsas av din Windows-version/dina principer."
 
 #: gui/dialogs.py:2303
 msgid "BlindRSS notification test"
@@ -659,7 +726,7 @@ msgstr "Om du kan läsa det här fungerar aviseringarna."
 
 #: gui/dialogs.py:93
 msgid "Article list columns"
-msgstr ""
+msgstr "Kolumner i artikellistan"
 
 #: gui/dialogs.py:198
 msgid "https://example.com/feed or a YouTube/podcast URL"
@@ -848,11 +915,12 @@ msgstr "Aviseringar"
 
 #: gui/dialogs.py:1635 gui/dialogs.py:1634
 msgid "Test Announcement"
-msgstr ""
+msgstr "Testmeddelande"
 
 #: gui/dialogs.py:1637
 msgid "Send a test announcement to your screen reader via speech and Braille."
 msgstr ""
+"Skicka ett testmeddelande till din skärmläsare via tal och punktskrift."
 
 #: gui/dialogs.py:1643 gui/dialogs.py:2377
 msgid "Announcements"
@@ -864,7 +932,7 @@ msgstr "Översätt"
 
 #: gui/dialogs.py:2004 gui/dialogs.py:3409
 msgid "List Headers"
-msgstr ""
+msgstr "Listrubriker"
 
 #: gui/dialogs.py:2024
 msgid "User Data Folder"
@@ -882,10 +950,11 @@ msgstr "Avancerat"
 msgid ""
 "The announcement could not be delivered.\n"
 "\n"
-"No screen reader output was available. Check that your screen reader is "
-"running, and that the accessible-output2 library is installed for full "
-"speech and Braille support."
+"No screen reader output was available. Check that your screen reader is running, and that the accessible-output2 library is installed for full speech and Braille support."
 msgstr ""
+"Meddelandet kunde inte levereras.\n"
+"\n"
+"Ingen skärmläsarutdata var tillgänglig. Kontrollera att din skärmläsare körs och att biblioteket accessible-output2 är installerat för fullt stöd för tal och punktskrift."
 
 #: gui/dialogs.py:2759
 msgid "Choose yt-dlp cookies.txt"
@@ -1051,7 +1120,7 @@ msgstr "Spara förinställning"
 
 #: gui/dialogs.py:83
 msgid "Use the global column layout"
-msgstr ""
+msgstr "Använd den globala kolumnlayouten"
 
 #: gui/dialogs.py:102 gui/dialogs.py:6508 gui/mainframe.py:13303
 msgid "Move &Up"
@@ -1172,8 +1241,8 @@ msgstr "Uppdatera flöden automatiskt vid start"
 
 #: gui/dialogs.py:973
 msgid ""
-"Article formatting: preserve structure from the original page as spoken text "
-"markers. Applies to newly loaded articles and full text."
+"Article formatting: preserve structure from the original page as spoken text"
+" markers. Applies to newly loaded articles and full text."
 msgstr ""
 "Artikelformatering: bevara strukturen från originalsidan som upplästa "
 "textmarkörer. Gäller nyinlästa artiklar och fulltext."
@@ -1197,17 +1266,16 @@ msgstr "Markera citat (\"Quote:\" före och \"End of quote.\" efter)"
 #: gui/dialogs.py:1005
 msgid ""
 "Show links as \"text (address)\" and open the link at the cursor with Enter"
-msgstr ""
-"Visa länkar som \"text (adress)\" och öppna länken vid markören med Retur"
+msgstr "Visa länkar som \"text (adress)\" och öppna länken vid markören med Retur"
 
 #: gui/dialogs.py:1011
 msgid ""
 "Rich full-text view: show links, embedded videos, and tweets in a web view "
 "(instead of plain text). Falls back to plain text if unavailable."
 msgstr ""
-"Berikad fulltextvy: visa länkar, inbäddade videoklipp och tweets i en webbvy "
-"(i stället för oformaterad text). Återgår till oformaterad text om den inte "
-"är tillgänglig."
+"Berikad fulltextvy: visa länkar, inbäddade videoklipp och tweets i en webbvy"
+" (i stället för oformaterad text). Återgår till oformaterad text om den inte"
+" är tillgänglig."
 
 #: gui/dialogs.py:1021
 msgid ""
@@ -1218,13 +1286,13 @@ msgstr ""
 
 #: gui/dialogs.py:1028
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
-"or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
+" or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
-"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
-"Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
+" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
+"Edge Canary."
 msgstr ""
 "yt-dlp-cookiefil (cookies.txt) — behövs bara för åldersbegränsat, privat "
 "eller endast-för-medlemmar-innehåll på YouTube. Installerade webbläsare "
@@ -1248,8 +1316,8 @@ msgstr ""
 #: gui/dialogs.py:1061
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
 msgstr ""
-"Spela upp YouTube genom att ladda ner först (mest pålitligt; långsammare att "
-"starta)"
+"Spela upp YouTube genom att ladda ner först (mest pålitligt; långsammare att"
+" starta)"
 
 #: gui/dialogs.py:1068
 msgid "YouTube playback cache folder (blank = default, next to your data):"
@@ -1329,8 +1397,8 @@ msgid ""
 "Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select "
 "'Groq (LLaMA, Mistral)' instead."
 msgstr ""
-"Grok kommer från xAI. Skaffa en nyckel på console.x.ai. För Groq (LLaMA/"
-"Mistral), välj i stället 'Groq (LLaMA, Mistral)'."
+"Grok kommer från xAI. Skaffa en nyckel på console.x.ai. För Groq "
+"(LLaMA/Mistral), välj i stället 'Groq (LLaMA, Mistral)'."
 
 #: gui/dialogs.py:1807
 msgid ""
@@ -1359,8 +1427,7 @@ msgid ""
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Var BlindRSS lagrar config.json och rss.db.\n"
-"Mappen för användardata bevarar dina inställningar och flöden mellan "
-"appuppdateringar,\n"
+"Mappen för användardata bevarar dina inställningar och flöden mellan appuppdateringar,\n"
 "särskilt på macOS där det installerade apppaketet ersätts."
 
 #: gui/dialogs.py:2062 gui/mainframe.py:12801 gui/mainframe.py:12769
@@ -1467,13 +1534,11 @@ msgstr "Ta &bort flöde"
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead "
-"URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Inga flöden rapporterade fel under sitt senaste uppdateringsförsök.\n"
 "\n"
-"Flöden visas här automatiskt när en uppdatering misslyckas (till exempel en "
-"död URL, ett HTTP-fel, en timeout eller ett ogiltigt flödesformat)."
+"Flöden visas här automatiskt när en uppdatering misslyckas (till exempel en död URL, ett HTTP-fel, en timeout eller ett ogiltigt flödesformat)."
 
 #: gui/dialogs.py:3846
 msgid "Editing feed properties is not available here."
@@ -1638,19 +1703,21 @@ msgstr "Ta bort förinställning"
 
 #: gui/dialogs.py:82
 msgid "&Use the global column layout"
-msgstr ""
+msgstr "&Använd den globala kolumnlayouten"
 
 #: gui/dialogs.py:89
 msgid "Columns (checked = shown). Use Move up / Move down to reorder:"
 msgstr ""
+"Kolumner (markerad = visas). Använd \"Flytta upp\" / \"Flytta ner\" för att "
+"ändra ordning:"
 
 #: gui/dialogs.py:114
 msgid "Title is always the first column and cannot be hidden."
-msgstr ""
+msgstr "Titel är alltid den första kolumnen och kan inte döljas."
 
 #: gui/dialogs.py:125
 msgid "{column} (always first)"
-msgstr ""
+msgstr "{column} (alltid först)"
 
 #: gui/dialogs.py:195
 msgid "Feed or Media URL:"
@@ -1768,16 +1835,12 @@ msgstr "Aktiv leverantör:"
 
 #: gui/dialogs.py:1419
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
-"fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address "
-"bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
 "when prompted."
 msgstr ""
-"Obs: Om din omdirigerings-URI använder HTTPS (vanligt/krävs) kan din "
-"webbläsare\n"
-"misslyckas med att läsa in localhost efter auktorisering. Kopiera hela den "
-"omdirigerade\n"
+"Obs: Om din omdirigerings-URI använder HTTPS (vanligt/krävs) kan din webbläsare\n"
+"misslyckas med att läsa in localhost efter auktorisering. Kopiera hela den omdirigerade\n"
 "URL:en från adressfältet och klistra in den när du uppmanas."
 
 #: gui/dialogs.py:1431
@@ -1859,12 +1922,10 @@ msgstr "Lagringsplats:"
 #: gui/dialogs.py:2087
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to "
-"search them."
+"When on, adult sites are added and must still be selected explicitly to search them."
 msgstr ""
 "När avstängd visas vuxensajter aldrig i videosökningens sajtlista.\n"
-"När påslagen läggs vuxensajter till och måste ändå väljas uttryckligen för "
-"att sökas i."
+"När påslagen läggs vuxensajter till och måste ändå väljas uttryckligen för att sökas i."
 
 #: gui/dialogs.py:2470
 msgid "Inoreader Authorization"
@@ -1968,13 +2029,14 @@ msgstr "Källa:"
 #: gui/dialogs.py:3991
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/"
-"Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source."
+"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit "
+"source."
 msgstr ""
-"Källor: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, Google "
-"News, Bing News, Feedsearch, webbplatsskanning, Reddit, Fediversum (Lemmy/"
-"Kbin/Mastodon/Bluesky/PieFed). Feedly är tillgängligt som en uttrycklig "
-"källa."
+"Källor: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, Google"
+" News, Bing News, Feedsearch, webbplatsskanning, Reddit, Fediversum "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly är tillgängligt som en "
+"uttrycklig källa."
 
 #: gui/dialogs.py:4380 gui/dialogs.py:4405
 msgid "News search feed"
@@ -2037,6 +2099,8 @@ msgid ""
 "BlindRSS announcement test. If you can hear or read this, announcements are "
 "working."
 msgstr ""
+"BlindRSS-meddelandetest. Om du kan höra eller läsa detta fungerar "
+"meddelandena."
 
 #: gui/dialogs.py:2761 gui/dialogs.py:2879
 msgid "Cookies"
@@ -2273,7 +2337,7 @@ msgstr "Visa eller dölj sökfältet"
 
 #: gui/mainframe.py:2120
 msgid "Switch the reader between plain full text and the rich HTML view"
-msgstr ""
+msgstr "Växla läsaren mellan enkel fulltext och den utökade HTML-vyn"
 
 #: gui/mainframe.py:2161
 msgid "Article &Filter"
@@ -2446,8 +2510,8 @@ msgstr "Filter&regler..."
 #: gui/mainframe.py:2304
 msgid "Create rules that categorize, label, or delete articles as they arrive"
 msgstr ""
-"Skapa regler som kategoriserar, märker eller tar bort artiklar när de kommer "
-"in"
+"Skapa regler som kategoriserar, märker eller tar bort artiklar när de kommer"
+" in"
 
 #: gui/mainframe.py:2309
 msgid "&Keyboard Shortcuts..."
@@ -2508,6 +2572,10 @@ msgstr "Öppna artikel"
 #: gui/mainframe.py:4508
 msgid "Open in Default Browser"
 msgstr "Öppna i standardwebbläsare"
+
+#: gui/mainframe.py:4807
+msgid "No feed description is available for this item."
+msgstr "Ingen flödesbeskrivning är tillgänglig för det här objektet."
 
 #: gui/mainframe.py:5484
 msgid "Scanning for audio... This may take a few seconds."
@@ -2639,7 +2707,7 @@ msgstr "Markera &allt"
 
 #: gui/mainframe.py:2119
 msgid "&Rich Full-Text View"
-msgstr ""
+msgstr "&Utökad fulltextvy"
 
 #: gui/mainframe.py:2135
 msgid "&All Articles"
@@ -2889,8 +2957,8 @@ msgstr[1] "{n} artiklar"
 
 #: gui/mainframe.py:6359
 msgid ""
-"Delete {subject}? Deleted articles can be restored from the Deleted Articles "
-"view."
+"Delete {subject}? Deleted articles can be restored from the Deleted Articles"
+" view."
 msgstr ""
 "Ta bort {subject}? Borttagna artiklar kan återställas från vyn Borttagna "
 "artiklar."
@@ -2905,11 +2973,11 @@ msgstr "Ta bort denna artikel permanent? Den kan inte återställas."
 
 #: gui/mainframe.py:6608
 msgid "Added to favorites"
-msgstr ""
+msgstr "Tillagd i favoriter"
 
 #: gui/mainframe.py:6608
 msgid "Removed from favorites"
-msgstr ""
+msgstr "Borttagen från favoriter"
 
 #: gui/mainframe.py:6629 gui/mainframe.py:6646
 msgid "Could not rename category."
@@ -3066,8 +3134,8 @@ msgstr "Regel akti&verad"
 
 #: gui/mainframe.py:13259
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip "
-"notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip"
+" notification)."
 msgstr ""
 "Välj minst en åtgärd för den här regeln (flytta, märka, markera, ta bort "
 "eller hoppa över avisering)."
@@ -3350,18 +3418,16 @@ msgstr "Märk även &med kategori:"
 #: gui/mainframe.py:13289
 msgid "Rules run top to bottom for each incoming article, like email filters."
 msgstr ""
-"Regler körs uppifrån och ner för varje inkommande artikel, precis som e-"
-"postfilter."
+"Regler körs uppifrån och ner för varje inkommande artikel, precis som "
+"e-postfilter."
 
 #: gui/mainframe.py:449
 msgid ""
-"Would you like to install them automatically (via winget/Ninite) and add "
-"them to PATH?\n"
+"Would you like to install them automatically (via winget/Ninite) and add them to PATH?\n"
 "\n"
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
-"Vill du installera dem automatiskt (via winget/Ninite) och lägga till dem i "
-"PATH?\n"
+"Vill du installera dem automatiskt (via winget/Ninite) och lägga till dem i PATH?\n"
 "\n"
 "Tips: du kan inaktivera den här frågan i Inställningar > YouTube."
 
@@ -3570,10 +3636,10 @@ msgid "Storage Location Changed"
 msgstr "Lagringsplats ändrad"
 
 #: gui/mainframe.py:13411
-msgid ""
-"Delete filter rule \"{name}\"? Articles it already filed are not changed."
+msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
-"Ta bort filterregeln \"{name}\"? Artiklar den redan har sorterat ändras inte."
+"Ta bort filterregeln \"{name}\"? Artiklar den redan har sorterat ändras "
+"inte."
 
 #: gui/mainframe.py:443
 msgid "VLC Media Player (required for playback)"
@@ -3624,6 +3690,10 @@ msgstr "Spelar upp {position} av {total}: {title}"
 #: gui/mainframe.py:2887
 msgid "Playing {position} of {total}"
 msgstr "Spelar upp {position} av {total}"
+
+#: gui/mainframe.py:3897
+msgid "{hidden} new article notification(s) were suppressed by your cap."
+msgstr "{hidden} avisering(ar) om nya artiklar undertrycktes av din gräns."
 
 #: gui/mainframe.py:4195
 msgid "Mark all items in \"{feed}\" as read?"
@@ -3691,15 +3761,13 @@ msgid ""
 "\n"
 "{err}\n"
 "\n"
-"Opening in the default browser instead. You can change this in Settings > "
-"General > Article opening method."
+"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
 msgstr ""
 "Det gick inte att öppna artikeln med ditt anpassade kommando:\n"
 "\n"
 "{err}\n"
 "\n"
-"Öppnar i standardwebbläsaren istället. Du kan ändra detta i Inställningar > "
-"Allmänt > Metod för att öppna artiklar."
+"Öppnar i standardwebbläsaren istället. Du kan ändra detta i Inställningar > Allmänt > Metod för att öppna artiklar."
 
 #: gui/mainframe.py:11589
 msgid "Download failed: {error}"

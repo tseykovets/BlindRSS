@@ -45,12 +45,14 @@ msgstr "Aankondigen wanneer een feedupdate wordt gestopt (Shift+F5)."
 
 #: core/announcements.py:143
 msgid "Favorites change"
-msgstr ""
+msgstr "Wijziging van favorieten"
 
 #: core/announcements.py:144
 msgid ""
 "Announce when an article is added to or removed from favorites (Ctrl+D)."
 msgstr ""
+"Aankondigen wanneer een artikel aan favorieten wordt toegevoegd of eruit "
+"wordt verwijderd (Ctrl+D)."
 
 #: core/announcements.py:145
 msgid "Playback speed change"
@@ -130,6 +132,9 @@ msgid ""
 "or a \"you're not a robot\" page), so the full text can't be fetched "
 "automatically. Open the original link in your browser to read it."
 msgstr ""
+"Deze pagina zit achter een anti-bot-/menscontrole (bijv. Cloudflare of een "
+"\"ik ben geen robot\"-pagina), dus de volledige tekst kan niet automatisch "
+"worden opgehaald. Open de originele link in uw browser om deze te lezen."
 
 #: core/article_extractor.py:165
 msgid ""
@@ -137,6 +142,9 @@ msgid ""
 "links were found (common for video-only pages). Open the original link in "
 "your browser to view it."
 msgstr ""
+"De pagina bevat geen leesbare artikeltekst — er zijn alleen navigatielinks "
+"of links naar gerelateerde artikelen gevonden (gebruikelijk bij pagina's met"
+" alleen video). Open de originele link in uw browser om deze te bekijken."
 
 #: core/article_extractor.py:228
 msgid ""
@@ -144,46 +152,57 @@ msgid ""
 "can't be fetched automatically. Open the original link in your browser to "
 "read it."
 msgstr ""
+"Dit artikel zit achter een betaalmuur (abonnement vereist), dus de volledige"
+" tekst kan niet automatisch worden opgehaald. Open de originele link in uw "
+"browser om het te lezen."
 
-#: core/article_extractor.py:1492
+#: core/article_extractor.py:1493
 msgid ""
-"Google News could not resolve the original publisher link. Open the original "
-"link in your browser to read it."
+"Google News could not resolve the original publisher link. Open the original"
+" link in your browser to read it."
 msgstr ""
+"Google Nieuws kon de oorspronkelijke uitgeverslink niet achterhalen. Open de"
+" originele link in uw browser om het te lezen."
 
-#: core/article_extractor.py:2746
+#: core/article_extractor.py:2771
 msgid "(unknown)"
 msgstr "(onbekend)"
 
-#: core/article_extractor.py:2797
+#: core/article_extractor.py:2822
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr ""
+"Kon de volledige tekst niet uit de webpagina of uit de feedinhoud halen."
 
-#: core/article_extractor.py:2593
+#: core/article_extractor.py:2613
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr ""
+"trafilatura is niet geïnstalleerd of kon niet worden geïmporteerd. "
+"Installeer de vereisten opnieuw."
 
-#: core/article_extractor.py:2679
+#: core/article_extractor.py:2701
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr ""
+"Downloaden mislukt (site geblokkeerd, offline of verbindingsprobleem)."
 
-#: core/article_extractor.py:2696
+#: core/article_extractor.py:2721
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr ""
+"Pagina gedownload, maar er kon geen leesbare tekst worden opgehaald (leeg "
+"resultaat)."
 
-#: core/article_extractor.py:2747 gui/dialogs.py:3201
+#: core/article_extractor.py:2772 gui/dialogs.py:3201
 msgid "Title:"
 msgstr "Titel:"
 
-#: core/article_extractor.py:2748 gui/accessibility.py:872
+#: core/article_extractor.py:2773 gui/accessibility.py:872
 #: gui/mainframe.py:5348 gui/mainframe.py:9014
 msgid "Author:"
 msgstr "Auteur:"
 
-#: core/article_extractor.py:2788
+#: core/article_extractor.py:2813
 msgid "Unknown extraction error"
-msgstr ""
+msgstr "Onbekende extractiefout"
 
 #: core/categories.py:20 core/categories.py:38 core/categories.py:57
 msgid "Uncategorized"
@@ -299,6 +318,27 @@ msgstr "Onbeperkt"
 msgid "Update available."
 msgstr "Update beschikbaar."
 
+#: core/updater.py:439
+msgid "Authenticode verification failed: PowerShell was not found."
+msgstr "Authenticode-verificatie mislukt: PowerShell is niet gevonden."
+
+#: core/updater.py:681
+msgid "Verifying download…"
+msgstr "Download controleren…"
+
+#: core/updater.py:696
+msgid "Extracting update…"
+msgstr "Update uitpakken…"
+
+#: core/updater.py:722 core/updater.py:776 core/updater.py:854
+msgid "Verifying signature…"
+msgstr "Handtekening controleren…"
+
+#: core/updater.py:727 core/updater.py:781 core/updater.py:859
+#: core/updater.py:879
+msgid "Preparing restart…"
+msgstr "Herstart voorbereiden…"
+
 #: core/updater.py:193
 msgid "No release data from GitHub."
 msgstr "Geen releasegegevens ontvangen van GitHub."
@@ -328,16 +368,44 @@ msgstr "In het updatemanifest ontbreekt een download-URL."
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr "Het updatemanifest heeft een ongeldige SHA-256-hash."
 
-#: core/updater.py:775
+#: core/updater.py:649
+msgid "Auto-update is not available for this build."
+msgstr "Automatisch bijwerken is niet beschikbaar voor deze build."
+
+#: core/updater.py:684
+msgid "Downloaded update failed SHA-256 verification."
+msgstr "De gedownloade update is niet door de SHA-256-verificatie gekomen."
+
+#: core/updater.py:774
 msgid "Downloaded Windows installer is missing."
 msgstr "Het gedownloade Windows-installatieprogramma ontbreekt."
 
-#: core/updater.py:710 core/updater.py:205
+#: core/updater.py:842
+msgid "Could not locate the running .app bundle to update."
+msgstr "Kon de actieve .app-bundel voor de update niet vinden."
+
+#: core/updater.py:850
+msgid "Update package does not contain a BlindRSS.app bundle."
+msgstr "Het updatepakket bevat geen BlindRSS.app-bundel."
+
+#: core/updater.py:852
+msgid "Update package .app is missing its executable."
+msgstr "In de .app van het updatepakket ontbreekt het uitvoerbare bestand."
+
+#: core/updater.py:877
+msgid "Update package is missing the BlindRSS executable."
+msgstr "In het updatepakket ontbreekt het uitvoerbare BlindRSS-bestand."
+
+#: core/updater.py:668 core/updater.py:676
+msgid "Downloading update…"
+msgstr "Update downloaden…"
+
+#: core/updater.py:709 core/updater.py:205
 msgid "Auto-update is not supported on this platform ({platform})."
 msgstr ""
 "Automatisch bijwerken wordt niet ondersteund op dit platform ({platform})."
 
-#: core/updater.py:837
+#: core/updater.py:836
 msgid "Update signature verification failed: {error}"
 msgstr "Verificatie van update-handtekening mislukt: {error}"
 
@@ -389,15 +457,15 @@ msgstr "In het update-installatieprogramma ontbreekt een download-URL."
 msgid "Authenticode verification failed: {error}"
 msgstr "Authenticode-verificatie mislukt: {error}"
 
-#: core/updater.py:716 core/updater.py:773 core/updater.py:874
+#: core/updater.py:715 core/updater.py:772 core/updater.py:873
 msgid "{name} is missing from the install directory."
 msgstr "{name} ontbreekt in de installatiemap."
 
-#: core/updater.py:721
+#: core/updater.py:720
 msgid "Update package is missing {name}."
 msgstr "In het updatepakket ontbreekt {name}."
 
-#: core/updater.py:847
+#: core/updater.py:846
 msgid "{name} is missing from the app bundle."
 msgstr "{name} ontbreekt in de app-bundel."
 
@@ -417,15 +485,15 @@ msgstr "Kan update-metagegevens niet downloaden: {error}"
 msgid "Unsupported update archive type: {type}"
 msgstr "Niet-ondersteund update-archieftype: {type}"
 
-#: core/updater.py:530 core/updater.py:938
+#: core/updater.py:529 core/updater.py:937
 msgid "Failed to start update helper: {error}"
 msgstr "Kan update-helper niet starten: {error}"
 
-#: core/updater.py:680
+#: core/updater.py:679
 msgid "Failed to download update: {error}"
 msgstr "Kan update niet downloaden: {error}"
 
-#: core/updater.py:701
+#: core/updater.py:700
 msgid "Failed to extract update: {error}"
 msgstr "Kan update niet uitpakken: {error}"
 
@@ -582,8 +650,8 @@ msgstr "Weergaven"
 
 #: gui/accessibility.py:438
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
-"to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
+" to expand and Left Arrow to collapse."
 msgstr ""
 "Categorieën kunnen worden uitgevouwen of samengevouwen. Gebruik de knoppen, "
 "of de pijl-rechts om uit te vouwen en pijl-links om samen te vouwen."
@@ -651,8 +719,7 @@ msgid ""
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Kies waar BlindRSS-snelkoppelingen moeten worden toegevoegd.\n"
-"Vastmaken aan de taakbalk kan beperkt zijn door uw Windows-versie of "
-"beleidsregels."
+"Vastmaken aan de taakbalk kan beperkt zijn door uw Windows-versie of beleidsregels."
 
 #: gui/dialogs.py:2303
 msgid "BlindRSS notification test"
@@ -664,7 +731,7 @@ msgstr "Als u dit kunt lezen, werken de meldingen."
 
 #: gui/dialogs.py:93
 msgid "Article list columns"
-msgstr ""
+msgstr "Kolommen van de artikellijst"
 
 #: gui/dialogs.py:198
 msgid "https://example.com/feed or a YouTube/podcast URL"
@@ -853,11 +920,11 @@ msgstr "Meldingen"
 
 #: gui/dialogs.py:1635 gui/dialogs.py:1634
 msgid "Test Announcement"
-msgstr ""
+msgstr "Testaankondiging"
 
 #: gui/dialogs.py:1637
 msgid "Send a test announcement to your screen reader via speech and Braille."
-msgstr ""
+msgstr "Stuur een testaankondiging naar uw schermlezer via spraak en braille."
 
 #: gui/dialogs.py:1643 gui/dialogs.py:2377
 msgid "Announcements"
@@ -869,7 +936,7 @@ msgstr "Vertalen"
 
 #: gui/dialogs.py:2004 gui/dialogs.py:3409
 msgid "List Headers"
-msgstr ""
+msgstr "Lijstkoppen"
 
 #: gui/dialogs.py:2024
 msgid "User Data Folder"
@@ -887,10 +954,11 @@ msgstr "Geavanceerd"
 msgid ""
 "The announcement could not be delivered.\n"
 "\n"
-"No screen reader output was available. Check that your screen reader is "
-"running, and that the accessible-output2 library is installed for full "
-"speech and Braille support."
+"No screen reader output was available. Check that your screen reader is running, and that the accessible-output2 library is installed for full speech and Braille support."
 msgstr ""
+"De aankondiging kon niet worden afgeleverd.\n"
+"\n"
+"Er was geen schermlezeruitvoer beschikbaar. Controleer of uw schermlezer actief is en of de bibliotheek accessible-output2 is geïnstalleerd voor volledige spraak- en brailleondersteuning."
 
 #: gui/dialogs.py:2759
 msgid "Choose yt-dlp cookies.txt"
@@ -1056,7 +1124,7 @@ msgstr "Voorinstelling opslaan"
 
 #: gui/dialogs.py:83
 msgid "Use the global column layout"
-msgstr ""
+msgstr "De globale kolomindeling gebruiken"
 
 #: gui/dialogs.py:102 gui/dialogs.py:6508 gui/mainframe.py:13303
 msgid "Move &Up"
@@ -1177,8 +1245,8 @@ msgstr "Feeds automatisch vernieuwen bij opstarten"
 
 #: gui/dialogs.py:973
 msgid ""
-"Article formatting: preserve structure from the original page as spoken text "
-"markers. Applies to newly loaded articles and full text."
+"Article formatting: preserve structure from the original page as spoken text"
+" markers. Applies to newly loaded articles and full text."
 msgstr ""
 "Artikelopmaak: structuur van de oorspronkelijke pagina behouden als "
 "gesproken tekstmarkeringen. Geldt voor nieuw geladen artikelen en volledige "
@@ -1204,8 +1272,8 @@ msgstr "Citaten markeren (\"Quote:\" ervoor en \"End of quote.\" erna)"
 msgid ""
 "Show links as \"text (address)\" and open the link at the cursor with Enter"
 msgstr ""
-"Koppelingen tonen als \"tekst (adres)\" en de koppeling bij de cursor openen "
-"met Enter"
+"Koppelingen tonen als \"tekst (adres)\" en de koppeling bij de cursor openen"
+" met Enter"
 
 #: gui/dialogs.py:1011
 msgid ""
@@ -1225,20 +1293,20 @@ msgstr ""
 
 #: gui/dialogs.py:1028
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
-"or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
+" or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
-"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
-"Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
+" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
+"Edge Canary."
 msgstr ""
 "yt-dlp-cookiebestand (cookies.txt) — alleen nodig voor leeftijdsgebonden, "
 "privé- of alleen-voor-leden-YouTube-inhoud. Geïnstalleerde browsers worden "
 "automatisch gedetecteerd; Firefox wordt aanbevolen. Chrome, Edge en Brave "
 "kunnen op Windows mislukken omdat hun cookies op een manier versleuteld "
-"kunnen zijn die yt-dlp niet kan lezen, dus een cookies.txt is de betrouwbare "
-"terugvaloptie. LibreWolf gebruikt met Firefox compatibele cookies. Chrome "
+"kunnen zijn die yt-dlp niet kan lezen, dus een cookies.txt is de betrouwbare"
+" terugvaloptie. LibreWolf gebruikt met Firefox compatibele cookies. Chrome "
 "\"Nightly\" betekent Chrome Canary; Edge \"Nightly\" betekent Edge Canary."
 
 #: gui/dialogs.py:1047
@@ -1343,8 +1411,8 @@ msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
 msgstr ""
-"Groq is NIET Grok. Haal een gratis Groq-sleutel op via console.groq.com/keys "
-"(draait LLaMA- en Mistral-modellen)."
+"Groq is NIET Grok. Haal een gratis Groq-sleutel op via console.groq.com/keys"
+" (draait LLaMA- en Mistral-modellen)."
 
 #: gui/dialogs.py:1893
 msgid "Load OpenRouter Models"
@@ -1365,8 +1433,7 @@ msgid ""
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Waar BlindRSS config.json en rss.db opslaat.\n"
-"De map met gebruikersgegevens behoudt uw instellingen en feeds bij app-"
-"upgrades,\n"
+"De map met gebruikersgegevens behoudt uw instellingen en feeds bij app-upgrades,\n"
 "vooral op macOS waar de geïnstalleerde app-bundel wordt vervangen."
 
 #: gui/dialogs.py:2062 gui/mainframe.py:12801 gui/mainframe.py:12769
@@ -1475,13 +1542,11 @@ msgstr "Feed ve&rwijderen"
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead "
-"URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Geen enkele feed meldde fouten tijdens de laatste updatepoging.\n"
 "\n"
-"Feeds verschijnen hier automatisch wanneer een update mislukt (bijvoorbeeld "
-"een dode URL, een HTTP-fout, een time-out of een ongeldig feedformaat)."
+"Feeds verschijnen hier automatisch wanneer een update mislukt (bijvoorbeeld een dode URL, een HTTP-fout, een time-out of een ongeldig feedformaat)."
 
 #: gui/dialogs.py:3846
 msgid "Editing feed properties is not available here."
@@ -1598,7 +1663,8 @@ msgstr "Sneltoetsen"
 
 #: gui/dialogs.py:6798
 msgid "Select a command and choose Change to set its shortcut."
-msgstr "Selecteer een opdracht en kies Wijzigen om de sneltoets in te stellen."
+msgstr ""
+"Selecteer een opdracht en kies Wijzigen om de sneltoets in te stellen."
 
 #: gui/dialogs.py:6813
 msgid "&Change Shortcut..."
@@ -1646,19 +1712,21 @@ msgstr "Voorinstelling verwijderen"
 
 #: gui/dialogs.py:82
 msgid "&Use the global column layout"
-msgstr ""
+msgstr "De globale kolomindeling &gebruiken"
 
 #: gui/dialogs.py:89
 msgid "Columns (checked = shown). Use Move up / Move down to reorder:"
 msgstr ""
+"Kolommen (aangevinkt = getoond). Gebruik \"Naar boven verplaatsen\" / \"Naar"
+" beneden verplaatsen\" om te herschikken:"
 
 #: gui/dialogs.py:114
 msgid "Title is always the first column and cannot be hidden."
-msgstr ""
+msgstr "Titel is altijd de eerste kolom en kan niet worden verborgen."
 
 #: gui/dialogs.py:125
 msgid "{column} (always first)"
-msgstr ""
+msgstr "{column} (altijd eerst)"
 
 #: gui/dialogs.py:195
 msgid "Feed or Media URL:"
@@ -1776,16 +1844,12 @@ msgstr "Actieve provider:"
 
 #: gui/dialogs.py:1419
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
-"fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address "
-"bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
 "when prompted."
 msgstr ""
-"Opmerking: als uw omleidings-URI HTTPS gebruikt (gebruikelijk/vereist), kan "
-"uw browser localhost\n"
-"na autorisatie mogelijk niet laden. Kopieer de volledige omgeleide URL uit "
-"de adresbalk en plak deze\n"
+"Opmerking: als uw omleidings-URI HTTPS gebruikt (gebruikelijk/vereist), kan uw browser localhost\n"
+"na autorisatie mogelijk niet laden. Kopieer de volledige omgeleide URL uit de adresbalk en plak deze\n"
 "wanneer daarom wordt gevraagd."
 
 #: gui/dialogs.py:1431
@@ -1867,13 +1931,10 @@ msgstr "Opslaglocatie:"
 #: gui/dialogs.py:2087
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to "
-"search them."
+"When on, adult sites are added and must still be selected explicitly to search them."
 msgstr ""
-"Indien uit, verschijnen volwassenensites nooit in de sitelijst van Video "
-"zoeken.\n"
-"Indien aan, worden volwassenensites toegevoegd en moeten ze nog steeds "
-"expliciet worden geselecteerd om erin te zoeken."
+"Indien uit, verschijnen volwassenensites nooit in de sitelijst van Video zoeken.\n"
+"Indien aan, worden volwassenensites toegevoegd en moeten ze nog steeds expliciet worden geselecteerd om erin te zoeken."
 
 #: gui/dialogs.py:2470
 msgid "Inoreader Authorization"
@@ -1977,12 +2038,14 @@ msgstr "Bron:"
 #: gui/dialogs.py:3991
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/"
-"Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source."
+"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit "
+"source."
 msgstr ""
 "Bronnen: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, websitescan, Reddit, Fediverse (Lemmy/"
-"Kbin/Mastodon/Bluesky/PieFed). Feedly is beschikbaar als expliciete bron."
+"Google News, Bing News, Feedsearch, websitescan, Reddit, Fediverse "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is beschikbaar als expliciete "
+"bron."
 
 #: gui/dialogs.py:4380 gui/dialogs.py:4405
 msgid "News search feed"
@@ -2045,6 +2108,8 @@ msgid ""
 "BlindRSS announcement test. If you can hear or read this, announcements are "
 "working."
 msgstr ""
+"BlindRSS-aankondigingstest. Als u dit kunt horen of lezen, werken de "
+"aankondigingen."
 
 #: gui/dialogs.py:2761 gui/dialogs.py:2879
 msgid "Cookies"
@@ -2128,8 +2193,7 @@ msgstr "Kan niet abonneren: {error}"
 
 #: gui/dialogs.py:7217
 msgid "A preset named \"{name}\" already exists. Overwrite it?"
-msgstr ""
-"Er bestaat al een voorinstelling met de naam \"{name}\". Overschrijven?"
+msgstr "Er bestaat al een voorinstelling met de naam \"{name}\". Overschrijven?"
 
 #: gui/dialogs.py:1303
 msgid "{tool} path:"
@@ -2283,6 +2347,8 @@ msgstr "Zoekveld tonen of verbergen"
 #: gui/mainframe.py:2120
 msgid "Switch the reader between plain full text and the rich HTML view"
 msgstr ""
+"De lezer wisselen tussen platte volledige tekst en de uitgebreide HTML-"
+"weergave"
 
 #: gui/mainframe.py:2161
 msgid "Article &Filter"
@@ -2518,6 +2584,10 @@ msgstr "Artikel openen"
 msgid "Open in Default Browser"
 msgstr "Openen in standaardbrowser"
 
+#: gui/mainframe.py:4807
+msgid "No feed description is available for this item."
+msgstr "Er is geen feedbeschrijving beschikbaar voor dit item."
+
 #: gui/mainframe.py:5484
 msgid "Scanning for audio... This may take a few seconds."
 msgstr "Zoeken naar audio... Dit kan enkele seconden duren."
@@ -2648,7 +2718,7 @@ msgstr "Alles select&eren"
 
 #: gui/mainframe.py:2119
 msgid "&Rich Full-Text View"
-msgstr ""
+msgstr "&Rijke volledige-tekstweergave"
 
 #: gui/mainframe.py:2135
 msgid "&All Articles"
@@ -2898,8 +2968,8 @@ msgstr[1] "{n} artikelen"
 
 #: gui/mainframe.py:6359
 msgid ""
-"Delete {subject}? Deleted articles can be restored from the Deleted Articles "
-"view."
+"Delete {subject}? Deleted articles can be restored from the Deleted Articles"
+" view."
 msgstr ""
 "{subject} verwijderen? Verwijderde artikelen kunnen worden hersteld vanuit "
 "de weergave Verwijderde artikelen."
@@ -2915,11 +2985,11 @@ msgstr "Dit artikel definitief verwijderen? Het kan niet worden hersteld."
 
 #: gui/mainframe.py:6608
 msgid "Added to favorites"
-msgstr ""
+msgstr "Toegevoegd aan favorieten"
 
 #: gui/mainframe.py:6608
 msgid "Removed from favorites"
-msgstr ""
+msgstr "Verwijderd uit favorieten"
 
 #: gui/mainframe.py:6629 gui/mainframe.py:6646
 msgid "Could not rename category."
@@ -3000,8 +3070,8 @@ msgid ""
 "Import failed. Please check the latest opml_debug_*.log in the temporary "
 "directory."
 msgstr ""
-"Importeren mislukt. Controleer de nieuwste opml_debug_*.log in de tijdelijke "
-"map."
+"Importeren mislukt. Controleer de nieuwste opml_debug_*.log in de tijdelijke"
+" map."
 
 #: gui/mainframe.py:12784
 msgid ""
@@ -3076,8 +3146,8 @@ msgstr "Regel ing&eschakeld"
 
 #: gui/mainframe.py:13259
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip "
-"notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip"
+" notification)."
 msgstr ""
 "Kies ten minste één actie voor deze regel (verplaatsen, labelen, markeren, "
 "verwijderen of melding overslaan)."
@@ -3368,13 +3438,11 @@ msgstr ""
 
 #: gui/mainframe.py:449
 msgid ""
-"Would you like to install them automatically (via winget/Ninite) and add "
-"them to PATH?\n"
+"Would you like to install them automatically (via winget/Ninite) and add them to PATH?\n"
 "\n"
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
-"Wilt u ze automatisch installeren (via winget/Ninite) en toevoegen aan "
-"PATH?\n"
+"Wilt u ze automatisch installeren (via winget/Ninite) en toevoegen aan PATH?\n"
 "\n"
 "Tip: u kunt deze melding uitschakelen bij Instellingen > YouTube."
 
@@ -3586,11 +3654,10 @@ msgid "Storage Location Changed"
 msgstr "Opslaglocatie gewijzigd"
 
 #: gui/mainframe.py:13411
-msgid ""
-"Delete filter rule \"{name}\"? Articles it already filed are not changed."
+msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
-"Filterregel \"{name}\" verwijderen? Artikelen die er al door zijn ingedeeld, "
-"worden niet gewijzigd."
+"Filterregel \"{name}\" verwijderen? Artikelen die er al door zijn ingedeeld,"
+" worden niet gewijzigd."
 
 #: gui/mainframe.py:443
 msgid "VLC Media Player (required for playback)"
@@ -3641,6 +3708,11 @@ msgstr "Bezig met afspelen {position} van {total}: {title}"
 #: gui/mainframe.py:2887
 msgid "Playing {position} of {total}"
 msgstr "Bezig met afspelen {position} van {total}"
+
+#: gui/mainframe.py:3897
+msgid "{hidden} new article notification(s) were suppressed by your cap."
+msgstr ""
+"{hidden} melding(en) van nieuwe artikelen zijn onderdrukt door uw limiet."
 
 #: gui/mainframe.py:4195
 msgid "Mark all items in \"{feed}\" as read?"
@@ -3708,15 +3780,13 @@ msgid ""
 "\n"
 "{err}\n"
 "\n"
-"Opening in the default browser instead. You can change this in Settings > "
-"General > Article opening method."
+"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
 msgstr ""
 "Kon het artikel niet openen met uw aangepaste opdracht:\n"
 "\n"
 "{err}\n"
 "\n"
-"Wordt in plaats daarvan geopend in de standaardbrowser. U kunt dit wijzigen "
-"in Instellingen > Algemeen > Methode voor artikelen openen."
+"Wordt in plaats daarvan geopend in de standaardbrowser. U kunt dit wijzigen in Instellingen > Algemeen > Methode voor artikelen openen."
 
 #: gui/mainframe.py:11589
 msgid "Download failed: {error}"
@@ -3752,8 +3822,7 @@ msgid ""
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
 "Deze macOS/Linux-build zou deze tools al moeten bevatten.\n"
-"Als ze nog steeds als ontbrekend worden weergegeven, raadpleeg dan het "
-"logbestand: {log_path}\n"
+"Als ze nog steeds als ontbrekend worden weergegeven, raadpleeg dan het logbestand: {log_path}\n"
 "\n"
 "Tip: u kunt deze melding uitschakelen bij Instellingen > YouTube."
 

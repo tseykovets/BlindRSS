@@ -436,7 +436,7 @@ def _verify_authenticode_signature(exe_path: str, allowed_thumbprints: Iterable[
 
     if last_error:
         return False, _("Authenticode verification failed: {error}").format(error=last_error)
-    return False, "Authenticode verification failed: PowerShell was not found."
+    return False, _("Authenticode verification failed: PowerShell was not found.")
 
 
 def _launch_update_helper(
@@ -461,10 +461,9 @@ def _launch_update_helper(
         if not helper_cwd or not os.path.isdir(helper_cwd):
             helper_cwd = tempfile.gettempdir()
 
-        # Always launch the updater hidden. The helper writes a log file for
-        # failures, and a visible cmd.exe can keep the install locked after the
-        # update has completed.
-        _ = debug_mode
+        # Always launch the updater hidden (debug_mode intentionally ignored).
+        # The helper writes a log file for failures, and a visible cmd.exe can
+        # keep the install locked after the update has completed.
         creationflags = 0
         startupinfo = None
         breakaway_flag = 0
@@ -840,7 +839,7 @@ def _verify_macos_codesign(app_path: str) -> Tuple[bool, str]:
 def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str]:
     bundle_root = _macos_app_bundle_root()
     if not bundle_root:
-        return False, "Could not locate the running .app bundle to update."
+        return False, _("Could not locate the running .app bundle to update.")
 
     helper_path = os.path.join(install_dir, POSIX_UPDATE_HELPER_NAME)
     if not os.path.isfile(helper_path):
@@ -848,9 +847,9 @@ def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str
 
     staging_app = _find_macos_app_staging(extract_dir)
     if not staging_app:
-        return False, "Update package does not contain a BlindRSS.app bundle."
+        return False, _("Update package does not contain a BlindRSS.app bundle.")
     if not os.path.isfile(os.path.join(staging_app, "Contents", "MacOS", "BlindRSS")):
-        return False, "Update package .app is missing its executable."
+        return False, _("Update package .app is missing its executable.")
 
     report(_("Verifying signature…"), None)
     ok, msg = _verify_macos_codesign(staging_app)
@@ -875,7 +874,7 @@ def _apply_linux(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str
 
     staging_dir = _find_linux_staging(extract_dir)
     if not staging_dir:
-        return False, "Update package is missing the BlindRSS executable."
+        return False, _("Update package is missing the BlindRSS executable.")
 
     report(_("Preparing restart…"), None)
     return _launch_posix_helper(

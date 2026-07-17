@@ -10,8 +10,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
 "X-Generator: Poedit 3.9\n"
 
 #: core/announcements.py:135
@@ -73,7 +72,8 @@ msgstr "Навигация по мультимедиа и тайм-кодам"
 
 #: core/announcements.py:148
 msgid "Announce the item or chapter when moving to the next/previous one."
-msgstr "Объявлять элемент или тайм-код при  переходе к следующему/предыдущему."
+msgstr ""
+"Объявлять элемент или тайм-код при  переходе к следующему/предыдущему."
 
 #: core/announcements.py:149
 msgid "Other notifications"
@@ -136,8 +136,8 @@ msgid ""
 msgstr ""
 "Эта страница защищена от ботов / проверяет, что пользователь является "
 "человеком, (например, Cloudflare или страница \"Я не робот\"), поэтому "
-"полный текст не может быть получен автоматически. Откройте исходную ссылку в "
-"вашем браузере, чтобы прочитать её."
+"полный текст не может быть получен автоматически. Откройте исходную ссылку в"
+" вашем браузере, чтобы прочитать её."
 
 #: core/article_extractor.py:165
 msgid ""
@@ -161,8 +161,8 @@ msgstr ""
 
 #: core/article_extractor.py:1493
 msgid ""
-"Google News could not resolve the original publisher link. Open the original "
-"link in your browser to read it."
+"Google News could not resolve the original publisher link. Open the original"
+" link in your browser to read it."
 msgstr ""
 "Google News не смог найти исходную ссылку на издателя. Откройте исходную "
 "ссылку в вашем браузере, чтобы прочитать её."
@@ -251,7 +251,8 @@ msgstr "Не удалось обновить настройки автозагр
 #: core/macos_integration.py:113
 msgid "Could not register BlindRSS to start at login: {error}"
 msgstr ""
-"Не удалось зарегистрировать BlindRSS для запуска при входе в систему: {error}"
+"Не удалось зарегистрировать BlindRSS для запуска при входе в систему: "
+"{error}"
 
 #: core/macos_integration.py:108
 msgid ""
@@ -321,20 +322,24 @@ msgstr "Неограничено"
 msgid "Update available."
 msgstr "Доступно обновление."
 
-#: core/updater.py:682
+#: core/updater.py:439
+msgid "Authenticode verification failed: PowerShell was not found."
+msgstr ""
+
+#: core/updater.py:681
 msgid "Verifying download…"
 msgstr "Проверка загрузки…"
 
-#: core/updater.py:697
+#: core/updater.py:696
 msgid "Extracting update…"
 msgstr "Извлечение обновления…"
 
-#: core/updater.py:723 core/updater.py:777 core/updater.py:855
+#: core/updater.py:722 core/updater.py:776 core/updater.py:854
 msgid "Verifying signature…"
 msgstr "Проверка подписи…"
 
-#: core/updater.py:728 core/updater.py:782 core/updater.py:860
-#: core/updater.py:880
+#: core/updater.py:727 core/updater.py:781 core/updater.py:859
+#: core/updater.py:879
 msgid "Preparing restart…"
 msgstr "Подготовка к перезапуску…"
 
@@ -366,28 +371,44 @@ msgstr "В манифесте обновления отсутствует URL-а
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr "Манифест обновления имеет недопустимый хэш SHA-256."
 
-#: core/updater.py:650
+#: core/updater.py:649
 msgid "Auto-update is not available for this build."
 msgstr "Автоматическое обновление для этой сборки недоступно."
 
-#: core/updater.py:685
+#: core/updater.py:684
 msgid "Downloaded update failed SHA-256 verification."
 msgstr "Загруженное обновление не прошло проверку соответствия SHA-256."
 
-#: core/updater.py:775
+#: core/updater.py:774
 msgid "Downloaded Windows installer is missing."
 msgstr "Загруженный Windows-установщик отсутствует."
 
-#: core/updater.py:669 core/updater.py:677
+#: core/updater.py:842
+msgid "Could not locate the running .app bundle to update."
+msgstr ""
+
+#: core/updater.py:850
+msgid "Update package does not contain a BlindRSS.app bundle."
+msgstr ""
+
+#: core/updater.py:852
+msgid "Update package .app is missing its executable."
+msgstr ""
+
+#: core/updater.py:877
+msgid "Update package is missing the BlindRSS executable."
+msgstr ""
+
+#: core/updater.py:668 core/updater.py:676
 msgid "Downloading update…"
 msgstr "Загрузка обновления…"
 
-#: core/updater.py:710 core/updater.py:205
+#: core/updater.py:709 core/updater.py:205
 msgid "Auto-update is not supported on this platform ({platform})."
 msgstr ""
 "Автоматическое обновление на этой платформе не поддерживается ({platform})."
 
-#: core/updater.py:837
+#: core/updater.py:836
 msgid "Update signature verification failed: {error}"
 msgstr "Ошибка проверки подписи обновления: {error}"
 
@@ -439,15 +460,15 @@ msgstr "В программе установки обновления отсут
 msgid "Authenticode verification failed: {error}"
 msgstr "Не удалось выполнить проверку аутентификационного кода: {error}"
 
-#: core/updater.py:716 core/updater.py:773 core/updater.py:874
+#: core/updater.py:715 core/updater.py:772 core/updater.py:873
 msgid "{name} is missing from the install directory."
 msgstr "{name} отсутствует в директории установки."
 
-#: core/updater.py:721
+#: core/updater.py:720
 msgid "Update package is missing {name}."
 msgstr "Отсутствует пакет обновления {name}."
 
-#: core/updater.py:847
+#: core/updater.py:846
 msgid "{name} is missing from the app bundle."
 msgstr "{name} отсутствует в пакете приложения."
 
@@ -467,15 +488,15 @@ msgstr "Не удалось загрузить метаданные обновл
 msgid "Unsupported update archive type: {type}"
 msgstr "Неподдерживаемый тип архива обновления: {type}"
 
-#: core/updater.py:530 core/updater.py:938
+#: core/updater.py:529 core/updater.py:937
 msgid "Failed to start update helper: {error}"
 msgstr "Не удалось запустить помощника по обновлению: {error}"
 
-#: core/updater.py:680
+#: core/updater.py:679
 msgid "Failed to download update: {error}"
 msgstr "Не удалось загрузить обновление: {error}"
 
-#: core/updater.py:701
+#: core/updater.py:700
 msgid "Failed to extract update: {error}"
 msgstr "Не удалось извлечь обновление: {error}"
 
@@ -633,8 +654,8 @@ msgstr "Представления"
 
 #: gui/accessibility.py:438
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
-"to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
+" to expand and Left Arrow to collapse."
 msgstr ""
 "Категории можно разворачивать или сворачивать. Используйте кнопки или "
 "используйте стрелку вправо, чтобы развернуть, и стрелку влево, чтобы "
@@ -703,8 +724,7 @@ msgid ""
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Выберите, куда добавить ярлыки BlindRSS.\n"
-"Закрепление на панели задач может быть ограничено вашей версией Windows или "
-"политиками."
+"Закрепление на панели задач может быть ограничено вашей версией Windows или политиками."
 
 #: gui/dialogs.py:2303
 msgid "BlindRSS notification test"
@@ -910,8 +930,8 @@ msgstr "Проверить объявления"
 #: gui/dialogs.py:1637
 msgid "Send a test announcement to your screen reader via speech and Braille."
 msgstr ""
-"Отправить проверочное объявление для вашей программы экранного доступа через "
-"речь и брайль."
+"Отправить проверочное объявление для вашей программы экранного доступа через"
+" речь и брайль."
 
 #: gui/dialogs.py:1643 gui/dialogs.py:2377
 msgid "Announcements"
@@ -941,15 +961,11 @@ msgstr "Дополнительно"
 msgid ""
 "The announcement could not be delivered.\n"
 "\n"
-"No screen reader output was available. Check that your screen reader is "
-"running, and that the accessible-output2 library is installed for full "
-"speech and Braille support."
+"No screen reader output was available. Check that your screen reader is running, and that the accessible-output2 library is installed for full speech and Braille support."
 msgstr ""
 "Отправить объявление не удалось.\n"
 "\n"
-"Нет доступных программ экранного доступа для вывода. Убедитесь, что "
-"программа экранного доступа запущена, и что установлена библиотека "
-"accessible-output2 для полной поддержки речи и брайля."
+"Нет доступных программ экранного доступа для вывода. Убедитесь, что программа экранного доступа запущена, и что установлена библиотека accessible-output2 для полной поддержки речи и брайля."
 
 #: gui/dialogs.py:2759
 msgid "Choose yt-dlp cookies.txt"
@@ -1236,8 +1252,8 @@ msgstr "Автоматически обновлять каналы при зап
 
 #: gui/dialogs.py:973
 msgid ""
-"Article formatting: preserve structure from the original page as spoken text "
-"markers. Applies to newly loaded articles and full text."
+"Article formatting: preserve structure from the original page as spoken text"
+" markers. Applies to newly loaded articles and full text."
 msgstr ""
 "Форматирование статьи: сохранять структуру исходной страницы в виде "
 "произносимых текстовых обозначений. Применяется к вновь загруженным статьям "
@@ -1259,8 +1275,7 @@ msgstr "Обозначать элементы списков маркерами 
 
 #: gui/dialogs.py:999
 msgid "Mark quotations (\"Quote:\" before and \"End of quote.\" after)"
-msgstr ""
-"Обозначать цитаты (\"Цитата:\" перед цитатой и \"Конец цитаты.\" после)"
+msgstr "Обозначать цитаты (\"Цитата:\" перед цитатой и \"Конец цитаты.\" после)"
 
 #: gui/dialogs.py:1005
 msgid ""
@@ -1287,21 +1302,21 @@ msgstr ""
 
 #: gui/dialogs.py:1028
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
-"or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
+" or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
-"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
-"Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
+" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
+"Edge Canary."
 msgstr ""
 "файлы cookies yt-dlp (cookies.txt) — необходимы только для контента YouTube "
 "с возрастными ограничениями, приватного контента или контента, доступного "
-"только для подписчиков. Установленные браузеры обнаруживаются автоматически; "
-"рекомендуется использовать Firefox. Chrome, Edge и Brave могут не работать в "
-"Windows, поскольку их файлы cookies могут быть зашифрованы таким образом, "
-"что yt-dlp не сможет их прочитать, поэтому cookies.txt это надёжный запасной "
-"вариант. LibreWolf использует файлы cookies, совместимые с Firefox. Chrome "
+"только для подписчиков. Установленные браузеры обнаруживаются автоматически;"
+" рекомендуется использовать Firefox. Chrome, Edge и Brave могут не работать "
+"в Windows, поскольку их файлы cookies могут быть зашифрованы таким образом, "
+"что yt-dlp не сможет их прочитать, поэтому cookies.txt это надёжный запасной"
+" вариант. LibreWolf использует файлы cookies, совместимые с Firefox. Chrome "
 "\"Nightly\" означает Chrome Canary; Edge \"Nightly\" означает Edge Canary."
 
 #: gui/dialogs.py:1047
@@ -1312,8 +1327,8 @@ msgstr "Импортировать из браузера..."
 msgid ""
 "Automatically import a YouTube cookies.txt when you export one to Downloads"
 msgstr ""
-"Автоматически импортировать cookies.txt для YouTube, когда он экспортируется "
-"в раздел \"Загрузки\""
+"Автоматически импортировать cookies.txt для YouTube, когда он экспортируется"
+" в раздел \"Загрузки\""
 
 #: gui/dialogs.py:1061
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
@@ -1411,8 +1426,8 @@ msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
 msgstr ""
-"Groq - это НЕ Grok. Получите бесплатный ключ Groq по адресу console.groq.com/"
-"keys (работает с моделями LLaMA и Mistral)."
+"Groq - это НЕ Grok. Получите бесплатный ключ Groq по адресу "
+"console.groq.com/keys (работает с моделями LLaMA и Mistral)."
 
 #: gui/dialogs.py:1893
 msgid "Load OpenRouter Models"
@@ -1433,8 +1448,7 @@ msgid ""
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Где BlindRSS хранит файлы config.json и rss.db.\n"
-"В папке пользовательских данных хранятся ваши настройки и каналы при "
-"обновлении приложения,\n"
+"В папке пользовательских данных хранятся ваши настройки и каналы при обновлении приложения,\n"
 "особенно на macOS, где заменяется установленный пакет приложения."
 
 #: gui/dialogs.py:2062 gui/mainframe.py:12801 gui/mainframe.py:12769
@@ -1485,8 +1499,8 @@ msgstr "Выберите экспортированный cookies.txt"
 #: gui/dialogs.py:2978
 msgid "Enter a command to test. Use %1 where the article URL should go."
 msgstr ""
-"Введите команду для проверки. Используйте %1 там, где должен быть указан URL-"
-"адрес статьи."
+"Введите команду для проверки. Используйте %1 там, где должен быть указан "
+"URL-адрес статьи."
 
 #: gui/dialogs.py:2979
 msgid "Nothing to test"
@@ -1544,14 +1558,11 @@ msgstr "У&далить канал"
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead "
-"URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Ни один канал не сообщал об ошибках при последней попытке обновления.\n"
 "\n"
-"Каналы отображаются здесь автоматически при сбое обновления (например, "
-"неактивный URL-адрес, ошибка HTTP, превышенное время ожидания или "
-"неправильный формат канала)."
+"Каналы отображаются здесь автоматически при сбое обновления (например, неактивный URL-адрес, ошибка HTTP, превышенное время ожидания или неправильный формат канала)."
 
 #: gui/dialogs.py:3846
 msgid "Editing feed properties is not available here."
@@ -1847,16 +1858,12 @@ msgstr "Активный поставщик:"
 
 #: gui/dialogs.py:1419
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
-"fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address "
-"bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
 "when prompted."
 msgstr ""
-"Примечание: Если в вашем URI перенаправления используется HTTPS (общий/"
-"обязательный), ваш браузер может не загрузить\n"
-"localhost после авторизации. Скопируйте полный URL перенаправления из "
-"адресной строки и вставьте его\n"
+"Примечание: Если в вашем URI перенаправления используется HTTPS (общий/обязательный), ваш браузер может не загрузить\n"
+"localhost после авторизации. Скопируйте полный URL перенаправления из адресной строки и вставьте его\n"
 "при появлении запроса."
 
 #: gui/dialogs.py:1431
@@ -1870,7 +1877,8 @@ msgstr "Очистить авторизацию"
 #: gui/dialogs.py:1550
 msgid "Max notifications per refresh (0 = no limit):"
 msgstr ""
-"Максимальное количество уведомлений за одно обновление (0 = без ограничений):"
+"Максимальное количество уведомлений за одно обновление (0 = без "
+"ограничений):"
 
 #: gui/dialogs.py:1677
 msgid "Provider:"
@@ -1939,13 +1947,10 @@ msgstr "Местоположение хранилища:"
 #: gui/dialogs.py:2087
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to "
-"search them."
+"When on, adult sites are added and must still be selected explicitly to search them."
 msgstr ""
-"Когда выключено, сайты для взрослых никогда не отображаются в списке сайтов "
-"для поиска видео.\n"
-"Когда включено, сайты для взрослых добавляются, и их всё равно необходимо "
-"явно выбрать для поиска."
+"Когда выключено, сайты для взрослых никогда не отображаются в списке сайтов для поиска видео.\n"
+"Когда включено, сайты для взрослых добавляются, и их всё равно необходимо явно выбрать для поиска."
 
 #: gui/dialogs.py:2470
 msgid "Inoreader Authorization"
@@ -2053,12 +2058,14 @@ msgstr "Источник:"
 #: gui/dialogs.py:3991
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/"
-"Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source."
+"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit "
+"source."
 msgstr ""
 "Источники: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
 "Google News, Bing News, Feedsearch, сканирование сайта, Reddit, Fediverse "
-"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly доступен как отдельный источник."
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly доступен как отдельный "
+"источник."
 
 #: gui/dialogs.py:4380 gui/dialogs.py:4405
 msgid "News search feed"
@@ -2985,8 +2992,8 @@ msgstr[2] "{n} статей"
 
 #: gui/mainframe.py:6359
 msgid ""
-"Delete {subject}? Deleted articles can be restored from the Deleted Articles "
-"view."
+"Delete {subject}? Deleted articles can be restored from the Deleted Articles"
+" view."
 msgstr ""
 "Удалить {subject}? Удалённые статьи можно восстановить из представления "
 "\"Удалённые статьи\"."
@@ -3162,8 +3169,8 @@ msgstr "Правило &включено"
 
 #: gui/mainframe.py:13259
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip "
-"notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip"
+" notification)."
 msgstr ""
 "Выберите хотя бы одно действие для этого правила (переместить, поставить "
 "метку, отметить, удалить или пропустить уведомление)."
@@ -3454,8 +3461,7 @@ msgstr ""
 
 #: gui/mainframe.py:449
 msgid ""
-"Would you like to install them automatically (via winget/Ninite) and add "
-"them to PATH?\n"
+"Would you like to install them automatically (via winget/Ninite) and add them to PATH?\n"
 "\n"
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
@@ -3670,8 +3676,7 @@ msgid "Storage Location Changed"
 msgstr "Местоположение хранилища изменено"
 
 #: gui/mainframe.py:13411
-msgid ""
-"Delete filter rule \"{name}\"? Articles it already filed are not changed."
+msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
 "Удалить правило фильтрации \"{name}\"? Статьи, которые уже были "
 "распределены, не изменятся."
@@ -3797,15 +3802,13 @@ msgid ""
 "\n"
 "{err}\n"
 "\n"
-"Opening in the default browser instead. You can change this in Settings > "
-"General > Article opening method."
+"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
 msgstr ""
 "Не удалось открыть статью с помощью пользовательской команды:\n"
 "\n"
 "{err}\n"
 "\n"
-"Вместо этого она откроется в браузере по умолчанию. Вы можете изменить это в "
-"\"Настройки\" > \"Общие\" > \"Способ открытия статей\"."
+"Вместо этого она откроется в браузере по умолчанию. Вы можете изменить это в \"Настройки\" > \"Общие\" > \"Способ открытия статей\"."
 
 #: gui/mainframe.py:11589
 msgid "Download failed: {error}"
@@ -4016,7 +4019,8 @@ msgstr "&Тайм-коды"
 #: gui/player.py:2602
 msgid "Cast device disconnected; resuming local playback"
 msgstr ""
-"Устройство для трансляции отключено; возобновление локального воспроизведения"
+"Устройство для трансляции отключено; возобновление локального "
+"воспроизведения"
 
 #: gui/player.py:3339 gui/player.py:3860
 msgid "Failed to load media"

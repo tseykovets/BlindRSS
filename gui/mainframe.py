@@ -2076,6 +2076,7 @@ class MainFrame(wx.Frame):
         
         file_menu = wx.Menu()
         add_feed_item = file_menu.Append(wx.ID_ANY, _("&Add Feed") + "\tCtrl+N", _("Add a new RSS feed"))
+        detect_feeds_item = file_menu.Append(wx.ID_ANY, _("Detect Feeds on &Page..."), _("Scan a webpage for RSS, Atom, or JSON feed links"))
         remove_feed_item = file_menu.Append(wx.ID_ANY, _("&Remove Feed"), _("Remove selected feed"))
         refresh_item = file_menu.Append(wx.ID_REFRESH, _("&Refresh Feeds") + "\tF5", _("Refresh all feeds"))
         stop_refresh_item = file_menu.Append(wx.ID_ANY, _("S&top Refresh") + "\tShift+F5", _("Stop the feed refresh currently in progress"))
@@ -2323,6 +2324,7 @@ class MainFrame(wx.Frame):
         self.SetMenuBar(menubar)
         
         self.Bind(wx.EVT_MENU, self.on_add_feed, add_feed_item)
+        self.Bind(wx.EVT_MENU, self.on_detect_page_feeds, detect_feeds_item)
         self.Bind(wx.EVT_MENU, self.on_remove_feed, remove_feed_item)
         self.Bind(wx.EVT_MENU, self.on_refresh_feeds, refresh_item)
         self.Bind(wx.EVT_MENU, self.on_stop_refresh, stop_refresh_item)
@@ -9758,6 +9760,7 @@ class MainFrame(wx.Frame):
             "fallback_title": getattr(article, "title", "") or "",
             "fallback_author": getattr(article, "author", "") or "",
             "article_id": article_id,
+            "feed_id": str(getattr(article, "feed_id", "") or ""),
             "token": token,
             "prefetch": bool(prefetch),
             "prefetch_token": prefetch_token,
@@ -10156,6 +10159,18 @@ class MainFrame(wx.Frame):
 
                 # Try web extraction first (no fallback HTML so we can tell if it really worked).
                 if not rendered and is_web_eligible:
+                    # Per-feed full-text encoding override (issue #75). Passed as a
+                    # kwarg only when set so test doubles without it keep working.
+                    encoding_kwargs = {}
+                    try:
+                        _enc_fid = str(req.get("feed_id") or "").strip()
+                        if _enc_fid:
+                            from core import db as _enc_db
+                            _enc = str((_enc_db.get_feed_settings(_enc_fid) or {}).get("fulltext_encoding") or "").strip()
+                            if _enc:
+                                encoding_kwargs["encoding"] = _enc
+                    except Exception:
+                        encoding_kwargs = {}
                     try:
                         rendered = article_extractor.render_full_article(
                             url,
@@ -10164,6 +10179,7 @@ class MainFrame(wx.Frame):
                             fallback_author=fallback_author,
                             prefer_feed_content=prefer_feed_first,
                             metadata_sink=_metadata_sink,
+                            **encoding_kwargs,
                         )
                         render_source = "feed_preferred" if prefer_feed_first else "web"
                     except Exception as e:
@@ -11727,16 +11743,87 @@ class MainFrame(wx.Frame):
         return None
 
     def on_add_feed(self, event):
+        self._show_add_feed_dialog()
+
+    def _show_add_feed_dialog(self, initial_url: str = ""):
         cats = self.provider.get_categories()
         if not cats: cats = [UNCATEGORIZED]
-        
-        dlg = AddFeedDialog(self, cats)
+
+        dlg = AddFeedDialog(self, cats, initial_url=initial_url)
         if dlg.ShowModal() == wx.ID_OK:
             url, cat = dlg.get_data()
             if url:
                 self.SetTitle(f"BlindRSS - Adding feed {url}...")
                 threading.Thread(target=self._add_feed_thread, args=(url, cat), daemon=True).start()
         dlg.Destroy()
+
+    def on_detect_page_feeds(self, event):
+        """File > Detect Feeds on Page... (issue #76)."""
+        dlg = wx.TextEntryDialog(
+            self,
+            _("Enter the address of a webpage to scan for feeds:"),
+            _("Detect Feeds on Page"),
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            url = (dlg.GetValue() or "").strip()
+        finally:
+            dlg.Destroy()
+        if not url:
+            return
+
+        # Fetch/scan off the UI thread; results come back via CallAfter.
+        def _scan():
+            try:
+                from core import discovery as _disc
+                feeds = _disc.detect_page_feeds(url)
+            except Exception:
+                wx.CallAfter(
+                    wx.MessageBox,
+                    _("Unable to retrieve the page."),
+                    _("Detect Feeds on Page"),
+                    wx.OK | wx.ICON_ERROR,
+                    self,
+                )
+                return
+            wx.CallAfter(self._present_detected_page_feeds, feeds)
+
+        threading.Thread(target=_scan, daemon=True).start()
+
+    def _present_detected_page_feeds(self, feeds):
+        """Show detection results: none -> message, one -> Add Feed, many -> picker."""
+        feeds = [f for f in (feeds or []) if str((f or {}).get("url") or "").strip()]
+        if not feeds:
+            wx.MessageBox(
+                _("No feeds detected on this page."),
+                _("Detect Feeds on Page"),
+                wx.OK | wx.ICON_INFORMATION,
+                self,
+            )
+            return
+        if len(feeds) == 1:
+            self._show_add_feed_dialog(initial_url=str(feeds[0].get("url") or ""))
+            return
+        labels = []
+        for f in feeds:
+            feed_url = str(f.get("url") or "")
+            title = str(f.get("title") or "").strip()
+            labels.append(f"{title} ({feed_url})" if title else feed_url)
+        dlg = wx.SingleChoiceDialog(
+            self,
+            _("Select a feed to subscribe to:"),
+            _("Detected Feeds"),
+            labels,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            idx = dlg.GetSelection()
+        finally:
+            dlg.Destroy()
+        if 0 <= idx < len(feeds):
+            self._show_add_feed_dialog(initial_url=str(feeds[idx].get("url") or ""))
         
     def _add_feed_thread(self, url, cat):
         success = False

@@ -21,6 +21,7 @@ from urllib.parse import quote, urljoin, urlsplit
 from bs4 import BeautifulSoup
 
 from core import utils
+from core import text_encoding
 
 # User-facing extraction failures are translated (PR #69). Every _() call here
 # MUST run at raise time, never at module import: this module is pulled in via
@@ -2027,7 +2028,7 @@ def _download_sky_via_google_translate(target_url: str, timeout: int) -> Optiona
     return None
 
 
-def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
+def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _FetchResult:
     """Fetch a page, treating anti-bot/verification interstitials as a (recoverable) block.
 
     Note: some gates (e.g. Bloomberg's "unusual activity" page) are served with HTTP 200, so the
@@ -2079,8 +2080,24 @@ def _fetch_page(url: str, timeout: int = 20) -> _FetchResult:
             url, timeout=timeout, headers=dict(_HTML_ACCEPT_HEADERS), allow_redirects=True
         )
         if 200 <= r.status_code < 400:
-            r.encoding = r.encoding or "utf-8"
-            body = r.text or ""
+            # Issue #75: decode the raw bytes ourselves so a per-feed override
+            # wins, and so the auto chain (header charset -> meta charset ->
+            # utf-8) beats requests' ISO-8859-1 default for charset-less pages.
+            raw = None
+            try:
+                raw = r.content
+            except Exception:
+                raw = None
+            if raw:
+                body = text_encoding.decode_bytes(
+                    raw,
+                    override=encoding_override,
+                    content_type=str(r.headers.get("Content-Type", "") or ""),
+                    kind="html",
+                )
+            else:
+                r.encoding = r.encoding or "utf-8"
+                body = r.text or ""
             if _looks_like_bot_interstitial(body):
                 return _try_fallbacks(gate_seen=True)
             return _FetchResult(html=body)
@@ -2556,7 +2573,7 @@ def _merge_texts(texts: List[str]) -> str:
 
 
 def extract_full_article(
-    url: str, max_pages: int = 6, timeout: int = 20, metadata_sink=None
+    url: str, max_pages: int = 6, timeout: int = 20, metadata_sink=None, encoding: str = ""
 ) -> Optional[FullArticle]:
     """
     Extract full article text from a URL. Attempts to follow pagination for multi-page articles.
@@ -2622,7 +2639,12 @@ def extract_full_article(
             downloaded_any = True
             break
 
-        res = _fetch_page(current, timeout=timeout)
+        # Pass the override only when set: keeps compatibility with test
+        # doubles that substitute _fetch_page without the kwarg.
+        if encoding:
+            res = _fetch_page(current, timeout=timeout, encoding_override=encoding)
+        else:
+            res = _fetch_page(current, timeout=timeout)
         if res.blocked:
             blocked = True
             break
@@ -2706,6 +2728,7 @@ def render_full_article(
     max_pages: int = 6,
     timeout: int = 20,
     metadata_sink=None,
+    encoding: str = "",
 ) -> Optional[str]:
     """
     Render a full article into a single plain-text string (Title/Author/Text).
@@ -2744,12 +2767,14 @@ def render_full_article(
     # Try webpage extraction.
     extraction_error: Optional[ExtractionError] = None
     try:
-        # Pass metadata_sink only when set: keeps compatibility with callers
-        # (and tests) that substitute extract_full_article without the kwarg.
+        # Pass optional kwargs only when set: keeps compatibility with callers
+        # (and tests) that substitute extract_full_article without them.
+        extra_kwargs = {}
         if metadata_sink is not None:
-            art = extract_full_article(url, max_pages=max_pages, timeout=timeout, metadata_sink=metadata_sink)
-        else:
-            art = extract_full_article(url, max_pages=max_pages, timeout=timeout)
+            extra_kwargs["metadata_sink"] = metadata_sink
+        if encoding:
+            extra_kwargs["encoding"] = encoding
+        art = extract_full_article(url, max_pages=max_pages, timeout=timeout, **extra_kwargs)
         if art:
             if fallback_title and not art.title:
                 art.title = fallback_title

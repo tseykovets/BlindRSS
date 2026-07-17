@@ -4653,6 +4653,96 @@ def discover_feeds(url: str) -> list[str]:
         out.append(fu)
     return out
 
+class PageFetchError(Exception):
+    """The webpage for feed detection could not be retrieved (issue #76)."""
+
+
+# MIME types accepted for <link rel="alternate"> feed detection (issue #76).
+# Wider than _ALTERNATE_FEED_TYPES: plain application/json and RDF feeds count.
+_DETECT_PAGE_FEED_TYPES = _ALTERNATE_FEED_TYPES | {
+    "application/json",
+    "application/rdf+xml",
+}
+
+
+def detect_page_feeds(url: str, timeout: float = 15.0) -> list[dict]:
+    """Scan a webpage's HTML for machine-readable feed links (issue #76).
+
+    Returns a list of ``{"title": str, "url": str}`` dicts, in document order,
+    for every ``<link rel="alternate">`` whose ``type`` is a known feed MIME
+    type and whose ``href`` is non-empty. ``title`` falls back to "" (callers
+    display the URL then). If the URL itself serves a feed document, that URL
+    is returned as the single result.
+
+    Raises PageFetchError when the page cannot be retrieved.
+    """
+    page_url = str(url or "").strip()
+    if not page_url:
+        raise PageFetchError("empty URL")
+    if "://" not in page_url:
+        page_url = "https://" + page_url
+
+    resp = None
+    fetch_error = None
+    try:
+        resp = utils.safe_requests_get(page_url, timeout=timeout, allow_redirects=True)
+    except Exception as e:
+        fetch_error = e
+    if resp is None or int(getattr(resp, "status_code", 0) or 0) >= 400:
+        # One browser-impersonated retry past WAF blocks (issue #29).
+        retry_resp = _impersonated_discovery_retry(page_url, timeout)
+        if retry_resp is not None:
+            resp = retry_resp
+    if resp is None:
+        raise PageFetchError(str(fetch_error or "no response"))
+    status = int(getattr(resp, "status_code", 0) or 0)
+    if not (200 <= status < 400):
+        raise PageFetchError(f"HTTP {status}")
+
+    effective_url = str(getattr(resp, "url", "") or page_url)
+    content_type = str(resp.headers.get("Content-Type", "") or "")
+    # Decode via the issue #75 chain so non-ASCII link titles survive pages
+    # that omit the charset header.
+    try:
+        from core import text_encoding
+        html = text_encoding.decode_bytes(
+            getattr(resp, "content", b"") or b"", content_type=content_type, kind="html"
+        )
+    except Exception:
+        html = resp.text or ""
+
+    if _body_looks_like_feed(html, content_type.lower()):
+        return [{"title": "", "url": effective_url}]
+
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+    except Exception:
+        return []
+
+    results: list[dict] = []
+    seen: set[str] = set()
+    for link in soup.find_all("link", href=True):
+        try:
+            rel = link.get("rel")
+            rel_vals = [rel] if isinstance(rel, str) else [str(r) for r in (rel or [])]
+            if "alternate" not in [r.lower().strip() for r in rel_vals if r]:
+                continue
+            ctype = str(link.get("type") or "").lower().strip()
+            if ctype not in _DETECT_PAGE_FEED_TYPES:
+                continue
+            href = link.get("href")
+            if not isinstance(href, str) or not href.strip():
+                continue
+            feed_url = urljoin(effective_url, href.strip())
+            if feed_url in seen:
+                continue
+            seen.add(feed_url)
+            results.append({"title": str(link.get("title") or "").strip(), "url": feed_url})
+        except Exception:
+            continue
+    return results
+
+
 def detect_media(url: str, timeout: int = 20) -> tuple[str | None, str | None]:
     """
     Attempt to detect media (audio/video) for a given URL using yt-dlp and other heuristics.

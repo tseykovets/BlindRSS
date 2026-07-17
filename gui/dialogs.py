@@ -182,7 +182,7 @@ class ColumnLayoutPanel(wx.Panel):
 
 
 class AddFeedDialog(wx.Dialog):
-    def __init__(self, parent, categories=None):
+    def __init__(self, parent, categories=None, initial_url: str = ""):
         super().__init__(parent, title=_("Add Feed"), size=(400, 250))
         
         self.category_identities = list(categories or [UNCATEGORIZED])
@@ -196,6 +196,10 @@ class AddFeedDialog(wx.Dialog):
         self.url_ctrl = wx.TextCtrl(self)
         self.url_ctrl.SetName("Feed or Media URL")
         self.url_ctrl.SetHint(_("https://example.com/feed or a YouTube/podcast URL"))
+        if initial_url:
+            # Prefill from "Detect Feeds on Page" (issue #76). SetValue fires
+            # EVT_TEXT, so the compatibility hint updates as if typed.
+            self.url_ctrl.SetValue(str(initial_url))
         wx.CallAfter(self.url_ctrl.SetFocus)
         sizer.Add(self.url_ctrl, 0, wx.EXPAND | wx.ALL, 5)
         
@@ -3321,6 +3325,38 @@ class FeedPropertiesDialog(wx.Dialog):
         proxy_sizer.Add(self.proxy_ctrl, 1, wx.ALL, 5)
         sizer.Add(proxy_sizer, 0, wx.EXPAND)
 
+        # Per-feed text encoding overrides (issue #75). Blank means automatic
+        # detection; a codec name (utf-8, windows-1251, koi8-r, ...) pins it.
+        feed_enc_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        feed_enc_sizer.Add(
+            wx.StaticText(general_panel, label=_("Feed encoding (blank = automatic, e.g. utf-8, windows-1251):")),
+            0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
+        )
+        feed_enc_value = ""
+        try:
+            feed_enc_value = str(self._feed_settings.get("encoding") or "")
+        except Exception:
+            feed_enc_value = ""
+        self.feed_encoding_ctrl = wx.TextCtrl(general_panel, value=feed_enc_value)
+        self.feed_encoding_ctrl.SetName("Feed encoding")
+        feed_enc_sizer.Add(self.feed_encoding_ctrl, 1, wx.ALL, 5)
+        sizer.Add(feed_enc_sizer, 0, wx.EXPAND)
+
+        fulltext_enc_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        fulltext_enc_sizer.Add(
+            wx.StaticText(general_panel, label=_("Full text extraction encoding (blank = automatic):")),
+            0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
+        )
+        fulltext_enc_value = ""
+        try:
+            fulltext_enc_value = str(self._feed_settings.get("fulltext_encoding") or "")
+        except Exception:
+            fulltext_enc_value = ""
+        self.fulltext_encoding_ctrl = wx.TextCtrl(general_panel, value=fulltext_enc_value)
+        self.fulltext_encoding_ctrl.SetName("Full text extraction encoding")
+        fulltext_enc_sizer.Add(self.fulltext_encoding_ctrl, 1, wx.ALL, 5)
+        sizer.Add(fulltext_enc_sizer, 0, wx.EXPAND)
+
         # Per-feed delete-behavior override. "Use global setting" leaves
         # feeds.delete_behavior NULL so the global setting applies. Kept last so
         # the dialog opens on Title rather than on this combo box.
@@ -3394,7 +3430,9 @@ class FeedPropertiesDialog(wx.Dialog):
         self.timeout_ctrl.MoveAfterInTabOrder(self.headers_ctrl)
         self.impersonate_ctrl.MoveAfterInTabOrder(self.timeout_ctrl)
         self.proxy_ctrl.MoveAfterInTabOrder(self.impersonate_ctrl)
-        self.feed_delete_ctrl.MoveAfterInTabOrder(self.proxy_ctrl)
+        self.feed_encoding_ctrl.MoveAfterInTabOrder(self.proxy_ctrl)
+        self.fulltext_encoding_ctrl.MoveAfterInTabOrder(self.feed_encoding_ctrl)
+        self.feed_delete_ctrl.MoveAfterInTabOrder(self.fulltext_encoding_ctrl)
         self.feed_delete_category_ctrl.MoveAfterInTabOrder(self.feed_delete_ctrl)
 
         ok_btn = self.FindWindow(wx.ID_OK)
@@ -3425,6 +3463,22 @@ class FeedPropertiesDialog(wx.Dialog):
         return kind
 
     def on_ok(self, event):
+        # Validate encoding overrides up front (issue #75): keep the dialog
+        # open on an unknown codec name instead of silently persisting it.
+        invalid = self._first_invalid_encoding_field()
+        if invalid is not None:
+            bad_value, ctrl = invalid
+            wx.MessageBox(
+                _("Unknown text encoding: %s. Use a Python codec name such as utf-8, windows-1251 or koi8-r, or leave the field blank for automatic detection.") % bad_value,
+                _("Feed Properties"),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            try:
+                ctrl.SetFocus()
+            except Exception:
+                pass
+            return
         self._save_feed_settings()
         try:
             from core import db as _db
@@ -3434,6 +3488,22 @@ class FeedPropertiesDialog(wx.Dialog):
         except Exception:
             logging.getLogger(__name__).debug("Failed to save per-feed delete behavior", exc_info=True)
         self.EndModal(wx.ID_OK)
+
+    def _first_invalid_encoding_field(self):
+        """Return (bad_value, ctrl) for the first unknown encoding override, else None."""
+        import codecs as _codecs
+        for ctrl in (self.feed_encoding_ctrl, self.fulltext_encoding_ctrl):
+            try:
+                value = (ctrl.GetValue() or "").strip()
+            except Exception:
+                continue
+            if not value:
+                continue
+            try:
+                _codecs.lookup(value)
+            except (LookupError, TypeError, ValueError):
+                return value, ctrl
+        return None
 
     def _save_feed_settings(self):
         """Parse the per-feed HTTP override controls and persist them (issue #29)."""
@@ -3469,6 +3539,16 @@ class FeedPropertiesDialog(wx.Dialog):
             settings["proxy"] = (self.proxy_ctrl.GetValue() or "").strip()
         except Exception:
             settings["proxy"] = ""
+
+        # Per-feed encoding overrides (issue #75). Stored lowercase; "" = automatic.
+        try:
+            settings["encoding"] = (self.feed_encoding_ctrl.GetValue() or "").strip().lower()
+        except Exception:
+            settings["encoding"] = ""
+        try:
+            settings["fulltext_encoding"] = (self.fulltext_encoding_ctrl.GetValue() or "").strip().lower()
+        except Exception:
+            settings["fulltext_encoding"] = ""
 
         try:
             sel = self.refresh_interval_ctrl.GetSelection()

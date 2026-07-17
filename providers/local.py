@@ -41,6 +41,7 @@ from core import utils
 from core import rumble as rumble_mod
 from core import odysee as odysee_mod
 from core import npr as npr_mod
+from core import text_encoding
 from bs4 import BeautifulSoup as BS, MarkupResemblesLocatorWarning, XMLParsedAsHTMLWarning
 import xml.etree.ElementTree as ET
 import logging
@@ -446,12 +447,9 @@ def _decode_feed_text(data, fallback_text: Optional[str] = None) -> str:
     if fallback_text is not None:
         return str(fallback_text or "")
     if isinstance(data, bytes):
-        for encoding in ("utf-8-sig", "utf-8", "iso-8859-1"):
-            try:
-                return data.decode(encoding)
-            except UnicodeDecodeError:
-                continue
-        return data.decode("utf-8", errors="replace")
+        # Detection chain (issue #75): BOM -> XML prolog declaration -> utf-8,
+        # degrading through latin-1/replace instead of ever raising.
+        return text_encoding.decode_bytes(data, kind="xml")
     return str(data or "")
 
 
@@ -1930,6 +1928,10 @@ class LocalProvider(RSSProvider):
         feed_proxy = str(feed_settings.get("proxy") or "").strip()
         feed_proxies = {"http": feed_proxy, "https": feed_proxy} if feed_proxy else None
 
+        # Per-feed encoding override (issue #75): when set, the raw feed bytes
+        # are decoded with this codec instead of any automatic detection.
+        feed_encoding_override = str(feed_settings.get("encoding") or "").strip()
+
         # Automatic refreshes can use validators. Manual/targeted refreshes are
         # force=True and should fetch the feed body even when a server's validator
         # metadata is stale or incorrect.
@@ -2781,7 +2783,18 @@ class LocalProvider(RSSProvider):
                             break
                         # Use content instead of text to let feedparser handle encoding detection
                         xml_data = resp.content
-                        xml_text = resp.text
+                        if feed_encoding_override:
+                            # Issue #75: the user pinned this feed's encoding. Decode
+                            # here and hand feedparser text so it cannot re-guess.
+                            xml_text = text_encoding.decode_bytes(
+                                resp.content,
+                                override=feed_encoding_override,
+                                content_type=str(resp.headers.get("Content-Type", "") or ""),
+                                kind="xml",
+                            )
+                            xml_data = xml_text
+                        else:
+                            xml_text = resp.text
                         status = "ok"
                         error_msg = None
                         failure_cooldown_seconds = None

@@ -647,7 +647,7 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
             return True
 
     if not is_update_supported():
-        return False, "Auto-update is not available for this build."
+        return False, _("Auto-update is not available for this build.")
 
     platform = current_platform()
     install_dir = APP_DIR
@@ -666,7 +666,7 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
         except Exception:
             total = 0
         downloaded = 0
-        if not report("Downloading update…", 0.0):
+        if not report(_("Downloading update…"), 0.0):
             return False, UPDATE_CANCELED_MESSAGE
         with open(archive_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1024 * 512):
@@ -674,15 +674,15 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
                     f.write(chunk)
                     downloaded += len(chunk)
                     fraction = (downloaded / total) if total > 0 else None
-                    if not report("Downloading update…", fraction):
+                    if not report(_("Downloading update…"), fraction):
                         return False, UPDATE_CANCELED_MESSAGE
     except Exception as e:
         return False, _("Failed to download update: {error}").format(error=e)
 
-    report("Verifying download…", None)
+    report(_("Verifying download…"), None)
     digest = _sha256_file(archive_path)
     if digest.lower() != info.sha256.lower():
-        return False, "Downloaded update failed SHA-256 verification."
+        return False, _("Downloaded update failed SHA-256 verification.")
 
     if platform == "windows" and info.asset_kind == "installer":
         return _apply_windows_installer(
@@ -694,7 +694,7 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
             report,
         )
 
-    report("Extracting update…", None)
+    report(_("Extracting update…"), None)
     try:
         _extract_archive(archive_path, extract_dir)
     except Exception as e:
@@ -720,12 +720,12 @@ def _apply_windows(info, install_dir, temp_root, extract_dir, debug_mode, report
     if not os.path.isfile(exe_path):
         return False, _("Update package is missing {name}.").format(name=EXE_NAME)
 
-    report("Verifying signature…", None)
+    report(_("Verifying signature…"), None)
     ok, msg = _verify_authenticode_signature(exe_path, info.signing_thumbprints)
     if not ok:
         return False, msg
 
-    report("Preparing restart…", None)
+    report(_("Preparing restart…"), None)
 
     helper_run_path = helper_path
     try:
@@ -774,12 +774,12 @@ def _apply_windows_installer(
     if not os.path.isfile(installer_path):
         return False, _("Downloaded Windows installer is missing.")
 
-    report("Verifying signature…", None)
+    report(_("Verifying signature…"), None)
     ok, msg = _verify_authenticode_signature(installer_path, info.signing_thumbprints)
     if not ok:
         return False, msg
 
-    report("Preparing restart…", None)
+    report(_("Preparing restart…"), None)
     helper_run_path = helper_path
     try:
         helper_temp = os.path.join(temp_root, WINDOWS_UPDATE_HELPER_NAME)
@@ -852,12 +852,12 @@ def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str
     if not os.path.isfile(os.path.join(staging_app, "Contents", "MacOS", "BlindRSS")):
         return False, "Update package .app is missing its executable."
 
-    report("Verifying signature…", None)
+    report(_("Verifying signature…"), None)
     ok, msg = _verify_macos_codesign(staging_app)
     if not ok:
         return False, msg
 
-    report("Preparing restart…", None)
+    report(_("Preparing restart…"), None)
     return _launch_posix_helper(
         helper_path,
         "macos",
@@ -877,7 +877,7 @@ def _apply_linux(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str
     if not staging_dir:
         return False, "Update package is missing the BlindRSS executable."
 
-    report("Preparing restart…", None)
+    report(_("Preparing restart…"), None)
     return _launch_posix_helper(
         helper_path,
         "linux",

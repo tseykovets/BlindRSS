@@ -336,6 +336,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 <!-- claude-memory:begin (managed by sync-claude-memory.py; canonical files live in C:\Users\admin\.claude - edit there, not here) -->
 ## Memories (shared from ~/.claude - project: C--Users-admin-git-BlindRSS)
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\MEMORY.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\aa-heading-loss-not-reproducible.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\accessible-table-linearization.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\active-backend-miniflux-server.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\always-commit-agents-md.md
@@ -347,6 +348,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\curl-cffi-impersonation-transport.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\delete-restore-refresh-unguarded.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\deleted-purge-design.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\encoding-override-design.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\feed-discovery-website-scan.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\feed-title-custom-vs-upstream.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\filter-rules-design.md

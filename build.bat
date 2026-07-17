@@ -195,6 +195,15 @@ if exist "requirements.txt" (
     if errorlevel 1 exit /b 1
 )
 
+echo [BlindRSS Build] Upgrading the text-extraction stack to latest releases...
+REM requirements.txt installs satisfy ">=" pins without ever upgrading, so the
+REM venv would stay on whatever trafilatura it first got. Full-text quality
+REM tracks these packages, so pull their latest releases on every build.
+"%VENV_PYTHON%" -m pip install --upgrade trafilatura htmldate justext courlan
+if errorlevel 1 (
+    echo [WARN] Extraction-stack upgrade failed; continuing with the pinned versions.
+)
+
 echo [BlindRSS Build] Ensuring yt-dlp binary is present...
 "%VENV_PYTHON%" -c "from core.dependency_check import _ensure_yt_dlp_cli; _ensure_yt_dlp_cli()"
 if not exist "%SCRIPT_DIR%bin\\yt-dlp.exe" (

@@ -4,6 +4,15 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.110.0 - 2026-07-18
+
+- Editable shortcuts for every command, menu access keys, and site-cookie access to challenge-protected feeds.
+- Make checkable lists readable by NVDA and copy real audio URLs.
+- Merge PR #78: Improving internationalization (@tseykovets).
+- Display interface language options with human-readable names.
+- Add internationalization of translation language presets and update Russian translation.
+- Update Russian translation.
+
 ## v1.109.3 - 2026-07-18
 
 - Report real episode length when tracker redirects outlast the probe.

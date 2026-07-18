@@ -238,3 +238,44 @@ def test_auto_import_ignores_managed_file_in_search(tmp_path):
         cfg, data_dir, search_dirs=[data_dir], now=now
     )
     assert dest is None
+
+
+def test_cookie_watcher_scans_immediately_before_first_wait(tmp_path, monkeypatch):
+    from core import site_cookies
+
+    calls = []
+    monkeypatch.setattr(
+        cookies_import,
+        "auto_import_youtube_cookies",
+        lambda config, data_dir: calls.append("youtube-scan") or "youtube-dest",
+    )
+    monkeypatch.setattr(
+        site_cookies,
+        "auto_import_downloads",
+        lambda config: calls.append("site-scan") or "site-source",
+    )
+
+    class _StopAfterFirstScan:
+        def is_set(self):
+            return False
+
+        def wait(self, interval):
+            calls.append("wait")
+            return True
+
+    watcher = cookies_import.CookieImportWatcher(
+        _FakeConfig(),
+        str(tmp_path),
+        on_import=lambda path: calls.append(("youtube-callback", path)),
+        on_site_import=lambda path: calls.append(("site-callback", path)),
+    )
+    watcher._stop = _StopAfterFirstScan()
+    watcher._run()
+
+    assert calls == [
+        "youtube-scan",
+        ("youtube-callback", "youtube-dest"),
+        "site-scan",
+        ("site-callback", "site-source"),
+        "wait",
+    ]

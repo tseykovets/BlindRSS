@@ -420,16 +420,17 @@ def import_from_browser_profile(profile_dir: str) -> int:
 
 
 def auto_import_downloads(config_manager, *, search_dirs=None, now=None):
-    """Auto-import a freshly exported cookies.txt from Downloads (hands-free).
+    """Auto-import Netscape cookies.txt exports from Downloads (hands-free).
 
-    Mirrors the YouTube cookie auto-import: any Netscape jar the user just
-    exported (e.g. ``chromewebstore.google.com_cookies.txt`` from the
-    "Get cookies.txt LOCALLY" extension) is merged into the site jar, so a
-    challenge-protected site starts working without opening any dialog.
-    Returns the imported source path, or None. Gated by the same
+    On the first scan, every valid export already present in Downloads is
+    eligible regardless of age. Later scans merge only files newer than the
+    persisted marker. This makes an existing export available as soon as the
+    app starts while still preventing re-import loops. Multiple pending exports
+    are merged oldest-to-newest so no site's cookies are skipped.
+
+    Returns the newest imported source path, or None. Gated by the same
     ``auto_import_browser_cookies`` setting as the YouTube flow, and by a
-    persisted mtime (``site_cookies_last_import_mtime``) so the same export
-    is never merged twice.
+    persisted mtime (``site_cookies_last_import_mtime``).
     """
     from core import cookies_import
 
@@ -443,13 +444,21 @@ def auto_import_downloads(config_manager, *, search_dirs=None, now=None):
     except (TypeError, ValueError):
         last_mtime = 0.0
 
-    now_ts = time.time() if now is None else now
-    cutoff = max(now_ts - cookies_import.DEFAULT_MAX_AGE_S, last_mtime)
-    dirs = search_dirs if search_dirs is not None else cookies_import.default_download_dirs()
+    # ``now`` remains accepted for caller/test API compatibility, although site
+    # imports intentionally have no first-scan age cutoff. The YouTube-specific
+    # importer retains its recency safeguard.
+    cutoff = last_mtime
+    if search_dirs is not None:
+        dirs = search_dirs
+    else:
+        home = os.path.abspath(os.path.expanduser("~"))
+        dirs = [
+            path for path in cookies_import.default_download_dirs()
+            if os.path.abspath(path) != home
+        ]
 
     managed = {os.path.abspath(jar_path()).lower()}
-    best_path = None
-    best_mtime = -1.0
+    candidates = []
     for d in dirs or []:
         try:
             names = os.listdir(d)
@@ -467,27 +476,33 @@ def auto_import_downloads(config_manager, *, search_dirs=None, now=None):
                 mtime = os.path.getmtime(path)
             except OSError:
                 continue
-            if mtime <= cutoff or mtime <= best_mtime:
+            if mtime <= cutoff:
                 continue
             ok, _msg = validate_jar_file(path)
             if ok:
-                best_path = path
-                best_mtime = mtime
-    if not best_path:
+                candidates.append((mtime, path))
+    if not candidates:
         return None
 
-    try:
-        merge_jar_file(best_path)
-    except (ValueError, OSError) as exc:
-        log.debug("Site cookie auto-import skipped (%s): %s", best_path, exc)
+    imported = []
+    for mtime, path in sorted(candidates):
+        try:
+            merge_jar_file(path)
+        except (ValueError, OSError) as exc:
+            # Do not advance past a failed candidate; retry it next tick.
+            log.debug("Site cookie auto-import stopped at %s: %s", path, exc)
+            break
+        imported.append((mtime, path))
+    if not imported:
         return None
+    newest_mtime, newest_path = imported[-1]
     try:
-        config_manager.set("site_cookies_last_import_mtime", best_mtime)
+        config_manager.set("site_cookies_last_import_mtime", newest_mtime)
     except Exception:
         log.exception("Failed to persist site cookie auto-import state")
         return None
-    log.info("Auto-imported site cookies from %s", best_path)
-    return best_path
+    log.info("Auto-imported site cookies from %d export(s); newest: %s", len(imported), newest_path)
+    return newest_path
 
 
 # Markers that identify a bot-verification interstitial rather than content.

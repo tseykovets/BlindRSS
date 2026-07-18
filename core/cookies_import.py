@@ -292,8 +292,10 @@ class CookieImportWatcher:
         self._stop.set()
 
     def _run(self) -> None:
-        # Wait one interval before the first check so startup isn't busier.
-        while not self._stop.wait(self._interval_s):
+        # The scan itself runs on this background thread, so check immediately:
+        # an export already in Downloads must be ready before the user reaches a
+        # feed that needs it. Subsequent checks retain the bounded cadence.
+        while not self._stop.is_set():
             try:
                 dest = auto_import_youtube_cookies(self._config_manager, self._data_dir)
             except Exception:
@@ -315,3 +317,5 @@ class CookieImportWatcher:
                     self._on_site_import(site_src)
                 except Exception:
                     log.exception("Cookie import on_site_import callback failed")
+            if self._stop.wait(self._interval_s):
+                break

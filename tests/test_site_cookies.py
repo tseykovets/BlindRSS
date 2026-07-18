@@ -190,7 +190,7 @@ def test_auto_import_downloads_merges_fresh_export(tmp_path):
     assert site_cookies.auto_import_downloads(cfg, search_dirs=[str(downloads)], now=now) is None
 
 
-def test_auto_import_downloads_ignores_stale_and_non_jars(tmp_path):
+def test_auto_import_downloads_imports_existing_jar_on_first_scan(tmp_path):
     import time as time_mod
 
     downloads = tmp_path / "Downloads"
@@ -204,7 +204,39 @@ def test_auto_import_downloads_ignores_stale_and_non_jars(tmp_path):
     os.utime(notes, (now, now))
 
     cfg = _FakeConfig()
-    assert site_cookies.auto_import_downloads(cfg, search_dirs=[str(downloads)], now=now) is None
+    assert site_cookies.auto_import_downloads(
+        cfg, search_dirs=[str(downloads)], now=now
+    ) == str(stale)
+    assert "cf_clearance=downloaded.value" in site_cookies.cookie_header_for(
+        "https://challenge.example/", now=2000000000
+    )
+
+
+def test_auto_import_downloads_merges_every_pending_export(tmp_path):
+    downloads = tmp_path / "Downloads"
+    downloads.mkdir()
+    first = downloads / "one_cookies.txt"
+    second = downloads / "two_cookies.txt"
+    first.write_text(_EXPORT, encoding="utf-8")
+    second.write_text(
+        _EXPORT.replace("challenge.example", "second.example")
+        .replace("downloaded.value", "second.value"),
+        encoding="utf-8",
+    )
+    os.utime(first, (1000, 1000))
+    os.utime(second, (2000, 2000))
+
+    cfg = _FakeConfig()
+    assert site_cookies.auto_import_downloads(
+        cfg, search_dirs=[str(downloads)], now=3000
+    ) == str(second)
+    assert "downloaded.value" in site_cookies.cookie_header_for(
+        "https://challenge.example/", now=500
+    )
+    assert "second.value" in site_cookies.cookie_header_for(
+        "https://second.example/", now=500
+    )
+    assert cfg.get("site_cookies_last_import_mtime") == 2000
 
 
 def test_auto_import_downloads_respects_setting(tmp_path):

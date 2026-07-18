@@ -81,10 +81,15 @@ class _DummyMain:
     _format_player_chapter_menu_label = mainframe.MainFrame._format_player_chapter_menu_label
     _clear_menu_items = mainframe.MainFrame._clear_menu_items
     _refresh_player_chapters_submenu = mainframe.MainFrame._refresh_player_chapters_submenu
+    _shortcut_menu_label = mainframe.MainFrame._shortcut_menu_label
     on_player_show_chapters = mainframe.MainFrame.on_player_show_chapters
     on_player_prev_chapter = mainframe.MainFrame.on_player_prev_chapter
     on_player_next_chapter = mainframe.MainFrame.on_player_next_chapter
     on_player_chapter_jump = mainframe.MainFrame.on_player_chapter_jump
+
+    def binding_label(self, command_id):
+        # These tests assert on base labels, so report every command unbound.
+        return ""
 
     def __init__(self, chapters, active_idx=0):
         self.player_window = _PlayerStub(chapters, active_idx=active_idx)

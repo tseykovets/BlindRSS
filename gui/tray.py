@@ -2,6 +2,7 @@ import wx
 import wx.adv
 
 from core.i18n import _
+from .menu_mnemonics import apply_menu_mnemonics
 
 
 TRAY_LABEL_BASE = "BlindRSS"
@@ -118,7 +119,8 @@ class BlindRSSTrayIcon(wx.adv.TaskBarIcon):
 
         menu.AppendSeparator()
         exit_item = menu.Append(wx.ID_EXIT, _("Exit"))
-        
+        apply_menu_mnemonics(menu)
+
         self.Bind(wx.EVT_MENU, self.on_restore, restore_item)
         self.Bind(wx.EVT_MENU, self.on_toggle_player, toggle_player_item)
         self.Bind(wx.EVT_MENU, self.on_refresh, refresh_item)

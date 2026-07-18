@@ -35,6 +35,7 @@ from core import equalizer as equalizer_mod
 from core import shortcuts as shortcuts_mod
 from core import announcements as announcements_mod
 from .shortcut_keys import event_to_accel
+from .menu_mnemonics import apply_menu_mnemonics
 from .widgets import CheckListCtrl
 from core import windows_integration
 from core.casting import CastingManager
@@ -457,6 +458,113 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
             if not checked:
                 excluded.append(fid)
         return excluded
+
+
+class ImportSiteCookiesDialog(wx.Dialog):
+    """Import a browser cookies.txt so challenge-protected sites open (issue #79).
+
+    Sites behind a Cloudflare-style "checking your browser" interstitial only
+    answer to a session that already passed the challenge in a real browser.
+    The user exports cookies with a cookies.txt extension and imports them
+    here; the fetch layer then sends the matching cookies plus the browser's
+    User-Agent string (Cloudflare requires the exact UA the cookie was issued
+    to).
+    """
+
+    def __init__(self, parent):
+        super().__init__(parent, title=_("Import Site Cookies"))
+        from core import site_cookies as site_cookies_mod
+        self._site_cookies = site_cookies_mod
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        intro = wx.StaticText(
+            self,
+            label=_(
+                "Some websites show a browser verification page (for example a "
+                "Cloudflare challenge) before their feeds. To read them in "
+                "BlindRSS:\n"
+                "1. Open the website in your web browser and wait for it to load.\n"
+                "2. Export its cookies with a \"cookies.txt\" browser extension.\n"
+                "3. Choose the exported file below.\n"
+                "Also paste your browser's User-Agent string (search the web for "
+                "\"what is my user agent\" to see it) so the site accepts the "
+                "cookies."
+            ),
+        )
+        intro.Wrap(520)
+        sizer.Add(intro, 0, wx.ALL, 10)
+
+        file_row = wx.BoxSizer(wx.HORIZONTAL)
+        file_row.Add(
+            wx.StaticText(self, label=_("Cookies file:")),
+            0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6,
+        )
+        self.file_ctrl = wx.TextCtrl(self)
+        self.file_ctrl.SetName("Cookies file path")
+        file_row.Add(self.file_ctrl, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6)
+        browse_btn = wx.Button(self, label=_("&Browse..."))
+        browse_btn.Bind(wx.EVT_BUTTON, self._on_browse)
+        file_row.Add(browse_btn, 0, wx.ALIGN_CENTER_VERTICAL)
+        sizer.Add(file_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        ua_row = wx.BoxSizer(wx.HORIZONTAL)
+        ua_row.Add(
+            wx.StaticText(self, label=_("Browser User-Agent (recommended):")),
+            0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 6,
+        )
+        self.ua_ctrl = wx.TextCtrl(self)
+        self.ua_ctrl.SetName("Browser User-Agent")
+        self.ua_ctrl.SetValue(self._site_cookies.get_user_agent())
+        ua_row.Add(self.ua_ctrl, 1, wx.ALIGN_CENTER_VERTICAL)
+        sizer.Add(ua_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        self.status_lbl = wx.StaticText(self, label="")
+        sizer.Add(self.status_lbl, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        btn_sizer = self.CreateButtonSizer(wx.OK | wx.CANCEL)
+        if btn_sizer:
+            sizer.Add(btn_sizer, 0, wx.ALIGN_CENTER | wx.ALL, 10)
+        ok_btn = self.FindWindow(wx.ID_OK)
+        if ok_btn:
+            ok_btn.Bind(wx.EVT_BUTTON, self._on_ok)
+
+        self.SetSizerAndFit(sizer)
+        self.Centre()
+        wx.CallAfter(self.file_ctrl.SetFocus)
+
+    def _on_browse(self, event):
+        dlg = wx.FileDialog(
+            self,
+            _("Choose the exported cookies.txt"),
+            wildcard=_("Text files (*.txt)|*.txt|All files (*.*)|*.*"),
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        )
+        try:
+            if dlg.ShowModal() == wx.ID_OK:
+                self.file_ctrl.SetValue(dlg.GetPath())
+        finally:
+            dlg.Destroy()
+
+    def _on_ok(self, event):
+        path = (self.file_ctrl.GetValue() or "").strip()
+        ua = (self.ua_ctrl.GetValue() or "").strip()
+        if not path:
+            # Allow saving just an updated UA when a jar was imported earlier.
+            self._site_cookies.set_user_agent(ua)
+            event.Skip()
+            return
+        ok, message = self._site_cookies.validate_jar_file(path)
+        if not ok:
+            self.status_lbl.SetLabel(message)
+            wx.MessageBox(message, _("Import Site Cookies"), wx.OK | wx.ICON_ERROR, self)
+            return
+        try:
+            self._site_cookies.import_jar(path)
+        except (ValueError, OSError) as exc:
+            wx.MessageBox(str(exc), _("Import Site Cookies"), wx.OK | wx.ICON_ERROR, self)
+            return
+        self._site_cookies.set_user_agent(ua)
+        event.Skip()
 
 
 class SettingsDialog(wx.Dialog):
@@ -1127,11 +1235,15 @@ class SettingsDialog(wx.Dialog):
                 continue
 
             # Trying to find a human-readable name. If not, leave the code.
-            name = code_to_name_map.get(code)
-            if name:
-                display_text = f"{name} ({code})"
-            else:
-                display_text = f"{code} ({code})"
+            # Locale directories use underscores (pt_BR, zh_CN) while the
+            # presets use BCP-47 hyphens (pt-BR, zh-CN); regional locales with
+            # no preset of their own (nl_BE) fall back to the base language.
+            name = (
+                code_to_name_map.get(code)
+                or code_to_name_map.get(code.replace("_", "-"))
+                or code_to_name_map.get(code.split("_")[0].split("-")[0])
+            )
+            display_text = f"{name} ({code})" if name else code
 
             sortable_items.append((display_text, code))
 
@@ -6159,6 +6271,7 @@ class YtdlpGlobalSearchDialog(wx.Dialog):
         menu.Bind(wx.EVT_MENU, self.on_copy_selected_url, copy_item)
 
         try:
+            apply_menu_mnemonics(menu)
             if client_pos is None:
                 idx = self.results_list.GetFirstSelected()
                 if idx != wx.NOT_FOUND:
@@ -6863,6 +6976,25 @@ class KeyboardShortcutsDialog(wx.Dialog):
     def _effective(self) -> dict:
         return shortcuts_mod.resolve_bindings(self._overrides)
 
+    # Keys that are part of a control's own behavior (or a native accelerator)
+    # rather than the editable registry. Listed read-only so the dialog is a
+    # complete keyboard reference; Change/Remove are disabled on these rows.
+    def _fixed_rows(self):
+        return (
+            (_("Enter"), _("Open or play the selected article")),
+            (_("Del"), _("Delete the selected article")),
+            (_("Shift+Del"), _("Delete the selected article without confirmation")),
+            (_("Backspace"), _("Toggle read/unread in the article list")),
+            ("Ctrl+R", _("Refresh feeds (fixed alias)")),
+            (_("Ctrl+Left / Ctrl+Right"), _("Rewind / fast forward playback")),
+            (_("Ctrl+Up / Ctrl+Down"), _("Volume up / volume down")),
+            (_("Ctrl+Shift+Left / Ctrl+Shift+Right"), _("Previous / next chapter")),
+            (_("Ctrl+F"), _("Find in the article reader")),
+            (_("F3 / Shift+F3"), _("Next / previous match in the article reader")),
+            (_("F6 / Shift+F6"), _("Move between panes in the rich view")),
+            (_("Ctrl+X / Ctrl+C / Ctrl+V / Ctrl+A"), _("Cut / Copy / Paste / Select All in text fields")),
+        )
+
     def _reload(self, select: int | None = None) -> None:
         eff = self._effective()
         self.list_ctrl.DeleteAllItems()
@@ -6873,6 +7005,11 @@ class KeyboardShortcutsDialog(wx.Dialog):
             self.list_ctrl.SetItem(row, 1, _(cmd.label))
             self.list_ctrl.SetItem(row, 2, accel if accel else _("(none)"))
             self._row_commands.append(cmd.id)
+        for keys, description in self._fixed_rows():
+            row = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(), _("Fixed keys"))
+            self.list_ctrl.SetItem(row, 1, description)
+            self.list_ctrl.SetItem(row, 2, keys)
+            self._row_commands.append(None)
         if self._row_commands:
             if select is None:
                 select = 0

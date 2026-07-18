@@ -25,6 +25,7 @@ from core.stream_proxy import get_proxy as get_stream_proxy
 from core.audio_silence import merge_ranges, merge_ranges_with_gap, scan_audio_for_silence
 from core.dependency_check import _log
 from .hotkeys import HoldRepeatHotkeys, resolve_media_action
+from .menu_mnemonics import apply_menu_mnemonics
 
 log = logging.getLogger(__name__)
 
@@ -2281,6 +2282,7 @@ class PlayerFrame(wx.Frame):
                         label = f"[Current] {label}"
                     item = menu.Append(wx.ID_ANY, label)
                     menu.Bind(wx.EVT_MENU, lambda evt, idx=i: self._jump_to_chapter_index(idx), item)
+            apply_menu_mnemonics(menu)
             self.PopupMenu(menu)
         finally:
             try:

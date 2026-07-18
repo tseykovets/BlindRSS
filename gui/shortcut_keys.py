@@ -38,9 +38,14 @@ def _build_keycode_to_token():
         m[c] = chr(c)
     for c in range(ord("a"), ord("z") + 1):
         m[c] = chr(c).upper()
-    # Digits.
+    # Digits — numpad included so a "Ctrl+1" binding matches both digit rows
+    # (parity with the old hard-coded Ctrl+<digit> filter shortcuts).
     for c in range(ord("0"), ord("9") + 1):
         m[c] = chr(c)
+    for n in range(10):
+        code = getattr(wx, "WXK_NUMPAD%d" % n, None)
+        if code is not None:
+            m[code] = str(n)
     # Punctuation, incl. shifted variants that some platforms report so a
     # binding like "Ctrl+Shift+," still matches whether the OS gives us ',' or '<'.
     punct = {
@@ -102,7 +107,9 @@ def event_to_accel(event: wx.KeyEvent, *, require_modifier: bool = True) -> Opti
 
     When ``require_modifier`` is True (dispatch), events with no modifier (or a
     bare modifier key) yield None so plain typing/navigation is never captured.
-    The capture dialog passes False so single keys can be recorded too.
+    Bare function keys are the exception — F2/F5-style bindings never collide
+    with typing, so they dispatch unmodified. The capture dialog passes False
+    so any single key can be recorded too.
     """
     try:
         key = int(event.GetKeyCode())
@@ -114,6 +121,7 @@ def event_to_accel(event: wx.KeyEvent, *, require_modifier: bool = True) -> Opti
     if token is None:
         return None
     mods = _event_mods(event)
-    if require_modifier and not mods:
+    is_function_key = len(token) >= 2 and token[0] == "F" and token[1:].isdigit()
+    if require_modifier and not mods and not is_function_key:
         return None
     return _sc.format_accel(mods, token)

@@ -27,11 +27,63 @@ from typing import Dict, List, Optional, Tuple
 Command = namedtuple("Command", "id category label default")
 
 # NOTE: keep ids stable — they are persisted in config under "keyboard_shortcuts".
+# An empty default means the command ships unbound; the user can give it any
+# key from Tools > Keyboard Shortcuts. Defaults that used to be hard-coded
+# accelerators (F5, Ctrl+N, Ctrl+1..6, ...) keep their historical keys.
 COMMANDS: List[Command] = [
+    Command("feeds.add", "Feeds", "Add Feed", "Ctrl+N"),
+    Command("feeds.detect_page", "Feeds", "Detect Feeds on Page", ""),
+    Command("feeds.remove", "Feeds", "Remove Feed", ""),
+    Command("feeds.refresh_all", "Feeds", "Refresh Feeds", "F5"),
+    Command("feeds.stop_refresh", "Feeds", "Stop Refresh", "Shift+F5"),
+    Command("feeds.refresh_selected", "Feeds", "Refresh Feed", "Ctrl+F5"),
+    Command("feeds.edit_selected", "Feeds", "Edit Feed", "F2"),
+    Command("feeds.mark_all_read", "Feeds", "Mark All Items as Read", "Ctrl+Shift+R"),
+    Command("feeds.view_errors", "Feeds", "View Feed Errors", ""),
+    Command("feeds.copy_url", "Feeds", "Copy Feed URL", ""),
+    Command("feeds.add_category", "Feeds", "Add Category", ""),
+    Command("feeds.remove_category", "Feeds", "Remove Category", ""),
+    Command("feeds.import_opml", "Feeds", "Import OPML", ""),
+    Command("feeds.export_opml", "Feeds", "Export OPML", ""),
+    Command("feeds.find_podcast", "Feeds", "Find a Podcast or RSS Feed", "Ctrl+Shift+F"),
+    Command("feeds.video_search", "Feeds", "Video Search", ""),
+
+    Command("article.open_browser", "Articles", "Open in Browser", ""),
+    Command("article.copy_link", "Articles", "Copy Link", ""),
+    Command("article.copy_media_link", "Articles", "Copy Media Link", ""),
+    Command("article.copy_text", "Articles", "Copy Text", ""),
+    Command("article.toggle_read", "Articles", "Toggle Read/Unread", ""),
+    Command("article.toggle_favorite", "Articles", "Add to or Remove from Favorites", "Ctrl+D"),
+    Command("article.delete", "Articles", "Delete Article", ""),
+    Command("article.download", "Articles", "Download", ""),
+    Command("article.toggle_queue", "Articles", "Add to or Remove from Play Queue", ""),
+    Command("article.view_description", "Articles", "View Feed Description", ""),
+
+    Command("view.focus_search", "View", "Focus Search Field", "Ctrl+E"),
+    Command("view.toggle_search", "View", "Show or Hide Search Field", ""),
+    Command("view.rich_view", "View", "Rich Full-Text View", "Ctrl+Shift+H"),
+    Command("view.accessible_browser", "View", "Open Accessible Browser", ""),
+
+    Command("filter.read_all", "Article Filter", "All Articles", "Ctrl+1"),
+    Command("filter.read_unread", "Article Filter", "Unread Only", "Ctrl+2"),
+    Command("filter.read_read", "Article Filter", "Read Only", "Ctrl+3"),
+    Command("filter.media_all", "Article Filter", "Media and Non-media", "Ctrl+4"),
+    Command("filter.media_with", "Article Filter", "With Media Only", "Ctrl+5"),
+    Command("filter.media_without", "Article Filter", "Without Media Only", "Ctrl+6"),
+
+    Command("sort.date", "Sorting", "Sort by Date", ""),
+    Command("sort.name", "Sorting", "Sort by Name", ""),
+    Command("sort.author", "Sorting", "Sort by Author", ""),
+    Command("sort.description", "Sorting", "Sort by Description", ""),
+    Command("sort.feed", "Sorting", "Sort by Feed", ""),
+    Command("sort.status", "Sorting", "Sort by Status", ""),
+    Command("sort.ascending", "Sorting", "Toggle Ascending Sort", ""),
+
     Command("player.play_pause", "Player", "Play/Pause", "Ctrl+P"),
     Command("player.stop", "Player", "Stop", "Ctrl+S"),
     Command("player.show_hide", "Player", "Show/Hide Player", "Ctrl+Shift+P"),
     Command("player.equalizer", "Player", "Open Equalizer", "Ctrl+Shift+E"),
+    Command("player.chapters", "Player", "Show Chapters", ""),
 
     Command("queue.open", "Play Queue", "Open Play Queue", "Ctrl+Shift+C"),
     Command("queue.next", "Play Queue", "Play Next in Queue", "Ctrl+Shift+T"),
@@ -46,9 +98,103 @@ COMMANDS: List[Command] = [
     Command("speed.up", "Playback Speed", "Increase Playback Speed", "Ctrl+Shift+U"),
     Command("speed.down", "Playback Speed", "Decrease Playback Speed", "Ctrl+Shift+D"),
     Command("speed.reset", "Playback Speed", "Reset Playback Speed (1x)", "Ctrl+Shift+N"),
+
+    Command("tools.filter_rules", "Tools", "Filter Rules", ""),
+    Command("tools.import_site_cookies", "Tools", "Import Site Cookies", ""),
+    Command("tools.persistent_search", "Tools", "Configure Persistent Search", ""),
+    Command("tools.keyboard_shortcuts", "Tools", "Keyboard Shortcuts", ""),
+    Command("tools.settings", "Tools", "Settings", "Ctrl+,"),
+    Command("tools.check_updates", "Tools", "Check for Updates", ""),
 ]
 
 _COMMANDS_BY_ID: "OrderedDict[str, Command]" = OrderedDict((c.id, c) for c in COMMANDS)
+
+
+def _(text):  # noqa: A001 - gettext-noop marker for tools/extract_strings.py
+    """Identity gettext marker.
+
+    This module is GUI-free and does its gettext at display time in the GUI
+    (``_(cmd.label)`` / ``_(cmd.category)`` in the Keyboard Shortcuts dialog),
+    which the AST-based POT extractor cannot follow. Listing every displayed
+    msgid through this no-op ``_`` records them in ``locale/blindrss.pot`` so
+    the dialog is translatable. Keep in sync with COMMANDS above.
+    """
+    return text
+
+
+_POT_ANCHORS = (
+    # Categories
+    _("Feeds"),
+    _("Articles"),
+    _("View"),
+    _("Article Filter"),
+    _("Sorting"),
+    _("Player"),
+    _("Play Queue"),
+    _("Playback Speed"),
+    _("Tools"),
+    # Command labels
+    _("Add Feed"),
+    _("Detect Feeds on Page"),
+    _("Remove Feed"),
+    _("Refresh Feeds"),
+    _("Stop Refresh"),
+    _("Refresh Feed"),
+    _("Edit Feed"),
+    _("Mark All Items as Read"),
+    _("View Feed Errors"),
+    _("Copy Feed URL"),
+    _("Add Category"),
+    _("Remove Category"),
+    _("Import OPML"),
+    _("Export OPML"),
+    _("Find a Podcast or RSS Feed"),
+    _("Video Search"),
+    _("Open in Browser"),
+    _("Copy Link"),
+    _("Copy Media Link"),
+    _("Copy Text"),
+    _("Toggle Read/Unread"),
+    _("Add to or Remove from Favorites"),
+    _("Delete Article"),
+    _("Download"),
+    _("Add to or Remove from Play Queue"),
+    _("View Feed Description"),
+    _("Focus Search Field"),
+    _("Show or Hide Search Field"),
+    _("Rich Full-Text View"),
+    _("Open Accessible Browser"),
+    _("All Articles"),
+    _("Unread Only"),
+    _("Read Only"),
+    _("Media and Non-media"),
+    _("With Media Only"),
+    _("Without Media Only"),
+    _("Sort by Date"),
+    _("Sort by Name"),
+    _("Sort by Author"),
+    _("Sort by Description"),
+    _("Sort by Feed"),
+    _("Sort by Status"),
+    _("Toggle Ascending Sort"),
+    _("Play/Pause"),
+    _("Stop"),
+    _("Show/Hide Player"),
+    _("Open Equalizer"),
+    _("Show Chapters"),
+    _("Open Play Queue"),
+    _("Play Next in Queue"),
+    _("Play Previous in Queue"),
+    _("Increase Playback Speed"),
+    _("Decrease Playback Speed"),
+    _("Reset Playback Speed (1x)"),
+    _("Filter Rules"),
+    _("Import Site Cookies"),
+    _("Configure Persistent Search"),
+    _("Keyboard Shortcuts"),
+    _("Settings"),
+    _("Check for Updates"),
+)
 
 
 def iter_commands() -> List[Command]:

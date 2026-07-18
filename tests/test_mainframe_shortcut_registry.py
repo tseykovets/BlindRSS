@@ -40,7 +40,6 @@ class _Host:
     _nudge_playback_speed = mainframe.MainFrame._nudge_playback_speed
     _apply_playback_speed = mainframe.MainFrame._apply_playback_speed
     _player_for_speed = mainframe.MainFrame._player_for_speed
-    _filter_shortcut_targets = mainframe.MainFrame._filter_shortcut_targets
     _current_playback_speed_message = mainframe.MainFrame._current_playback_speed_message
 
     _is_text_input_focused = mainframe.MainFrame._is_text_input_focused
@@ -193,18 +192,32 @@ def test_nudge_playback_speed_persists_when_no_player():
     assert saved == speeds[min(len(speeds) - 1, idx + 1)]
 
 
-def test_filter_shortcut_targets_map_digits_to_groups():
+def test_filter_shortcuts_map_digits_to_registry_commands():
+    """Ctrl+1..6 (issue #60/#67) now live in the registry so they are editable."""
     h = _Host()
-    targets = h._filter_shortcut_targets()
-    # 1-3 are the read-status group, 4-6 the media group (issue #67).
-    assert targets[ord("1")] == ("read", "all")
-    assert targets[ord("2")] == ("read", "unread")
-    assert targets[ord("3")] == ("read", "read")
-    assert targets[ord("4")] == ("media", "all")
-    assert targets[ord("5")] == ("media", "with")
-    assert targets[ord("6")] == ("media", "without")
-    # No mapping for out-of-range digits.
-    assert ord("7") not in targets
+    # 1-3 are the read-status group, 4-6 the media group.
+    assert h._shortcut_cmd_map["Ctrl+1"] == "filter.read_all"
+    assert h._shortcut_cmd_map["Ctrl+2"] == "filter.read_unread"
+    assert h._shortcut_cmd_map["Ctrl+3"] == "filter.read_read"
+    assert h._shortcut_cmd_map["Ctrl+4"] == "filter.media_all"
+    assert h._shortcut_cmd_map["Ctrl+5"] == "filter.media_with"
+    assert h._shortcut_cmd_map["Ctrl+6"] == "filter.media_without"
+    assert "Ctrl+7" not in h._shortcut_cmd_map
+
+
+def test_migrated_fixed_shortcuts_have_registry_defaults():
+    """The historical hard-coded accelerators keep their keys via the registry."""
+    h = _Host()
+    assert h._shortcut_cmd_map["F5"] == "feeds.refresh_all"
+    assert h._shortcut_cmd_map["Shift+F5"] == "feeds.stop_refresh"
+    assert h._shortcut_cmd_map["Ctrl+F5"] == "feeds.refresh_selected"
+    assert h._shortcut_cmd_map["F2"] == "feeds.edit_selected"
+    assert h._shortcut_cmd_map["Ctrl+N"] == "feeds.add"
+    assert h._shortcut_cmd_map["Ctrl+Shift+R"] == "feeds.mark_all_read"
+    assert h._shortcut_cmd_map["Ctrl+Shift+F"] == "feeds.find_podcast"
+    assert h._shortcut_cmd_map["Ctrl+Shift+H"] == "view.rich_view"
+    assert h._shortcut_cmd_map["Ctrl+D"] == "article.toggle_favorite"
+    assert h._shortcut_cmd_map["Ctrl+E"] == "view.focus_search"
 
 
 def test_current_playback_speed_message_reflects_config():

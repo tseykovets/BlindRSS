@@ -4654,7 +4654,16 @@ def discover_feeds(url: str) -> list[str]:
     return out
 
 class PageFetchError(Exception):
-    """The webpage for feed detection could not be retrieved (issue #76)."""
+    """The webpage for feed detection could not be retrieved (issue #76).
+
+    ``is_challenge`` is True when the site answered with a bot-verification
+    interstitial (Cloudflare "Just a moment...", issue #79) — callers can then
+    point the user at Tools > Import Site Cookies instead of a generic error.
+    """
+
+    def __init__(self, message: str, *, is_challenge: bool = False):
+        super().__init__(message)
+        self.is_challenge = bool(is_challenge)
 
 
 # MIME types accepted for <link rel="alternate"> feed detection (issue #76).
@@ -4697,6 +4706,15 @@ def detect_page_feeds(url: str, timeout: float = 15.0) -> list[dict]:
         raise PageFetchError(str(fetch_error or "no response"))
     status = int(getattr(resp, "status_code", 0) or 0)
     if not (200 <= status < 400):
+        try:
+            from core import site_cookies
+            body = getattr(resp, "text", "") or ""
+            if site_cookies.looks_like_challenge_response(status, body):
+                raise PageFetchError(f"HTTP {status} (bot challenge)", is_challenge=True)
+        except PageFetchError:
+            raise
+        except Exception:
+            pass
         raise PageFetchError(f"HTTP {status}")
 
     effective_url = str(getattr(resp, "url", "") or page_url)

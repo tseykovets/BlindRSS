@@ -57,6 +57,8 @@ from core.categories import (
 )
 import core.discovery
 from .shortcut_keys import event_to_accel
+from .menu_mnemonics import apply_menu_mnemonics, apply_menubar_mnemonics
+from .widgets import force_ltr_reading
 
 log = logging.getLogger(__name__)
 
@@ -2071,25 +2073,67 @@ class MainFrame(wx.Frame):
                 pass
         return self._images_enabled_global()
 
+    def _append_shortcut_menu_item(
+        self, menu, command_id, base_label, help_text="", *, kind="normal", item_id=None
+    ):
+        """Append a menu item whose label carries its registry shortcut.
+
+        The binding is rendered as a "(Ctrl+X)" text suffix, not a native
+        '\\t' accelerator: registry shortcuts dispatch from the global
+        char-hook (so they also work from the player window and can announce
+        themselves), and a native accelerator would double-fire the handler.
+        `self._shortcut_menu_items` lets reload_shortcuts() re-render each
+        label after the user edits a binding.
+        """
+        label = self._shortcut_menu_label(base_label, command_id)
+        wxid = wx.ID_ANY if item_id is None else item_id
+        if kind == "check":
+            item = menu.AppendCheckItem(wxid, label, help_text)
+        elif kind == "radio":
+            item = menu.AppendRadioItem(wxid, label, help_text)
+        else:
+            item = menu.Append(wxid, label, help_text)
+        self._shortcut_menu_items.setdefault(command_id, []).append((item, base_label))
+        return item
+
     def init_menus(self):
         menubar = wx.MenuBar()
-        
+        self._shortcut_menu_items = {}
+
         file_menu = wx.Menu()
-        add_feed_item = file_menu.Append(wx.ID_ANY, _("&Add Feed") + "\tCtrl+N", _("Add a new RSS feed"))
-        detect_feeds_item = file_menu.Append(wx.ID_ANY, _("Detect Feeds on &Page..."), _("Scan a webpage for RSS, Atom, or JSON feed links"))
-        remove_feed_item = file_menu.Append(wx.ID_ANY, _("&Remove Feed"), _("Remove selected feed"))
-        refresh_item = file_menu.Append(wx.ID_REFRESH, _("&Refresh Feeds") + "\tF5", _("Refresh all feeds"))
-        stop_refresh_item = file_menu.Append(wx.ID_ANY, _("S&top Refresh") + "\tShift+F5", _("Stop the feed refresh currently in progress"))
-        mark_all_read_item = file_menu.Append(wx.ID_ANY, _("Mark All Items as &Read") + "\tCtrl+Shift+R", _("Mark all items in all feeds as read"))
-        view_errors_item = file_menu.Append(wx.ID_ANY, _("View Feed &Errors..."), _("View feeds that failed to update"))
+        add_feed_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.add", _("&Add Feed"), _("Add a new RSS feed"))
+        detect_feeds_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.detect_page", _("Detect Feeds on &Page..."),
+            _("Scan a webpage for RSS, Atom, or JSON feed links"))
+        remove_feed_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.remove", _("&Remove Feed"), _("Remove selected feed"))
+        refresh_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.refresh_all", _("&Refresh Feeds"), _("Refresh all feeds"),
+            item_id=wx.ID_REFRESH)
+        stop_refresh_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.stop_refresh", _("S&top Refresh"),
+            _("Stop the feed refresh currently in progress"))
+        mark_all_read_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.mark_all_read", _("Mark All Items as &Read"),
+            _("Mark all items in all feeds as read"))
+        view_errors_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.view_errors", _("View Feed &Errors..."),
+            _("View feeds that failed to update"))
         file_menu.AppendSeparator()
-        add_cat_item = file_menu.Append(wx.ID_ANY, _("Add &Category"), _("Add a new category"))
-        remove_cat_item = file_menu.Append(wx.ID_ANY, _("Remove C&ategory"), _("Remove selected category"))
+        add_cat_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.add_category", _("Add &Category"), _("Add a new category"))
+        remove_cat_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.remove_category", _("Remove C&ategory"), _("Remove selected category"))
         file_menu.AppendSeparator()
-        import_opml_item = file_menu.Append(wx.ID_ANY, _("&Import OPML..."), _("Import feeds from OPML"))
-        export_opml_item = file_menu.Append(wx.ID_ANY, _("E&xport OPML..."), _("Export feeds to OPML"))
+        import_opml_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.import_opml", _("&Import OPML..."), _("Import feeds from OPML"))
+        export_opml_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.export_opml", _("E&xport OPML..."), _("Export feeds to OPML"))
         file_menu.AppendSeparator()
-        persistent_search_item = file_menu.Append(wx.ID_ANY, _("Configure &Persistent Search..."), _("Configure saved search queries"))
+        persistent_search_item = self._append_shortcut_menu_item(
+            file_menu, "tools.persistent_search", _("Configure &Persistent Search..."),
+            _("Configure saved search queries"))
         # Desktop/Start Menu/Taskbar shortcuts are Windows-only; hide the dead item on macOS.
         add_shortcuts_item = None
         if should_show_add_shortcuts():
@@ -2108,36 +2152,35 @@ class MainFrame(wx.Frame):
         edit_menu.Append(wx.ID_SELECTALL, _("Select &All") + "\tCtrl+A", _("Select all"))
 
         view_menu = wx.Menu()
-        show_search_item = view_menu.AppendCheckItem(wx.ID_ANY, _("Show &Search Field"), _("Show or hide the search field"))
+        show_search_item = self._append_shortcut_menu_item(
+            view_menu, "view.toggle_search", _("Show &Search Field"),
+            _("Show or hide the search field"), kind="check")
         show_search_item.Check(bool(getattr(self, "_search_visible", True)))
         self._show_search_item = show_search_item
         # Reader-surface toggle: checked = rich HTML view, unchecked = plain
         # full-text reader. Mirrors the Settings option so it can be flipped
         # quickly while reading (also editable in Settings).
-        rich_view_item = view_menu.AppendCheckItem(
-            wx.ID_ANY,
-            _("&Rich Full-Text View") + "\tCtrl+Shift+H",
+        rich_view_item = self._append_shortcut_menu_item(
+            view_menu, "view.rich_view", _("&Rich Full-Text View"),
             _("Switch the reader between plain full text and the rich HTML view"),
-        )
+            kind="check")
         rich_view_item.Check(self._rich_view_enabled())
         self._rich_view_menu_item = rich_view_item
         self.Bind(wx.EVT_MENU, self.on_toggle_rich_view, rich_view_item)
         # Global read-status filter (issues #36/#40): lives here rather than in
         # the feed/category context menu because it applies to every view. When
         # not "All", the category tree hides branches with no matching articles.
+        # Issue #60: the Ctrl+1..Ctrl+6 defaults live in the shortcut registry
+        # (filter.*) and are shown in each label's "(...)" suffix.
         filter_menu = wx.Menu()
         self._article_filter_menu_items = {}
-        # Issue #60: sequential Ctrl+1..Ctrl+9 shortcuts, numbered by position
-        # across the whole submenu (both radio groups), so users can jump to any
-        # filter without opening the menu.
-        filter_shortcut_num = 1
-        for mode, label, help_text in (
-            ("all", _("&All Articles"), _("Show read and unread articles in all views")),
-            ("unread", _("&Unread Only"), _("Show only unread articles in all views")),
-            ("read", _("&Read Only"), _("Show only read articles in all views")),
+        for mode, command_id, label, help_text in (
+            ("all", "filter.read_all", _("&All Articles"), _("Show read and unread articles in all views")),
+            ("unread", "filter.read_unread", _("&Unread Only"), _("Show only unread articles in all views")),
+            ("read", "filter.read_read", _("&Read Only"), _("Show only read articles in all views")),
         ):
-            item = filter_menu.AppendRadioItem(wx.ID_ANY, f"{label}\tCtrl+{filter_shortcut_num}", help_text)
-            filter_shortcut_num += 1
+            item = self._append_shortcut_menu_item(
+                filter_menu, command_id, label, help_text, kind="radio")
             self._article_filter_menu_items[mode] = item
             if mode == getattr(self, "_article_read_filter", "all"):
                 item.Check(True)
@@ -2147,51 +2190,51 @@ class MainFrame(wx.Frame):
         # tracked separately from the read-status set above.
         filter_menu.AppendSeparator()
         self._article_media_filter_menu_items = {}
-        for mode, label, help_text in (
-            ("all", _("Media and &Non-media"), _("Show articles whether or not they have media")),
-            ("with", _("With &Media Only"), _("Show only articles that have playable media")),
-            ("without", _("Wit&hout Media Only"), _("Show only articles that have no playable media")),
+        for mode, command_id, label, help_text in (
+            ("all", "filter.media_all", _("Media and &Non-media"), _("Show articles whether or not they have media")),
+            ("with", "filter.media_with", _("With &Media Only"), _("Show only articles that have playable media")),
+            ("without", "filter.media_without", _("Wit&hout Media Only"), _("Show only articles that have no playable media")),
         ):
-            item = filter_menu.AppendRadioItem(wx.ID_ANY, f"{label}\tCtrl+{filter_shortcut_num}", help_text)
-            filter_shortcut_num += 1
+            item = self._append_shortcut_menu_item(
+                filter_menu, command_id, label, help_text, kind="radio")
             self._article_media_filter_menu_items[mode] = item
             if mode == getattr(self, "_article_media_filter", "all"):
                 item.Check(True)
             self.Bind(wx.EVT_MENU, lambda e, m=mode: self.on_change_media_filter(m), item)
         view_menu.AppendSubMenu(filter_menu, _("Article &Filter"), _("Filter all views by read status and media"))
-        accessible_browser_item = view_menu.Append(
-            wx.ID_ANY,
-            _("Open &Accessible Browser"),
-            _("Open the VoiceOver-friendly browser window"),
-        )
-        # Show/hide is Ctrl+Shift+P (registry player.show_hide); Ctrl+P is play/pause.
-        # These are handled in the global char-hook, not as menu accelerators.
-        player_item = view_menu.Append(wx.ID_ANY, _("Show/Hide &Player (Ctrl+Shift+P)"), _("Show or hide the media player window"))
+        accessible_browser_item = self._append_shortcut_menu_item(
+            view_menu, "view.accessible_browser", _("Open &Accessible Browser"),
+            _("Open the VoiceOver-friendly browser window"))
+        player_item = self._append_shortcut_menu_item(
+            view_menu, "player.show_hide", _("Show/Hide &Player"),
+            _("Show or hide the media player window"))
         view_menu.AppendSeparator()
 
         sort_menu = wx.Menu()
         self._sort_by_menu_items = {}
+        self._sort_by_items_by_key = {}
         sort_choices = [
-            ("date", _("&Date"), _("Sort articles by date")),
-            ("name", _("&Name"), _("Sort articles by name")),
-            ("author", _("A&uthor"), _("Sort articles by author")),
-            ("description", _("De&scription"), _("Sort articles by description")),
-            ("feed", _("&Feed"), _("Sort articles by feed")),
-            ("status", _("S&tatus"), _("Sort articles by status")),
+            ("date", "sort.date", _("&Date"), _("Sort articles by date")),
+            ("name", "sort.name", _("&Name"), _("Sort articles by name")),
+            ("author", "sort.author", _("A&uthor"), _("Sort articles by author")),
+            ("description", "sort.description", _("De&scription"), _("Sort articles by description")),
+            ("feed", "sort.feed", _("&Feed"), _("Sort articles by feed")),
+            ("status", "sort.status", _("S&tatus"), _("Sort articles by status")),
         ]
-        for key, label, sort_help in sort_choices:
-            item = sort_menu.AppendRadioItem(wx.ID_ANY, label, sort_help)
+        for key, command_id, label, sort_help in sort_choices:
+            item = self._append_shortcut_menu_item(
+                sort_menu, command_id, label, sort_help, kind="radio")
             self._sort_by_menu_items[int(item.GetId())] = key
+            self._sort_by_items_by_key[key] = item
             if key == getattr(self, "_article_sort_by", "date"):
                 item.Check(True)
             self.Bind(wx.EVT_MENU, self.on_change_sort_by, item)
 
         sort_menu.AppendSeparator()
-        self._sort_ascending_item = sort_menu.AppendCheckItem(
-            wx.ID_ANY,
-            _("&Ascending"),
+        self._sort_ascending_item = self._append_shortcut_menu_item(
+            sort_menu, "sort.ascending", _("&Ascending"),
             _("Sort in ascending order (default is descending by date)"),
-        )
+            kind="check")
         self._sort_ascending_item.Check(bool(getattr(self, "_article_sort_ascending", False)))
         self.Bind(wx.EVT_MENU, self.on_toggle_sort_direction, self._sort_ascending_item)
         view_menu.AppendSubMenu(sort_menu, _("Sort &By"))
@@ -2200,50 +2243,41 @@ class MainFrame(wx.Frame):
         # NOTE: shortcuts are shown in the label text only (not as '\t' menu
         # accelerators) because the registry-managed shortcuts are handled in the
         # global char-hook so they also work when the player window is focused.
-        # `self._shortcut_menu_items` lets reload_shortcuts() re-render the accel
-        # suffix in each label after the user edits a binding.
-        self._shortcut_menu_items = {}
-
-        def _shortcut_menu_append(menu, command_id, base_label, help_text):
-            item = menu.Append(wx.ID_ANY, self._shortcut_menu_label(base_label, command_id), help_text)
-            self._shortcut_menu_items[command_id] = (item, base_label)
-            return item
-
         player_menu = wx.Menu()
-        player_toggle_item = _shortcut_menu_append(
+        player_toggle_item = self._append_shortcut_menu_item(
             player_menu, "player.show_hide", _("Show/Hide Player"),
             _("Show or hide the media player window"),
         )
         player_menu.AppendSeparator()
-        player_play_pause_item = _shortcut_menu_append(
+        player_play_pause_item = self._append_shortcut_menu_item(
             player_menu, "player.play_pause", _("Play/Pause"), _("Toggle play/pause"),
         )
-        player_stop_item = _shortcut_menu_append(
+        player_stop_item = self._append_shortcut_menu_item(
             player_menu, "player.stop", _("Stop"), _("Stop playback"),
         )
         player_menu.AppendSeparator()
-        player_queue_item = _shortcut_menu_append(
+        player_queue_item = self._append_shortcut_menu_item(
             player_menu, "queue.open", _("Play &Queue..."),
             _("View and manage the media play queue"),
         )
-        player_queue_next_item = _shortcut_menu_append(
+        player_queue_next_item = self._append_shortcut_menu_item(
             player_menu, "queue.next", _("Play Next in Queue"),
             _("Play the next item in the play queue"),
         )
-        player_queue_prev_item = _shortcut_menu_append(
+        player_queue_prev_item = self._append_shortcut_menu_item(
             player_menu, "queue.prev", _("Play Previous in Queue"),
             _("Play the previous item in the play queue"),
         )
         player_menu.AppendSeparator()
         # Playback speed submenu (feature: speed menu + shortcuts).
         speed_submenu = wx.Menu()
-        speed_up_item = _shortcut_menu_append(
+        speed_up_item = self._append_shortcut_menu_item(
             speed_submenu, "speed.up", _("Increase Speed"), _("Play faster"),
         )
-        speed_down_item = _shortcut_menu_append(
+        speed_down_item = self._append_shortcut_menu_item(
             speed_submenu, "speed.down", _("Decrease Speed"), _("Play slower"),
         )
-        speed_reset_item = _shortcut_menu_append(
+        speed_reset_item = self._append_shortcut_menu_item(
             speed_submenu, "speed.reset", _("Normal Speed (1x)"), _("Reset to normal speed"),
         )
         # These action items were never bound, so choosing Increase/Decrease/
@@ -2261,7 +2295,7 @@ class MainFrame(wx.Frame):
         self._speed_submenu = speed_submenu
         player_menu.AppendSubMenu(speed_submenu, _("Playback &Speed"))
         # Equalizer (feature: equalizer).
-        player_equalizer_item = _shortcut_menu_append(
+        player_equalizer_item = self._append_shortcut_menu_item(
             player_menu, "player.equalizer", _("&Equalizer..."),
             _("Adjust the audio equalizer"),
         )
@@ -2287,32 +2321,38 @@ class MainFrame(wx.Frame):
         self._player_chapters_next_item = None
         
         tools_menu = wx.Menu()
-        find_feed_item = tools_menu.Append(
-            wx.ID_ANY,
-            _("Find a &Podcast or RSS Feed...") + "\tCtrl+Shift+F",
+        find_feed_item = self._append_shortcut_menu_item(
+            tools_menu, "feeds.find_podcast", _("Find a &Podcast or RSS Feed..."),
             _("Find and add a podcast or RSS feed"),
         )
-        ytdlp_global_search_item = tools_menu.Append(
-            wx.ID_ANY,
-            _("&Video Search..."),
+        ytdlp_global_search_item = self._append_shortcut_menu_item(
+            tools_menu, "feeds.video_search", _("&Video Search..."),
             _("Search all yt-dlp query-search sites"),
         )
         tools_menu.AppendSeparator()
-        filter_rules_item = tools_menu.Append(
-            wx.ID_ANY,
-            _("Filter &Rules..."),
+        filter_rules_item = self._append_shortcut_menu_item(
+            tools_menu, "tools.filter_rules", _("Filter &Rules..."),
             _("Create rules that categorize, label, or delete articles as they arrive"),
         )
+        import_site_cookies_item = self._append_shortcut_menu_item(
+            tools_menu, "tools.import_site_cookies", _("Import Site &Cookies..."),
+            _("Import browser cookies so challenge-protected sites can be read"),
+        )
         tools_menu.AppendSeparator()
-        keyboard_shortcuts_item = tools_menu.Append(
-            wx.ID_ANY,
-            _("&Keyboard Shortcuts..."),
+        keyboard_shortcuts_item = self._append_shortcut_menu_item(
+            tools_menu, "tools.keyboard_shortcuts", _("&Keyboard Shortcuts..."),
             _("View and customize keyboard shortcuts"),
         )
-        settings_item = tools_menu.Append(wx.ID_PREFERENCES, _("&Settings..."), _("Configure application"))
+        settings_item = self._append_shortcut_menu_item(
+            tools_menu, "tools.settings", _("&Settings..."), _("Configure application"),
+            item_id=wx.ID_PREFERENCES,
+        )
 
         help_menu = wx.Menu()
-        check_updates_item = help_menu.Append(wx.ID_ANY, _("Check for &Updates..."), _("Check for new versions"))
+        check_updates_item = self._append_shortcut_menu_item(
+            help_menu, "tools.check_updates", _("Check for &Updates..."),
+            _("Check for new versions"),
+        )
         about_item = help_menu.Append(wx.ID_ABOUT, _("&About"), _("About BlindRSS"))
 
         menubar.Append(file_menu, _("&File"))
@@ -2322,6 +2362,10 @@ class MainFrame(wx.Frame):
         menubar.Append(tools_menu, _("&Tools"))
         menubar.Append(help_menu, _("&Help"))
         self.SetMenuBar(menubar)
+        # Every menu item gets an access key, in every locale (task: menu
+        # mnemonics). Runs after the bar is fully built so per-menu uniqueness
+        # sees the final item set.
+        apply_menubar_mnemonics(menubar)
         
         self.Bind(wx.EVT_MENU, self.on_add_feed, add_feed_item)
         self.Bind(wx.EVT_MENU, self.on_detect_page_feeds, detect_feeds_item)
@@ -2361,25 +2405,24 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_find_feed, find_feed_item)
         self.Bind(wx.EVT_MENU, self.on_ytdlp_global_search, ytdlp_global_search_item)
         self.Bind(wx.EVT_MENU, self.on_manage_filter_rules, filter_rules_item)
+        self.Bind(wx.EVT_MENU, self.on_import_site_cookies, import_site_cookies_item)
         self.Bind(wx.EVT_MENU, self.on_open_keyboard_shortcuts, keyboard_shortcuts_item)
         self.Bind(wx.EVT_MENU, self.on_about, about_item)
         self.Bind(wx.EVT_MENU_OPEN, self.on_menu_open)
         self._refresh_player_chapters_submenu()
 
     def init_shortcuts(self):
-        # Add accelerator for Ctrl+R (F5 is handled by menu item text usually, but being explicit helps)
+        # F5, Ctrl+F5, Ctrl+D, Ctrl+1..6 etc. are registry-managed now
+        # (editable in Tools > Keyboard Shortcuts, dispatched from the global
+        # char-hook). Only the legacy Ctrl+R refresh alias stays native — it is
+        # not in the registry, so rebinding Refresh Feeds never orphans it.
         self._toggle_favorite_id = wx.NewIdRef()
-        self._refresh_single_feed_id = wx.NewIdRef()
         entries = [
             wx.AcceleratorEntry(wx.ACCEL_CTRL, ord('R'), wx.ID_REFRESH),
-            wx.AcceleratorEntry(wx.ACCEL_NORMAL, wx.WXK_F5, wx.ID_REFRESH),
-            wx.AcceleratorEntry(wx.ACCEL_CTRL, wx.WXK_F5, int(self._refresh_single_feed_id)),
-            wx.AcceleratorEntry(wx.ACCEL_CTRL, ord('D'), int(self._toggle_favorite_id)),
         ]
         accel = wx.AcceleratorTable(entries)
         self.SetAcceleratorTable(accel)
         self.Bind(wx.EVT_MENU, self.on_toggle_favorite, id=int(self._toggle_favorite_id))
-        self.Bind(wx.EVT_MENU, self.on_refresh_single_feed, id=int(self._refresh_single_feed_id))
 
     def _get_focused_window(self) -> "wx.Window | None":
         try:
@@ -2555,51 +2598,11 @@ class MainFrame(wx.Frame):
                 except Exception:
                     log.exception("Error toggling article read status on Backspace")
 
-        # Article-filter shortcuts (issue #67): Ctrl+1..6 change the read-status /
-        # media filter. Handled here (before the menu accelerator fires) so the
-        # keyboard path can announce the applied filter while a menu click stays
-        # silent. Returning without Skip() consumes the key so the equivalent
-        # menu accelerator never double-runs.
-        if (
-            event.ControlDown()
-            and not event.ShiftDown()
-            and not event.AltDown()
-            and not event.MetaDown()
-            and key in self._filter_shortcut_targets()
-            and not self._is_editable_text_input_focused(focus)
-        ):
-            try:
-                if self._handle_filter_shortcut(key):
-                    return
-            except Exception:
-                log.exception("Error handling article-filter shortcut")
-
-        # Feed refresh shortcuts (issue #67): F5 starts a refresh, Shift+F5 stops
-        # it. Handled here so the keyboard path announces the action by menu-item
-        # name; the menu click path (same handlers) stays silent.
-        if (
-            key == wx.WXK_F5
-            and not event.ControlDown()
-            and not event.AltDown()
-            and not event.MetaDown()
-        ):
-            try:
-                if event.ShiftDown():
-                    if self._is_feed_refresh_active():
-                        self.on_stop_refresh()
-                        self._announce_event("stop_update", _("Stop Refresh"))
-                        return
-                else:
-                    if not self._is_feed_refresh_active():
-                        self.on_refresh_feeds()
-                        self._announce_event("start_update", _("Refresh Feeds"))
-                        return
-            except Exception:
-                log.exception("Error handling refresh shortcut")
-
-        # Registry-managed shortcuts (play/pause, stop, show/hide player, play
-        # queue open/next/prev, playback speed). Editable via Tools > Keyboard
-        # Shortcuts; dispatched here so they work window-wide.
+        # Registry-managed shortcuts (refresh, filters, player, queue, speed,
+        # and every other command in Tools > Keyboard Shortcuts). Dispatched
+        # here — before menu accelerators — so they work window-wide and the
+        # keyboard path can announce itself (issue #67) while menu clicks
+        # stay silent.
         try:
             if self.dispatch_shortcut(event, focus):
                 return
@@ -2976,21 +2979,265 @@ class MainFrame(wx.Frame):
     _SHORTCUT_TEXT_GUARDED = frozenset({
         "player.play_pause", "player.stop",
         "queue.next", "queue.prev",
+        # The Ctrl+digit filter shortcuts have always deferred to an editable
+        # text field (parity with the pre-registry hard-coded handling).
+        "filter.read_all", "filter.read_unread", "filter.read_read",
+        "filter.media_all", "filter.media_with", "filter.media_without",
     })
 
     def _shortcut_handlers(self) -> dict:
         return {
+            "feeds.add": self.on_add_feed,
+            "feeds.detect_page": self.on_detect_page_feeds,
+            "feeds.remove": self.on_remove_feed,
+            "feeds.refresh_all": self._cmd_refresh_all,
+            "feeds.stop_refresh": self._cmd_stop_refresh,
+            "feeds.refresh_selected": self.on_refresh_single_feed,
+            "feeds.edit_selected": self.on_edit_feed,
+            "feeds.mark_all_read": self.on_mark_all_read,
+            "feeds.view_errors": self.on_view_feed_errors,
+            "feeds.copy_url": self.on_copy_feed_url,
+            "feeds.add_category": self.on_add_category,
+            "feeds.remove_category": self.on_remove_category,
+            "feeds.import_opml": self.on_import_opml,
+            "feeds.export_opml": self.on_export_opml,
+            "feeds.find_podcast": self.on_find_feed,
+            "feeds.video_search": self.on_ytdlp_global_search,
+
+            "article.open_browser": self._cmd_open_in_browser,
+            "article.copy_link": self._cmd_copy_link,
+            "article.copy_media_link": self._cmd_copy_media_link,
+            "article.copy_text": self._cmd_copy_text,
+            "article.toggle_read": self._cmd_toggle_read,
+            "article.toggle_favorite": self.on_toggle_favorite,
+            "article.delete": self.on_delete_article,
+            "article.download": self._cmd_download_article,
+            "article.toggle_queue": self._cmd_toggle_queue,
+            "article.view_description": self._cmd_view_description,
+
+            "view.focus_search": self._cmd_focus_search,
+            "view.toggle_search": self._cmd_toggle_search_field,
+            "view.rich_view": self.on_toggle_rich_view,
+            "view.accessible_browser": self.on_open_accessible_browser,
+
+            "filter.read_all": self._cmd_filter_read_all,
+            "filter.read_unread": self._cmd_filter_read_unread,
+            "filter.read_read": self._cmd_filter_read_read,
+            "filter.media_all": self._cmd_filter_media_all,
+            "filter.media_with": self._cmd_filter_media_with,
+            "filter.media_without": self._cmd_filter_media_without,
+
+            "sort.date": self._cmd_sort_date,
+            "sort.name": self._cmd_sort_name,
+            "sort.author": self._cmd_sort_author,
+            "sort.description": self._cmd_sort_description,
+            "sort.feed": self._cmd_sort_feed,
+            "sort.status": self._cmd_sort_status,
+            "sort.ascending": self._cmd_toggle_sort_ascending,
+
             "player.play_pause": self.on_player_play_pause,
             "player.stop": self.on_player_stop,
             "player.show_hide": self.on_show_player,
             "player.equalizer": self.on_open_equalizer,
+            "player.chapters": self.on_player_show_chapters,
             "queue.open": self.on_open_play_queue,
             "queue.next": self.on_play_queue_next,
             "queue.prev": self.on_play_queue_prev,
             "speed.up": self.on_player_speed_up,
             "speed.down": self.on_player_speed_down,
             "speed.reset": self.on_player_speed_reset,
+
+            "tools.filter_rules": self.on_manage_filter_rules,
+            "tools.import_site_cookies": self.on_import_site_cookies,
+            "tools.persistent_search": self.on_configure_persistent_search,
+            "tools.keyboard_shortcuts": self.on_open_keyboard_shortcuts,
+            "tools.settings": self.on_settings,
+            "tools.check_updates": self.on_check_updates,
         }
+
+    # --- Registry command wrappers ------------------------------------
+    # Thin adapters between registry dispatch (handler(None)) and handlers
+    # that need a selection index, a menu event, or the keyboard-only
+    # announcement the equivalent menu click deliberately skips (issue #67).
+
+    def _cmd_refresh_all(self, event=None):
+        if self._is_feed_refresh_active():
+            return
+        self.on_refresh_feeds()
+        self._announce_event("start_update", _("Refresh Feeds"))
+
+    def _cmd_stop_refresh(self, event=None):
+        if not self._is_feed_refresh_active():
+            return
+        self.on_stop_refresh()
+        self._announce_event("stop_update", _("Stop Refresh"))
+
+    def _cmd_selected_article_index(self):
+        try:
+            idx = self._get_selected_article_index()
+        except Exception:
+            return None
+        if idx is None or idx < 0 or idx >= len(self.current_articles):
+            return None
+        return int(idx)
+
+    def _cmd_open_in_browser(self, event=None):
+        idx = self._cmd_selected_article_index()
+        if idx is not None:
+            self.on_open_in_browser(idx)
+
+    def _cmd_copy_link(self, event=None):
+        idx = self._cmd_selected_article_index()
+        if idx is not None:
+            self.on_copy_link(idx)
+
+    def _cmd_copy_media_link(self, event=None):
+        idx = self._cmd_selected_article_index()
+        if idx is not None and self._has_direct_media_link(self.current_articles[idx]):
+            self.on_copy_media_link(idx)
+
+    def _cmd_copy_text(self, event=None):
+        idx = self._cmd_selected_article_index()
+        if idx is not None:
+            self.on_copy_text(idx)
+
+    def _cmd_toggle_read(self, event=None):
+        # Same behavior (and announcement) as Backspace in the article list.
+        new_status = self.toggle_selected_article_read_status()
+        if new_status:
+            self._announce_event("status_toggle", new_status)
+
+    def _cmd_download_article(self, event=None):
+        idx = self._cmd_selected_article_index()
+        if idx is not None:
+            article = self.current_articles[idx]
+            if getattr(article, "media_url", None):
+                self.on_download_article(article)
+
+    def _cmd_toggle_queue(self, event=None):
+        idx = self._cmd_selected_article_index()
+        if idx is None:
+            return
+        article = self.current_articles[idx]
+        if not self._should_play_in_player(article):
+            return
+        if self._is_article_in_queue(article):
+            self.remove_articles_from_queue([idx])
+        else:
+            self.add_articles_to_queue([idx])
+
+    def _cmd_view_description(self, event=None):
+        idx = self._cmd_selected_article_index()
+        if idx is not None:
+            self.on_view_feed_description(idx)
+
+    def _cmd_focus_search(self, event=None):
+        if not getattr(self, "_search_visible", True):
+            self._cmd_set_search_visible(True)
+        try:
+            self.search_ctrl.SetFocus()
+        except Exception:
+            pass
+
+    def _cmd_set_search_visible(self, visible: bool) -> None:
+        self._set_search_visible(bool(visible))
+        item = getattr(self, "_show_search_item", None)
+        if item is not None:
+            try:
+                item.Check(bool(visible))
+            except Exception:
+                pass
+
+    def _cmd_toggle_search_field(self, event=None):
+        self._cmd_set_search_visible(not getattr(self, "_search_visible", True))
+
+    def _cmd_set_filter(self, group: str, mode: str) -> None:
+        """Apply an article filter and announce it (keyboard path, issue #67)."""
+        if group == "read":
+            items = getattr(self, "_article_filter_menu_items", None) or {}
+            self.on_change_article_filter(mode)
+        else:
+            items = getattr(self, "_article_media_filter_menu_items", None) or {}
+            self.on_change_media_filter(mode)
+        # Announce the exact visible menu-item name (mnemonics/accelerator
+        # stripped) so the spoken/Braille text matches what the menu shows.
+        label = ""
+        item = items.get(mode)
+        if item is not None:
+            try:
+                label = item.GetItemLabelText()
+            except Exception:
+                label = ""
+        if label:
+            self._announce_event("filter_change", label)
+
+    def _cmd_filter_read_all(self, event=None):
+        self._cmd_set_filter("read", "all")
+
+    def _cmd_filter_read_unread(self, event=None):
+        self._cmd_set_filter("read", "unread")
+
+    def _cmd_filter_read_read(self, event=None):
+        self._cmd_set_filter("read", "read")
+
+    def _cmd_filter_media_all(self, event=None):
+        self._cmd_set_filter("media", "all")
+
+    def _cmd_filter_media_with(self, event=None):
+        self._cmd_set_filter("media", "with")
+
+    def _cmd_filter_media_without(self, event=None):
+        self._cmd_set_filter("media", "without")
+
+    def _cmd_set_sort(self, key: str) -> None:
+        key = self._normalize_article_sort_by(key)
+        if key == getattr(self, "_article_sort_by", "date"):
+            return
+        self._article_sort_by = key
+        try:
+            self.config_manager.set("article_sort_by", key)
+        except Exception:
+            pass
+        item = (getattr(self, "_sort_by_items_by_key", None) or {}).get(key)
+        if item is not None:
+            try:
+                item.Check(True)
+            except Exception:
+                pass
+        self._refresh_articles_for_sort_change()
+
+    def _cmd_sort_date(self, event=None):
+        self._cmd_set_sort("date")
+
+    def _cmd_sort_name(self, event=None):
+        self._cmd_set_sort("name")
+
+    def _cmd_sort_author(self, event=None):
+        self._cmd_set_sort("author")
+
+    def _cmd_sort_description(self, event=None):
+        self._cmd_set_sort("description")
+
+    def _cmd_sort_feed(self, event=None):
+        self._cmd_set_sort("feed")
+
+    def _cmd_sort_status(self, event=None):
+        self._cmd_set_sort("status")
+
+    def _cmd_toggle_sort_ascending(self, event=None):
+        new_val = not bool(getattr(self, "_article_sort_ascending", False))
+        self._article_sort_ascending = new_val
+        try:
+            self.config_manager.set("article_sort_ascending", new_val)
+        except Exception:
+            pass
+        item = getattr(self, "_sort_ascending_item", None)
+        if item is not None:
+            try:
+                item.Check(new_val)
+            except Exception:
+                pass
+        self._refresh_articles_for_sort_change()
 
     def get_shortcut_overrides(self) -> dict:
         try:
@@ -3083,12 +3330,22 @@ class MainFrame(wx.Frame):
         return "{base} ({accel})".format(base=base_label, accel=accel) if accel else str(base_label)
 
     def _refresh_shortcut_menu_labels(self) -> None:
-        for command_id, entry in getattr(self, "_shortcut_menu_items", {}).items():
-            try:
-                item, base_label = entry
-                item.SetItemLabel(self._shortcut_menu_label(base_label, command_id))
-            except Exception:
-                pass
+        # A command can surface in several menus (e.g. Show/Hide Player lives
+        # in both View and Player), so each id maps to a LIST of items.
+        for command_id, entries in getattr(self, "_shortcut_menu_items", {}).items():
+            for item, base_label in list(entries or []):
+                try:
+                    item.SetItemLabel(self._shortcut_menu_label(base_label, command_id))
+                except Exception:
+                    pass
+        # Re-derive menu access keys: SetItemLabel above rebuilt each label
+        # from its base text, wiping any auto-assigned mnemonic.
+        try:
+            menubar = self.GetMenuBar()
+            if menubar is not None:
+                apply_menubar_mnemonics(menubar)
+        except Exception:
+            pass
 
     def on_open_keyboard_shortcuts(self, event=None) -> None:
         try:
@@ -3098,6 +3355,16 @@ class MainFrame(wx.Frame):
             dlg.Destroy()
         except Exception:
             log.exception("Failed to open keyboard shortcuts dialog")
+
+    def on_import_site_cookies(self, event=None) -> None:
+        """Import browser cookies for challenge-protected sites (issue #79)."""
+        try:
+            from .dialogs import ImportSiteCookiesDialog
+            dlg = ImportSiteCookiesDialog(self)
+            dlg.ShowModal()
+            dlg.Destroy()
+        except Exception:
+            log.exception("Failed to open site cookies import dialog")
 
     def on_open_equalizer(self, event=None) -> None:
         pw = self._ensure_player_window()
@@ -3211,7 +3478,7 @@ class MainFrame(wx.Frame):
         try:
             self._player_chapters_show_item = submenu.Append(
                 wx.ID_ANY,
-                _("Show Chapters..."),
+                self._shortcut_menu_label(_("Show Chapters..."), "player.chapters"),
                 _("Show chapter list"),
             )
             self.Bind(wx.EVT_MENU, self.on_player_show_chapters, self._player_chapters_show_item)
@@ -3248,6 +3515,10 @@ class MainFrame(wx.Frame):
                 self._player_chapters_prev_item.Enable(bool(has_chapters and active_idx > 0))
             if self._player_chapters_next_item is not None:
                 self._player_chapters_next_item.Enable(bool(has_chapters and active_idx < len(chapters) - 1))
+        except Exception:
+            pass
+        try:
+            apply_menu_mnemonics(submenu)
         except Exception:
             pass
 
@@ -4187,7 +4458,8 @@ class MainFrame(wx.Frame):
             
         elif data["type"] == "feed":
             feed_id = str(data.get("id") or "").strip()
-            refresh_feed_item = menu.Append(wx.ID_ANY, _("Refresh Feed") + "\tCtrl+F5")
+            refresh_feed_item = menu.Append(
+                wx.ID_ANY, self._shortcut_menu_label(_("Refresh Feed"), "feeds.refresh_selected"))
             self.Bind(wx.EVT_MENU, self.on_refresh_single_feed, refresh_feed_item)
 
             feed_title = str(getattr((getattr(self, "feed_map", {}) or {}).get(feed_id), "title", "") or "").strip()
@@ -4202,7 +4474,8 @@ class MainFrame(wx.Frame):
                 mark_feed_read_item,
             )
 
-            edit_item = menu.Append(wx.ID_ANY, _("Edit Feed...") + "\tF2")
+            edit_item = menu.Append(
+                wx.ID_ANY, self._shortcut_menu_label(_("Edit Feed..."), "feeds.edit_selected"))
             self.Bind(wx.EVT_MENU, self.on_edit_feed, edit_item)
 
             try:
@@ -4258,6 +4531,7 @@ class MainFrame(wx.Frame):
         # the filter was scoped to the clicked feed or category.
 
         if menu.GetMenuItemCount() > 0:
+            apply_menu_mnemonics(menu)
             self.tree.PopupMenu(menu, menu_pos)
         menu.Destroy()
 
@@ -4269,55 +4543,6 @@ class MainFrame(wx.Frame):
     @_unread_filter_enabled.setter
     def _unread_filter_enabled(self, value) -> None:
         self._article_read_filter = "unread" if value else "all"
-
-    def _filter_shortcut_targets(self):
-        """Map Ctrl+<digit> key codes to a (group, mode) filter target.
-
-        Positions mirror the View > Article Filter submenu order (issue #60):
-        1-3 are the read-status radio group, 4-6 the media radio group. Both the
-        main number row and the numeric keypad are accepted.
-        """
-        order = [
-            ("read", "all"),
-            ("read", "unread"),
-            ("read", "read"),
-            ("media", "all"),
-            ("media", "with"),
-            ("media", "without"),
-        ]
-        targets = {}
-        for i, target in enumerate(order, start=1):
-            targets[ord(str(i))] = target
-            np = getattr(wx, "WXK_NUMPAD%d" % i, None)
-            if np is not None:
-                targets[np] = target
-        return targets
-
-    def _handle_filter_shortcut(self, key) -> bool:
-        """Apply the Ctrl+<digit> article filter and announce it. Returns True if
-        the key mapped to a filter (issue #67, keyboard-only announcement)."""
-        target = self._filter_shortcut_targets().get(key)
-        if not target:
-            return False
-        group, mode = target
-        if group == "read":
-            items = getattr(self, "_article_filter_menu_items", None) or {}
-            self.on_change_article_filter(mode)
-        else:
-            items = getattr(self, "_article_media_filter_menu_items", None) or {}
-            self.on_change_media_filter(mode)
-        # Announce the exact visible menu-item name (mnemonics/accelerator
-        # stripped) so the spoken/Braille text matches what the menu shows.
-        label = ""
-        item = items.get(mode)
-        if item is not None:
-            try:
-                label = item.GetItemLabelText()
-            except Exception:
-                label = ""
-        if label:
-            self._announce_event("filter_change", label)
-        return True
 
     def on_change_article_filter(self, mode: str):
         mode = str(mode or "all").lower()
@@ -4505,7 +4730,8 @@ class MainFrame(wx.Frame):
 
         menu = wx.Menu()
         open_item = menu.Append(wx.ID_ANY, _("Open Article"))
-        open_browser_item = menu.Append(wx.ID_ANY, _("Open in Default Browser"))
+        open_browser_item = menu.Append(
+            wx.ID_ANY, self._shortcut_menu_label(_("Open in Default Browser"), "article.open_browser"))
         menu.AppendSeparator()
         if multi:
             mark_read_item = menu.Append(wx.ID_ANY, _("Mark {count} as &Read").format(count=count))
@@ -4541,14 +4767,17 @@ class MainFrame(wx.Frame):
             )
             restore_item = menu.Append(wx.ID_ANY, restore_label)
         menu.AppendSeparator()
-        copy_item = menu.Append(wx.ID_ANY, _("Copy Links") if multi else _("Copy Link"))
+        copy_item = menu.Append(
+            wx.ID_ANY,
+            _("Copy Links") if multi
+            else self._shortcut_menu_label(_("Copy Link"), "article.copy_link"))
         download_item = None
         if valid_article_idx:
             article_for_menu = self.current_articles[idx]
             copy_text_label = (
                 _("Copy Text ({count} articles)").format(count=count)
                 if multi
-                else _("Copy Text")
+                else self._shortcut_menu_label(_("Copy Text"), "article.copy_text")
             )
             copy_text_item = menu.Append(wx.ID_ANY, copy_text_label)
             self.Bind(wx.EVT_MENU, lambda e, ii=list(menu_indices): self.on_copy_texts(ii), copy_text_item)
@@ -4561,9 +4790,11 @@ class MainFrame(wx.Frame):
                 # audio+video direct link, so copying it would just duplicate
                 # "Copy Link" or hand out a split/expiring stream.
                 if self._has_direct_media_link(article_for_menu):
-                    copy_audio_item = menu.Append(wx.ID_ANY, _("Copy Media Link"))
+                    copy_audio_item = menu.Append(
+                        wx.ID_ANY, self._shortcut_menu_label(_("Copy Media Link"), "article.copy_media_link"))
                     self.Bind(wx.EVT_MENU, lambda e, i=idx: self.on_copy_media_link(i), copy_audio_item)
-                download_item = menu.Append(wx.ID_ANY, _("Download"))
+                download_item = menu.Append(
+                    wx.ID_ANY, self._shortcut_menu_label(_("Download"), "article.download"))
                 self.Bind(wx.EVT_MENU, lambda e, a=article_for_menu: self.on_download_article(a), download_item)
             else:
                 detect_audio_item = menu.Append(wx.ID_ANY, _("Detect Audio"))
@@ -4650,7 +4881,10 @@ class MainFrame(wx.Frame):
                         if getattr(article_for_menu, "is_favorite", False)
                         else _("Add to Favorites")
                     )
-                    menu.Append(int(self._toggle_favorite_id), f"{label}\tCtrl+D")
+                    menu.Append(
+                        int(self._toggle_favorite_id),
+                        self._shortcut_menu_label(label, "article.toggle_favorite"),
+                    )
             except Exception:
                 pass
 
@@ -4692,6 +4926,7 @@ class MainFrame(wx.Frame):
             ):
                 article_item.Enable(False)
 
+        apply_menu_mnemonics(menu)
         self.list_ctrl.PopupMenu(menu, menu_pos)
         menu.Destroy()
 
@@ -4886,6 +5121,10 @@ class MainFrame(wx.Frame):
             changed = self.content_ctrl.GetValue() != displayed
             if changed:
                 self.content_ctrl.SetValue(displayed)
+                # An accidental right-Ctrl+Shift flips RichEdit to RTL reading
+                # order and articles suddenly display right-to-left; re-render
+                # always resets the reader to LTR.
+                force_ltr_reading(self.content_ctrl)
             if reset_insertion and changed:
                 self.content_ctrl.SetInsertionPoint(0)
         except Exception:
@@ -9130,6 +9369,7 @@ class MainFrame(wx.Frame):
         self.content_ctrl.Bind(wx.EVT_MENU, self._on_content_menu_copy, id=wx.ID_COPY)
         self.content_ctrl.Bind(wx.EVT_MENU, self._on_content_menu_select_all, id=wx.ID_SELECTALL)
         try:
+            apply_menu_mnemonics(menu)
             self.content_ctrl.PopupMenu(menu)
         finally:
             menu.Destroy()
@@ -10459,6 +10699,7 @@ class MainFrame(wx.Frame):
             except Exception:
                 pass
             self.content_ctrl.SetValue(displayed)
+            force_ltr_reading(self.content_ctrl)
             try:
                 if selection is not None:
                     self.content_ctrl.SetSelection(*selection)
@@ -11797,10 +12038,24 @@ class MainFrame(wx.Frame):
             try:
                 from core import discovery as _disc
                 feeds = _disc.detect_page_feeds(url)
-            except Exception:
+            except Exception as exc:
+                if getattr(exc, "is_challenge", False):
+                    # Issue #79: the site is behind an interactive bot check
+                    # (Cloudflare interstitial). Point at the cookie import
+                    # instead of a dead-end generic error.
+                    message = _(
+                        "This site is protected by a browser verification page "
+                        "(such as a Cloudflare challenge) that no feed reader can "
+                        "pass on its own.\n\n"
+                        "To access it: open the site in your web browser once, "
+                        "export its cookies with a cookies.txt browser extension, "
+                        "then use Tools > Import Site Cookies."
+                    )
+                else:
+                    message = _("Unable to retrieve the page.")
                 wx.CallAfter(
                     wx.MessageBox,
-                    _("Unable to retrieve the page."),
+                    message,
                     _("Detect Feeds on Page"),
                     wx.OK | wx.ICON_ERROR,
                     self,

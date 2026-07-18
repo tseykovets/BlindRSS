@@ -40,8 +40,17 @@ def test_default_bindings_present():
     assert d["speed.up"] == "Ctrl+Shift+U"
     assert d["speed.down"] == "Ctrl+Shift+D"
     assert d["speed.reset"] == "Ctrl+Shift+N"
-    # every command resolves to a non-empty default
-    assert all(v for v in d.values())
+    # Migrated historical accelerators keep their keys.
+    assert d["feeds.refresh_all"] == "F5"
+    assert d["feeds.add"] == "Ctrl+N"
+    assert d["article.toggle_favorite"] == "Ctrl+D"
+    assert d["filter.read_all"] == "Ctrl+1"
+    # Commands that never had a key ship unbound (user can assign one).
+    assert d["feeds.video_search"] == ""
+    assert d["article.copy_link"] == ""
+    # Every command still resolves (empty string means unbound, not missing).
+    from core import shortcuts as _sc
+    assert set(d) == {c.id for c in _sc.iter_commands()}
 
 
 def test_resolve_overrides_and_unbind():

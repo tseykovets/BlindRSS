@@ -9,9 +9,90 @@ wx.ListCtrl with native checkboxes is the ListView control Windows Disk
 Cleanup uses: NVDA reports the check state per item, announces changes, and
 Space toggles the focused item natively.
 """
+import sys
 from typing import Callable, Optional
 
 import wx
+
+
+def force_ltr_reading(ctrl) -> None:
+    """Reset a Windows RichEdit control to left-to-right reading order.
+
+    RichEdit has a built-in gesture — pressing the RIGHT Ctrl+Shift — that
+    flips the current paragraph (and the control's reading order) to
+    right-to-left. BlindRSS binds several Ctrl+Shift shortcuts, so NVDA users
+    hit the gesture by accident and the whole article suddenly reads
+    right-to-left with no way to see why. Clearing the RTL paragraph effect
+    and the RTL/right-aligned window styles after each render keeps the
+    reader deterministically LTR. No-op off Windows or on failure.
+    """
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+
+        hwnd = int(ctrl.GetHandle())
+        if not hwnd:
+            return
+        user32 = ctypes.windll.user32
+
+        # Clear WS_EX_RTLREADING / WS_EX_RIGHT / WS_EX_LEFTSCROLLBAR.
+        GWL_EXSTYLE = -20
+        ex = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+        cleared = ex & ~(0x2000 | 0x1000 | 0x4000)
+        if cleared != ex:
+            user32.SetWindowLongW(hwnd, GWL_EXSTYLE, cleared)
+
+        class PARAFORMAT2(ctypes.Structure):
+            _fields_ = [
+                ("cbSize", ctypes.c_uint),
+                ("dwMask", ctypes.c_uint32),
+                ("wNumbering", ctypes.c_ushort),
+                ("wEffects", ctypes.c_ushort),
+                ("dxStartIndent", ctypes.c_int32),
+                ("dxRightIndent", ctypes.c_int32),
+                ("dxOffset", ctypes.c_int32),
+                ("wAlignment", ctypes.c_ushort),
+                ("cTabCount", ctypes.c_short),
+                ("rgxTabs", ctypes.c_int32 * 32),
+                ("dySpaceBefore", ctypes.c_int32),
+                ("dySpaceAfter", ctypes.c_int32),
+                ("dyLineSpacing", ctypes.c_int32),
+                ("sStyle", ctypes.c_short),
+                ("bLineSpacingRule", ctypes.c_ubyte),
+                ("bOutlineLevel", ctypes.c_ubyte),
+                ("wShadingWeight", ctypes.c_ushort),
+                ("wShadingStyle", ctypes.c_ushort),
+                ("wNumberingStart", ctypes.c_ushort),
+                ("wNumberingStyle", ctypes.c_ushort),
+                ("wNumberingTab", ctypes.c_ushort),
+                ("wBorderSpace", ctypes.c_ushort),
+                ("wBorderWidth", ctypes.c_ushort),
+                ("wBorders", ctypes.c_ushort),
+            ]
+
+        EM_SETSEL = 0x00B1
+        EM_GETSEL = 0x00B0
+        EM_SETPARAFORMAT = 0x0447  # WM_USER + 71
+        PFM_RTLPARA = 0x00010000
+        PFM_ALIGNMENT = 0x00000008
+        PFA_LEFT = 1
+
+        start = ctypes.c_uint32(0)
+        end = ctypes.c_uint32(0)
+        user32.SendMessageW(hwnd, EM_GETSEL, ctypes.byref(start), ctypes.byref(end))
+
+        pf = PARAFORMAT2()
+        pf.cbSize = ctypes.sizeof(PARAFORMAT2)
+        pf.dwMask = PFM_RTLPARA | PFM_ALIGNMENT
+        pf.wEffects = 0
+        pf.wAlignment = PFA_LEFT
+
+        user32.SendMessageW(hwnd, EM_SETSEL, 0, -1)
+        user32.SendMessageW(hwnd, EM_SETPARAFORMAT, 0, ctypes.byref(pf))
+        user32.SendMessageW(hwnd, EM_SETSEL, int(start.value), int(end.value))
+    except Exception:
+        pass
 
 
 class CheckListCtrl(wx.ListCtrl):

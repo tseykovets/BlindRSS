@@ -833,6 +833,35 @@ def _impersonated_headers(headers: dict) -> dict:
     return final_headers
 
 
+def _apply_site_cookies(url: str, final_headers: dict) -> dict:
+    """Attach imported per-site cookies (and their browser's UA) to a request.
+
+    Sites behind an interactive bot check (issue #79) only open for a session
+    that already passed the challenge in a real browser, so requests to domains
+    present in the imported jar carry its cookies — plus the browser's exact
+    User-Agent string, which Cloudflare requires for the clearance cookie to
+    count. Callers that set their own Cookie header keep it untouched.
+    """
+    try:
+        from core import site_cookies
+        if any(str(k).lower() == "cookie" for k in final_headers):
+            return final_headers
+        cookie_header = site_cookies.cookie_header_for(url)
+        if not cookie_header:
+            return final_headers
+        final_headers = dict(final_headers)
+        final_headers["Cookie"] = cookie_header
+        ua = site_cookies.user_agent_for(url)
+        if ua:
+            final_headers = {
+                k: v for k, v in final_headers.items() if str(k).lower() != "user-agent"
+            }
+            final_headers["User-Agent"] = ua
+    except Exception:
+        log.debug("Site-cookie attachment failed for %s", url, exc_info=True)
+    return final_headers
+
+
 def encode_non_ascii_url(url: str) -> str:
     """Make a URL with non-ASCII parts request-safe (issue #41).
 
@@ -909,13 +938,13 @@ def safe_requests_get(url, *, impersonate: bool = False, impersonate_target: str
     headers = kwargs.pop("headers", {})
     if impersonate and CURL_CFFI_AVAILABLE:
         target = impersonate_target or IMPERSONATE_TARGET
-        final_headers = _request_safe_headers(_impersonated_headers(headers))
+        final_headers = _apply_site_cookies(url, _request_safe_headers(_impersonated_headers(headers)))
         _log_http_request("GET", url, final_headers, f"curl_cffi:{target}")
         return _get_curl_session().get(url, headers=final_headers, impersonate=target, **kwargs)
     # Merge with defaults, preserving caller's headers if they exist
     final_headers = HEADERS.copy()
     final_headers.update(headers)
-    final_headers = _request_safe_headers(final_headers)
+    final_headers = _apply_site_cookies(url, _request_safe_headers(final_headers))
     _log_http_request("GET", url, final_headers, "requests")
     return _get_plain_session().get(url, headers=final_headers, **kwargs)
 
@@ -932,12 +961,12 @@ def safe_requests_post(url, *, impersonate: bool = False, impersonate_target: st
     headers = kwargs.pop("headers", {})
     if impersonate and CURL_CFFI_AVAILABLE:
         target = impersonate_target or IMPERSONATE_TARGET
-        final_headers = _request_safe_headers(_impersonated_headers(headers))
+        final_headers = _apply_site_cookies(url, _request_safe_headers(_impersonated_headers(headers)))
         _log_http_request("POST", url, final_headers, f"curl_cffi:{target}")
         return _get_curl_session().post(url, headers=final_headers, impersonate=target, **kwargs)
     final_headers = HEADERS.copy()
     final_headers.update(headers)
-    final_headers = _request_safe_headers(final_headers)
+    final_headers = _apply_site_cookies(url, _request_safe_headers(final_headers))
     _log_http_request("POST", url, final_headers, "requests")
     return _get_plain_session().post(url, headers=final_headers, **kwargs)
 
@@ -947,12 +976,12 @@ def safe_requests_head(url, *, impersonate: bool = False, **kwargs):
     url = encode_non_ascii_url(url)
     headers = kwargs.pop("headers", {})
     if impersonate and CURL_CFFI_AVAILABLE:
-        final_headers = _request_safe_headers(_impersonated_headers(headers))
+        final_headers = _apply_site_cookies(url, _request_safe_headers(_impersonated_headers(headers)))
         _log_http_request("HEAD", url, final_headers, f"curl_cffi:{IMPERSONATE_TARGET}")
         return _get_curl_session().head(url, headers=final_headers, impersonate=IMPERSONATE_TARGET, **kwargs)
     final_headers = HEADERS.copy()
     final_headers.update(headers)
-    final_headers = _request_safe_headers(final_headers)
+    final_headers = _apply_site_cookies(url, _request_safe_headers(final_headers))
     _log_http_request("HEAD", url, final_headers, "requests")
     return _get_plain_session().head(url, headers=final_headers, **kwargs)
 

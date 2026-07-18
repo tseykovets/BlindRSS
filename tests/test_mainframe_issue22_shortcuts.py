@@ -54,7 +54,6 @@ class _DummyHost:
     _is_plain_backspace_event = mainframe.MainFrame._is_plain_backspace_event
     _is_shift_delete_event = mainframe.MainFrame._is_shift_delete_event
     _window_is_or_child = mainframe.MainFrame._window_is_or_child
-    _filter_shortcut_targets = mainframe.MainFrame._filter_shortcut_targets
     _is_editable_text_input_focused = mainframe.MainFrame._is_editable_text_input_focused
     toggle_selected_article_read_status = mainframe.MainFrame.toggle_selected_article_read_status
 
@@ -228,7 +227,13 @@ class _FakeListCtrl:
 
 class _DummyContextMenuHost:
     on_list_context_menu = mainframe.MainFrame.on_list_context_menu
+    _shortcut_menu_label = mainframe.MainFrame._shortcut_menu_label
     _get_selected_article_index = mainframe.MainFrame._get_selected_article_index
+
+    def binding_label(self, command_id):
+        # Context-menu labels get a "(accel)" suffix only when bound; these
+        # tests assert on the base labels, so report everything unbound.
+        return ""
     _get_selected_indices_raw = mainframe.MainFrame._get_selected_indices_raw
     _get_selected_article_indices = mainframe.MainFrame._get_selected_article_indices
     _supports_article_delete = mainframe.MainFrame._supports_article_delete

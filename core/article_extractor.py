@@ -679,6 +679,38 @@ def _extract_toptechtidbits_text(html: str, url: str) -> str:
     return text if len(text or "") >= _TOPTECHTIDBITS_MIN_TEXT_LEN else ""
 
 
+_GSMARENA_MIN_TEXT_LEN = 300
+
+
+def _extract_gsmarena_text(html: str) -> str:
+    """Extract GSMArena article/review bodies with their headings intact.
+
+    Trafilatura drops every <h3> section heading ("Introduction", "... specs
+    at a glance:", "Unboxing ...") and the specs <ul> from GSMArena's
+    #review-body in every mode and output format, so the classic full-text
+    view lost the article's whole structure. Read the body blocks directly in
+    document order instead.
+    """
+    soup = _parse_html_soup(html, context="gsmarena body")
+    if soup is None:
+        return ""
+    body = soup.select_one("#review-body") or soup.select_one("div.article-body")
+    if body is None:
+        return ""
+    lines: List[str] = []
+    for node in body.find_all(["h1", "h2", "h3", "h4", "p", "li"]):
+        if node.find(["p", "li"]) is not None:
+            continue
+        text = _normalize_whitespace(node.get_text(" ", strip=True))
+        text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+        if text:
+            lines.append(text)
+    text = _normalize_whitespace("\n\n".join(lines))
+    if len(text) < _GSMARENA_MIN_TEXT_LEN:
+        return ""
+    return text
+
+
 def _extract_without_dom_boilerplate(html: str, url: str, selectors: Tuple[str, ...]) -> str:
     """Run normal extraction after removing known non-article DOM sections."""
     soup = _parse_html_soup(html, context="site boilerplate removal")
@@ -769,6 +801,8 @@ def _extract_site_specific_text(html: str, url: str) -> str:
         return _extract_reuters_text(html)
     if _host_matches(url, "toptechtidbits.com"):
         return _extract_toptechtidbits_text(html, url)
+    if _host_matches(url, "gsmarena.com"):
+        return _extract_gsmarena_text(html)
     if _host_matches(url, "thepostmillennial.com"):
         return _extract_without_dom_boilerplate(html, url, ("section.contributions-container",))
     if _host_matches(url, "rebelnews.com"):

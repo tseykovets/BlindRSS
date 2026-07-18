@@ -83,7 +83,6 @@ class _DummyMain:
     _is_text_input_focused = mainframe.MainFrame._is_text_input_focused
     _is_editable_text_input_focused = mainframe.MainFrame._is_editable_text_input_focused
     _is_rich_view_focused = mainframe.MainFrame._is_rich_view_focused
-    _filter_shortcut_targets = mainframe.MainFrame._filter_shortcut_targets
 
     def dispatch_shortcut(self, event, focus=None, apply_text_guard=True):
         # These tests cover the char-hook fallback, so no registry shortcut

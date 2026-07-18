@@ -36,9 +36,11 @@ def test_keyboard_shortcuts_dialog_lists_all_commands(app):
         ctl = _ShortcutController()
         dlg = KeyboardShortcutsDialog(parent, ctl)
         try:
-            assert dlg.list_ctrl.GetItemCount() == len(sc.iter_commands())
-            # Row 0 shows the play/pause default in the Shortcut column.
-            assert dlg.list_ctrl.GetItemText(0, 2) == "Ctrl+P"
+            # Every registry command, plus the read-only fixed-key reference rows.
+            assert dlg.list_ctrl.GetItemCount() == len(sc.iter_commands()) + len(dlg._fixed_rows())
+            # Row 0 shows the first command's default in the Shortcut column.
+            first_default = sc.default_bindings()[sc.iter_commands()[0].id]
+            assert dlg.list_ctrl.GetItemText(0, 2) == first_default
 
             # Remove the selected command's binding -> persisted as unbound.
             dlg.list_ctrl.Select(0)

@@ -1,9 +1,11 @@
 """Helpers for importing a browser-exported cookies.txt (Netscape jar).
 
-Chromium v127+ App-Bound Encryption blocks yt-dlp from reading Chrome/Edge/Brave
-cookies directly on Windows, so the practical path for those browsers is: the user
-exports a cookies.txt with a browser extension (e.g. "Get cookies.txt LOCALLY"),
-then BlindRSS auto-detects that export and points yt-dlp at it.
+Chromium v127+ App-Bound Encryption blocks BlindRSS and yt-dlp from reading
+Chrome/Edge/Brave cookies directly on Windows, so the practical path for those
+browsers is: the user exports a cookies.txt with a browser extension (e.g.
+"Get cookies.txt LOCALLY"), then BlindRSS auto-detects that export. YouTube
+cookies are provided to yt-dlp, and every valid export is also merged into the
+per-site HTTP cookie jar.
 
 These functions are intentionally GUI-free and side-effect-light so they can be
 unit tested without wx. The Settings dialog wires them to a button.
@@ -260,17 +262,23 @@ def auto_import_youtube_cookies(
 
 
 class CookieImportWatcher:
-    """Background poller that auto-imports freshly exported YouTube cookies.
+    """Background poller that auto-imports freshly exported cookie jars.
 
-    Lightweight: it only lists a couple of directories and reads tiny .txt files
-    on each tick. Stops cleanly on `stop()`.
+    Every tick it checks Downloads twice: a YouTube-login export goes to the
+    yt-dlp cookie file, and ANY fresh cookies.txt export (e.g.
+    ``example.com_cookies.txt`` from the "Get cookies.txt LOCALLY" extension)
+    is merged into the site cookie jar so challenge-protected sites start
+    working hands-free (issue #79). Lightweight: it only lists a couple of
+    directories and reads tiny .txt files. Stops cleanly on `stop()`.
     """
 
-    def __init__(self, config_manager, data_dir: str, *, interval_s: float = 45.0, on_import=None):
+    def __init__(self, config_manager, data_dir: str, *, interval_s: float = 45.0,
+                 on_import=None, on_site_import=None):
         self._config_manager = config_manager
         self._data_dir = data_dir
         self._interval_s = max(10.0, float(interval_s))
         self._on_import = on_import
+        self._on_site_import = on_site_import
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -290,9 +298,20 @@ class CookieImportWatcher:
                 dest = auto_import_youtube_cookies(self._config_manager, self._data_dir)
             except Exception:
                 log.exception("Cookie import watcher tick failed")
-                continue
+                dest = None
             if dest and self._on_import:
                 try:
                     self._on_import(dest)
                 except Exception:
                     log.exception("Cookie import on_import callback failed")
+            try:
+                from core import site_cookies
+                site_src = site_cookies.auto_import_downloads(self._config_manager)
+            except Exception:
+                log.exception("Site cookie import watcher tick failed")
+                site_src = None
+            if site_src and self._on_site_import:
+                try:
+                    self._on_site_import(site_src)
+                except Exception:
+                    log.exception("Cookie import on_site_import callback failed")

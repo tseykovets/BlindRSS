@@ -166,13 +166,15 @@ DEFAULT_CONFIG = {
     # (yt-dlp #10927) blocks --cookies-from-browser. Export from the browser, then
     # set this path. When set, it is tried before browser-cookie extraction.
     "ytdlp_cookies_file": "",
-    # When true, BlindRSS watches the Downloads folder for a freshly exported
-    # YouTube cookies.txt and auto-imports it into the data dir, setting
-    # ytdlp_cookies_file automatically. See core/cookies_import.py.
+    # When true, BlindRSS watches Downloads for freshly exported Netscape
+    # cookies.txt files. YouTube/Google jars are copied to the yt-dlp cookie
+    # file, while all valid jars are merged into the per-site HTTP cookie jar.
+    # See core/cookies_import.py and core/site_cookies.py.
     "auto_import_browser_cookies": True,
     # Internal: mtime of the last cookie export we auto-imported, so the watcher
     # only imports newer exports and never loops on the same file.
     "ytdlp_cookies_last_import_mtime": 0,
+    "site_cookies_last_import_mtime": 0,
     # Play YouTube/yt-dlp items by downloading the audio to a local cache first,
     # instead of streaming. Slower to start but works wherever downloads work
     # (some bundled Windows VLC builds cannot stream googlevideo URLs). When off,

@@ -315,6 +315,7 @@ class RSSApp(wx.App):
                 self.config_manager,
                 get_data_dir(),
                 on_import=self._on_cookies_auto_imported,
+                on_site_import=self._on_site_cookies_auto_imported,
             )
             self._cookie_watcher.start()
         except Exception as e:
@@ -346,6 +347,28 @@ class RSSApp(wx.App):
             wx.CallAfter(_notify)
         except Exception:
             log.info("Auto-imported YouTube cookies to %s", dest_path)
+
+    def _on_site_cookies_auto_imported(self, src_path):
+        """Notify when a fresh Downloads cookies.txt was merged into the site jar."""
+        def _notify():
+            try:
+                frame = getattr(self, "frame", None)
+                name = os.path.basename(str(src_path or ""))
+                msg = (
+                    f"Imported website cookies from {name}. "
+                    "Sites behind a browser verification page should now load."
+                )
+                if frame is not None and hasattr(frame, "_show_windows_notification"):
+                    frame._show_windows_notification("BlindRSS cookies updated", msg)
+                else:
+                    log.info(msg)
+            except Exception as e:
+                log.debug(f"Site cookie auto-import notification failed: {e}")
+
+        try:
+            wx.CallAfter(_notify)
+        except Exception:
+            log.info("Auto-imported site cookies from %s", src_path)
 
     def OnExit(self):
         log.info("Shutting down proxies...")

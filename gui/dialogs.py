@@ -494,6 +494,24 @@ class ImportSiteCookiesDialog(wx.Dialog):
         intro.Wrap(520)
         sizer.Add(intro, 0, wx.ALL, 10)
 
+        # One-click path for Firefox-family browsers: their cookies.sqlite is
+        # unencrypted and readable directly. Chromium's App-Bound Encryption
+        # blocks direct reads, hence the extension link below.
+        import_browser_btn = wx.Button(self, label=_("Import from &Browser..."))
+        import_browser_btn.Bind(wx.EVT_BUTTON, self._on_import_from_browser)
+        sizer.Add(import_browser_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
+        extension_link = wx.adv.HyperlinkCtrl(
+            self,
+            label=_('Get the "Get cookies.txt LOCALLY" extension for Chrome-based browsers'),
+            url=(
+                "https://chromewebstore.google.com/detail/get-cookiestxt-locally/"
+                "cclelndahbckbenkjhflpdbgdldlbecc?hl=en"
+            ),
+        )
+        extension_link.SetName("Get cookies.txt LOCALLY extension link")
+        sizer.Add(extension_link, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
         file_row = wx.BoxSizer(wx.HORIZONTAL)
         file_row.Add(
             wx.StaticText(self, label=_("Cookies file:")),
@@ -544,6 +562,71 @@ class ImportSiteCookiesDialog(wx.Dialog):
                 self.file_ctrl.SetValue(dlg.GetPath())
         finally:
             dlg.Destroy()
+
+    def _on_import_from_browser(self, event):
+        try:
+            profiles = self._site_cookies.list_browser_profiles()
+        except Exception:
+            log.exception("Browser profile discovery failed")
+            profiles = []
+        if not profiles:
+            wx.MessageBox(
+                _(
+                    "No supported browser profiles were found.\n\n"
+                    "Cookies can be read directly from Firefox-based browsers "
+                    "(Firefox, LibreWolf, Waterfox, Floorp, Zen). Chrome-based "
+                    "browsers encrypt their cookies; use the "
+                    "\"Get cookies.txt LOCALLY\" extension linked above and "
+                    "import the exported file instead."
+                ),
+                _("Import Site Cookies"),
+                wx.OK | wx.ICON_INFORMATION,
+                self,
+            )
+            return
+
+        chosen = profiles[0]
+        if len(profiles) > 1:
+            labels = [f'{p["browser"]} — {p["profile"]}' for p in profiles]
+            dlg = wx.SingleChoiceDialog(
+                self,
+                _("Choose the browser profile to import cookies from:"),
+                _("Import Site Cookies"),
+                labels,
+            )
+            try:
+                if dlg.ShowModal() != wx.ID_OK:
+                    return
+                chosen = profiles[dlg.GetSelection()]
+            finally:
+                dlg.Destroy()
+
+        try:
+            count = self._site_cookies.import_from_browser_profile(chosen["path"])
+        except Exception:
+            log.exception("Browser cookie import failed for %s", chosen["path"])
+            wx.MessageBox(
+                _("Could not read cookies from {browser}.").format(browser=chosen["browser"]),
+                _("Import Site Cookies"),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            return
+
+        # Cloudflare only honors a clearance cookie together with the exact
+        # UA it was issued to, so pre-fill the browser's own UA string.
+        try:
+            ua = self._site_cookies.firefox_profile_user_agent(chosen["path"])
+        except Exception:
+            ua = ""
+        if ua:
+            self.ua_ctrl.SetValue(ua)
+            self._site_cookies.set_user_agent(ua)
+        message = _("Imported {count} cookies from {browser}.").format(
+            count=count, browser=chosen["browser"]
+        )
+        self.status_lbl.SetLabel(message)
+        wx.MessageBox(message, _("Import Site Cookies"), wx.OK | wx.ICON_INFORMATION, self)
 
     def _on_ok(self, event):
         path = (self.file_ctrl.GetValue() or "").strip()
@@ -1134,7 +1217,7 @@ class SettingsDialog(wx.Dialog):
 
         self.auto_import_cookies_chk = wx.CheckBox(
             youtube_panel,
-            label=_("Automatically import a YouTube cookies.txt when you export one to Downloads"),
+            label=_("Automatically import browser cookies.txt exports from Downloads"),
         )
         self.auto_import_cookies_chk.SetValue(bool(config.get("auto_import_browser_cookies", True)))
         youtube_sizer.Add(self.auto_import_cookies_chk, 0, wx.ALL, 5)

@@ -460,200 +460,200 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
 
 
 class SettingsDialog(wx.Dialog):
-    _TRANSLATION_LANGUAGE_PRESETS = [
-        ("Abkhazian (ab)", "ab"),
-        ("Afar (aa)", "aa"),
-        ("Afrikaans (af)", "af"),
-        ("Akan (ak)", "ak"),
-        ("Albanian (sq)", "sq"),
-        ("Amharic (am)", "am"),
-        ("Arabic (ar)", "ar"),
-        ("Aragonese (an)", "an"),
-        ("Armenian (hy)", "hy"),
-        ("Assamese (as)", "as"),
-        ("Avaric (av)", "av"),
-        ("Avestan (ae)", "ae"),
-        ("Aymara (ay)", "ay"),
-        ("Azerbaijani (az)", "az"),
-        ("Bambara (bm)", "bm"),
-        ("Bashkir (ba)", "ba"),
-        ("Basque (eu)", "eu"),
-        ("Belarusian (be)", "be"),
-        ("Bengali (bn)", "bn"),
-        ("Bislama (bi)", "bi"),
-        ("Bosnian (bs)", "bs"),
-        ("Breton (br)", "br"),
-        ("Bulgarian (bg)", "bg"),
-        ("Burmese (my)", "my"),
-        ("Catalan (ca)", "ca"),
-        ("Chamorro (ch)", "ch"),
-        ("Chechen (ce)", "ce"),
-        ("Chichewa (ny)", "ny"),
-        ("Chinese (Simplified) (zh-CN)", "zh-CN"),
-        ("Chinese (Traditional) (zh-TW)", "zh-TW"),
-        ("Chinese (zh)", "zh"),
-        ("Church Slavic (cu)", "cu"),
-        ("Chuvash (cv)", "cv"),
-        ("Cornish (kw)", "kw"),
-        ("Corsican (co)", "co"),
-        ("Cree (cr)", "cr"),
-        ("Croatian (hr)", "hr"),
-        ("Czech (cs)", "cs"),
-        ("Danish (da)", "da"),
-        ("Divehi (dv)", "dv"),
-        ("Dutch (nl)", "nl"),
-        ("Dzongkha (dz)", "dz"),
-        ("English (en)", "en"),
-        ("Esperanto (eo)", "eo"),
-        ("Estonian (et)", "et"),
-        ("Ewe (ee)", "ee"),
-        ("Faroese (fo)", "fo"),
-        ("Fijian (fj)", "fj"),
-        ("Finnish (fi)", "fi"),
-        ("French (fr)", "fr"),
-        ("Fulah (ff)", "ff"),
-        ("Galician (gl)", "gl"),
-        ("Ganda (lg)", "lg"),
-        ("Georgian (ka)", "ka"),
-        ("German (de)", "de"),
-        ("Guarani (gn)", "gn"),
-        ("Gujarati (gu)", "gu"),
-        ("Haitian (ht)", "ht"),
-        ("Hausa (ha)", "ha"),
-        ("Hebrew (he)", "he"),
-        ("Herero (hz)", "hz"),
-        ("Hindi (hi)", "hi"),
-        ("Hiri Motu (ho)", "ho"),
-        ("Hungarian (hu)", "hu"),
-        ("Icelandic (is)", "is"),
-        ("Ido (io)", "io"),
-        ("Igbo (ig)", "ig"),
-        ("Indonesian (id)", "id"),
-        ("Interlingua (International Auxiliary Language Association) (ia)", "ia"),
-        ("Interlingue (ie)", "ie"),
-        ("Inuktitut (iu)", "iu"),
-        ("Inupiaq (ik)", "ik"),
-        ("Irish (ga)", "ga"),
-        ("Italian (it)", "it"),
-        ("Japanese (ja)", "ja"),
-        ("Javanese (jv)", "jv"),
-        ("Kalaallisut (kl)", "kl"),
-        ("Kannada (kn)", "kn"),
-        ("Kanuri (kr)", "kr"),
-        ("Kashmiri (ks)", "ks"),
-        ("Kazakh (kk)", "kk"),
-        ("Khmer (km)", "km"),
-        ("Kikuyu (ki)", "ki"),
-        ("Kinyarwanda (rw)", "rw"),
-        ("Kirghiz (ky)", "ky"),
-        ("Komi (kv)", "kv"),
-        ("Kongo (kg)", "kg"),
-        ("Korean (ko)", "ko"),
-        ("Kuanyama (kj)", "kj"),
-        ("Kurdish (ku)", "ku"),
-        ("Lao (lo)", "lo"),
-        ("Latin (la)", "la"),
-        ("Latvian (lv)", "lv"),
-        ("Limburgan (li)", "li"),
-        ("Lingala (ln)", "ln"),
-        ("Lithuanian (lt)", "lt"),
-        ("Luba-Katanga (lu)", "lu"),
-        ("Luxembourgish (lb)", "lb"),
-        ("Macedonian (mk)", "mk"),
-        ("Malagasy (mg)", "mg"),
-        ("Malay (macrolanguage) (ms)", "ms"),
-        ("Malayalam (ml)", "ml"),
-        ("Maltese (mt)", "mt"),
-        ("Manx (gv)", "gv"),
-        ("Maori (mi)", "mi"),
-        ("Marathi (mr)", "mr"),
-        ("Marshallese (mh)", "mh"),
-        ("Modern Greek (1453-) (el)", "el"),
-        ("Mongolian (mn)", "mn"),
-        ("Nauru (na)", "na"),
-        ("Navajo (nv)", "nv"),
-        ("Ndonga (ng)", "ng"),
-        ("Nepali (macrolanguage) (ne)", "ne"),
-        ("North Ndebele (nd)", "nd"),
-        ("Northern Sami (se)", "se"),
-        ("Norwegian (no)", "no"),
-        ("Norwegian Bokmal (nb)", "nb"),
-        ("Norwegian Nynorsk (nn)", "nn"),
-        ("Occitan (post 1500) (oc)", "oc"),
-        ("Ojibwa (oj)", "oj"),
-        ("Oriya (macrolanguage) (or)", "or"),
-        ("Oromo (om)", "om"),
-        ("Ossetian (os)", "os"),
-        ("Pali (pi)", "pi"),
-        ("Panjabi (pa)", "pa"),
-        ("Persian (fa)", "fa"),
-        ("Polish (pl)", "pl"),
-        ("Portuguese (Brazil) (pt-BR)", "pt-BR"),
-        ("Portuguese (Portugal) (pt-PT)", "pt-PT"),
-        ("Portuguese (pt)", "pt"),
-        ("Pushto (ps)", "ps"),
-        ("Quechua (qu)", "qu"),
-        ("Romanian (ro)", "ro"),
-        ("Romansh (rm)", "rm"),
-        ("Rundi (rn)", "rn"),
-        ("Russian (ru)", "ru"),
-        ("Samoan (sm)", "sm"),
-        ("Sango (sg)", "sg"),
-        ("Sanskrit (sa)", "sa"),
-        ("Sardinian (sc)", "sc"),
-        ("Scottish Gaelic (gd)", "gd"),
-        ("Serbian (sr)", "sr"),
-        ("Serbo-Croatian (sh)", "sh"),
-        ("Shona (sn)", "sn"),
-        ("Sichuan Yi (ii)", "ii"),
-        ("Sindhi (sd)", "sd"),
-        ("Sinhala (si)", "si"),
-        ("Slovak (sk)", "sk"),
-        ("Slovenian (sl)", "sl"),
-        ("Somali (so)", "so"),
-        ("South Ndebele (nr)", "nr"),
-        ("Southern Sotho (st)", "st"),
-        ("Spanish (es)", "es"),
-        ("Sundanese (su)", "su"),
-        ("Swahili (macrolanguage) (sw)", "sw"),
-        ("Swati (ss)", "ss"),
-        ("Swedish (sv)", "sv"),
-        ("Tagalog (tl)", "tl"),
-        ("Tahitian (ty)", "ty"),
-        ("Tajik (tg)", "tg"),
-        ("Tamil (ta)", "ta"),
-        ("Tatar (tt)", "tt"),
-        ("Telugu (te)", "te"),
-        ("Thai (th)", "th"),
-        ("Tibetan (bo)", "bo"),
-        ("Tigrinya (ti)", "ti"),
-        ("Tonga (Tonga Islands) (to)", "to"),
-        ("Tsonga (ts)", "ts"),
-        ("Tswana (tn)", "tn"),
-        ("Turkish (tr)", "tr"),
-        ("Turkmen (tk)", "tk"),
-        ("Twi (tw)", "tw"),
-        ("Uighur (ug)", "ug"),
-        ("Ukrainian (uk)", "uk"),
-        ("Urdu (ur)", "ur"),
-        ("Uzbek (uz)", "uz"),
-        ("Venda (ve)", "ve"),
-        ("Vietnamese (vi)", "vi"),
-        ("Volapuk (vo)", "vo"),
-        ("Walloon (wa)", "wa"),
-        ("Welsh (cy)", "cy"),
-        ("Western Frisian (fy)", "fy"),
-        ("Wolof (wo)", "wo"),
-        ("Xhosa (xh)", "xh"),
-        ("Yiddish (yi)", "yi"),
-        ("Yoruba (yo)", "yo"),
-        ("Zhuang (za)", "za"),
-        ("Zulu (zu)", "zu"),
-    ]
-
     def __init__(self, parent, config, notification_feeds=None):
         super().__init__(parent, title=_("Settings"), size=(500, 450))
         
+        self._TRANSLATION_LANGUAGE_PRESETS = [
+            (_("Abkhazian"), "ab"),
+            (_("Afar"), "aa"),
+            (_("Afrikaans"), "af"),
+            (_("Akan"), "ak"),
+            (_("Albanian"), "sq"),
+            (_("Amharic"), "am"),
+            (_("Arabic"), "ar"),
+            (_("Aragonese"), "an"),
+            (_("Armenian"), "hy"),
+            (_("Assamese"), "as"),
+            (_("Avaric"), "av"),
+            (_("Avestan"), "ae"),
+            (_("Aymara"), "ay"),
+            (_("Azerbaijani"), "az"),
+            (_("Bambara"), "bm"),
+            (_("Bashkir"), "ba"),
+            (_("Basque"), "eu"),
+            (_("Belarusian"), "be"),
+            (_("Bengali"), "bn"),
+            (_("Bislama"), "bi"),
+            (_("Bosnian"), "bs"),
+            (_("Breton"), "br"),
+            (_("Bulgarian"), "bg"),
+            (_("Burmese"), "my"),
+            (_("Catalan"), "ca"),
+            (_("Chamorro"), "ch"),
+            (_("Chechen"), "ce"),
+            (_("Chichewa"), "ny"),
+            (_("Chinese (Simplified)"), "zh-CN"),
+            (_("Chinese (Traditional)"), "zh-TW"),
+            (_("Chinese"), "zh"),
+            (_("Church Slavic"), "cu"),
+            (_("Chuvash"), "cv"),
+            (_("Cornish"), "kw"),
+            (_("Corsican"), "co"),
+            (_("Cree"), "cr"),
+            (_("Croatian"), "hr"),
+            (_("Czech"), "cs"),
+            (_("Danish"), "da"),
+            (_("Divehi"), "dv"),
+            (_("Dutch"), "nl"),
+            (_("Dzongkha"), "dz"),
+            (_("English"), "en"),
+            (_("Esperanto"), "eo"),
+            (_("Estonian"), "et"),
+            (_("Ewe"), "ee"),
+            (_("Faroese"), "fo"),
+            (_("Fijian"), "fj"),
+            (_("Finnish"), "fi"),
+            (_("French"), "fr"),
+            (_("Fulah"), "ff"),
+            (_("Galician"), "gl"),
+            (_("Ganda"), "lg"),
+            (_("Georgian"), "ka"),
+            (_("German"), "de"),
+            (_("Guarani"), "gn"),
+            (_("Gujarati"), "gu"),
+            (_("Haitian"), "ht"),
+            (_("Hausa"), "ha"),
+            (_("Hebrew"), "he"),
+            (_("Herero"), "hz"),
+            (_("Hindi"), "hi"),
+            (_("Hiri Motu"), "ho"),
+            (_("Hungarian"), "hu"),
+            (_("Icelandic"), "is"),
+            (_("Ido"), "io"),
+            (_("Igbo"), "ig"),
+            (_("Indonesian"), "id"),
+            (_("Interlingua (International Auxiliary Language Association)"), "ia"),
+            (_("Interlingue"), "ie"),
+            (_("Inuktitut"), "iu"),
+            (_("Inupiaq"), "ik"),
+            (_("Irish"), "ga"),
+            (_("Italian"), "it"),
+            (_("Japanese"), "ja"),
+            (_("Javanese"), "jv"),
+            (_("Kalaallisut"), "kl"),
+            (_("Kannada"), "kn"),
+            (_("Kanuri"), "kr"),
+            (_("Kashmiri"), "ks"),
+            (_("Kazakh"), "kk"),
+            (_("Khmer"), "km"),
+            (_("Kikuyu"), "ki"),
+            (_("Kinyarwanda"), "rw"),
+            (_("Kirghiz"), "ky"),
+            (_("Komi"), "kv"),
+            (_("Kongo"), "kg"),
+            (_("Korean"), "ko"),
+            (_("Kuanyama"), "kj"),
+            (_("Kurdish"), "ku"),
+            (_("Lao"), "lo"),
+            (_("Latin"), "la"),
+            (_("Latvian"), "lv"),
+            (_("Limburgan"), "li"),
+            (_("Lingala"), "ln"),
+            (_("Lithuanian"), "lt"),
+            (_("Luba-Katanga"), "lu"),
+            (_("Luxembourgish"), "lb"),
+            (_("Macedonian"), "mk"),
+            (_("Malagasy"), "mg"),
+            (_("Malay (macrolanguage)"), "ms"),
+            (_("Malayalam"), "ml"),
+            (_("Maltese"), "mt"),
+            (_("Manx"), "gv"),
+            (_("Maori"), "mi"),
+            (_("Marathi"), "mr"),
+            (_("Marshallese"), "mh"),
+            (_("Modern Greek (1453-)"), "el"),
+            (_("Mongolian"), "mn"),
+            (_("Nauruan"), "na"),
+            (_("Navajo"), "nv"),
+            (_("Ndonga"), "ng"),
+            (_("Nepali (macrolanguage)"), "ne"),
+            (_("North Ndebele"), "nd"),
+            (_("Northern Sami"), "se"),
+            (_("Norwegian"), "no"),
+            (_("Norwegian Bokmal"), "nb"),
+            (_("Norwegian Nynorsk"), "nn"),
+            (_("Occitan (post 1500)"), "oc"),
+            (_("Ojibwa"), "oj"),
+            (_("Oriya (macrolanguage)"), "or"),
+            (_("Oromo"), "om"),
+            (_("Ossetian"), "os"),
+            (_("Pali"), "pi"),
+            (_("Panjabi"), "pa"),
+            (_("Persian"), "fa"),
+            (_("Polish"), "pl"),
+            (_("Portuguese (Brazil)"), "pt-BR"),
+            (_("Portuguese (Portugal)"), "pt-PT"),
+            (_("Portuguese"), "pt"),
+            (_("Pushto"), "ps"),
+            (_("Quechua"), "qu"),
+            (_("Romanian"), "ro"),
+            (_("Romansh"), "rm"),
+            (_("Rundi"), "rn"),
+            (_("Russian"), "ru"),
+            (_("Samoan"), "sm"),
+            (_("Sango"), "sg"),
+            (_("Sanskrit"), "sa"),
+            (_("Sardinian"), "sc"),
+            (_("Scottish Gaelic"), "gd"),
+            (_("Serbian"), "sr"),
+            (_("Serbo-Croatian"), "sh"),
+            (_("Shona"), "sn"),
+            (_("Sichuan Yi"), "ii"),
+            (_("Sindhi"), "sd"),
+            (_("Sinhala"), "si"),
+            (_("Slovak"), "sk"),
+            (_("Slovenian"), "sl"),
+            (_("Somali"), "so"),
+            (_("South Ndebele"), "nr"),
+            (_("Southern Sotho"), "st"),
+            (_("Spanish"), "es"),
+            (_("Sundanese"), "su"),
+            (_("Swahili (macrolanguage)"), "sw"),
+            (_("Swati"), "ss"),
+            (_("Swedish"), "sv"),
+            (_("Tagalog"), "tl"),
+            (_("Tahitian"), "ty"),
+            (_("Tajik"), "tg"),
+            (_("Tamil"), "ta"),
+            (_("Tatar"), "tt"),
+            (_("Telugu"), "te"),
+            (_("Thai"), "th"),
+            (_("Tibetan"), "bo"),
+            (_("Tigrinya"), "ti"),
+            (_("Tonga (Tonga Islands)"), "to"),
+            (_("Tsonga"), "ts"),
+            (_("Tswana"), "tn"),
+            (_("Turkish"), "tr"),
+            (_("Turkmen"), "tk"),
+            (_("Twi"), "tw"),
+            (_("Uighur"), "ug"),
+            (_("Ukrainian"), "uk"),
+            (_("Urdu"), "ur"),
+            (_("Uzbek"), "uz"),
+            (_("Venda"), "ve"),
+            (_("Vietnamese"), "vi"),
+            (_("Volapuk"), "vo"),
+            (_("Walloon"), "wa"),
+            (_("Welsh"), "cy"),
+            (_("Western Frisian"), "fy"),
+            (_("Wolof"), "wo"),
+            (_("Xhosa"), "xh"),
+            (_("Yiddish"), "yi"),
+            (_("Yoruba"), "yo"),
+            (_("Zhuang"), "za"),
+            (_("Zulu"), "zu"),
+        ]
+
         self.config = config
         self._notification_feed_entries = list(notification_feeds or [])
         self._notification_excluded_feed_ids = {
@@ -1098,21 +1098,69 @@ class SettingsDialog(wx.Dialog):
             wx.StaticText(general_panel, label=_("Interface language (requires restart):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
+
         try:
             from core.i18n import available_languages
             _lang_codes = list(available_languages())
         except Exception:
             _lang_codes = []
-        self.language_choices = ["auto", "en"] + [c for c in _lang_codes if c != "en"]
+
+        # Ensure 'en' is present, since gettext always has English as fallback
+        if "en" not in _lang_codes:
+            _lang_codes.append("en")
+
+        # Create dictionary: code -> name (based on self._TRANSLATION_LANGUAGE_PRESETS)
+        code_to_name_map = {code: name for name, code in self._TRANSLATION_LANGUAGE_PRESETS}
+
+        # Two parallel lists: one for UI (human-readable strings), the other for internal logic (codes)
+        ui_choices = []
+        logic_codes = []
+
+        # Always the first option: "auto"
+        ui_choices.append(_("Automatic (system language)"))
+        logic_codes.append("auto")
+
+        # Collect the remaining languages
+        sortable_items = []
+        for code in _lang_codes:
+            if code == "auto":
+                continue
+
+            # Trying to find a human-readable name. If not, leave the code.
+            name = code_to_name_map.get(code)
+            if name:
+                display_text = f"{name} ({code})"
+            else:
+                display_text = f"{code} ({code})"
+
+            sortable_items.append((display_text, code))
+
+        # Sort by displayed text (already translated)
+        sortable_items.sort(key=lambda x: x[0])
+
+        # Fill parallel lists with sorted data
+        for text, code in sortable_items:
+            ui_choices.append(text)
+            logic_codes.append(code)
+
+        # Save the list of codes so that you can later get the correct code by index.
+        self.language_choices = logic_codes
+
         self.language_choice = wx.Choice(
             general_panel,
-            choices=[_("Automatic (system language)"), "English"] + [c for c in _lang_codes if c != "en"],
+            choices=ui_choices,
         )
+        self.language_choice.SetName("Interface language")
+
+        # Restore saved value
         current_language = str(config.get("language", "auto") or "auto")
         try:
-            self.language_choice.SetSelection(self.language_choices.index(current_language))
+            idx = self.language_choices.index(current_language)
+            self.language_choice.SetSelection(idx)
         except ValueError:
+            # If the saved language is deleted from the system, set it to "auto"
             self.language_choice.SetSelection(0)
+
         language_sizer.Add(self.language_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         general_sizer.Add(language_sizer, 0, wx.ALL, 0)
 
@@ -1674,9 +1722,11 @@ class SettingsDialog(wx.Dialog):
             wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
             8,
         )
+        choices = [f"{label} ({_code})" for label, _code in self._TRANSLATION_LANGUAGE_PRESETS]
+        choices.sort()
         self.translation_target_language_ctrl = wx.ComboBox(
             translate_panel,
-            choices=[label for label, _code in self._TRANSLATION_LANGUAGE_PRESETS],
+            choices=choices,
             style=wx.CB_DROPDOWN,
         )
         self.translation_target_language_ctrl.SetName("Target language")
@@ -2609,7 +2659,7 @@ class SettingsDialog(wx.Dialog):
     def _translation_language_display_value(self, raw_value: str) -> str:
         value = str(raw_value or "").strip()
         if not value:
-            return "English (en)"
+            return f'{_("English")} (en)'
         try:
             mapped = (self._translation_language_code_to_label or {}).get(value.lower())
         except Exception:

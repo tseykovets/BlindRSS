@@ -10,7 +10,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
 "X-Generator: Poedit 3.9\n"
 
 #: core/announcements.py:135
@@ -72,8 +73,7 @@ msgstr "Навигация по мультимедиа и тайм-кодам"
 
 #: core/announcements.py:148
 msgid "Announce the item or chapter when moving to the next/previous one."
-msgstr ""
-"Объявлять элемент или тайм-код при  переходе к следующему/предыдущему."
+msgstr "Объявлять элемент или тайм-код при  переходе к следующему/предыдущему."
 
 #: core/announcements.py:149
 msgid "Other notifications"
@@ -136,8 +136,8 @@ msgid ""
 msgstr ""
 "Эта страница защищена от ботов / проверяет, что пользователь является "
 "человеком, (например, Cloudflare или страница \"Я не робот\"), поэтому "
-"полный текст не может быть получен автоматически. Откройте исходную ссылку в"
-" вашем браузере, чтобы прочитать её."
+"полный текст не может быть получен автоматически. Откройте исходную ссылку в "
+"вашем браузере, чтобы прочитать её."
 
 #: core/article_extractor.py:165
 msgid ""
@@ -161,8 +161,8 @@ msgstr ""
 
 #: core/article_extractor.py:1493
 msgid ""
-"Google News could not resolve the original publisher link. Open the original"
-" link in your browser to read it."
+"Google News could not resolve the original publisher link. Open the original "
+"link in your browser to read it."
 msgstr ""
 "Google News не смог найти исходную ссылку на издателя. Откройте исходную "
 "ссылку в вашем браузере, чтобы прочитать её."
@@ -251,8 +251,7 @@ msgstr "Не удалось обновить настройки автозагр
 #: core/macos_integration.py:113
 msgid "Could not register BlindRSS to start at login: {error}"
 msgstr ""
-"Не удалось зарегистрировать BlindRSS для запуска при входе в систему: "
-"{error}"
+"Не удалось зарегистрировать BlindRSS для запуска при входе в систему: {error}"
 
 #: core/macos_integration.py:108
 msgid ""
@@ -325,6 +324,8 @@ msgstr "Доступно обновление."
 #: core/updater.py:439
 msgid "Authenticode verification failed: PowerShell was not found."
 msgstr ""
+"Не удалось выполнить проверку аутентификационного кода: PowerShell не был "
+"найден."
 
 #: core/updater.py:681
 msgid "Verifying download…"
@@ -386,18 +387,20 @@ msgstr "Загруженный Windows-установщик отсутствуе
 #: core/updater.py:842
 msgid "Could not locate the running .app bundle to update."
 msgstr ""
+"Не удалось установить местоположение запущенного приложения .app для "
+"обновления."
 
 #: core/updater.py:850
 msgid "Update package does not contain a BlindRSS.app bundle."
-msgstr ""
+msgstr "Пакет обновления не содержит приложения BlindRSS.app."
 
 #: core/updater.py:852
 msgid "Update package .app is missing its executable."
-msgstr ""
+msgstr "В пакете обновления .app отсутствует исполняемый файл."
 
 #: core/updater.py:877
 msgid "Update package is missing the BlindRSS executable."
-msgstr ""
+msgstr "В пакете обновления отсутствует исполняемый файл BlindRSS."
 
 #: core/updater.py:668 core/updater.py:676
 msgid "Downloading update…"
@@ -654,8 +657,8 @@ msgstr "Представления"
 
 #: gui/accessibility.py:438
 msgid ""
-"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
-" to expand and Left Arrow to collapse."
+"Categories can be expanded or collapsed. Use the buttons, or use Right Arrow "
+"to expand and Left Arrow to collapse."
 msgstr ""
 "Категории можно разворачивать или сворачивать. Используйте кнопки или "
 "используйте стрелку вправо, чтобы развернуть, и стрелку влево, чтобы "
@@ -724,7 +727,8 @@ msgid ""
 "Taskbar pinning may be limited by your Windows version/policies."
 msgstr ""
 "Выберите, куда добавить ярлыки BlindRSS.\n"
-"Закрепление на панели задач может быть ограничено вашей версией Windows или политиками."
+"Закрепление на панели задач может быть ограничено вашей версией Windows или "
+"политиками."
 
 #: gui/dialogs.py:2303
 msgid "BlindRSS notification test"
@@ -930,8 +934,8 @@ msgstr "Проверить объявления"
 #: gui/dialogs.py:1637
 msgid "Send a test announcement to your screen reader via speech and Braille."
 msgstr ""
-"Отправить проверочное объявление для вашей программы экранного доступа через"
-" речь и брайль."
+"Отправить проверочное объявление для вашей программы экранного доступа через "
+"речь и брайль."
 
 #: gui/dialogs.py:1643 gui/dialogs.py:2377
 msgid "Announcements"
@@ -961,11 +965,15 @@ msgstr "Дополнительно"
 msgid ""
 "The announcement could not be delivered.\n"
 "\n"
-"No screen reader output was available. Check that your screen reader is running, and that the accessible-output2 library is installed for full speech and Braille support."
+"No screen reader output was available. Check that your screen reader is "
+"running, and that the accessible-output2 library is installed for full "
+"speech and Braille support."
 msgstr ""
 "Отправить объявление не удалось.\n"
 "\n"
-"Нет доступных программ экранного доступа для вывода. Убедитесь, что программа экранного доступа запущена, и что установлена библиотека accessible-output2 для полной поддержки речи и брайля."
+"Нет доступных программ экранного доступа для вывода. Убедитесь, что "
+"программа экранного доступа запущена, и что установлена библиотека "
+"accessible-output2 для полной поддержки речи и брайля."
 
 #: gui/dialogs.py:2759
 msgid "Choose yt-dlp cookies.txt"
@@ -1189,9 +1197,761 @@ msgstr "Нет доступных каналов."
 msgid "No feed selected."
 msgstr "Нет выделенных каналов."
 
-#: gui/dialogs.py:680 gui/mainframe.py:12593
+#: gui/dialogs.py:489 gui/mainframe.py:12593
 msgid "Settings"
 msgstr "Настройки"
+
+#: gui/dialogs.py:492
+msgid "Abkhazian"
+msgstr "Абхазский"
+
+#: gui/dialogs.py:493
+msgid "Afar"
+msgstr "Афарский"
+
+#: gui/dialogs.py:494
+msgid "Afrikaans"
+msgstr "Африкаанс"
+
+#: gui/dialogs.py:495
+msgid "Akan"
+msgstr "Аканский"
+
+#: gui/dialogs.py:496
+msgid "Albanian"
+msgstr "Албанский"
+
+#: gui/dialogs.py:497
+msgid "Amharic"
+msgstr "Амхарский"
+
+#: gui/dialogs.py:498
+msgid "Arabic"
+msgstr "Арабский"
+
+#: gui/dialogs.py:499
+msgid "Aragonese"
+msgstr "Арагонский"
+
+#: gui/dialogs.py:500
+msgid "Armenian"
+msgstr "Армянский"
+
+#: gui/dialogs.py:501
+msgid "Assamese"
+msgstr "Ассамский"
+
+#: gui/dialogs.py:502
+msgid "Avaric"
+msgstr "Аварский"
+
+#: gui/dialogs.py:503
+msgid "Avestan"
+msgstr "Авестийский"
+
+#: gui/dialogs.py:504
+msgid "Aymara"
+msgstr "Аймара"
+
+#: gui/dialogs.py:505
+msgid "Azerbaijani"
+msgstr "Азербайджанский"
+
+#: gui/dialogs.py:506
+msgid "Bambara"
+msgstr "Бамбара"
+
+#: gui/dialogs.py:507
+msgid "Bashkir"
+msgstr "Башкирский"
+
+#: gui/dialogs.py:508
+msgid "Basque"
+msgstr "Баскский"
+
+#: gui/dialogs.py:509
+msgid "Belarusian"
+msgstr "Белорусский"
+
+#: gui/dialogs.py:510
+msgid "Bengali"
+msgstr "Бенгальский"
+
+#: gui/dialogs.py:511
+msgid "Bislama"
+msgstr "Бислама"
+
+#: gui/dialogs.py:512
+msgid "Bosnian"
+msgstr "Боснийский"
+
+#: gui/dialogs.py:513
+msgid "Breton"
+msgstr "Бретонский"
+
+#: gui/dialogs.py:514
+msgid "Bulgarian"
+msgstr "Болгарский"
+
+#: gui/dialogs.py:515
+msgid "Burmese"
+msgstr "Бирманский"
+
+#: gui/dialogs.py:516
+msgid "Catalan"
+msgstr "Каталонский"
+
+#: gui/dialogs.py:517
+msgid "Chamorro"
+msgstr "Чаморро"
+
+#: gui/dialogs.py:518
+msgid "Chechen"
+msgstr "Чеченский"
+
+#: gui/dialogs.py:519
+msgid "Chichewa"
+msgstr "Чичева"
+
+#: gui/dialogs.py:520
+msgid "Chinese (Simplified)"
+msgstr "Китайский (упрощённый)"
+
+#: gui/dialogs.py:521
+msgid "Chinese (Traditional)"
+msgstr "Китайский (традиционный)"
+
+#: gui/dialogs.py:522
+msgid "Chinese"
+msgstr "Китайский"
+
+#: gui/dialogs.py:523
+msgid "Church Slavic"
+msgstr "Церковно-славянский"
+
+#: gui/dialogs.py:524
+msgid "Chuvash"
+msgstr "Чувашский"
+
+#: gui/dialogs.py:525
+msgid "Cornish"
+msgstr "Корнуоллский"
+
+#: gui/dialogs.py:526
+msgid "Corsican"
+msgstr "Корсиканский"
+
+#: gui/dialogs.py:527
+msgid "Cree"
+msgstr "Кри"
+
+#: gui/dialogs.py:528
+msgid "Croatian"
+msgstr "Хорватский"
+
+#: gui/dialogs.py:529
+msgid "Czech"
+msgstr "Чешский"
+
+#: gui/dialogs.py:530
+msgid "Danish"
+msgstr "Датский"
+
+#: gui/dialogs.py:531
+msgid "Divehi"
+msgstr "Дивехи"
+
+#: gui/dialogs.py:532
+msgid "Dutch"
+msgstr "Голландский"
+
+#: gui/dialogs.py:533
+msgid "Dzongkha"
+msgstr "Дзонг-кэ"
+
+#: gui/dialogs.py:534
+msgid "English"
+msgstr "Английский"
+
+#: gui/dialogs.py:535
+msgid "Esperanto"
+msgstr "Эсперанто"
+
+#: gui/dialogs.py:536
+msgid "Estonian"
+msgstr "Эстонский"
+
+#: gui/dialogs.py:537
+msgid "Ewe"
+msgstr "Эве"
+
+#: gui/dialogs.py:538
+msgid "Faroese"
+msgstr "Фарерский"
+
+#: gui/dialogs.py:539
+msgid "Fijian"
+msgstr "Фиджийский"
+
+#: gui/dialogs.py:540
+msgid "Finnish"
+msgstr "Финский"
+
+#: gui/dialogs.py:541
+msgid "French"
+msgstr "Французский"
+
+#: gui/dialogs.py:542
+msgid "Fulah"
+msgstr "Фула"
+
+#: gui/dialogs.py:543
+msgid "Galician"
+msgstr "Галисийский"
+
+#: gui/dialogs.py:544
+msgid "Ganda"
+msgstr "Га'анда"
+
+#: gui/dialogs.py:545
+msgid "Georgian"
+msgstr "Грузинский"
+
+#: gui/dialogs.py:546
+msgid "German"
+msgstr "Немецкий"
+
+#: gui/dialogs.py:547
+msgid "Guarani"
+msgstr "Гуарани"
+
+#: gui/dialogs.py:548
+msgid "Gujarati"
+msgstr "Гуджарати"
+
+#: gui/dialogs.py:549
+msgid "Haitian"
+msgstr "Гаитянский"
+
+#: gui/dialogs.py:550
+msgid "Hausa"
+msgstr "Хауса"
+
+#: gui/dialogs.py:551
+msgid "Hebrew"
+msgstr "Иврит"
+
+#: gui/dialogs.py:552
+msgid "Herero"
+msgstr "Гереро"
+
+#: gui/dialogs.py:553
+msgid "Hindi"
+msgstr "Хинди"
+
+#: gui/dialogs.py:554
+msgid "Hiri Motu"
+msgstr "Хири-моту"
+
+#: gui/dialogs.py:555
+msgid "Hungarian"
+msgstr "Венгерский"
+
+#: gui/dialogs.py:556
+msgid "Icelandic"
+msgstr "Исландский"
+
+#: gui/dialogs.py:557
+msgid "Ido"
+msgstr "Идо"
+
+#: gui/dialogs.py:558
+msgid "Igbo"
+msgstr "Игбо"
+
+#: gui/dialogs.py:559
+msgid "Indonesian"
+msgstr "Индонезийский"
+
+#: gui/dialogs.py:560
+msgid "Interlingua (International Auxiliary Language Association)"
+msgstr "Интерлингва (Международная ассоциация вспомогательного языка)"
+
+#: gui/dialogs.py:561
+msgid "Interlingue"
+msgstr "Интерлингве"
+
+#: gui/dialogs.py:562
+msgid "Inuktitut"
+msgstr "Инуктитут"
+
+#: gui/dialogs.py:563
+msgid "Inupiaq"
+msgstr "Инупиак"
+
+#: gui/dialogs.py:564
+msgid "Irish"
+msgstr "Ирландский"
+
+#: gui/dialogs.py:565
+msgid "Italian"
+msgstr "Итальянский"
+
+#: gui/dialogs.py:566
+msgid "Japanese"
+msgstr "Японский"
+
+#: gui/dialogs.py:567
+msgid "Javanese"
+msgstr "Яванский"
+
+#: gui/dialogs.py:568
+msgid "Kalaallisut"
+msgstr "Калааллисут"
+
+#: gui/dialogs.py:569
+msgid "Kannada"
+msgstr "Каннада"
+
+#: gui/dialogs.py:570
+msgid "Kanuri"
+msgstr "Канури"
+
+#: gui/dialogs.py:571
+msgid "Kashmiri"
+msgstr "Кашмирский"
+
+#: gui/dialogs.py:572
+msgid "Kazakh"
+msgstr "Казахский"
+
+#: gui/dialogs.py:573
+msgid "Khmer"
+msgstr "Кхмерский"
+
+#: gui/dialogs.py:574
+msgid "Kikuyu"
+msgstr "Кикуйю"
+
+#: gui/dialogs.py:575
+msgid "Kinyarwanda"
+msgstr "Киньяруанда"
+
+#: gui/dialogs.py:576
+msgid "Kirghiz"
+msgstr "Киргизский"
+
+#: gui/dialogs.py:577
+msgid "Komi"
+msgstr "Коми"
+
+#: gui/dialogs.py:578
+msgid "Kongo"
+msgstr "Конго"
+
+#: gui/dialogs.py:579
+msgid "Korean"
+msgstr "Корейский"
+
+#: gui/dialogs.py:580
+msgid "Kuanyama"
+msgstr "Куаньяма"
+
+#: gui/dialogs.py:581
+msgid "Kurdish"
+msgstr "Курдский"
+
+#: gui/dialogs.py:582
+msgid "Lao"
+msgstr "Лаосский"
+
+#: gui/dialogs.py:583
+msgid "Latin"
+msgstr "Латинский"
+
+#: gui/dialogs.py:584
+msgid "Latvian"
+msgstr "Латышский"
+
+#: gui/dialogs.py:585
+msgid "Limburgan"
+msgstr "Лимбургский"
+
+#: gui/dialogs.py:586
+msgid "Lingala"
+msgstr "Лингала"
+
+#: gui/dialogs.py:587
+msgid "Lithuanian"
+msgstr "Литовский"
+
+#: gui/dialogs.py:588
+msgid "Luba-Katanga"
+msgstr "Луба-катанга"
+
+#: gui/dialogs.py:589
+msgid "Luxembourgish"
+msgstr "Люксембургский"
+
+#: gui/dialogs.py:590
+msgid "Macedonian"
+msgstr "Македонский"
+
+#: gui/dialogs.py:591
+msgid "Malagasy"
+msgstr "Малагасийский"
+
+#: gui/dialogs.py:592
+msgid "Malay (macrolanguage)"
+msgstr "Малайский (макроязык)"
+
+#: gui/dialogs.py:593
+msgid "Malayalam"
+msgstr "Малаялам"
+
+#: gui/dialogs.py:594
+msgid "Maltese"
+msgstr "Мальтийский"
+
+#: gui/dialogs.py:595
+msgid "Manx"
+msgstr "Мэнкский"
+
+#: gui/dialogs.py:596
+msgid "Maori"
+msgstr "Маори"
+
+#: gui/dialogs.py:597
+msgid "Marathi"
+msgstr "Маратхи"
+
+#: gui/dialogs.py:598
+msgid "Marshallese"
+msgstr "Маршалльский"
+
+#: gui/dialogs.py:599
+msgid "Modern Greek (1453-)"
+msgstr "Новогреческий (1453-)"
+
+#: gui/dialogs.py:600
+msgid "Mongolian"
+msgstr "Монгольский"
+
+#: gui/dialogs.py:601
+msgid "Nauruan"
+msgstr "Науруанский"
+
+#: gui/dialogs.py:602
+msgid "Navajo"
+msgstr "Навахо"
+
+#: gui/dialogs.py:603
+msgid "Ndonga"
+msgstr "Ндонга"
+
+#: gui/dialogs.py:604
+msgid "Nepali (macrolanguage)"
+msgstr "Непальский (макроязык)"
+
+#: gui/dialogs.py:605
+msgid "North Ndebele"
+msgstr "Северный ндебеле"
+
+#: gui/dialogs.py:606
+msgid "Northern Sami"
+msgstr "Северный саами"
+
+#: gui/dialogs.py:607
+msgid "Norwegian"
+msgstr "Норвежский"
+
+#: gui/dialogs.py:608
+msgid "Norwegian Bokmal"
+msgstr "Норвежский букмол"
+
+#: gui/dialogs.py:609
+msgid "Norwegian Nynorsk"
+msgstr "Норвежский нюношк"
+
+#: gui/dialogs.py:610
+msgid "Occitan (post 1500)"
+msgstr "Окситанский (после 1500)"
+
+#: gui/dialogs.py:611
+msgid "Ojibwa"
+msgstr "Оджибве"
+
+#: gui/dialogs.py:612
+msgid "Oriya (macrolanguage)"
+msgstr "Ория (макроязык)"
+
+#: gui/dialogs.py:613
+msgid "Oromo"
+msgstr "Оромо"
+
+#: gui/dialogs.py:614
+msgid "Ossetian"
+msgstr "Осетинский"
+
+#: gui/dialogs.py:615
+msgid "Pali"
+msgstr "Пали"
+
+#: gui/dialogs.py:616
+msgid "Panjabi"
+msgstr "Панджаби"
+
+#: gui/dialogs.py:617
+msgid "Persian"
+msgstr "Персидский"
+
+#: gui/dialogs.py:618
+msgid "Polish"
+msgstr "Польский"
+
+#: gui/dialogs.py:619
+msgid "Portuguese (Brazil)"
+msgstr "Португальский (Бразилия)"
+
+#: gui/dialogs.py:620
+msgid "Portuguese (Portugal)"
+msgstr "Португальский (Португалия)"
+
+#: gui/dialogs.py:621
+msgid "Portuguese"
+msgstr "Португальский"
+
+#: gui/dialogs.py:622
+msgid "Pushto"
+msgstr "Пушту"
+
+#: gui/dialogs.py:623
+msgid "Quechua"
+msgstr "Кечуа"
+
+#: gui/dialogs.py:624
+msgid "Romanian"
+msgstr "Румынский"
+
+#: gui/dialogs.py:625
+msgid "Romansh"
+msgstr "Романшский"
+
+#: gui/dialogs.py:626
+msgid "Rundi"
+msgstr "Рунди"
+
+#: gui/dialogs.py:627
+msgid "Russian"
+msgstr "Русский"
+
+#: gui/dialogs.py:628
+msgid "Samoan"
+msgstr "Самоанский"
+
+#: gui/dialogs.py:629
+msgid "Sango"
+msgstr "Санго"
+
+#: gui/dialogs.py:630
+msgid "Sanskrit"
+msgstr "Санскрит"
+
+#: gui/dialogs.py:631
+msgid "Sardinian"
+msgstr "Сардинский"
+
+#: gui/dialogs.py:632
+msgid "Scottish Gaelic"
+msgstr "Шотландский гэльский"
+
+#: gui/dialogs.py:633
+msgid "Serbian"
+msgstr "Сербский"
+
+#: gui/dialogs.py:634
+msgid "Serbo-Croatian"
+msgstr "Сербохорватский"
+
+#: gui/dialogs.py:635
+msgid "Shona"
+msgstr "Шона"
+
+#: gui/dialogs.py:636
+msgid "Sichuan Yi"
+msgstr "Сычуаньский и"
+
+#: gui/dialogs.py:637
+msgid "Sindhi"
+msgstr "Синдхи"
+
+#: gui/dialogs.py:638
+msgid "Sinhala"
+msgstr "Сингальский"
+
+#: gui/dialogs.py:639
+msgid "Slovak"
+msgstr "Словацкий"
+
+#: gui/dialogs.py:640
+msgid "Slovenian"
+msgstr "Словенский"
+
+#: gui/dialogs.py:641
+msgid "Somali"
+msgstr "Сомалийский"
+
+#: gui/dialogs.py:642
+msgid "South Ndebele"
+msgstr "Южный ндебеле"
+
+#: gui/dialogs.py:643
+msgid "Southern Sotho"
+msgstr "Южный сото"
+
+#: gui/dialogs.py:644
+msgid "Spanish"
+msgstr "Испанский"
+
+#: gui/dialogs.py:645
+msgid "Sundanese"
+msgstr "Сунданский"
+
+#: gui/dialogs.py:646
+msgid "Swahili (macrolanguage)"
+msgstr "Суахили (макроязык)"
+
+#: gui/dialogs.py:647
+msgid "Swati"
+msgstr "Свати"
+
+#: gui/dialogs.py:648
+msgid "Swedish"
+msgstr "Шведский"
+
+#: gui/dialogs.py:649
+msgid "Tagalog"
+msgstr "Тагальский"
+
+#: gui/dialogs.py:650
+msgid "Tahitian"
+msgstr "Таитянский"
+
+#: gui/dialogs.py:651
+msgid "Tajik"
+msgstr "Таджикский"
+
+#: gui/dialogs.py:652
+msgid "Tamil"
+msgstr "Тамильский"
+
+#: gui/dialogs.py:653
+msgid "Tatar"
+msgstr "Татарский"
+
+#: gui/dialogs.py:654
+msgid "Telugu"
+msgstr "Телугу"
+
+#: gui/dialogs.py:655
+msgid "Thai"
+msgstr "Тайский"
+
+#: gui/dialogs.py:656
+msgid "Tibetan"
+msgstr "Тибетский"
+
+#: gui/dialogs.py:657
+msgid "Tigrinya"
+msgstr "Тигринья"
+
+#: gui/dialogs.py:658
+msgid "Tonga (Tonga Islands)"
+msgstr "Тонга (острова Тонга)"
+
+#: gui/dialogs.py:659
+msgid "Tsonga"
+msgstr "Тсонга"
+
+#: gui/dialogs.py:660
+msgid "Tswana"
+msgstr "Тсвана"
+
+#: gui/dialogs.py:661
+msgid "Turkish"
+msgstr "Турецкий"
+
+#: gui/dialogs.py:662
+msgid "Turkmen"
+msgstr "Туркменский"
+
+#: gui/dialogs.py:663
+msgid "Twi"
+msgstr "Тви"
+
+#: gui/dialogs.py:664
+msgid "Uighur"
+msgstr "Уйгурский"
+
+#: gui/dialogs.py:665
+msgid "Ukrainian"
+msgstr "Украинский"
+
+#: gui/dialogs.py:666
+msgid "Urdu"
+msgstr "Урду"
+
+#: gui/dialogs.py:667
+msgid "Uzbek"
+msgstr "Узбекский"
+
+#: gui/dialogs.py:668
+msgid "Venda"
+msgstr "Венда"
+
+#: gui/dialogs.py:669
+msgid "Vietnamese"
+msgstr "Вьетнамский"
+
+#: gui/dialogs.py:670
+msgid "Volapuk"
+msgstr "Волапюк"
+
+#: gui/dialogs.py:671
+msgid "Walloon"
+msgstr "Валлонский"
+
+#: gui/dialogs.py:672
+msgid "Welsh"
+msgstr "Валлийский"
+
+#: gui/dialogs.py:673
+msgid "Western Frisian"
+msgstr "Западнофризский"
+
+#: gui/dialogs.py:674
+msgid "Wolof"
+msgstr "Волоф"
+
+#: gui/dialogs.py:675
+msgid "Xhosa"
+msgstr "Коса"
+
+#: gui/dialogs.py:676
+msgid "Yiddish"
+msgstr "Идиш"
+
+#: gui/dialogs.py:677
+msgid "Yoruba"
+msgstr "Йоруба"
+
+#: gui/dialogs.py:678
+msgid "Zhuang"
+msgstr "Чжуан"
+
+#: gui/dialogs.py:679
+msgid "Zulu"
+msgstr "Зулусский"
 
 #: gui/dialogs.py:804
 msgid "Cache full text in background"
@@ -1252,8 +2012,8 @@ msgstr "Автоматически обновлять каналы при зап
 
 #: gui/dialogs.py:973
 msgid ""
-"Article formatting: preserve structure from the original page as spoken text"
-" markers. Applies to newly loaded articles and full text."
+"Article formatting: preserve structure from the original page as spoken text "
+"markers. Applies to newly loaded articles and full text."
 msgstr ""
 "Форматирование статьи: сохранять структуру исходной страницы в виде "
 "произносимых текстовых обозначений. Применяется к вновь загруженным статьям "
@@ -1275,7 +2035,8 @@ msgstr "Обозначать элементы списков маркерами 
 
 #: gui/dialogs.py:999
 msgid "Mark quotations (\"Quote:\" before and \"End of quote.\" after)"
-msgstr "Обозначать цитаты (\"Цитата:\" перед цитатой и \"Конец цитаты.\" после)"
+msgstr ""
+"Обозначать цитаты (\"Цитата:\" перед цитатой и \"Конец цитаты.\" после)"
 
 #: gui/dialogs.py:1005
 msgid ""
@@ -1302,21 +2063,21 @@ msgstr ""
 
 #: gui/dialogs.py:1028
 msgid ""
-"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
-" or members-only YouTube content. Installed browsers are detected "
+"yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private, "
+"or members-only YouTube content. Installed browsers are detected "
 "automatically; Firefox is recommended. Chrome, Edge, and Brave may fail on "
 "Windows because their cookies can be encrypted in a way yt-dlp cannot read, "
-"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible"
-" cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means "
-"Edge Canary."
+"so a cookies.txt is the reliable fallback. LibreWolf uses Firefox-compatible "
+"cookies. Chrome \"Nightly\" means Chrome Canary; Edge \"Nightly\" means Edge "
+"Canary."
 msgstr ""
 "файлы cookies yt-dlp (cookies.txt) — необходимы только для контента YouTube "
 "с возрастными ограничениями, приватного контента или контента, доступного "
-"только для подписчиков. Установленные браузеры обнаруживаются автоматически;"
-" рекомендуется использовать Firefox. Chrome, Edge и Brave могут не работать "
-"в Windows, поскольку их файлы cookies могут быть зашифрованы таким образом, "
-"что yt-dlp не сможет их прочитать, поэтому cookies.txt это надёжный запасной"
-" вариант. LibreWolf использует файлы cookies, совместимые с Firefox. Chrome "
+"только для подписчиков. Установленные браузеры обнаруживаются автоматически; "
+"рекомендуется использовать Firefox. Chrome, Edge и Brave могут не работать в "
+"Windows, поскольку их файлы cookies могут быть зашифрованы таким образом, "
+"что yt-dlp не сможет их прочитать, поэтому cookies.txt это надёжный запасной "
+"вариант. LibreWolf использует файлы cookies, совместимые с Firefox. Chrome "
 "\"Nightly\" означает Chrome Canary; Edge \"Nightly\" означает Edge Canary."
 
 #: gui/dialogs.py:1047
@@ -1327,8 +2088,8 @@ msgstr "Импортировать из браузера..."
 msgid ""
 "Automatically import a YouTube cookies.txt when you export one to Downloads"
 msgstr ""
-"Автоматически импортировать cookies.txt для YouTube, когда он экспортируется"
-" в раздел \"Загрузки\""
+"Автоматически импортировать cookies.txt для YouTube, когда он экспортируется "
+"в раздел \"Загрузки\""
 
 #: gui/dialogs.py:1061
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
@@ -1426,8 +2187,8 @@ msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
 msgstr ""
-"Groq - это НЕ Grok. Получите бесплатный ключ Groq по адресу "
-"console.groq.com/keys (работает с моделями LLaMA и Mistral)."
+"Groq - это НЕ Grok. Получите бесплатный ключ Groq по адресу console.groq.com/"
+"keys (работает с моделями LLaMA и Mistral)."
 
 #: gui/dialogs.py:1893
 msgid "Load OpenRouter Models"
@@ -1448,7 +2209,8 @@ msgid ""
 "especially on macOS where the installed app bundle is replaced."
 msgstr ""
 "Где BlindRSS хранит файлы config.json и rss.db.\n"
-"В папке пользовательских данных хранятся ваши настройки и каналы при обновлении приложения,\n"
+"В папке пользовательских данных хранятся ваши настройки и каналы при "
+"обновлении приложения,\n"
 "особенно на macOS, где заменяется установленный пакет приложения."
 
 #: gui/dialogs.py:2062 gui/mainframe.py:12801 gui/mainframe.py:12769
@@ -1499,8 +2261,8 @@ msgstr "Выберите экспортированный cookies.txt"
 #: gui/dialogs.py:2978
 msgid "Enter a command to test. Use %1 where the article URL should go."
 msgstr ""
-"Введите команду для проверки. Используйте %1 там, где должен быть указан "
-"URL-адрес статьи."
+"Введите команду для проверки. Используйте %1 там, где должен быть указан URL-"
+"адрес статьи."
 
 #: gui/dialogs.py:2979
 msgid "Nothing to test"
@@ -1558,11 +2320,14 @@ msgstr "У&далить канал"
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
-"Feeds appear here automatically when an update fails (for example a dead URL, an HTTP error, a timeout, or an invalid feed format)."
+"Feeds appear here automatically when an update fails (for example a dead "
+"URL, an HTTP error, a timeout, or an invalid feed format)."
 msgstr ""
 "Ни один канал не сообщал об ошибках при последней попытке обновления.\n"
 "\n"
-"Каналы отображаются здесь автоматически при сбое обновления (например, неактивный URL-адрес, ошибка HTTP, превышенное время ожидания или неправильный формат канала)."
+"Каналы отображаются здесь автоматически при сбое обновления (например, "
+"неактивный URL-адрес, ошибка HTTP, превышенное время ожидания или "
+"неправильный формат канала)."
 
 #: gui/dialogs.py:3846
 msgid "Editing feed properties is not available here."
@@ -1858,12 +2623,16 @@ msgstr "Активный поставщик:"
 
 #: gui/dialogs.py:1419
 msgid ""
-"Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
-"localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
+"Note: If your Redirect URI uses HTTPS (common/required), your browser may "
+"fail to load\n"
+"localhost after authorization. Copy the full redirected URL from the address "
+"bar and paste it\n"
 "when prompted."
 msgstr ""
-"Примечание: Если в вашем URI перенаправления используется HTTPS (общий/обязательный), ваш браузер может не загрузить\n"
-"localhost после авторизации. Скопируйте полный URL перенаправления из адресной строки и вставьте его\n"
+"Примечание: Если в вашем URI перенаправления используется HTTPS (общий/"
+"обязательный), ваш браузер может не загрузить\n"
+"localhost после авторизации. Скопируйте полный URL перенаправления из "
+"адресной строки и вставьте его\n"
 "при появлении запроса."
 
 #: gui/dialogs.py:1431
@@ -1877,8 +2646,7 @@ msgstr "Очистить авторизацию"
 #: gui/dialogs.py:1550
 msgid "Max notifications per refresh (0 = no limit):"
 msgstr ""
-"Максимальное количество уведомлений за одно обновление (0 = без "
-"ограничений):"
+"Максимальное количество уведомлений за одно обновление (0 = без ограничений):"
 
 #: gui/dialogs.py:1677
 msgid "Provider:"
@@ -1947,10 +2715,13 @@ msgstr "Местоположение хранилища:"
 #: gui/dialogs.py:2087
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
-"When on, adult sites are added and must still be selected explicitly to search them."
+"When on, adult sites are added and must still be selected explicitly to "
+"search them."
 msgstr ""
-"Когда выключено, сайты для взрослых никогда не отображаются в списке сайтов для поиска видео.\n"
-"Когда включено, сайты для взрослых добавляются, и их всё равно необходимо явно выбрать для поиска."
+"Когда выключено, сайты для взрослых никогда не отображаются в списке сайтов "
+"для поиска видео.\n"
+"Когда включено, сайты для взрослых добавляются, и их всё равно необходимо "
+"явно выбрать для поиска."
 
 #: gui/dialogs.py:2470
 msgid "Inoreader Authorization"
@@ -2058,14 +2829,12 @@ msgstr "Источник:"
 #: gui/dialogs.py:3991
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
-"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
-"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit "
-"source."
+"Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse (Lemmy/"
+"Kbin/Mastodon/Bluesky/PieFed). Feedly is available as an explicit source."
 msgstr ""
 "Источники: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
 "Google News, Bing News, Feedsearch, сканирование сайта, Reddit, Fediverse "
-"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly доступен как отдельный "
-"источник."
+"(Lemmy/Kbin/Mastodon/Bluesky/PieFed). Feedly доступен как отдельный источник."
 
 #: gui/dialogs.py:4380 gui/dialogs.py:4405
 msgid "News search feed"
@@ -2992,8 +3761,8 @@ msgstr[2] "{n} статей"
 
 #: gui/mainframe.py:6359
 msgid ""
-"Delete {subject}? Deleted articles can be restored from the Deleted Articles"
-" view."
+"Delete {subject}? Deleted articles can be restored from the Deleted Articles "
+"view."
 msgstr ""
 "Удалить {subject}? Удалённые статьи можно восстановить из представления "
 "\"Удалённые статьи\"."
@@ -3169,8 +3938,8 @@ msgstr "Правило &включено"
 
 #: gui/mainframe.py:13259
 msgid ""
-"Choose at least one action for this rule (move, label, mark, delete, or skip"
-" notification)."
+"Choose at least one action for this rule (move, label, mark, delete, or skip "
+"notification)."
 msgstr ""
 "Выберите хотя бы одно действие для этого правила (переместить, поставить "
 "метку, отметить, удалить или пропустить уведомление)."
@@ -3461,7 +4230,8 @@ msgstr ""
 
 #: gui/mainframe.py:449
 msgid ""
-"Would you like to install them automatically (via winget/Ninite) and add them to PATH?\n"
+"Would you like to install them automatically (via winget/Ninite) and add "
+"them to PATH?\n"
 "\n"
 "Tip: You can disable this prompt in Settings > YouTube."
 msgstr ""
@@ -3676,7 +4446,8 @@ msgid "Storage Location Changed"
 msgstr "Местоположение хранилища изменено"
 
 #: gui/mainframe.py:13411
-msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
+msgid ""
+"Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
 "Удалить правило фильтрации \"{name}\"? Статьи, которые уже были "
 "распределены, не изменятся."
@@ -3802,13 +4573,15 @@ msgid ""
 "\n"
 "{err}\n"
 "\n"
-"Opening in the default browser instead. You can change this in Settings > General > Article opening method."
+"Opening in the default browser instead. You can change this in Settings > "
+"General > Article opening method."
 msgstr ""
 "Не удалось открыть статью с помощью пользовательской команды:\n"
 "\n"
 "{err}\n"
 "\n"
-"Вместо этого она откроется в браузере по умолчанию. Вы можете изменить это в \"Настройки\" > \"Общие\" > \"Способ открытия статей\"."
+"Вместо этого она откроется в браузере по умолчанию. Вы можете изменить это в "
+"\"Настройки\" > \"Общие\" > \"Способ открытия статей\"."
 
 #: gui/mainframe.py:11589
 msgid "Download failed: {error}"
@@ -4019,8 +4792,7 @@ msgstr "&Тайм-коды"
 #: gui/player.py:2602
 msgid "Cast device disconnected; resuming local playback"
 msgstr ""
-"Устройство для трансляции отключено; возобновление локального "
-"воспроизведения"
+"Устройство для трансляции отключено; возобновление локального воспроизведения"
 
 #: gui/player.py:3339 gui/player.py:3860
 msgid "Failed to load media"

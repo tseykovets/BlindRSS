@@ -35,6 +35,7 @@ from core import equalizer as equalizer_mod
 from core import shortcuts as shortcuts_mod
 from core import announcements as announcements_mod
 from .shortcut_keys import event_to_accel
+from .widgets import CheckListCtrl
 from core import windows_integration
 from core.casting import CastingManager
 from core import inoreader_oauth
@@ -65,9 +66,11 @@ class ColumnLayoutPanel(wx.Panel):
     ``allow_inherit`` the panel grows a "use the global layout" checkbox and
     ``get_layout()`` returns None while it is ticked, meaning "inherit".
 
-    A CheckListBox carries both jobs at once for a screen reader: the item order
-    IS the column order, and the checkbox IS visibility, so NVDA announces
-    position and state together without a separate widget to correlate.
+    A CheckListCtrl carries both jobs at once for a screen reader: the item
+    order IS the column order, and the checkbox IS visibility, so NVDA
+    announces position and state together without a separate widget to
+    correlate. (wx.CheckListBox is unusable here: NVDA cannot see its painted
+    checkboxes at all — see gui.widgets.CheckListCtrl.)
     """
 
     def __init__(self, parent, layout=None, allow_inherit: bool = False):
@@ -86,12 +89,15 @@ class ColumnLayoutPanel(wx.Panel):
             sizer.Add(self.inherit_ctrl, 0, wx.ALL, 5)
 
         sizer.Add(
-            wx.StaticText(self, label=_("Columns (checked = shown). Use Move up / Move down to reorder:")),
+            wx.StaticText(self, label=_(
+                "Columns (checked = shown). Press Space to show or hide a column; "
+                "use Move up / Move down to reorder:"
+            )),
             0, wx.ALL, 5,
         )
-        self.list_box = wx.CheckListBox(self, choices=[])
+        self.list_box = CheckListCtrl(self)
         self.list_box.SetName(_("Article list columns"))
-        self.list_box.Bind(wx.EVT_CHECKLISTBOX, self._on_check)
+        self.list_box.on_user_check = self._on_check
         sizer.Add(self.list_box, 1, wx.EXPAND | wx.ALL, 5)
 
         btn_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -145,8 +151,7 @@ class ColumnLayoutPanel(wx.Panel):
             return None
         return self._layout[index]["key"]
 
-    def _on_check(self, event) -> None:
-        index = event.GetInt()
+    def _on_check(self, index: int, checked: bool) -> None:
         if 0 <= index < len(self._layout):
             key = self._layout[index]["key"]
             if key == article_columns.PINNED_KEY:
@@ -154,9 +159,7 @@ class ColumnLayoutPanel(wx.Panel):
                 # checkbox disagree with what set_visible will actually store.
                 self.list_box.Check(index, True)
                 return
-            self._layout = article_columns.set_visible(
-                self._layout, key, self.list_box.IsChecked(index)
-            )
+            self._layout = article_columns.set_visible(self._layout, key, checked)
 
     def _move(self, delta: int) -> None:
         key = self._selected_key()
@@ -348,8 +351,9 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
             self._feed_base_labels.append(t)
             labels.append(t)
 
-        self.feed_list = wx.CheckListBox(self, choices=labels)
+        self.feed_list = CheckListCtrl(self)
         self.feed_list.SetName("Feeds (checked feeds send notifications)")
+        self.feed_list.Set(labels)
         sizer.Add(self.feed_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         for idx, fid in self._feed_id_by_index.items():
@@ -362,9 +366,8 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
         self._selection_status = wx.StaticText(self, label="")
         sizer.Add(self._selection_status, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
-        self._refresh_item_labels()
-        self.feed_list.Bind(wx.EVT_LISTBOX, self.on_feed_selected)
-        self.feed_list.Bind(wx.EVT_CHECKLISTBOX, self.on_feed_toggled)
+        self.feed_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_feed_selected)
+        self.feed_list.on_user_check = self.on_feed_toggled
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         check_all_btn = wx.Button(self, label=_("Check All"))
@@ -401,23 +404,6 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
         except Exception:
             return True
 
-    def _build_item_label(self, index):
-        if index < 0 or index >= len(self._feed_base_labels):
-            return ""
-        checked = self._is_checked(index)
-        check_state = _("checked") if checked else _("unchecked")
-        return f"{self._feed_base_labels[index]} - {check_state}"
-
-    def _refresh_item_labels(self):
-        for i in range(self.feed_list.GetCount()):
-            checked = self._is_checked(i)
-            label = self._build_item_label(i)
-            try:
-                self.feed_list.SetString(i, label)
-                self.feed_list.Check(i, checked)
-            except Exception:
-                pass
-
     def _update_selection_status(self, index=None):
         if index is None or index == wx.NOT_FOUND:
             try:
@@ -439,20 +425,11 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
         )
 
     def on_feed_selected(self, event):
-        self._update_selection_status(event.GetInt())
+        self._update_selection_status(event.GetIndex())
         event.Skip()
 
-    def on_feed_toggled(self, event):
-        index = event.GetInt()
-        checked = self._is_checked(index)
-        label = self._build_item_label(index)
-        try:
-            self.feed_list.SetString(index, label)
-            self.feed_list.Check(index, checked)
-        except Exception:
-            pass
+    def on_feed_toggled(self, index, checked):
         self._update_selection_status(index)
-        event.Skip()
 
     def on_check_all(self, event):
         try:
@@ -460,7 +437,6 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
                 self.feed_list.Check(i, True)
         except Exception:
             pass
-        self._refresh_item_labels()
         self._update_selection_status()
 
     def on_uncheck_all(self, event):
@@ -469,7 +445,6 @@ class ExcludeNotificationFeedsDialog(wx.Dialog):
                 self.feed_list.Check(i, False)
         except Exception:
             pass
-        self._refresh_item_labels()
         self._update_selection_status()
 
     def get_excluded_feed_ids(self):

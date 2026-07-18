@@ -974,6 +974,23 @@ def build_cache_id(article_id: str | None, feed_id: str | None = None, provider:
         return f"{prefix}:{aid}"
     return aid
 
+
+def is_bare_site_root(url: str) -> bool:
+    """True when a URL points at a site's front page (no path, query, or fragment).
+
+    Podcast feeds (e.g. Simplecast's) often set every episode's <link> to the
+    show's homepage, so "Copy Link" would hand out the same useless URL for
+    every episode; callers use this to fall back to the enclosure instead.
+    """
+    try:
+        parsed = urllib.parse.urlparse(str(url or "").strip())
+    except Exception:
+        return False
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return False
+    return parsed.path in ("", "/") and not parsed.query and not parsed.fragment
+
+
 # --- Date Parsing ---
 
 

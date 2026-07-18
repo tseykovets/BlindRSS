@@ -4714,20 +4714,33 @@ class MainFrame(wx.Frame):
                         wx.TheClipboard.Flush()
                         wx.TheClipboard.Close()
 
+    def _article_copy_url(self, article) -> str:
+        """The URL "Copy Link" should hand out for an article.
+
+        Normally the article's web link — but podcast feeds often point every
+        episode's <link> at the show's homepage (e.g. Simplecast feeds where
+        each item links to the site root). Copying that gives the same useless
+        URL for every episode, so when the link is a bare homepage (or missing)
+        and the item carries a direct media enclosure, copy the audio URL —
+        the one the user can actually play elsewhere.
+        """
+        url = str(getattr(article, "url", "") or "").strip()
+        if self._has_direct_media_link(article) and (not url or utils.is_bare_site_root(url)):
+            return str(getattr(article, "media_url", "") or "").strip()
+        return url
+
     def on_copy_link(self, idx):
         if 0 <= idx < len(self.current_articles):
-            article = self.current_articles[idx]
-            if wx.TheClipboard.Open():
-                wx.TheClipboard.SetData(wx.TextDataObject(article.url))
-                wx.TheClipboard.Flush()
-                wx.TheClipboard.Close()
+            url = self._article_copy_url(self.current_articles[idx])
+            if url:
+                self._copy_to_clipboard(url)
 
     def on_copy_links(self, indices):
         """Copy the URLs of the given articles, one per line."""
         urls = []
         for idx in list(indices or []):
             if 0 <= idx < len(self.current_articles):
-                url = str(getattr(self.current_articles[idx], "url", "") or "")
+                url = self._article_copy_url(self.current_articles[idx])
                 if url:
                     urls.append(url)
         if urls:

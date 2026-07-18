@@ -1123,21 +1123,69 @@ class SettingsDialog(wx.Dialog):
             wx.StaticText(general_panel, label=_("Interface language (requires restart):")),
             0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5,
         )
+
         try:
             from core.i18n import available_languages
             _lang_codes = list(available_languages())
         except Exception:
             _lang_codes = []
-        self.language_choices = ["auto", "en"] + [c for c in _lang_codes if c != "en"]
+
+        # Ensure 'en' is present, since gettext always has English as fallback
+        if "en" not in _lang_codes:
+            _lang_codes.append("en")
+
+        # Create dictionary: code -> name (based on self._TRANSLATION_LANGUAGE_PRESETS)
+        code_to_name_map = {code: name for name, code in self._TRANSLATION_LANGUAGE_PRESETS}
+
+        # Two parallel lists: one for UI (human-readable strings), the other for internal logic (codes)
+        ui_choices = []
+        logic_codes = []
+
+        # Always the first option: "auto"
+        ui_choices.append(_("Automatic (system language)"))
+        logic_codes.append("auto")
+
+        # Collect the remaining languages
+        sortable_items = []
+        for code in _lang_codes:
+            if code == "auto":
+                continue
+
+            # Trying to find a human-readable name. If not, leave the code.
+            name = code_to_name_map.get(code)
+            if name:
+                display_text = f"{name} ({code})"
+            else:
+                display_text = f"{code} ({code})"
+
+            sortable_items.append((display_text, code))
+
+        # Sort by displayed text (already translated)
+        sortable_items.sort(key=lambda x: x[0])
+
+        # Fill parallel lists with sorted data
+        for text, code in sortable_items:
+            ui_choices.append(text)
+            logic_codes.append(code)
+
+        # Save the list of codes so that you can later get the correct code by index.
+        self.language_choices = logic_codes
+
         self.language_choice = wx.Choice(
             general_panel,
-            choices=[_("Automatic (system language)"), "English"] + [c for c in _lang_codes if c != "en"],
+            choices=ui_choices,
         )
+        self.language_choice.SetName("Interface language")
+
+        # Restore saved value
         current_language = str(config.get("language", "auto") or "auto")
         try:
-            self.language_choice.SetSelection(self.language_choices.index(current_language))
+            idx = self.language_choices.index(current_language)
+            self.language_choice.SetSelection(idx)
         except ValueError:
+            # If the saved language is deleted from the system, set it to "auto"
             self.language_choice.SetSelection(0)
+
         language_sizer.Add(self.language_choice, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         general_sizer.Add(language_sizer, 0, wx.ALL, 0)
 

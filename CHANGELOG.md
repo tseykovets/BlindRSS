@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.109.3 - 2026-07-18
+
+- Report real episode length when tracker redirects outlast the probe.
+
 ## v1.109.2 - 2026-07-17
 
 - Complete gettext catalog coverage.

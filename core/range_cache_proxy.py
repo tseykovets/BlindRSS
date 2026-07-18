@@ -48,6 +48,12 @@ _DEFAULT_UA = (
 _PROBE_CONNECT_TIMEOUT_S = 3.0
 _PROBE_READ_TIMEOUT_S = 8.0
 _PROBE_WAIT_S = 3.0
+# When the total length is still unknown after the short wait, keep waiting up
+# to this long. Podcast enclosures often sit behind several tracker redirects
+# (pscrb.fm -> mgln.ai -> podtrac -> CDN) that outlast _PROBE_WAIT_S; answering
+# VLC without the real total makes it adopt the served window as the entire
+# file, so an hour-long episode shows ~4 minutes and stops there.
+_PROBE_RESOLVE_WAIT_S = 20.0
 
 # Cap how much extra we fetch inline (beyond the requested bytes) to keep seeks snappy.
 # Larger amounts still happen via background download.
@@ -457,14 +463,11 @@ class _Entry:
                     parsed = _parse_content_range(cr)
                     if parsed:
                         _, _, total = parsed
-                        self.total_length = total
-                    else:
-                        # Fallback to Content-Length; may be 1 for this response.
-                        try:
-                            cl = int(r.headers.get("Content-Length", "0"))
-                            self.total_length = max(self.total_length or 0, cl)
-                        except Exception:
-                            pass
+                        if total is not None:
+                            self.total_length = total
+                    # No Content-Range total: leave total_length unknown. The
+                    # Content-Length of a 206 is the size of the served part
+                    # (1 byte for this probe), never the size of the file.
                     self.range_supported = True
                 elif r.status_code == 200:
                     self.range_supported = False
@@ -488,6 +491,27 @@ class _Entry:
                 session.close()
             except Exception:
                 pass
+
+    def await_probe(self) -> None:
+        """Wait for the initial probe before building a response for a client.
+
+        The short wait covers the common case. When the total length is still
+        unknown after it, keep waiting: answering VLC without the real total
+        makes it adopt the served window as the entire file, so an hour-long
+        episode plays as a few minutes and stops. As a last resort resolve
+        inline (the background probe thread may have failed to start).
+        """
+        try:
+            if not self._probe_done.is_set():
+                self._probe_done.wait(timeout=_PROBE_WAIT_S)
+            if self.total_length is not None or self.range_supported is False:
+                return
+            if not self._probe_done.is_set():
+                self._probe_done.wait(timeout=_PROBE_RESOLVE_WAIT_S)
+            if not self._probe_done.is_set():
+                self.probe()
+        except Exception:
+            pass
 
     def _fetch_range(self, start: int, end: int, check_abort=None) -> bool:
         # Fetch start-end inclusive from origin and store as a chunk file.
@@ -1470,13 +1494,9 @@ class RangeCacheProxy:
                         pass
                     # VLC uses early HEAD responses to decide whether an HTTP
                     # source is seekable. proxify() already starts the probe in
-                    # the background, so wait briefly for it and include length
-                    # metadata when available without doing network I/O here.
-                    try:
-                        if not ent._probe_done.is_set():
-                            ent._probe_done.wait(timeout=_PROBE_WAIT_S)
-                    except Exception:
-                        pass
+                    # the background; wait for it so the advertised length is
+                    # the origin's real total rather than absent.
+                    ent.await_probe()
                     self.send_response(200)
                     self.send_header("Content-Type", ent.content_type)
                     if ent.total_length is not None:
@@ -1516,19 +1536,20 @@ class RangeCacheProxy:
                     except Exception:
                         pass
 
-                    # Wait briefly for the background probe to complete.
-                    # Keep this short so slow trackers don't block playback startup.
-                    try:
-                        ent._probe_done.wait(timeout=_PROBE_WAIT_S)
-                    except Exception:
-                        pass
+                    # Wait for the background probe so the response is built
+                    # from the origin's real metadata (total length above all).
+                    ent.await_probe()
 
                     range_hdr = (self.headers.get("Range") or "").strip()
                     proxy._debug("GET /media id=%s Range=%s", sid, range_hdr)
 
-                    # If origin does not support range, just stream through (no caching).
-                    if ent.range_supported is False:
-                        proxy._debug("Range not supported, streaming directly.")
+                    # If the origin does not support ranges, or the total length
+                    # could not be learned, stream straight through (no caching)
+                    # so the origin's own headers define the resource. Serving
+                    # the clamped inline window without a known total would make
+                    # VLC treat the window as the entire file.
+                    if ent.range_supported is False or ent.total_length is None:
+                        proxy._debug("Range not supported or length unknown, streaming directly.")
                         hdrs = HEADERS.copy()
                         hdrs.pop("Accept", None)
                         hdrs.update(ent.headers or {})

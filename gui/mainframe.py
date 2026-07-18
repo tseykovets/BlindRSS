@@ -12037,18 +12037,23 @@ class MainFrame(wx.Frame):
         def _scan():
             try:
                 from core import discovery as _disc
-                feeds = _disc.detect_page_feeds(url)
+                feeds = _disc.detect_page_feeds(
+                    url,
+                    browser_fallback_enabled=bool(
+                        self.config_manager.get("browser_feed_fallback_enabled", True)
+                    ),
+                    browser_timeout=self.config_manager.get(
+                        "browser_feed_fallback_timeout_seconds", 90
+                    ),
+                )
             except Exception as exc:
                 if getattr(exc, "is_challenge", False):
-                    # Issue #79: the site is behind an interactive bot check
-                    # (Cloudflare interstitial). Point at the cookie import
-                    # instead of a dead-end generic error.
+                    # The automated browser could not complete this particular
+                    # challenge. Cookie import remains a useful manual fallback.
                     message = _(
-                        "This site is protected by a browser verification page "
-                        "(such as a Cloudflare challenge) that no feed reader can "
-                        "pass on its own.\n\n"
-                        "To access it: open the site in your web browser once, "
-                        "export its cookies with a cookies.txt browser extension, "
+                        "BlindRSS could not complete this site's browser verification "
+                        "page automatically.\n\nYou can still open the site in your web "
+                        "browser, export its cookies with a cookies.txt extension, "
                         "then use Tools > Import Site Cookies."
                     )
                 else:

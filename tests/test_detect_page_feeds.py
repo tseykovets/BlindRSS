@@ -58,14 +58,16 @@ def test_fetch_failure_raises_page_fetch_error(monkeypatch):
     monkeypatch.setattr(utils, "safe_requests_get", boom)
     monkeypatch.setattr(discovery, "_impersonated_discovery_retry", lambda url, t: None)
     with pytest.raises(discovery.PageFetchError):
-        discovery.detect_page_feeds("https://example.com/")
+        discovery.detect_page_feeds("https://example.com/", browser_fallback_enabled=False)
 
 
 def test_http_error_raises_page_fetch_error(monkeypatch):
     monkeypatch.setattr(utils, "safe_requests_get", lambda url, **kw: _resp(404, "not found"))
     monkeypatch.setattr(discovery, "_impersonated_discovery_retry", lambda url, t: None)
     with pytest.raises(discovery.PageFetchError):
-        discovery.detect_page_feeds("https://example.com/missing")
+        discovery.detect_page_feeds(
+            "https://example.com/missing", browser_fallback_enabled=False
+        )
 
 
 def test_feed_url_input_returns_itself(monkeypatch):
@@ -88,6 +90,42 @@ def test_scheme_is_added_when_missing(monkeypatch):
     monkeypatch.setattr(utils, "safe_requests_get", fake_get)
     discovery.detect_page_feeds("example.com/page")
     assert seen["url"].startswith("https://")
+
+
+def test_cloudflare_error_uses_browser_page_and_finds_all_feeds(monkeypatch):
+    challenged = _resp(
+        403,
+        "<html><title>Just a moment...</title><script>_cf_chl_opt={}</script></html>",
+        url="https://forum.example/",
+    )
+    page = """<html><head>
+    <link rel="alternate" type="application/rss+xml" title="Topics RSS" href="/feed/rss/">
+    <link rel="alternate" type="application/atom+xml" title="Topics Atom" href="/feed/atom/">
+    <link rel="alternate" type="application/rss+xml" title="Posts RSS" href="/posts_feed/rss/">
+    <link rel="alternate" type="application/atom+xml" title="Posts Atom" href="/posts_feed/atom/">
+    </head><body></body></html>"""
+    browser_calls = []
+
+    monkeypatch.setattr(utils, "safe_requests_get", lambda url, **kw: challenged)
+    monkeypatch.setattr(discovery, "_impersonated_discovery_retry", lambda url, t: None)
+    from core import browser_feed
+
+    monkeypatch.setattr(
+        browser_feed,
+        "fetch_page",
+        lambda url, **kwargs: browser_calls.append((url, kwargs))
+        or browser_feed.BrowserPageResponse(page, "https://forum.example/"),
+    )
+
+    feeds = discovery.detect_page_feeds("https://forum.example", browser_timeout=47)
+
+    assert [feed["url"] for feed in feeds] == [
+        "https://forum.example/feed/rss/",
+        "https://forum.example/feed/atom/",
+        "https://forum.example/posts_feed/rss/",
+        "https://forum.example/posts_feed/atom/",
+    ]
+    assert browser_calls == [("https://forum.example", {"timeout_s": 47.0})]
 
 
 def test_non_ascii_titles_survive_missing_charset_header(monkeypatch):

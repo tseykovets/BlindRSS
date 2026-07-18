@@ -42,6 +42,7 @@ from core import rumble as rumble_mod
 from core import odysee as odysee_mod
 from core import npr as npr_mod
 from core import text_encoding
+from core import browser_feed as browser_feed_mod
 from bs4 import BeautifulSoup as BS, MarkupResemblesLocatorWarning, XMLParsedAsHTMLWarning
 import xml.etree.ElementTree as ET
 import logging
@@ -1928,6 +1929,48 @@ class LocalProvider(RSSProvider):
         feed_proxy = str(feed_settings.get("proxy") or "").strip()
         feed_proxies = {"http": feed_proxy, "https": feed_proxy} if feed_proxy else None
 
+        # Last-resort real-browser retrieval. ConfigManager supplies the default
+        # for the real app; the False fallback keeps partial config dictionaries
+        # used by embedders/tests from unexpectedly launching a browser.
+        browser_feed_fallback_enabled = bool(
+            self.config.get("browser_feed_fallback_enabled", False)
+        )
+        try:
+            browser_feed_fallback_timeout = max(
+                15.0,
+                min(
+                    float(self.config.get("browser_feed_fallback_timeout_seconds", 90) or 90),
+                    180.0,
+                ),
+            )
+        except (TypeError, ValueError):
+            browser_feed_fallback_timeout = 90.0
+        browser_feed_fallback_attempted = False
+
+        def _try_browser_feed_fallback(reason: str):
+            nonlocal browser_feed_fallback_attempted
+            if (
+                not browser_feed_fallback_enabled
+                or browser_feed_fallback_attempted
+                or self._refresh_cancelled(cancel_event)
+            ):
+                return None
+            browser_feed_fallback_attempted = True
+            log.info(
+                "Local feed refresh escalating to automated browser after %s "
+                "id=%s title=%r url=%s",
+                reason,
+                feed_id,
+                final_title,
+                feed_url,
+            )
+            return browser_feed_mod.fetch_feed(
+                feed_url,
+                timeout_s=browser_feed_fallback_timeout,
+                proxy=feed_proxy or None,
+                cancel_event=cancel_event,
+            )
+
         # Per-feed encoding override (issue #75): when set, the raw feed bytes
         # are decoded with this codec instead of any automatic detection.
         feed_encoding_override = str(feed_settings.get("encoding") or "").strip()
@@ -2769,18 +2812,25 @@ class LocalProvider(RSSProvider):
                             break
                         resp.raise_for_status()
                         if direct_feed_probe_only and not _response_looks_feed_like(resp):
-                            status = "error"
-                            error_msg = f"Feed discovery failed for {feed_url}"
-                            failure_cooldown_seconds = _PERMANENT_FAILURE_COOLDOWN_SECONDS
-                            xml_data = None
-                            log.info(
-                                "Local feed refresh probe rejected non-feed response id=%s title=%r status=%s url=%s",
-                                feed_id,
-                                final_title,
-                                getattr(resp, "status_code", None),
-                                feed_url,
-                            )
-                            break
+                            browser_resp = _try_browser_feed_fallback("non-feed discovery response")
+                            if browser_resp is None:
+                                status = "error"
+                                error_msg = f"Feed discovery failed for {feed_url}"
+                                failure_cooldown_seconds = _PERMANENT_FAILURE_COOLDOWN_SECONDS
+                                xml_data = None
+                                log.info(
+                                    "Local feed refresh probe rejected non-feed response id=%s title=%r status=%s url=%s",
+                                    feed_id,
+                                    final_title,
+                                    getattr(resp, "status_code", None),
+                                    feed_url,
+                                )
+                                break
+                            resp = browser_resp
+                            direct_feed_probe_only = False
+                            if str(getattr(resp, "url", "") or "") != feed_url:
+                                canonical_feed_url = str(resp.url)
+                                feed_metadata_changed = True
                         # Use content instead of text to let feedparser handle encoding detection
                         xml_data = resp.content
                         if feed_encoding_override:
@@ -2877,6 +2927,20 @@ class LocalProvider(RSSProvider):
                             if self._sleep_or_cancel_refresh(0.01, cancel_event):
                                 return
                             continue
+                        browser_resp = _try_browser_feed_fallback(error_msg or "HTTP failure")
+                        if browser_resp is not None:
+                            resp = browser_resp
+                            xml_data = resp.content
+                            xml_text = resp.text
+                            status = "ok"
+                            error_msg = None
+                            failure_cooldown_seconds = None
+                            new_etag = None
+                            new_last_modified = None
+                            if str(getattr(resp, "url", "") or "") != feed_url:
+                                canonical_feed_url = str(resp.url)
+                                feed_metadata_changed = True
+                            break
                         raise last_exc
 
             if status == "not_modified":
@@ -2911,7 +2975,17 @@ class LocalProvider(RSSProvider):
                 response_content_type = resp.headers.get("Content-Type", "")
             except Exception:
                 response_content_type = ""
-            d = _parse_feed_document(xml_data, xml_text, response_content_type)
+            try:
+                d = _parse_feed_document(xml_data, xml_text, response_content_type)
+            except Exception:
+                browser_resp = _try_browser_feed_fallback("feed parse failure")
+                if browser_resp is None:
+                    raise
+                resp = browser_resp
+                xml_data = resp.content
+                xml_text = resp.text
+                response_content_type = str(resp.headers.get("Content-Type", "") or "")
+                d = _parse_feed_document(xml_data, xml_text, response_content_type)
             entry_count = len(d.entries)
             log.info(
                 "Local feed parsed id=%s title=%r entries=%s bozo=%s url=%s",
@@ -2921,18 +2995,33 @@ class LocalProvider(RSSProvider):
                 bool(getattr(d, "bozo", False)),
                 feed_url,
             )
-            if entry_count == 0 and not _response_looks_feed_like(resp):
-                status = "error"
-                error_msg = f"Response from {feed_url} did not look like a feed"
-                failure_cooldown_seconds = _PERMANENT_FAILURE_COOLDOWN_SECONDS
-                log.info(
-                    "Local feed refresh rejected non-feed zero-entry response id=%s title=%r content_type=%r url=%s",
-                    feed_id,
-                    final_title,
-                    response_content_type,
-                    feed_url,
+            parsed_document_invalid = entry_count == 0 and (
+                bool(getattr(d, "bozo", False)) or not _response_looks_feed_like(resp)
+            )
+            if parsed_document_invalid:
+                browser_resp = _try_browser_feed_fallback("invalid or non-feed parsed response")
+                if browser_resp is not None:
+                    resp = browser_resp
+                    xml_data = resp.content
+                    xml_text = resp.text
+                    response_content_type = str(resp.headers.get("Content-Type", "") or "")
+                    d = _parse_feed_document(xml_data, xml_text, response_content_type)
+                    entry_count = len(d.entries)
+                parsed_document_invalid = entry_count == 0 and (
+                    bool(getattr(d, "bozo", False)) or not _response_looks_feed_like(resp)
                 )
-                return
+                if parsed_document_invalid:
+                    status = "error"
+                    error_msg = f"Response from {feed_url} did not look like a feed"
+                    failure_cooldown_seconds = _PERMANENT_FAILURE_COOLDOWN_SECONDS
+                    log.info(
+                        "Local feed refresh rejected non-feed zero-entry response id=%s title=%r content_type=%r url=%s",
+                        feed_id,
+                        final_title,
+                        response_content_type,
+                        feed_url,
+                    )
+                    return
             
             # Parse only feeds that contain a local-name "chapters" element. Element
             # matching deliberately ignores namespace prefixes and namespace URIs.

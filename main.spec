@@ -115,6 +115,10 @@ packages_to_collect = [
     'sgmllib', 'six', 'soupsieve',
     'defusedxml', 'didl_lite', 'ifaddr',
     'certifi', 'curl_cffi',
+    # Last-resort real-browser feed retrieval. Imported lazily after every
+    # ordinary HTTP attempt fails, so PyInstaller cannot discover it from the
+    # normal startup graph. Browser/driver binaries are downloaded per-user.
+    'seleniumbase', 'selenium', 'mycdp',
     # extruct/mf2py: metadata enrichment. mf2py ships a 'backcompat-rules'
     # data directory it loads at import time; without collecting it, every
     # `import extruct` in the frozen app dies with FileNotFoundError.
@@ -128,6 +132,12 @@ packages_to_collect = [
     # falls back to the direct NVDA/JAWS speech path only.
     'accessible_output2', 'platform_utils', 'libloader',
 ]
+
+
+def _is_seleniumbase_runtime_artifact(item):
+    """Keep downloaded browsers/drivers out of distributable builds."""
+    source = str(item[0] if item else "").replace('\\', '/').lower()
+    return '/seleniumbase/drivers/' in source and not source.endswith(('.py', '.pyi'))
 
 datas = []
 binaries = [
@@ -190,6 +200,13 @@ for pkg in packages_to_collect:
     except Exception:
         hiddenimports.append(pkg)
         continue
+    if pkg == 'seleniumbase':
+        # A developer may already have let SeleniumBase populate its package
+        # driver cache. BlindRSS deliberately downloads those artifacts into
+        # its writable per-user data directory instead of shipping stale,
+        # unsigned-at-build-time browser binaries in the application bundle.
+        d = [item for item in d if not _is_seleniumbase_runtime_artifact(item)]
+        b = [item for item in b if not _is_seleniumbase_runtime_artifact(item)]
     datas.extend(d)
     binaries.extend(b)
     hiddenimports.extend(h)

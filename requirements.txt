@@ -29,6 +29,9 @@ packaging
 brotli
 # Browser TLS/JA3 impersonation fallback for anti-bot feeds (issue #29)
 curl_cffi
+# Fully automated invisible-browser fallback after ordinary feed fetches fail.
+# SeleniumBase UC/CDP headless2 is lazy: successful refreshes never start it.
+seleniumbase==4.51.3
 html5lib
 lxml
 

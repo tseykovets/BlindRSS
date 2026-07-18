@@ -4674,7 +4674,13 @@ _DETECT_PAGE_FEED_TYPES = _ALTERNATE_FEED_TYPES | {
 }
 
 
-def detect_page_feeds(url: str, timeout: float = 15.0) -> list[dict]:
+def detect_page_feeds(
+    url: str,
+    timeout: float = 15.0,
+    *,
+    browser_fallback_enabled: bool = True,
+    browser_timeout: float = 90.0,
+) -> list[dict]:
     """Scan a webpage's HTML for machine-readable feed links (issue #76).
 
     Returns a list of ``{"title": str, "url": str}`` dicts, in document order,
@@ -4691,6 +4697,24 @@ def detect_page_feeds(url: str, timeout: float = 15.0) -> list[dict]:
     if "://" not in page_url:
         page_url = "https://" + page_url
 
+    try:
+        browser_timeout = max(15.0, min(float(browser_timeout or 90.0), 180.0))
+    except (TypeError, ValueError):
+        browser_timeout = 90.0
+    browser_attempted = False
+
+    def _try_browser_page():
+        nonlocal browser_attempted
+        if not browser_fallback_enabled or browser_attempted:
+            return None
+        browser_attempted = True
+        try:
+            from core import browser_feed
+
+            return browser_feed.fetch_page(page_url, timeout_s=browser_timeout)
+        except Exception:
+            return None
+
     resp = None
     fetch_error = None
     try:
@@ -4702,6 +4726,11 @@ def detect_page_feeds(url: str, timeout: float = 15.0) -> list[dict]:
         retry_resp = _impersonated_discovery_retry(page_url, timeout)
         if retry_resp is not None:
             resp = retry_resp
+    status = int(getattr(resp, "status_code", 0) or 0) if resp is not None else 0
+    if resp is None or status in (401, 403, 429, 503) or status >= 520:
+        browser_resp = _try_browser_page()
+        if browser_resp is not None:
+            resp = browser_resp
     if resp is None:
         raise PageFetchError(str(fetch_error or "no response"))
     status = int(getattr(resp, "status_code", 0) or 0)
@@ -4727,6 +4756,24 @@ def detect_page_feeds(url: str, timeout: float = 15.0) -> list[dict]:
             getattr(resp, "content", b"") or b"", content_type=content_type, kind="html"
         )
     except Exception:
+        html = resp.text or ""
+
+    # Some verification interstitials answer 200 after the HTTP-level retry.
+    # Escalate once here as well, before treating the challenge shell as a page
+    # with no feeds (issue #79).
+    try:
+        from core import browser_feed
+
+        challenge_page = browser_feed._looks_like_challenge_page(html)
+    except Exception:
+        challenge_page = False
+    if challenge_page:
+        browser_resp = _try_browser_page()
+        if browser_resp is None:
+            raise PageFetchError("bot challenge", is_challenge=True)
+        resp = browser_resp
+        effective_url = str(getattr(resp, "url", "") or page_url)
+        content_type = str(resp.headers.get("Content-Type", "") or "")
         html = resp.text or ""
 
     if _body_looks_like_feed(html, content_type.lower()):

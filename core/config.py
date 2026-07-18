@@ -148,6 +148,12 @@ DEFAULT_CONFIG = {
     "per_host_max_connections": 4,
     "feed_timeout_seconds": 15,
     "feed_retry_attempts": 1,
+    # After every normal HTTP/TLS retry has failed (or returned a non-feed),
+    # make one serialized SeleniumBase UC/CDP attempt in a real browser. This
+    # is intentionally last-resort: first use may download Chrome-for-Testing
+    # into the per-user data directory when Google Chrome is not installed.
+    "browser_feed_fallback_enabled": True,
+    "browser_feed_fallback_timeout_seconds": 90,
     "playback_resolve_timeout_s": 4.0,
     "active_provider": "local",
     "debug_mode": False,

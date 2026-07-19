@@ -91,8 +91,8 @@ msgstr "केवल ब्रेल"
 msgid "Speech and Braille"
 msgstr "वाक् और ब्रेल"
 
-#: core/article_columns.py:64 gui/dialogs.py:4202 gui/dialogs.py:5134
-#: gui/dialogs.py:5156
+#: core/article_columns.py:64 gui/dialogs.py:4221 gui/dialogs.py:5153
+#: gui/dialogs.py:5175
 msgid "Title"
 msgstr "शीर्षक"
 
@@ -108,7 +108,7 @@ msgstr "मीडिया"
 msgid "Date"
 msgstr "तारीख़"
 
-#: core/article_columns.py:68 gui/dialogs.py:3852
+#: core/article_columns.py:68 gui/dialogs.py:3853
 msgid "Feed"
 msgstr "फ़ीड"
 
@@ -158,7 +158,7 @@ msgstr ""
 "Google News मूल प्रकाशक लिंक को हल नहीं कर सका। इसे पढ़ने के लिए मूल लिंक "
 "अपने ब्राउज़र में खोलें।"
 
-#: core/article_extractor.py:2805
+#: core/article_extractor.py:2805 gui/dialogs.py:3963
 msgid "(unknown)"
 msgstr "(अज्ञात)"
 
@@ -182,7 +182,7 @@ msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr ""
 "पृष्ठ डाउनलोड हुआ, लेकिन पढ़ने योग्य पाठ नहीं निकाला जा सका (खाली परिणाम)।"
 
-#: core/article_extractor.py:2806 gui/dialogs.py:3421
+#: core/article_extractor.py:2806 gui/dialogs.py:3422
 msgid "Title:"
 msgstr "शीर्षक:"
 
@@ -199,21 +199,21 @@ msgstr "अज्ञात निष्कर्षण त्रुटि"
 msgid "Uncategorized"
 msgstr "अवर्गीकृत"
 
-#: core/config.py:721
+#: core/config.py:729
 msgid "Installed Windows builds store data in the User Data Folder."
 msgstr ""
 "इंस्टॉल किए गए Windows बिल्ड डेटा को उपयोगकर्ता डेटा फ़ोल्डर में संग्रहीत "
 "करते हैं।"
 
-#: core/config.py:723
+#: core/config.py:731
 msgid "No change."
 msgstr "कोई बदलाव नहीं।"
 
-#: core/config.py:749
+#: core/config.py:757
 msgid "Config moved to {path}."
 msgstr "कॉन्फ़िगरेशन {path} पर ले जाया गया।"
 
-#: core/config.py:736
+#: core/config.py:744
 msgid "Could not write config at new location: {error}"
 msgstr "नए स्थान पर कॉन्फ़िगरेशन नहीं लिखा जा सका: {error}"
 
@@ -330,7 +330,7 @@ msgstr "क्रमबद्धता"
 msgid "Player"
 msgstr "प्लेयर"
 
-#: core/shortcuts.py:133 gui/dialogs.py:6703
+#: core/shortcuts.py:133 gui/dialogs.py:6722
 msgid "Play Queue"
 msgstr "प्ले कतार"
 
@@ -346,8 +346,8 @@ msgstr "उपकरण"
 msgid "Add Feed"
 msgstr "फ़ीड जोड़ें"
 
-#: core/shortcuts.py:138 gui/mainframe.py:12025 gui/mainframe.py:12074
-#: gui/mainframe.py:12059
+#: core/shortcuts.py:138 gui/mainframe.py:12025 gui/mainframe.py:12079
+#: gui/mainframe.py:12064
 msgid "Detect Feeds on Page"
 msgstr "पृष्ठ पर फ़ीड पहचानें"
 
@@ -392,19 +392,19 @@ msgstr "श्रेणी जोड़ें"
 msgid "Remove Category"
 msgstr "श्रेणी हटाएं"
 
-#: core/shortcuts.py:149 gui/mainframe.py:12474
+#: core/shortcuts.py:149 gui/mainframe.py:12479
 msgid "Import OPML"
 msgstr "OPML आयात करें"
 
-#: core/shortcuts.py:150 gui/mainframe.py:12662
+#: core/shortcuts.py:150 gui/mainframe.py:12667
 msgid "Export OPML"
 msgstr "OPML निर्यात करें"
 
-#: core/shortcuts.py:151 gui/dialogs.py:4164
+#: core/shortcuts.py:151 gui/dialogs.py:4183
 msgid "Find a Podcast or RSS Feed"
 msgstr "पॉडकास्ट या RSS फ़ीड खोजें"
 
-#: core/shortcuts.py:152 gui/dialogs.py:2295 gui/dialogs.py:5055
+#: core/shortcuts.py:152 gui/dialogs.py:2296 gui/dialogs.py:5074
 msgid "Video Search"
 msgstr "वीडियो खोज"
 
@@ -562,7 +562,7 @@ msgstr "प्लेबैक गति घटाएँ"
 msgid "Reset Playback Speed (1x)"
 msgstr "प्लेबैक गति रीसेट करें (1x)"
 
-#: core/shortcuts.py:191 gui/mainframe.py:13550
+#: core/shortcuts.py:191 gui/mainframe.py:13555
 msgid "Filter Rules"
 msgstr "फ़िल्टर नियम"
 
@@ -571,15 +571,15 @@ msgstr "फ़िल्टर नियम"
 msgid "Import Site Cookies"
 msgstr "साइट कुकीज़ आयात करें"
 
-#: core/shortcuts.py:193 gui/dialogs.py:6576
+#: core/shortcuts.py:193 gui/dialogs.py:6595
 msgid "Configure Persistent Search"
 msgstr "स्थायी खोज कॉन्फ़िगर करें"
 
-#: core/shortcuts.py:194 gui/dialogs.py:7007
+#: core/shortcuts.py:194 gui/dialogs.py:7026
 msgid "Keyboard Shortcuts"
 msgstr "कीबोर्ड शॉर्टकट"
 
-#: core/shortcuts.py:195 gui/dialogs.py:655 gui/mainframe.py:12861
+#: core/shortcuts.py:195 gui/dialogs.py:655 gui/mainframe.py:12866
 msgid "Settings"
 msgstr "सेटिंग्स"
 
@@ -950,7 +950,7 @@ msgstr "लेख लोड करने में विफल: {error}"
 msgid "No articles found."
 msgstr "कोई लेख नहीं मिला।"
 
-#: gui/accessibility.py:246 gui/dialogs.py:216 gui/dialogs.py:3439
+#: gui/accessibility.py:246 gui/dialogs.py:216 gui/dialogs.py:3440
 msgid "Category:"
 msgstr "श्रेणी:"
 
@@ -974,11 +974,11 @@ msgstr ""
 "चुनें कि BlindRSS शॉर्टकट कहाँ जोड़े जाएँ।\n"
 "टास्कबार पर पिन करना आपके Windows संस्करण/नीतियों द्वारा सीमित हो सकता है।"
 
-#: gui/dialogs.py:2523
+#: gui/dialogs.py:2524
 msgid "BlindRSS notification test"
 msgstr "BlindRSS सूचना परीक्षण"
 
-#: gui/dialogs.py:2524
+#: gui/dialogs.py:2525
 msgid "If you can read this, notifications are working."
 msgstr "यदि आप इसे पढ़ सकते हैं, तो सूचनाएं काम कर रही हैं।"
 
@@ -1006,151 +1006,151 @@ msgstr "अचयनित"
 msgid "Choose the exported cookies.txt"
 msgstr "निर्यात की गई cookies.txt चुनें"
 
-#: gui/dialogs.py:874 gui/dialogs.py:3523
+#: gui/dialogs.py:875 gui/dialogs.py:3524
 msgid "Never"
 msgstr "कभी नहीं"
 
-#: gui/dialogs.py:875 gui/dialogs.py:3451
+#: gui/dialogs.py:876 gui/dialogs.py:3452
 msgid "30 seconds"
 msgstr "30 सेकंड"
 
-#: gui/dialogs.py:876 gui/dialogs.py:3452
+#: gui/dialogs.py:877 gui/dialogs.py:3453
 msgid "1 minute"
 msgstr "1 मिनट"
 
-#: gui/dialogs.py:877 gui/dialogs.py:3453
+#: gui/dialogs.py:878 gui/dialogs.py:3454
 msgid "2 minutes"
 msgstr "2 मिनट"
 
-#: gui/dialogs.py:878 gui/dialogs.py:3454
+#: gui/dialogs.py:879 gui/dialogs.py:3455
 msgid "3 minutes"
 msgstr "3 मिनट"
 
-#: gui/dialogs.py:879 gui/dialogs.py:3455
+#: gui/dialogs.py:880 gui/dialogs.py:3456
 msgid "4 minutes"
 msgstr "4 मिनट"
 
-#: gui/dialogs.py:880 gui/dialogs.py:3456
+#: gui/dialogs.py:881 gui/dialogs.py:3457
 msgid "5 minutes"
 msgstr "5 मिनट"
 
-#: gui/dialogs.py:881 gui/dialogs.py:3457
+#: gui/dialogs.py:882 gui/dialogs.py:3458
 msgid "10 minutes"
 msgstr "10 मिनट"
 
-#: gui/dialogs.py:882 gui/dialogs.py:3458
+#: gui/dialogs.py:883 gui/dialogs.py:3459
 msgid "15 minutes"
 msgstr "15 मिनट"
 
-#: gui/dialogs.py:883 gui/dialogs.py:3459
+#: gui/dialogs.py:884 gui/dialogs.py:3460
 msgid "30 minutes"
 msgstr "30 मिनट"
 
-#: gui/dialogs.py:884 gui/dialogs.py:3460
+#: gui/dialogs.py:885 gui/dialogs.py:3461
 msgid "60 minutes"
 msgstr "60 मिनट"
 
-#: gui/dialogs.py:885 gui/dialogs.py:3461
+#: gui/dialogs.py:886 gui/dialogs.py:3462
 msgid "2 hours"
 msgstr "2 घंटे"
 
-#: gui/dialogs.py:886 gui/dialogs.py:3462
+#: gui/dialogs.py:887 gui/dialogs.py:3463
 msgid "3 hours"
 msgstr "3 घंटे"
 
-#: gui/dialogs.py:887 gui/dialogs.py:3463
+#: gui/dialogs.py:888 gui/dialogs.py:3464
 msgid "4 hours"
 msgstr "4 घंटे"
 
-#: gui/dialogs.py:914
+#: gui/dialogs.py:915
 msgid "Titles only"
 msgstr "केवल शीर्षक"
 
-#: gui/dialogs.py:915
+#: gui/dialogs.py:916
 msgid "Titles and article text"
 msgstr "शीर्षक और लेख पाठ"
 
-#: gui/dialogs.py:1000 gui/dialogs.py:3601
+#: gui/dialogs.py:1001 gui/dialogs.py:3602
 msgid "Category / Path"
 msgstr "श्रेणी / पथ"
 
-#: gui/dialogs.py:1100
+#: gui/dialogs.py:1101
 msgid "Use feed cache (fastest)"
 msgstr "फ़ीड कैश का उपयोग करें (सबसे तेज़)"
 
-#: gui/dialogs.py:1101
+#: gui/dialogs.py:1102
 msgid "Fully refresh feeds at startup"
 msgstr "प्रारंभ होने पर फ़ीड पूरी तरह ताज़ा करें"
 
-#: gui/dialogs.py:1102
+#: gui/dialogs.py:1103
 msgid "Always fully refresh feeds"
 msgstr "फ़ीड हमेशा पूरी तरह ताज़ा करें"
 
-#: gui/dialogs.py:1109
+#: gui/dialogs.py:1110
 msgid "Local RSS automatic feed refresh workload"
 msgstr "लोकल RSS स्वचालित फ़ीड ताज़ा करने का तरीका"
 
-#: gui/dialogs.py:1207
+#: gui/dialogs.py:1208
 msgid "Path to a cookies.txt file"
 msgstr "cookies.txt फ़ाइल का पथ"
 
-#: gui/dialogs.py:1242
+#: gui/dialogs.py:1243
 msgid "Leave blank for the default location"
 msgstr "डिफ़ॉल्ट स्थान के लिए खाली छोड़ें"
 
-#: gui/dialogs.py:1311
+#: gui/dialogs.py:1312
 msgid "Automatic (system language)"
 msgstr "स्वचालित (सिस्टम भाषा)"
 
-#: gui/dialogs.py:1369 gui/dialogs.py:1377
+#: gui/dialogs.py:1370 gui/dialogs.py:1378
 msgid "All items expanded"
 msgstr "सभी आइटम विस्तारित"
 
-#: gui/dialogs.py:1370 gui/dialogs.py:1377
+#: gui/dialogs.py:1371 gui/dialogs.py:1378
 msgid "All items collapsed"
 msgstr "सभी आइटम संक्षिप्त"
 
-#: gui/dialogs.py:1389 gui/dialogs.py:1397
+#: gui/dialogs.py:1390 gui/dialogs.py:1398
 msgid "Default browser"
 msgstr "डिफ़ॉल्ट ब्राउज़र"
 
-#: gui/dialogs.py:1390 gui/dialogs.py:3189 gui/dialogs.py:1397
+#: gui/dialogs.py:1391 gui/dialogs.py:3190 gui/dialogs.py:1398
 msgid "Custom command"
 msgstr "कस्टम कमांड"
 
-#: gui/dialogs.py:1428 gui/dialogs.py:3621
+#: gui/dialogs.py:1429 gui/dialogs.py:3622
 msgid "General"
 msgstr "सामान्य"
 
-#: gui/dialogs.py:1430
+#: gui/dialogs.py:1431
 msgid "Feeds && Articles"
 msgstr "फ़ीड और लेख"
 
-#: gui/dialogs.py:1432
+#: gui/dialogs.py:1433
 msgid "Downloads"
 msgstr "डाउनलोड"
 
-#: gui/dialogs.py:1434
+#: gui/dialogs.py:1435
 msgid "Startup && Tray"
 msgstr "स्टार्टअप && ट्रे"
 
-#: gui/dialogs.py:1436
+#: gui/dialogs.py:1437
 msgid "YouTube"
 msgstr "YouTube"
 
-#: gui/dialogs.py:1447
+#: gui/dialogs.py:1448
 msgid "Loading soundcards..."
 msgstr "साउंडकार्ड लोड हो रहे हैं..."
 
-#: gui/dialogs.py:1502
+#: gui/dialogs.py:1503
 msgid "Media tools (ffmpeg, ffprobe, yt-dlp)"
 msgstr "मीडिया टूल (ffmpeg, ffprobe, yt-dlp)"
 
-#: gui/dialogs.py:1543
+#: gui/dialogs.py:1544
 msgid "Media Player"
 msgstr "मीडिया प्लेयर"
 
-#: gui/dialogs.py:1681
+#: gui/dialogs.py:1682
 msgid ""
 "Local provider uses the feeds you add inside the app (Add Feed / Import "
 "OPML)."
@@ -1158,61 +1158,61 @@ msgstr ""
 "लोकल प्रदाता उन फ़ीड का उपयोग करता है जिन्हें आप ऐप में जोड़ते हैं (फ़ीड "
 "जोड़ें / OPML आयात करें)।"
 
-#: gui/dialogs.py:1700 gui/dialogs.py:4203
+#: gui/dialogs.py:1701 gui/dialogs.py:4222
 msgid "Provider"
 msgstr "प्रदाता"
 
-#: gui/dialogs.py:1732
+#: gui/dialogs.py:1733
 msgid "Refresh Complete Sound:"
 msgstr "रिफ़्रेश पूर्ण ध्वनि:"
 
-#: gui/dialogs.py:1733
+#: gui/dialogs.py:1734
 msgid "Refresh Error Sound:"
 msgstr "रिफ़्रेश त्रुटि ध्वनि:"
 
-#: gui/dialogs.py:1736
+#: gui/dialogs.py:1737
 msgid "Sounds"
 msgstr "ध्वनियाँ"
 
-#: gui/dialogs.py:1807 gui/dialogs.py:2520 gui/dialogs.py:2554
-#: gui/mainframe.py:12875
+#: gui/dialogs.py:1808 gui/dialogs.py:2521 gui/dialogs.py:2555
+#: gui/mainframe.py:12880
 msgid "Notifications"
 msgstr "सूचनाएं"
 
-#: gui/dialogs.py:1853 gui/dialogs.py:1852
+#: gui/dialogs.py:1854 gui/dialogs.py:1853
 msgid "Test Announcement"
 msgstr "परीक्षण घोषणा"
 
-#: gui/dialogs.py:1855
+#: gui/dialogs.py:1856
 msgid "Send a test announcement to your screen reader via speech and Braille."
 msgstr ""
 "अपने स्क्रीन रीडर को वाणी और ब्रेल के माध्यम से एक परीक्षण घोषणा भेजें।"
 
-#: gui/dialogs.py:1861 gui/dialogs.py:2597
+#: gui/dialogs.py:1862 gui/dialogs.py:2598
 msgid "Announcements"
 msgstr "घोषणाएं"
 
-#: gui/dialogs.py:2214
+#: gui/dialogs.py:2215
 msgid "Translate"
 msgstr "अनुवाद करें"
 
-#: gui/dialogs.py:2224 gui/dialogs.py:3629
+#: gui/dialogs.py:2225 gui/dialogs.py:3630
 msgid "List Headers"
 msgstr "सूची शीर्षलेख"
 
-#: gui/dialogs.py:2244
+#: gui/dialogs.py:2245
 msgid "User Data Folder"
 msgstr "उपयोगकर्ता डेटा फ़ोल्डर"
 
-#: gui/dialogs.py:2245
+#: gui/dialogs.py:2246
 msgid "App Install Folder"
 msgstr "ऐप इंस्टॉलेशन फ़ोल्डर"
 
-#: gui/dialogs.py:2319
+#: gui/dialogs.py:2320
 msgid "Advanced"
 msgstr "उन्नत"
 
-#: gui/dialogs.py:2591
+#: gui/dialogs.py:2592
 msgid ""
 "The announcement could not be delivered.\n"
 "\n"
@@ -1222,166 +1222,182 @@ msgstr ""
 "\n"
 "कोई स्क्रीन रीडर आउटपुट उपलब्ध नहीं था। जांचें कि आपका स्क्रीन रीडर चल रहा है, और पूर्ण वाणी और ब्रेल समर्थन के लिए accessible-output2 लाइब्रेरी स्थापित है।"
 
-#: gui/dialogs.py:2979
+#: gui/dialogs.py:2980
 msgid "Choose yt-dlp cookies.txt"
 msgstr "yt-dlp की cookies.txt चुनें"
 
-#: gui/dialogs.py:3020
+#: gui/dialogs.py:3021
 msgid "Clear playback cache"
 msgstr "प्लेबैक कैश साफ़ करें"
 
-#: gui/dialogs.py:3028
+#: gui/dialogs.py:3029
 msgid "Playback cache cleared"
 msgstr "प्लेबैक कैश साफ़ किया गया"
 
-#: gui/dialogs.py:3060
+#: gui/dialogs.py:3061
 msgid "Find my export"
 msgstr "मेरा निर्यात खोजें"
 
-#: gui/dialogs.py:3060
+#: gui/dialogs.py:3061
 msgid "Open extension page"
 msgstr "एक्सटेंशन पृष्ठ खोलें"
 
-#: gui/dialogs.py:3060 gui/dialogs.py:3091 gui/player.py:402
+#: gui/dialogs.py:3061 gui/dialogs.py:3092 gui/player.py:402
 msgid "Cancel"
 msgstr "रद्द करें"
 
-#: gui/dialogs.py:3130
+#: gui/dialogs.py:3131
 msgid "Cookies imported"
 msgstr "कुकीज़ आयात की गईं"
 
-#: gui/dialogs.py:3466
+#: gui/dialogs.py:3467
 msgid "Refresh interval for this feed"
 msgstr "इस फ़ीड के लिए रिफ़्रेश अंतराल"
 
-#: gui/dialogs.py:3853
+#: gui/dialogs.py:3854
 msgid "Last attempt"
 msgstr "अंतिम प्रयास"
 
-#: gui/dialogs.py:3854
+#: gui/dialogs.py:3855
 msgid "Failures"
 msgstr "विफलताएं"
 
-#: gui/dialogs.py:3855 gui/mainframe.py:12420 gui/mainframe.py:12471
+#: gui/dialogs.py:3856 gui/mainframe.py:12425 gui/mainframe.py:12476
 #: gui/mainframe.py:6881
 msgid "Error"
 msgstr "त्रुटि"
 
-#: gui/dialogs.py:3900
+#: gui/dialogs.py:3901
 msgid "No feeds reported errors during their most recent update."
 msgstr ""
 "किसी भी फ़ीड ने अपने सबसे हालिया अपडेट के दौरान त्रुटि की सूचना नहीं दी।"
 
-#: gui/dialogs.py:3902
-msgid "1 feed failed to update during its most recent attempt:"
-msgstr "1 फ़ीड अपने सबसे हालिया प्रयास में अपडेट होने में विफल रही:"
+#: gui/dialogs.py:3910 gui/dialogs.py:3914
+msgid "Unknown"
+msgstr "अज्ञात"
 
-#: gui/dialogs.py:4179
+#: gui/dialogs.py:3955
+msgid "1 failed attempt so far (this may be a one-off glitch)."
+msgstr "अब तक 1 विफल प्रयास (यह एक बार की गड़बड़ी हो सकती है)।"
+
+#: gui/dialogs.py:3962
+msgid "Untitled feed"
+msgstr "बिना शीर्षक की फ़ीड"
+
+#: gui/dialogs.py:3966
+msgid "No successful update recorded."
+msgstr "कोई सफल अपडेट दर्ज नहीं किया गया।"
+
+#: gui/dialogs.py:3968
+msgid "Unknown error"
+msgstr "अज्ञात त्रुटि"
+
+#: gui/dialogs.py:4198
 msgid "Podcast name, topic, or site URL"
 msgstr "पॉडकास्ट का नाम, विषय या साइट URL"
 
-#: gui/dialogs.py:4204 gui/dialogs.py:5160
+#: gui/dialogs.py:4223 gui/dialogs.py:5179
 msgid "Details"
 msgstr "विवरण"
 
-#: gui/dialogs.py:4205 gui/dialogs.py:5161
+#: gui/dialogs.py:4224 gui/dialogs.py:5180
 msgid "URL"
 msgstr "URL"
 
-#: gui/dialogs.py:5110
+#: gui/dialogs.py:5129
 msgid "Search videos across sites"
 msgstr "साइटों में वीडियो खोजें"
 
-#: gui/dialogs.py:5134
+#: gui/dialogs.py:5153
 msgid "Relevance"
 msgstr "प्रासंगिकता"
 
-#: gui/dialogs.py:5134 gui/dialogs.py:5157
+#: gui/dialogs.py:5153 gui/dialogs.py:5176
 msgid "Site"
 msgstr "साइट"
 
-#: gui/dialogs.py:5134 gui/dialogs.py:5159
+#: gui/dialogs.py:5153 gui/dialogs.py:5178
 msgid "Plays"
 msgstr "प्लेज़"
 
-#: gui/dialogs.py:5158
+#: gui/dialogs.py:5177
 msgid "Kind"
 msgstr "प्रकार"
 
-#: gui/dialogs.py:5165 gui/dialogs.py:6671 gui/mainframe.py:5987
+#: gui/dialogs.py:5184 gui/dialogs.py:6690 gui/mainframe.py:5987
 #: gui/mainframe.py:5085
 msgid "Close"
 msgstr "बंद करें"
 
-#: gui/dialogs.py:6345 gui/player.py:2023
+#: gui/dialogs.py:6364 gui/player.py:2023
 msgid "Play"
 msgstr "चलाएं"
 
-#: gui/dialogs.py:6346 gui/dialogs.py:6523
+#: gui/dialogs.py:6365 gui/dialogs.py:6542
 msgid "Subscribe"
 msgstr "सदस्यता लें"
 
-#: gui/dialogs.py:6347
+#: gui/dialogs.py:6366
 msgid "Copy URL"
 msgstr "URL कॉपी करें"
 
-#: gui/dialogs.py:6617
+#: gui/dialogs.py:6636
 msgid "Search query:"
 msgstr "खोज क्वेरी:"
 
-#: gui/dialogs.py:6617
+#: gui/dialogs.py:6636
 msgid "Add Search"
 msgstr "खोज जोड़ें"
 
-#: gui/dialogs.py:6714
+#: gui/dialogs.py:6733
 msgid "Queued media"
 msgstr "कतार में मीडिया"
 
-#: gui/dialogs.py:6842
+#: gui/dialogs.py:6861
 msgid "&Pause"
 msgstr "रोकें(&P)"
 
-#: gui/dialogs.py:6842 gui/dialogs.py:6725
+#: gui/dialogs.py:6861 gui/dialogs.py:6744
 msgid "&Play"
 msgstr "चलाएँ(&P)"
 
-#: gui/dialogs.py:6947
+#: gui/dialogs.py:6966
 msgid "Captured keyboard shortcut"
 msgstr "कैप्चर किया गया कीबोर्ड शॉर्टकट"
 
-#: gui/dialogs.py:7024
+#: gui/dialogs.py:7043
 msgid "Keyboard shortcuts"
 msgstr "कीबोर्ड शॉर्टकट"
 
-#: gui/dialogs.py:7025
+#: gui/dialogs.py:7044
 msgid "Category"
 msgstr "श्रेणी"
 
-#: gui/dialogs.py:7026
+#: gui/dialogs.py:7045
 msgid "Command"
 msgstr "कमांड"
 
-#: gui/dialogs.py:7027
+#: gui/dialogs.py:7046
 msgid "Shortcut"
 msgstr "शॉर्टकट"
 
-#: gui/dialogs.py:7272
+#: gui/dialogs.py:7291
 msgid "Preset"
 msgstr "प्रीसेट"
 
-#: gui/dialogs.py:7281
+#: gui/dialogs.py:7300
 msgid "Preamp"
 msgstr "प्रीएम्प"
 
-#: gui/dialogs.py:7364
+#: gui/dialogs.py:7383
 msgid "Custom"
 msgstr "कस्टम"
 
-#: gui/dialogs.py:7451
+#: gui/dialogs.py:7470
 msgid "Name for this equalizer preset:"
 msgstr "इस इक्वलाइज़र प्रीसेट का नाम:"
 
-#: gui/dialogs.py:7451 gui/dialogs.py:7477 gui/dialogs.py:7463
+#: gui/dialogs.py:7470 gui/dialogs.py:7496 gui/dialogs.py:7482
 msgid "Save Preset"
 msgstr "प्रीसेट सहेजें"
 
@@ -1389,15 +1405,15 @@ msgstr "प्रीसेट सहेजें"
 msgid "Use the global column layout"
 msgstr "वैश्विक स्तंभ लेआउट का उपयोग करें"
 
-#: gui/dialogs.py:109 gui/dialogs.py:6729 gui/mainframe.py:13571
+#: gui/dialogs.py:109 gui/dialogs.py:6748 gui/mainframe.py:13576
 msgid "Move &Up"
 msgstr "&ऊपर ले जाएं"
 
-#: gui/dialogs.py:110 gui/dialogs.py:6733 gui/mainframe.py:13572
+#: gui/dialogs.py:110 gui/dialogs.py:6752 gui/mainframe.py:13577
 msgid "Move &Down"
 msgstr "&नीचे ले जाएं"
 
-#: gui/dialogs.py:111 gui/dialogs.py:7042
+#: gui/dialogs.py:111 gui/dialogs.py:7061
 msgid "Reset All to &Defaults"
 msgstr "सभी को डिफ़ॉल्ट पर रीसेट करें(&D)"
 
@@ -1469,10 +1485,6 @@ msgstr ""
 msgid "&Browse..."
 msgstr "ब्राउज़ करें..."
 
-#: gui/dialogs.py:557
-msgid "Text files (*.txt)|*.txt|All files (*.*)|*.*"
-msgstr "टेक्स्ट फ़ाइलें (*.txt)|*.txt|सभी फ़ाइलें (*.*)|*.*"
-
 #: gui/dialogs.py:574
 msgid ""
 "No supported browser profiles were found.\n"
@@ -1489,7 +1501,9 @@ msgstr "वह ब्राउज़र प्रोफ़ाइल चुने
 
 #: gui/dialogs.py:625
 msgid "Imported {count} cookies from {browser}."
-msgstr "{browser} से {count} कुकीज़ आयात की गईं।"
+msgid_plural "Imported {count} cookies from {browser}."
+msgstr[0] "{browser} से {count} कुकी आयात की गई।"
+msgstr[1] "{browser} से {count} कुकीज़ आयात की गईं।"
 
 #: gui/dialogs.py:658
 msgid "Abkhazian"
@@ -1652,655 +1666,659 @@ msgid "Divehi"
 msgstr "दिवेही"
 
 #: gui/dialogs.py:698
+msgid "Dutch (Belgium)"
+msgstr "डच (बेल्जियम)"
+
+#: gui/dialogs.py:699
 msgid "Dutch"
 msgstr "डच"
 
-#: gui/dialogs.py:699
+#: gui/dialogs.py:700
 msgid "Dzongkha"
 msgstr "ज़ोन्गखा"
 
-#: gui/dialogs.py:700 gui/dialogs.py:2857
+#: gui/dialogs.py:701 gui/dialogs.py:2858
 msgid "English"
 msgstr "अंग्रेज़ी"
 
-#: gui/dialogs.py:701
+#: gui/dialogs.py:702
 msgid "Esperanto"
 msgstr "एस्पेरेंतो"
 
-#: gui/dialogs.py:702
+#: gui/dialogs.py:703
 msgid "Estonian"
 msgstr "एस्टोनियाई"
 
-#: gui/dialogs.py:703
+#: gui/dialogs.py:704
 msgid "Ewe"
 msgstr "ईवे"
 
-#: gui/dialogs.py:704
+#: gui/dialogs.py:705
 msgid "Faroese"
 msgstr "फ़ैरोइज़"
 
-#: gui/dialogs.py:705
+#: gui/dialogs.py:706
 msgid "Fijian"
 msgstr "फिजियन"
 
-#: gui/dialogs.py:706
+#: gui/dialogs.py:707
 msgid "Finnish"
 msgstr "फ़िनिश"
 
-#: gui/dialogs.py:707
+#: gui/dialogs.py:708
 msgid "French"
 msgstr "फ़्रेंच"
 
-#: gui/dialogs.py:708
+#: gui/dialogs.py:709
 msgid "Fulah"
 msgstr "फुलाह"
 
-#: gui/dialogs.py:709
+#: gui/dialogs.py:710
 msgid "Galician"
 msgstr "गैलिशियन"
 
-#: gui/dialogs.py:710
+#: gui/dialogs.py:711
 msgid "Ganda"
 msgstr "गांडा"
 
-#: gui/dialogs.py:711
+#: gui/dialogs.py:712
 msgid "Georgian"
 msgstr "जॉर्जियाई"
 
-#: gui/dialogs.py:712
+#: gui/dialogs.py:713
 msgid "German"
 msgstr "जर्मन"
 
-#: gui/dialogs.py:713
+#: gui/dialogs.py:714
 msgid "Guarani"
 msgstr "गुआरानी"
 
-#: gui/dialogs.py:714
+#: gui/dialogs.py:715
 msgid "Gujarati"
 msgstr "गुजराती"
 
-#: gui/dialogs.py:715
+#: gui/dialogs.py:716
 msgid "Haitian"
 msgstr "हैतियाई"
 
-#: gui/dialogs.py:716
+#: gui/dialogs.py:717
 msgid "Hausa"
 msgstr "हौसा"
 
-#: gui/dialogs.py:717
+#: gui/dialogs.py:718
 msgid "Hebrew"
 msgstr "हिब्रू"
 
-#: gui/dialogs.py:718
+#: gui/dialogs.py:719
 msgid "Herero"
 msgstr "हरैरो"
 
-#: gui/dialogs.py:719
+#: gui/dialogs.py:720
 msgid "Hindi"
 msgstr "हिन्दी"
 
-#: gui/dialogs.py:720
+#: gui/dialogs.py:721
 msgid "Hiri Motu"
 msgstr "हिरी मोटू"
 
-#: gui/dialogs.py:721
+#: gui/dialogs.py:722
 msgid "Hungarian"
 msgstr "हंगेरियाई"
 
-#: gui/dialogs.py:722
+#: gui/dialogs.py:723
 msgid "Icelandic"
 msgstr "आइसलैंडिक"
 
-#: gui/dialogs.py:723
+#: gui/dialogs.py:724
 msgid "Ido"
 msgstr "इडौ"
 
-#: gui/dialogs.py:724
+#: gui/dialogs.py:725
 msgid "Igbo"
 msgstr "ईग्बो"
 
-#: gui/dialogs.py:725
+#: gui/dialogs.py:726
 msgid "Indonesian"
 msgstr "इंडोनेशियाई"
 
-#: gui/dialogs.py:726
+#: gui/dialogs.py:727
 msgid "Interlingua (International Auxiliary Language Association)"
 msgstr "इंटरलिंगुआ"
 
-#: gui/dialogs.py:727
+#: gui/dialogs.py:728
 msgid "Interlingue"
 msgstr "ईन्टरलिंगुइ"
 
-#: gui/dialogs.py:728
+#: gui/dialogs.py:729
 msgid "Inuktitut"
 msgstr "इनुक्टिटुट"
 
-#: gui/dialogs.py:729
+#: gui/dialogs.py:730
 msgid "Inupiaq"
 msgstr "इनुपियाक्"
 
-#: gui/dialogs.py:730
+#: gui/dialogs.py:731
 msgid "Irish"
 msgstr "आयरिश"
 
-#: gui/dialogs.py:731
+#: gui/dialogs.py:732
 msgid "Italian"
 msgstr "इतालवी"
 
-#: gui/dialogs.py:732
+#: gui/dialogs.py:733
 msgid "Japanese"
 msgstr "जापानी"
 
-#: gui/dialogs.py:733
+#: gui/dialogs.py:734
 msgid "Javanese"
 msgstr "जावानीज़"
 
-#: gui/dialogs.py:734
+#: gui/dialogs.py:735
 msgid "Kalaallisut"
 msgstr "कलालीसुत"
 
-#: gui/dialogs.py:735
+#: gui/dialogs.py:736
 msgid "Kannada"
 msgstr "कन्नड़"
 
-#: gui/dialogs.py:736
+#: gui/dialogs.py:737
 msgid "Kanuri"
 msgstr "कनुरी"
 
-#: gui/dialogs.py:737
+#: gui/dialogs.py:738
 msgid "Kashmiri"
 msgstr "कश्मीरी"
 
-#: gui/dialogs.py:738
+#: gui/dialogs.py:739
 msgid "Kazakh"
 msgstr "कज़ाख़"
 
-#: gui/dialogs.py:739
+#: gui/dialogs.py:740
 msgid "Khmer"
 msgstr "खमेर"
 
-#: gui/dialogs.py:740
+#: gui/dialogs.py:741
 msgid "Kikuyu"
 msgstr "किकुयू"
 
-#: gui/dialogs.py:741
+#: gui/dialogs.py:742
 msgid "Kinyarwanda"
 msgstr "किन्यारवांडा"
 
-#: gui/dialogs.py:742
+#: gui/dialogs.py:743
 msgid "Kirghiz"
 msgstr "किर्गीज़"
 
-#: gui/dialogs.py:743
+#: gui/dialogs.py:744
 msgid "Komi"
 msgstr "कोमी"
 
-#: gui/dialogs.py:744
+#: gui/dialogs.py:745
 msgid "Kongo"
 msgstr "कोंगो"
 
-#: gui/dialogs.py:745
+#: gui/dialogs.py:746
 msgid "Korean"
 msgstr "कोरियाई"
 
-#: gui/dialogs.py:746
+#: gui/dialogs.py:747
 msgid "Kuanyama"
 msgstr "क्वान्यामा"
 
-#: gui/dialogs.py:747
+#: gui/dialogs.py:748
 msgid "Kurdish"
 msgstr "कुर्दिश"
 
-#: gui/dialogs.py:748
+#: gui/dialogs.py:749
 msgid "Lao"
 msgstr "लाओ"
 
-#: gui/dialogs.py:749
+#: gui/dialogs.py:750
 msgid "Latin"
 msgstr "लैटिन"
 
-#: gui/dialogs.py:750
+#: gui/dialogs.py:751
 msgid "Latvian"
 msgstr "लातवियाई"
 
-#: gui/dialogs.py:751
+#: gui/dialogs.py:752
 msgid "Limburgan"
 msgstr "लिंबर्गिश"
 
-#: gui/dialogs.py:752
+#: gui/dialogs.py:753
 msgid "Lingala"
 msgstr "लिंगाला"
 
-#: gui/dialogs.py:753
+#: gui/dialogs.py:754
 msgid "Lithuanian"
 msgstr "लिथुआनियाई"
 
-#: gui/dialogs.py:754
+#: gui/dialogs.py:755
 msgid "Luba-Katanga"
 msgstr "ल्यूबा-कटांगा"
 
-#: gui/dialogs.py:755
+#: gui/dialogs.py:756
 msgid "Luxembourgish"
 msgstr "लग्ज़मबर्गी"
 
-#: gui/dialogs.py:756
+#: gui/dialogs.py:757
 msgid "Macedonian"
 msgstr "मकदूनियाई"
 
-#: gui/dialogs.py:757
+#: gui/dialogs.py:758
 msgid "Malagasy"
 msgstr "मालागासी"
 
-#: gui/dialogs.py:758
+#: gui/dialogs.py:759
 msgid "Malay (macrolanguage)"
 msgstr "मलय"
 
-#: gui/dialogs.py:759
+#: gui/dialogs.py:760
 msgid "Malayalam"
 msgstr "मलयालम"
 
-#: gui/dialogs.py:760
+#: gui/dialogs.py:761
 msgid "Maltese"
 msgstr "माल्टीज़"
 
-#: gui/dialogs.py:761
+#: gui/dialogs.py:762
 msgid "Manx"
 msgstr "मैंक्स"
 
-#: gui/dialogs.py:762
+#: gui/dialogs.py:763
 msgid "Maori"
 msgstr "माओरी"
 
-#: gui/dialogs.py:763
+#: gui/dialogs.py:764
 msgid "Marathi"
 msgstr "मराठी"
 
-#: gui/dialogs.py:764
+#: gui/dialogs.py:765
 msgid "Marshallese"
 msgstr "मार्शलीज़"
 
-#: gui/dialogs.py:765
+#: gui/dialogs.py:766
 msgid "Modern Greek (1453-)"
 msgstr "यूनानी"
 
-#: gui/dialogs.py:766
+#: gui/dialogs.py:767
 msgid "Mongolian"
 msgstr "मंगोलियाई"
 
-#: gui/dialogs.py:767
+#: gui/dialogs.py:768
 msgid "Nauruan"
 msgstr "नाउरू"
 
-#: gui/dialogs.py:768
+#: gui/dialogs.py:769
 msgid "Navajo"
 msgstr "नवाहो"
 
-#: gui/dialogs.py:769
+#: gui/dialogs.py:770
 msgid "Ndonga"
 msgstr "डोन्गा"
 
-#: gui/dialogs.py:770
+#: gui/dialogs.py:771
 msgid "Nepali (macrolanguage)"
 msgstr "नेपाली"
 
-#: gui/dialogs.py:771
+#: gui/dialogs.py:772
 msgid "North Ndebele"
 msgstr "उत्तरी देबेल"
 
-#: gui/dialogs.py:772
+#: gui/dialogs.py:773
 msgid "Northern Sami"
 msgstr "नॉर्दन सामी"
 
-#: gui/dialogs.py:773
+#: gui/dialogs.py:774
 msgid "Norwegian"
 msgstr "नॉर्वेजियाई"
 
-#: gui/dialogs.py:774
+#: gui/dialogs.py:775
 msgid "Norwegian Bokmal"
 msgstr "नॉर्वेजियाई बोकमाल"
 
-#: gui/dialogs.py:775
+#: gui/dialogs.py:776
 msgid "Norwegian Nynorsk"
 msgstr "नॉर्वेजियाई नॉयनॉर्स्क"
 
-#: gui/dialogs.py:776
+#: gui/dialogs.py:777
 msgid "Occitan (post 1500)"
 msgstr "ओसीटान"
 
-#: gui/dialogs.py:777
+#: gui/dialogs.py:778
 msgid "Ojibwa"
 msgstr "ओजिब्वा"
 
-#: gui/dialogs.py:778
+#: gui/dialogs.py:779
 msgid "Oriya (macrolanguage)"
 msgstr "ओड़िया"
 
-#: gui/dialogs.py:779
+#: gui/dialogs.py:780
 msgid "Oromo"
 msgstr "ओरोमो"
 
-#: gui/dialogs.py:780
+#: gui/dialogs.py:781
 msgid "Ossetian"
 msgstr "ओस्सेटिक"
 
-#: gui/dialogs.py:781
+#: gui/dialogs.py:782
 msgid "Pali"
 msgstr "पाली"
 
-#: gui/dialogs.py:782
+#: gui/dialogs.py:783
 msgid "Panjabi"
 msgstr "पंजाबी"
 
-#: gui/dialogs.py:783
+#: gui/dialogs.py:784
 msgid "Persian"
 msgstr "फ़ारसी"
 
-#: gui/dialogs.py:784
+#: gui/dialogs.py:785
 msgid "Polish"
 msgstr "पोलिश"
 
-#: gui/dialogs.py:785
+#: gui/dialogs.py:786
 msgid "Portuguese (Brazil)"
 msgstr "ब्राज़ीली पुर्तगाली"
 
-#: gui/dialogs.py:786
+#: gui/dialogs.py:787
 msgid "Portuguese (Portugal)"
 msgstr "यूरोपीय पुर्तगाली"
 
-#: gui/dialogs.py:787
+#: gui/dialogs.py:788
 msgid "Portuguese"
 msgstr "पुर्तगाली"
 
-#: gui/dialogs.py:788
+#: gui/dialogs.py:789
 msgid "Pushto"
 msgstr "पश्तो"
 
-#: gui/dialogs.py:789
+#: gui/dialogs.py:790
 msgid "Quechua"
 msgstr "क्वेचुआ"
 
-#: gui/dialogs.py:790
+#: gui/dialogs.py:791
 msgid "Romanian"
 msgstr "रोमानियाई"
 
-#: gui/dialogs.py:791
+#: gui/dialogs.py:792
 msgid "Romansh"
 msgstr "रोमान्श"
 
-#: gui/dialogs.py:792
+#: gui/dialogs.py:793
 msgid "Rundi"
 msgstr "रुन्दी"
 
-#: gui/dialogs.py:793
+#: gui/dialogs.py:794
 msgid "Russian"
 msgstr "रूसी"
 
-#: gui/dialogs.py:794
+#: gui/dialogs.py:795
 msgid "Samoan"
 msgstr "सामोन"
 
-#: gui/dialogs.py:795
+#: gui/dialogs.py:796
 msgid "Sango"
 msgstr "सांगो"
 
-#: gui/dialogs.py:796
+#: gui/dialogs.py:797
 msgid "Sanskrit"
 msgstr "संस्कृत"
 
-#: gui/dialogs.py:797
+#: gui/dialogs.py:798
 msgid "Sardinian"
 msgstr "सार्दिनियन"
 
-#: gui/dialogs.py:798
+#: gui/dialogs.py:799
 msgid "Scottish Gaelic"
 msgstr "स्कॉटिश गाएलिक"
 
-#: gui/dialogs.py:799
+#: gui/dialogs.py:800
 msgid "Serbian"
 msgstr "सर्बियाई"
 
-#: gui/dialogs.py:800
+#: gui/dialogs.py:801
 msgid "Serbo-Croatian"
 msgstr "सेर्बो-क्रोएशियाई"
 
-#: gui/dialogs.py:801
+#: gui/dialogs.py:802
 msgid "Shona"
 msgstr "शोणा"
 
-#: gui/dialogs.py:802
+#: gui/dialogs.py:803
 msgid "Sichuan Yi"
 msgstr "सिचुआन यी"
 
-#: gui/dialogs.py:803
+#: gui/dialogs.py:804
 msgid "Sindhi"
 msgstr "सिंधी"
 
-#: gui/dialogs.py:804
+#: gui/dialogs.py:805
 msgid "Sinhala"
 msgstr "सिंहली"
 
-#: gui/dialogs.py:805
+#: gui/dialogs.py:806
 msgid "Slovak"
 msgstr "स्लोवाक"
 
-#: gui/dialogs.py:806
+#: gui/dialogs.py:807
 msgid "Slovenian"
 msgstr "स्लोवेनियाई"
 
-#: gui/dialogs.py:807
+#: gui/dialogs.py:808
 msgid "Somali"
 msgstr "सोमाली"
 
-#: gui/dialogs.py:808
+#: gui/dialogs.py:809
 msgid "South Ndebele"
 msgstr "दक्षिण देबेल"
 
-#: gui/dialogs.py:809
+#: gui/dialogs.py:810
 msgid "Southern Sotho"
 msgstr "दक्षिणी सेसेथो"
 
-#: gui/dialogs.py:810
+#: gui/dialogs.py:811
 msgid "Spanish"
 msgstr "स्पेनिश"
 
-#: gui/dialogs.py:811
+#: gui/dialogs.py:812
 msgid "Sundanese"
 msgstr "सुंडानी"
 
-#: gui/dialogs.py:812
+#: gui/dialogs.py:813
 msgid "Swahili (macrolanguage)"
 msgstr "स्वाहिली"
 
-#: gui/dialogs.py:813
+#: gui/dialogs.py:814
 msgid "Swati"
 msgstr "स्वाती"
 
-#: gui/dialogs.py:814
+#: gui/dialogs.py:815
 msgid "Swedish"
 msgstr "स्वीडिश"
 
-#: gui/dialogs.py:815
+#: gui/dialogs.py:816
 msgid "Tagalog"
 msgstr "टैगलॉग"
 
-#: gui/dialogs.py:816
+#: gui/dialogs.py:817
 msgid "Tahitian"
 msgstr "ताहितियन"
 
-#: gui/dialogs.py:817
+#: gui/dialogs.py:818
 msgid "Tajik"
 msgstr "ताजिक"
 
-#: gui/dialogs.py:818
+#: gui/dialogs.py:819
 msgid "Tamil"
 msgstr "तमिल"
 
-#: gui/dialogs.py:819
+#: gui/dialogs.py:820
 msgid "Tatar"
 msgstr "तातार"
 
-#: gui/dialogs.py:820
+#: gui/dialogs.py:821
 msgid "Telugu"
 msgstr "तेलुगू"
 
-#: gui/dialogs.py:821
+#: gui/dialogs.py:822
 msgid "Thai"
 msgstr "थाई"
 
-#: gui/dialogs.py:822
+#: gui/dialogs.py:823
 msgid "Tibetan"
 msgstr "तिब्बती"
 
-#: gui/dialogs.py:823
+#: gui/dialogs.py:824
 msgid "Tigrinya"
 msgstr "तिग्रीन्या"
 
-#: gui/dialogs.py:824
+#: gui/dialogs.py:825
 msgid "Tonga (Tonga Islands)"
 msgstr "टोंगन"
 
-#: gui/dialogs.py:825
+#: gui/dialogs.py:826
 msgid "Tsonga"
 msgstr "सोंगा"
 
-#: gui/dialogs.py:826
+#: gui/dialogs.py:827
 msgid "Tswana"
 msgstr "सेत्स्वाना"
 
-#: gui/dialogs.py:827
+#: gui/dialogs.py:828
 msgid "Turkish"
 msgstr "तुर्की"
 
-#: gui/dialogs.py:828
+#: gui/dialogs.py:829
 msgid "Turkmen"
 msgstr "तुर्कमेन"
 
-#: gui/dialogs.py:829
+#: gui/dialogs.py:830
 msgid "Twi"
 msgstr "ट्वी"
 
-#: gui/dialogs.py:830
+#: gui/dialogs.py:831
 msgid "Uighur"
 msgstr "उइगर"
 
-#: gui/dialogs.py:831
+#: gui/dialogs.py:832
 msgid "Ukrainian"
 msgstr "यूक्रेनियाई"
 
-#: gui/dialogs.py:832
+#: gui/dialogs.py:833
 msgid "Urdu"
 msgstr "उर्दू"
 
-#: gui/dialogs.py:833
+#: gui/dialogs.py:834
 msgid "Uzbek"
 msgstr "उज़्बेक"
 
-#: gui/dialogs.py:834
+#: gui/dialogs.py:835
 msgid "Venda"
 msgstr "वेन्दा"
 
-#: gui/dialogs.py:835
+#: gui/dialogs.py:836
 msgid "Vietnamese"
 msgstr "वियतनामी"
 
-#: gui/dialogs.py:836
+#: gui/dialogs.py:837
 msgid "Volapuk"
 msgstr "वोलापुक"
 
-#: gui/dialogs.py:837
+#: gui/dialogs.py:838
 msgid "Walloon"
 msgstr "वाल्लून"
 
-#: gui/dialogs.py:838
+#: gui/dialogs.py:839
 msgid "Welsh"
 msgstr "वेल्श"
 
-#: gui/dialogs.py:839
+#: gui/dialogs.py:840
 msgid "Western Frisian"
 msgstr "पश्चिमी फ़्रिसियाई"
 
-#: gui/dialogs.py:840
+#: gui/dialogs.py:841
 msgid "Wolof"
 msgstr "वोलोफ़"
 
-#: gui/dialogs.py:841
+#: gui/dialogs.py:842
 msgid "Xhosa"
 msgstr "ख़ोसा"
 
-#: gui/dialogs.py:842
+#: gui/dialogs.py:843
 msgid "Yiddish"
 msgstr "यहूदी"
 
-#: gui/dialogs.py:843
+#: gui/dialogs.py:844
 msgid "Yoruba"
 msgstr "योरूबा"
 
-#: gui/dialogs.py:844
+#: gui/dialogs.py:845
 msgid "Zhuang"
 msgstr "ज़ुआंग"
 
-#: gui/dialogs.py:845
+#: gui/dialogs.py:846
 msgid "Zulu"
 msgstr "ज़ुलू"
 
-#: gui/dialogs.py:970
+#: gui/dialogs.py:971
 msgid "Cache full text in background"
 msgstr "पृष्ठभूमि में पूर्ण टेक्स्ट कैश करें"
 
-#: gui/dialogs.py:975
+#: gui/dialogs.py:976
 msgid "Enable Downloads"
 msgstr "डाउनलोड सक्षम करें"
 
-#: gui/dialogs.py:979
+#: gui/dialogs.py:980
 msgid "Confirm before deleting articles"
 msgstr "लेख हटाने से पहले पुष्टि करें"
 
-#: gui/dialogs.py:989
+#: gui/dialogs.py:990
 msgid "Move it to Deleted Articles (restorable)"
 msgstr "इसे हटाए गए लेखों में ले जाएं (पुनर्स्थापन योग्य)"
 
-#: gui/dialogs.py:990 gui/dialogs.py:3593
+#: gui/dialogs.py:991 gui/dialogs.py:3594
 msgid "Remove it permanently"
 msgstr "इसे स्थायी रूप से हटाएं"
 
-#: gui/dialogs.py:991 gui/dialogs.py:3594
+#: gui/dialogs.py:992 gui/dialogs.py:3595
 msgid "Move it to a category"
 msgstr "इसे किसी श्रेणी में ले जाएं"
 
-#: gui/dialogs.py:1021 gui/dialogs.py:1209 gui/dialogs.py:1244
-#: gui/dialogs.py:1527
+#: gui/dialogs.py:1022 gui/dialogs.py:1210 gui/dialogs.py:1245
+#: gui/dialogs.py:1528
 msgid "Browse..."
 msgstr "ब्राउज़ करें..."
 
-#: gui/dialogs.py:1062
+#: gui/dialogs.py:1063
 msgid "Close to system tray"
 msgstr "बंद करने पर सिस्टम ट्रे में छोटा करें"
 
-#: gui/dialogs.py:1066
+#: gui/dialogs.py:1067
 msgid "Minimize to system tray"
 msgstr "सिस्टम ट्रे में छोटा करें"
 
-#: gui/dialogs.py:1071
+#: gui/dialogs.py:1072
 msgid "Start BlindRSS in the system tray"
 msgstr "BlindRSS को सिस्टम ट्रे में प्रारंभ करें"
 
-#: gui/dialogs.py:1076
+#: gui/dialogs.py:1077
 msgid "Always start maximized"
 msgstr "हमेशा अधिकतम आकार में प्रारंभ करें"
 
-#: gui/dialogs.py:1080
+#: gui/dialogs.py:1081
 msgid "Debug mode (show console on startup)"
 msgstr "डिबग मोड (स्टार्टअप पर कंसोल दिखाएं)"
 
-#: gui/dialogs.py:1084
+#: gui/dialogs.py:1085
 msgid "Check for updates on startup"
 msgstr "स्टार्टअप पर अपडेट के लिए जाँच करें"
 
-#: gui/dialogs.py:1088
+#: gui/dialogs.py:1089
 msgid "Automatically refresh feeds upon start"
 msgstr "प्रारंभ होने पर फ़ीड स्वचालित रूप से ताज़ा करें"
 
-#: gui/dialogs.py:1139
+#: gui/dialogs.py:1140
 msgid ""
 "Article formatting: preserve structure from the original page as spoken text"
 " markers. Applies to newly loaded articles and full text."
@@ -2308,32 +2326,32 @@ msgstr ""
 "लेख स्वरूपण: मूल पृष्ठ की संरचना को बोले जाने वाले पाठ चिह्नों के रूप में "
 "सुरक्षित रखें। नए लोड किए गए लेखों और पूर्ण पाठ पर लागू होता है।"
 
-#: gui/dialogs.py:1147
+#: gui/dialogs.py:1148
 msgid "Describe tables (\"Table with 3 rows...\" and one line per row)"
 msgstr ""
 "तालिकाओं का वर्णन करें (\"Table with 3 rows...\" और प्रत्येक पंक्ति के लिए "
 "एक लाइन)"
 
-#: gui/dialogs.py:1153
+#: gui/dialogs.py:1154
 msgid "Announce headings (\"Heading level 2:\" before each heading)"
 msgstr "शीर्षकों की घोषणा करें (प्रत्येक शीर्षक से पहले \"Heading level 2:\")"
 
-#: gui/dialogs.py:1159
+#: gui/dialogs.py:1160
 msgid "Mark list items with bullets and numbers"
 msgstr "सूची आइटम को बुलेट और संख्याओं से चिह्नित करें"
 
-#: gui/dialogs.py:1165
+#: gui/dialogs.py:1166
 msgid "Mark quotations (\"Quote:\" before and \"End of quote.\" after)"
 msgstr "उद्धरण चिह्नित करें (पहले \"Quote:\" और बाद में \"End of quote.\")"
 
-#: gui/dialogs.py:1171
+#: gui/dialogs.py:1172
 msgid ""
 "Show links as \"text (address)\" and open the link at the cursor with Enter"
 msgstr ""
 "लिंक को \"टेक्स्ट (पता)\" के रूप में दिखाएँ और कर्सर पर मौजूद लिंक को Enter "
 "से खोलें"
 
-#: gui/dialogs.py:1177
+#: gui/dialogs.py:1178
 msgid ""
 "Rich full-text view: show links, embedded videos, and tweets in a web view "
 "(instead of plain text). Falls back to plain text if unavailable."
@@ -2341,14 +2359,14 @@ msgstr ""
 "रिच पूर्ण-पाठ दृश्य: सादे पाठ के बजाय लिंक, एम्बेडेड वीडियो और ट्वीट को वेब "
 "दृश्य में दिखाएँ। उपलब्ध न होने पर सादे पाठ पर वापस लौटता है।"
 
-#: gui/dialogs.py:1187
+#: gui/dialogs.py:1188
 msgid ""
 "Include image alt text in articles (announces images, can override per feed)"
 msgstr ""
 "लेखों में छवि alt टेक्स्ट शामिल करें (छवियों की घोषणा करता है, प्रति फ़ीड "
 "ओवरराइड किया जा सकता है)"
 
-#: gui/dialogs.py:1194
+#: gui/dialogs.py:1195
 msgid ""
 "yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
 " or members-only YouTube content. Installed browsers are detected "
@@ -2366,91 +2384,91 @@ msgstr ""
 " है। LibreWolf Firefox-संगत कुकीज़ का उपयोग करता है। Chrome का \"Nightly\" "
 "अर्थ Chrome Canary है; Edge का \"Nightly\" अर्थ Edge Canary है।"
 
-#: gui/dialogs.py:1213
+#: gui/dialogs.py:1214
 msgid "Import from browser..."
 msgstr "ब्राउज़र से आयात करें..."
 
-#: gui/dialogs.py:1220
+#: gui/dialogs.py:1221
 msgid "Automatically import browser cookies.txt exports from Downloads"
 msgstr "डाउनलोड से ब्राउज़र cookies.txt निर्यात स्वचालित रूप से आयात करें"
 
-#: gui/dialogs.py:1227
+#: gui/dialogs.py:1228
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
 msgstr "पहले डाउनलोड करके YouTube चलाएं (सबसे विश्वसनीय; शुरू होने में धीमा)"
 
-#: gui/dialogs.py:1234
+#: gui/dialogs.py:1235
 msgid "YouTube playback cache folder (blank = default, next to your data):"
 msgstr "YouTube प्लेबैक कैश फ़ोल्डर (खाली = डिफ़ॉल्ट, आपके डेटा के बगल में):"
 
-#: gui/dialogs.py:1248
+#: gui/dialogs.py:1249
 msgid "Clear cache now"
 msgstr "अभी कैश साफ़ करें"
 
-#: gui/dialogs.py:1267
+#: gui/dialogs.py:1268
 msgid "Ask to install missing media dependencies on startup"
 msgstr "स्टार्टअप पर गुम मीडिया निर्भरताएं इंस्टॉल करने के लिए पूछें"
 
-#: gui/dialogs.py:1280
+#: gui/dialogs.py:1281
 msgid "Remember last selected feed/folder on startup"
 msgstr "स्टार्टअप पर अंतिम चयनित फ़ीड/फ़ोल्डर याद रखें"
 
-#: gui/dialogs.py:1412
+#: gui/dialogs.py:1413
 msgid "Test"
 msgstr "परीक्षण"
 
-#: gui/dialogs.py:1419
+#: gui/dialogs.py:1420
 msgid "Use %1 for the article URL. Example: chrome --incognito %1"
 msgstr "लेख URL के लिए %1 का उपयोग करें। उदाहरण: chrome --incognito %1"
 
-#: gui/dialogs.py:1446 gui/dialogs.py:2912
+#: gui/dialogs.py:1447 gui/dialogs.py:2913
 msgid "System Default"
 msgstr "सिस्टम डिफ़ॉल्ट"
 
-#: gui/dialogs.py:1454
+#: gui/dialogs.py:1455
 msgid "Skip Silence (Experimental)"
 msgstr "मौन छोड़ें (प्रायोगिक)"
 
-#: gui/dialogs.py:1483
+#: gui/dialogs.py:1484
 msgid "Show player window when starting playback"
 msgstr "प्लेबैक शुरू करते समय प्लेयर विंडो दिखाएं"
 
-#: gui/dialogs.py:1494
+#: gui/dialogs.py:1495
 msgid "Verbose range-cache proxy debug logs"
 msgstr "विस्तृत रेंज-कैश प्रॉक्सी डिबग लॉग"
 
-#: gui/dialogs.py:1577
+#: gui/dialogs.py:1578
 msgid "Provider information"
 msgstr "प्रदाता जानकारी"
 
-#: gui/dialogs.py:1706
+#: gui/dialogs.py:1707
 msgid "Enable Sound Notifications"
 msgstr "ध्वनि सूचनाएं सक्षम करें"
 
-#: gui/dialogs.py:1750
+#: gui/dialogs.py:1751
 msgid "Enable notifications for new articles"
 msgstr "नए लेखों के लिए सूचनाएं सक्षम करें"
 
-#: gui/dialogs.py:1759
+#: gui/dialogs.py:1760
 msgid "Include feed name in notification text"
 msgstr "सूचना पाठ में फ़ीड नाम शामिल करें"
 
-#: gui/dialogs.py:1784
+#: gui/dialogs.py:1785
 msgid "Show a summary notification when notification cap is reached"
 msgstr "जब सूचना सीमा तक पहुँच जाए तो सारांश सूचना दिखाएं"
 
-#: gui/dialogs.py:1791
+#: gui/dialogs.py:1792
 msgid "Test Notification"
 msgstr "परीक्षण सूचना"
 
-#: gui/dialogs.py:1795
+#: gui/dialogs.py:1796
 msgid "Exclude Feeds..."
 msgstr "फ़ीड बाहर रखें..."
 
-#: gui/dialogs.py:1875
+#: gui/dialogs.py:1876
 msgid "Enable automatic translation for article content"
 msgstr "लेख सामग्री के लिए स्वचालित अनुवाद सक्षम करें"
 
-#: gui/dialogs.py:1968
+#: gui/dialogs.py:1969
 msgid ""
 "Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select "
 "'Groq (LLaMA, Mistral)' instead."
@@ -2458,7 +2476,7 @@ msgstr ""
 "Grok xAI द्वारा है। console.x.ai पर एक कुंजी प्राप्त करें। Groq "
 "(LLaMA/Mistral) के लिए, इसके बजाय 'Groq (LLaMA, Mistral)' चुनें।"
 
-#: gui/dialogs.py:2027
+#: gui/dialogs.py:2028
 msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
@@ -2466,19 +2484,19 @@ msgstr ""
 "Groq, Grok नहीं है। console.groq.com/keys पर एक निःशुल्क Groq कुंजी प्राप्त "
 "करें (LLaMA और Mistral मॉडल चलाता है)।"
 
-#: gui/dialogs.py:2113
+#: gui/dialogs.py:2114
 msgid "Load OpenRouter Models"
 msgstr "OpenRouter मॉडल लोड करें"
 
-#: gui/dialogs.py:2117
+#: gui/dialogs.py:2118
 msgid "Loads all available model IDs from OpenRouter."
 msgstr "OpenRouter से सभी उपलब्ध मॉडल आईडी लोड करता है।"
 
-#: gui/dialogs.py:2230
+#: gui/dialogs.py:2231
 msgid "Data Storage Location"
 msgstr "डेटा संग्रहण स्थान"
 
-#: gui/dialogs.py:2235
+#: gui/dialogs.py:2236
 msgid ""
 "Where BlindRSS stores config.json and rss.db.\n"
 "User Data Folder keeps your settings and feeds across app upgrades,\n"
@@ -2488,105 +2506,111 @@ msgstr ""
 "उपयोगकर्ता डेटा फ़ोल्डर ऐप अपग्रेड में आपकी सेटिंग्स और फ़ीड को बनाए रखता है,\n"
 "विशेष रूप से macOS पर जहाँ इंस्टॉल किया गया ऐप बंडल बदल दिया जाता है।"
 
-#: gui/dialogs.py:2282 gui/mainframe.py:13069 gui/mainframe.py:13037
+#: gui/dialogs.py:2283 gui/mainframe.py:13074 gui/mainframe.py:13042
 msgid "Updates"
 msgstr "अपडेट"
 
-#: gui/dialogs.py:2286
+#: gui/dialogs.py:2287
 msgid "Automatically install updates without confirmation"
 msgstr "पुष्टि के बिना अपडेट अपने आप इंस्टॉल करें"
 
-#: gui/dialogs.py:2299
+#: gui/dialogs.py:2300
 msgid "Enable adult sites in Video Search"
 msgstr "वीडियो खोज में वयस्क साइटें सक्षम करें"
 
-#: gui/dialogs.py:2358
+#: gui/dialogs.py:2359
 msgid "Loading OpenRouter models..."
 msgstr "OpenRouter मॉडल लोड हो रहे हैं..."
 
-#: gui/dialogs.py:2520
+#: gui/dialogs.py:2521
 msgid "Notifications are not supported on this platform."
 msgstr "इस प्लेटफ़ॉर्म पर सूचनाएं समर्थित नहीं हैं।"
 
-#: gui/dialogs.py:2672
+#: gui/dialogs.py:2673
 msgid "Enter your Inoreader App ID and App Key first."
 msgstr "पहले अपनी Inoreader ऐप आईडी और ऐप कुंजी दर्ज करें।"
 
-#: gui/dialogs.py:2701
+#: gui/dialogs.py:2702
 msgid "Paste the full URL from your browser address bar"
 msgstr "अपने ब्राउज़र के एड्रेस बार से पूरा URL पेस्ट करें"
 
-#: gui/dialogs.py:3013
+#: gui/dialogs.py:3014
 msgid "Playback cache"
 msgstr "प्लेबैक कैश"
 
-#: gui/dialogs.py:3091
+#: gui/dialogs.py:3092
 msgid "Choose file..."
 msgstr "फ़ाइल चुनें..."
 
-#: gui/dialogs.py:3098
+#: gui/dialogs.py:3099
 msgid "Choose exported cookies.txt"
 msgstr "निर्यात की गई cookies.txt चुनें"
 
-#: gui/dialogs.py:3198
+#: gui/dialogs.py:3199
 msgid "Enter a command to test. Use %1 where the article URL should go."
 msgstr ""
 "परीक्षण के लिए एक कमांड दर्ज करें। जहाँ लेख URL जाना चाहिए वहाँ %1 का उपयोग "
 "करें।"
 
-#: gui/dialogs.py:3199
+#: gui/dialogs.py:3200
 msgid "Nothing to test"
 msgstr "परीक्षण के लिए कुछ नहीं"
 
-#: gui/dialogs.py:3218
+#: gui/dialogs.py:3219
 msgid "Test launched"
 msgstr "परीक्षण शुरू किया गया"
 
-#: gui/dialogs.py:3223
+#: gui/dialogs.py:3224
 msgid "Test failed"
 msgstr "परीक्षण विफल"
 
-#: gui/dialogs.py:3396 gui/dialogs.py:3693
+#: gui/dialogs.py:3397 gui/dialogs.py:3694
 msgid "Feed Properties"
 msgstr "फ़ीड गुण"
 
-#: gui/dialogs.py:3449 gui/dialogs.py:3591
+#: gui/dialogs.py:3450 gui/dialogs.py:3592
 msgid "Use global setting"
 msgstr "वैश्विक सेटिंग का उपयोग करें"
 
-#: gui/dialogs.py:3450
+#: gui/dialogs.py:3451
 msgid "Never (manual refresh only)"
 msgstr "कभी नहीं (केवल मैन्युअल रिफ़्रेश)"
 
-#: gui/dialogs.py:3592
+#: gui/dialogs.py:3593
 msgid "Move it to Deleted Articles"
 msgstr "इसे हटाए गए लेखों में ले जाएं"
 
-#: gui/dialogs.py:3834
+#: gui/dialogs.py:3835
 msgid "Feeds with Errors"
 msgstr "त्रुटियों वाली फ़ीड"
 
-#: gui/dialogs.py:3858
+#: gui/dialogs.py:3859
 msgid "Error &details:"
 msgstr "त्रुटि वि&वरण:"
 
-#: gui/dialogs.py:3869
+#: gui/dialogs.py:3870
 msgid "&Refresh Selected"
 msgstr "चयनित को ता&ज़ा करें"
 
-#: gui/dialogs.py:3870
+#: gui/dialogs.py:3871
 msgid "&Copy Details"
 msgstr "विवरण क&ॉपी करें"
 
-#: gui/dialogs.py:3871
+#: gui/dialogs.py:3872
 msgid "Feed &Properties..."
 msgstr "फ़ीड गु&ण..."
 
-#: gui/dialogs.py:3872
+#: gui/dialogs.py:3873
 msgid "Re&move Feed"
 msgstr "फ़ीड हटा&एं"
 
-#: gui/dialogs.py:3934
+#: gui/dialogs.py:3902
+msgid "{n} feed failed to update during its most recent attempt:"
+msgid_plural "{n} feeds failed to update during their most recent attempt:"
+msgstr[0] "सबसे हालिया प्रयास में {n} फ़ीड अपडेट होने में विफल रही:"
+msgstr[1] "सबसे हालिया प्रयास में {n} फ़ीड अपडेट होने में विफल रहीं:"
+
+#: gui/dialogs.py:3936
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
@@ -2596,243 +2620,265 @@ msgstr ""
 "\n"
 "जब कोई अपडेट विफल होता है (उदाहरण के लिए मृत URL, HTTP त्रुटि, टाइमआउट, या अमान्य फ़ीड प्रारूप), तो फ़ीड यहाँ स्वचालित रूप से दिखाई देती हैं।"
 
-#: gui/dialogs.py:4066
+#: gui/dialogs.py:3969
+msgid ""
+"Feed: {title}\n"
+"URL: {url}\n"
+"Category: {category}\n"
+"Last update attempt: {attempt}\n"
+"Last successful update: {successful}\n"
+"{description}\n"
+"\n"
+"Error:\n"
+"{error}"
+msgstr ""
+"फ़ीड: {title}\n"
+"URL: {url}\n"
+"श्रेणी: {category}\n"
+"अंतिम अपडेट प्रयास: {attempt}\n"
+"अंतिम सफल अपडेट: {successful}\n"
+"{description}\n"
+"\n"
+"त्रुटि:\n"
+"{error}"
+
+#: gui/dialogs.py:4085
 msgid "Editing feed properties is not available here."
 msgstr "यहाँ फ़ीड गुणों को संपादित करना उपलब्ध नहीं है।"
 
-#: gui/dialogs.py:4067
+#: gui/dialogs.py:4086
 msgid "Not available"
 msgstr "उपलब्ध नहीं"
 
-#: gui/dialogs.py:4091
+#: gui/dialogs.py:4110
 msgid "Confirm Remove"
 msgstr "हटाना पुष्टि करें"
 
-#: gui/dialogs.py:4190 gui/dialogs.py:5112
+#: gui/dialogs.py:4209 gui/dialogs.py:5131
 msgid "Search"
 msgstr "खोजें"
 
-#: gui/dialogs.py:4196 gui/dialogs.py:5142 gui/dialogs.py:6451
+#: gui/dialogs.py:4215 gui/dialogs.py:5161 gui/dialogs.py:6470
 msgid "Ready."
 msgstr "तैयार।"
 
-#: gui/dialogs.py:4339
+#: gui/dialogs.py:4358
 msgid "Searching all sources..."
 msgstr "सभी स्रोतों में खोजा जा रहा है..."
 
-#: gui/dialogs.py:5114
+#: gui/dialogs.py:5133
 msgid "Load More Results (+80/site)"
 msgstr "और परिणाम लोड करें (+80/साइट)"
 
-#: gui/dialogs.py:6070
+#: gui/dialogs.py:6089
 msgid "No searchable sites."
 msgstr "कोई खोजने योग्य साइट नहीं।"
 
-#: gui/dialogs.py:6523
+#: gui/dialogs.py:6542
 msgid "Parent window does not support subscribing from this dialog."
 msgstr "मूल विंडो इस डायलॉग से सदस्यता लेने का समर्थन नहीं करती।"
 
-#: gui/dialogs.py:6589
+#: gui/dialogs.py:6608
 msgid "Add..."
 msgstr "जोड़ें..."
 
-#: gui/dialogs.py:6590
+#: gui/dialogs.py:6609
 msgid "Remove"
 msgstr "हटाएं"
 
-#: gui/dialogs.py:6644 gui/mainframe.py:2356
+#: gui/dialogs.py:6663 gui/mainframe.py:2356
 msgid "About BlindRSS"
 msgstr "BlindRSS के बारे में"
 
-#: gui/dialogs.py:6655
+#: gui/dialogs.py:6674
 msgid "Copyright (c) 2024-2026 serrebidev and contributors"
 msgstr "कॉपीराइट (c) 2024-2026 serrebidev और योगदानकर्ता"
 
-#: gui/dialogs.py:6661
+#: gui/dialogs.py:6680
 msgid "Follow me on GitHub (@serrebidev)"
 msgstr "मुझे GitHub पर फ़ॉलो करें (@serrebidev)"
 
-#: gui/dialogs.py:6662
+#: gui/dialogs.py:6681
 msgid "Visit Repository"
 msgstr "रिपॉज़िटरी देखें"
 
-#: gui/dialogs.py:6663
+#: gui/dialogs.py:6682
 msgid "View Changelog"
 msgstr "चेंजलॉग देखें"
 
-#: gui/dialogs.py:6737
+#: gui/dialogs.py:6756
 msgid "&Remove"
 msgstr "हटाएँ(&R)"
 
-#: gui/dialogs.py:6741
+#: gui/dialogs.py:6760
 msgid "&Clear All"
 msgstr "सभी साफ़ करें(&C)"
 
-#: gui/dialogs.py:6808
+#: gui/dialogs.py:6827
 msgid "Untitled"
 msgstr "बिना शीर्षक"
 
-#: gui/dialogs.py:6829
+#: gui/dialogs.py:6848
 msgid "The play queue is empty."
 msgstr "प्ले कतार खाली है।"
 
-#: gui/dialogs.py:6890
+#: gui/dialogs.py:6909
 msgid "Remove all items from the play queue?"
 msgstr "प्ले कतार से सभी आइटम हटाएँ?"
 
-#: gui/dialogs.py:6891
+#: gui/dialogs.py:6910
 msgid "Clear Play Queue"
 msgstr "प्ले कतार साफ़ करें"
 
-#: gui/dialogs.py:6933
+#: gui/dialogs.py:6952
 msgid "Press Shortcut"
 msgstr "शॉर्टकट दबाएँ"
 
-#: gui/dialogs.py:6946
+#: gui/dialogs.py:6965
 msgid "Waiting for a key…"
 msgstr "किसी कुंजी की प्रतीक्षा हो रही है…"
 
-#: gui/dialogs.py:7019
+#: gui/dialogs.py:7038
 msgid "Select a command and choose Change to set its shortcut."
 msgstr "एक कमांड चुनें और उसका शॉर्टकट सेट करने के लिए 'बदलें' चुनें।"
 
-#: gui/dialogs.py:7034
+#: gui/dialogs.py:7053
 msgid "&Change Shortcut..."
 msgstr "शॉर्टकट बदलें(&C)..."
 
-#: gui/dialogs.py:7038
+#: gui/dialogs.py:7057
 msgid "&Remove Shortcut"
 msgstr "शॉर्टकट हटाएँ(&R)"
 
-#: gui/dialogs.py:7067
+#: gui/dialogs.py:7086
 msgid "Enter"
 msgstr "Enter"
 
-#: gui/dialogs.py:7067
+#: gui/dialogs.py:7086
 msgid "Open or play the selected article"
 msgstr "चयनित लेख खोलें या चलाएं"
 
-#: gui/dialogs.py:7068
+#: gui/dialogs.py:7087
 msgid "Del"
 msgstr "Del"
 
-#: gui/dialogs.py:7068
+#: gui/dialogs.py:7087
 msgid "Delete the selected article"
 msgstr "चयनित लेख हटाएं"
 
-#: gui/dialogs.py:7069
+#: gui/dialogs.py:7088
 msgid "Shift+Del"
 msgstr "Shift+Del"
 
-#: gui/dialogs.py:7069
+#: gui/dialogs.py:7088
 msgid "Delete the selected article without confirmation"
 msgstr "चयनित लेख बिना पुष्टि के हटाएं"
 
-#: gui/dialogs.py:7070
+#: gui/dialogs.py:7089
 msgid "Backspace"
 msgstr "Backspace"
 
-#: gui/dialogs.py:7070
+#: gui/dialogs.py:7089
 msgid "Toggle read/unread in the article list"
 msgstr "लेख सूची में पढ़ा/अपठित टॉगल करें"
 
-#: gui/dialogs.py:7071
+#: gui/dialogs.py:7090
 msgid "Refresh feeds (fixed alias)"
 msgstr "फ़ीड ताज़ा करें (स्थिर विकल्प)"
 
-#: gui/dialogs.py:7072
+#: gui/dialogs.py:7091
 msgid "Ctrl+Left / Ctrl+Right"
 msgstr "Ctrl+बायां / Ctrl+दायां"
 
-#: gui/dialogs.py:7072
+#: gui/dialogs.py:7091
 msgid "Rewind / fast forward playback"
 msgstr "पीछे / आगे करें"
 
-#: gui/dialogs.py:7073
+#: gui/dialogs.py:7092
 msgid "Ctrl+Up / Ctrl+Down"
 msgstr "Ctrl+ऊपर / Ctrl+नीचे"
 
-#: gui/dialogs.py:7073
+#: gui/dialogs.py:7092
 msgid "Volume up / volume down"
 msgstr "आवाज़ बढ़ाएँ / घटाएँ"
 
-#: gui/dialogs.py:7074
+#: gui/dialogs.py:7093
 msgid "Ctrl+Shift+Left / Ctrl+Shift+Right"
 msgstr "Ctrl+Shift+बायां / Ctrl+Shift+दायां"
 
-#: gui/dialogs.py:7074
+#: gui/dialogs.py:7093
 msgid "Previous / next chapter"
 msgstr "पिछला / अगला अध्याय"
 
-#: gui/dialogs.py:7075
+#: gui/dialogs.py:7094
 msgid "Ctrl+F"
 msgstr "Ctrl+F"
 
-#: gui/dialogs.py:7075
+#: gui/dialogs.py:7094
 msgid "Find in the article reader"
 msgstr "लेख में खोजें"
 
-#: gui/dialogs.py:7076
+#: gui/dialogs.py:7095
 msgid "F3 / Shift+F3"
 msgstr "F3 / Shift+F3"
 
-#: gui/dialogs.py:7076
+#: gui/dialogs.py:7095
 msgid "Next / previous match in the article reader"
 msgstr "लेख में अगला / पिछला मिलान"
 
-#: gui/dialogs.py:7077
+#: gui/dialogs.py:7096
 msgid "F6 / Shift+F6"
 msgstr "F6 / Shift+F6"
 
-#: gui/dialogs.py:7077
+#: gui/dialogs.py:7096
 msgid "Move between panes in the rich view"
 msgstr "समृद्ध दृश्य में पैनलों के बीच जाएँ"
 
-#: gui/dialogs.py:7078
+#: gui/dialogs.py:7097
 msgid "Ctrl+X / Ctrl+C / Ctrl+V / Ctrl+A"
 msgstr "Ctrl+X / Ctrl+C / Ctrl+V / Ctrl+A"
 
-#: gui/dialogs.py:7078
+#: gui/dialogs.py:7097
 msgid "Cut / Copy / Paste / Select All in text fields"
 msgstr "टेक्स्ट फ़ील्ड में काटें / कॉपी करें / चिपकाएं / सभी चुनें"
 
-#: gui/dialogs.py:7092
+#: gui/dialogs.py:7111
 msgid "Fixed keys"
 msgstr "स्थिर कुंजियाँ"
 
-#: gui/dialogs.py:7184
+#: gui/dialogs.py:7203
 msgid "Reset all keyboard shortcuts to their defaults?"
 msgstr "सभी कीबोर्ड शॉर्टकट उनके डिफ़ॉल्ट पर रीसेट करें?"
 
-#: gui/dialogs.py:7185
+#: gui/dialogs.py:7204
 msgid "Reset Shortcuts"
 msgstr "शॉर्टकट रीसेट करें"
 
-#: gui/dialogs.py:7238
+#: gui/dialogs.py:7257
 msgid "Equalizer"
 msgstr "इक्वलाइज़र"
 
-#: gui/dialogs.py:7263
+#: gui/dialogs.py:7282
 msgid "&Enable equalizer"
 msgstr "इक्वलाइज़र सक्षम करें(&E)"
 
-#: gui/dialogs.py:7300
+#: gui/dialogs.py:7319
 msgid "&Save as Preset..."
 msgstr "प्रीसेट के रूप में सहेजें(&S)..."
 
-#: gui/dialogs.py:7303
+#: gui/dialogs.py:7322
 msgid "&Delete Preset"
 msgstr "प्रीसेट हटाएँ(&D)"
 
-#: gui/dialogs.py:7306
+#: gui/dialogs.py:7325
 msgid "&Reset (Flat)"
 msgstr "रीसेट (फ़्लैट)(&R)"
 
-#: gui/dialogs.py:7477
+#: gui/dialogs.py:7496
 msgid "Could not save the preset."
 msgstr "प्रीसेट सहेजा नहीं जा सका।"
 
-#: gui/dialogs.py:7489
+#: gui/dialogs.py:7508
 msgid "Delete Preset"
 msgstr "प्रीसेट हटाएँ"
 
@@ -2880,55 +2926,55 @@ msgstr "कुकीज़ फ़ाइल:"
 msgid "Browser User-Agent (recommended):"
 msgstr "ब्राउज़र User-Agent (अनुशंसित):"
 
-#: gui/dialogs.py:871
+#: gui/dialogs.py:872
 msgid "Refresh Interval:"
 msgstr "ताज़ा अंतराल:"
 
-#: gui/dialogs.py:912
+#: gui/dialogs.py:913
 msgid "Search Matches:"
 msgstr "खोज मिलान:"
 
-#: gui/dialogs.py:939
+#: gui/dialogs.py:940
 msgid "Max Concurrent Refreshes:"
 msgstr "अधिकतम समवर्ती ताज़ा:"
 
-#: gui/dialogs.py:945
+#: gui/dialogs.py:946
 msgid "Max Connections Per Host:"
 msgstr "प्रति होस्ट अधिकतम कनेक्शन:"
 
-#: gui/dialogs.py:951
+#: gui/dialogs.py:952
 msgid "Feed Timeout (seconds):"
 msgstr "फ़ीड टाइमआउट (सेकंड):"
 
-#: gui/dialogs.py:957
+#: gui/dialogs.py:958
 msgid "Feed Retry Attempts:"
 msgstr "फ़ीड पुनः प्रयास प्रयास:"
 
-#: gui/dialogs.py:964
+#: gui/dialogs.py:965
 msgid "Max Cached Views:"
 msgstr "अधिकतम कैश्ड दृश्य:"
 
-#: gui/dialogs.py:986
+#: gui/dialogs.py:987
 msgid "When I delete an article:"
 msgstr "जब मैं कोई लेख हटाता हूं:"
 
-#: gui/dialogs.py:1017
+#: gui/dialogs.py:1018
 msgid "Download Path:"
 msgstr "डाउनलोड पथ:"
 
-#: gui/dialogs.py:1046
+#: gui/dialogs.py:1047
 msgid "Retention Policy:"
 msgstr "प्रतिधारण नीति:"
 
-#: gui/dialogs.py:1054
+#: gui/dialogs.py:1055
 msgid "Article Retention:"
 msgstr "लेख प्रतिधारण:"
 
-#: gui/dialogs.py:1094
+#: gui/dialogs.py:1095
 msgid "Local RSS automatic refresh workload:"
 msgstr "लोकल RSS स्वचालित ताज़ा करने का तरीका:"
 
-#: gui/dialogs.py:1128
+#: gui/dialogs.py:1129
 msgid ""
 "Using the Local RSS feed cache lowers CPU and network use. Manual Refresh "
 "All always checks every feed."
@@ -2936,48 +2982,48 @@ msgstr ""
 "फ़ीड कैश का उपयोग CPU और नेटवर्क उपयोग कम करता है। मैन्युअल रूप से सभी फ़ीड "
 "ताज़ा करने पर हमेशा हर फ़ीड की जाँच होती है।"
 
-#: gui/dialogs.py:1255
+#: gui/dialogs.py:1256
 msgid "Max cache size (MB, 0 = unlimited):"
 msgstr "अधिकतम कैश आकार (MB, 0 = असीमित):"
 
-#: gui/dialogs.py:1289
+#: gui/dialogs.py:1290
 msgid "Interface language (requires restart):"
 msgstr "इंटरफ़ेस भाषा (पुनः आरंभ आवश्यक):"
 
-#: gui/dialogs.py:1365
+#: gui/dialogs.py:1366
 msgid "Feed category tree on startup:"
 msgstr "स्टार्टअप पर फ़ीड श्रेणी वृक्ष:"
 
-#: gui/dialogs.py:1385
+#: gui/dialogs.py:1386
 msgid "Article opening method:"
 msgstr "लेख खोलने की विधि:"
 
-#: gui/dialogs.py:1404
+#: gui/dialogs.py:1405
 msgid "Custom command:"
 msgstr "कस्टम कमांड:"
 
-#: gui/dialogs.py:1444
+#: gui/dialogs.py:1445
 msgid "Preferred Soundcard:"
 msgstr "पसंदीदा साउंडकार्ड:"
 
-#: gui/dialogs.py:1460
+#: gui/dialogs.py:1461
 msgid "Default Playback Speed:"
 msgstr "डिफ़ॉल्ट प्लेबैक गति:"
 
-#: gui/dialogs.py:1489
+#: gui/dialogs.py:1490
 msgid "Network Cache (ms):"
 msgstr "नेटवर्क कैश (ms):"
 
-#: gui/dialogs.py:1507
+#: gui/dialogs.py:1508
 msgid "Leave a path blank to auto-detect. A set path overrides detection."
 msgstr ""
 "स्वतः-पहचान के लिए पथ खाली छोड़ें। सेट किया गया पथ पहचान को ओवरराइड करता है।"
 
-#: gui/dialogs.py:1549
+#: gui/dialogs.py:1550
 msgid "Active Provider:"
 msgstr "सक्रिय प्रदाता:"
 
-#: gui/dialogs.py:1637
+#: gui/dialogs.py:1638
 msgid ""
 "Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
 "localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
@@ -2987,83 +3033,83 @@ msgstr ""
 "localhost लोड करने में विफल हो सकता है। एड्रेस बार से पूरा रीडायरेक्ट किया गया URL कॉपी करें और\n"
 "प्रॉम्प्ट होने पर उसे पेस्ट करें।"
 
-#: gui/dialogs.py:1649
+#: gui/dialogs.py:1650
 msgid "Authorize Inoreader"
 msgstr "Inoreader को अधिकृत करें"
 
-#: gui/dialogs.py:1650
+#: gui/dialogs.py:1651
 msgid "Clear Authorization"
 msgstr "प्राधिकरण साफ़ करें"
 
-#: gui/dialogs.py:1768
+#: gui/dialogs.py:1769
 msgid "Max notifications per refresh (0 = no limit):"
 msgstr "प्रति ताज़ा करने पर अधिकतम सूचनाएं (0 = कोई सीमा नहीं):"
 
-#: gui/dialogs.py:1895
+#: gui/dialogs.py:1896
 msgid "Provider:"
 msgstr "प्रदाता:"
 
-#: gui/dialogs.py:1915
+#: gui/dialogs.py:1916
 msgid "Target language:"
 msgstr "लक्ष्य भाषा:"
 
-#: gui/dialogs.py:1938
+#: gui/dialogs.py:1939
 msgid "Choose a language or type a code (e.g. en, es, fr, pt-BR)."
 msgstr "एक भाषा चुनें या एक कोड टाइप करें (जैसे en, es, fr, pt-BR)।"
 
-#: gui/dialogs.py:1947
+#: gui/dialogs.py:1948
 msgid "Grok (xAI) model (optional):"
 msgstr "Grok (xAI) मॉडल (वैकल्पिक):"
 
-#: gui/dialogs.py:1978
+#: gui/dialogs.py:1979
 msgid "Grok (xAI) API key (starts with xai-):"
 msgstr "Grok (xAI) API कुंजी (xai- से शुरू होती है):"
 
-#: gui/dialogs.py:1990
+#: gui/dialogs.py:1991
 msgid "Groq model (optional) - hosts LLaMA and Mistral:"
 msgstr "Groq मॉडल (वैकल्पिक) - LLaMA और Mistral होस्ट करता है:"
 
-#: gui/dialogs.py:2012
+#: gui/dialogs.py:2013
 msgid "Groq API key (starts with gsk_):"
 msgstr "Groq API कुंजी (gsk_ से शुरू होती है):"
 
-#: gui/dialogs.py:2038
+#: gui/dialogs.py:2039
 msgid "OpenAI model (optional):"
 msgstr "OpenAI मॉडल (वैकल्पिक):"
 
-#: gui/dialogs.py:2060
+#: gui/dialogs.py:2061
 msgid "OpenAI API key:"
 msgstr "OpenAI API कुंजी:"
 
-#: gui/dialogs.py:2076
+#: gui/dialogs.py:2077
 msgid "OpenRouter model (optional):"
 msgstr "OpenRouter मॉडल (वैकल्पिक):"
 
-#: gui/dialogs.py:2098
+#: gui/dialogs.py:2099
 msgid "OpenRouter API key:"
 msgstr "OpenRouter API कुंजी:"
 
-#: gui/dialogs.py:2124
+#: gui/dialogs.py:2125
 msgid "Gemini model (optional):"
 msgstr "Gemini मॉडल (वैकल्पिक):"
 
-#: gui/dialogs.py:2146
+#: gui/dialogs.py:2147
 msgid "Gemini API key:"
 msgstr "Gemini API कुंजी:"
 
-#: gui/dialogs.py:2162
+#: gui/dialogs.py:2163
 msgid "Qwen model (optional):"
 msgstr "Qwen मॉडल (वैकल्पिक):"
 
-#: gui/dialogs.py:2184
+#: gui/dialogs.py:2185
 msgid "Qwen API key:"
 msgstr "Qwen API कुंजी:"
 
-#: gui/dialogs.py:2250
+#: gui/dialogs.py:2251
 msgid "Storage Location:"
 msgstr "संग्रहण स्थान:"
 
-#: gui/dialogs.py:2307
+#: gui/dialogs.py:2308
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
 "When on, adult sites are added and must still be selected explicitly to search them."
@@ -3071,11 +3117,11 @@ msgstr ""
 "बंद होने पर, वयस्क साइटें वीडियो खोज की साइट सूची में कभी दिखाई नहीं देतीं।\n"
 "चालू होने पर, वयस्क साइटें जोड़ी जाती हैं और उनमें खोजने के लिए उन्हें फिर भी स्पष्ट रूप से चुनना होगा।"
 
-#: gui/dialogs.py:2690
+#: gui/dialogs.py:2691
 msgid "Inoreader Authorization"
 msgstr "Inoreader प्राधिकरण"
 
-#: gui/dialogs.py:2827
+#: gui/dialogs.py:2828
 msgid ""
 "Inoreader authorization failed:\n"
 "{message}"
@@ -3083,74 +3129,74 @@ msgstr ""
 "Inoreader प्राधिकरण विफल:\n"
 "{message}"
 
-#: gui/dialogs.py:3027
+#: gui/dialogs.py:3028
 msgid "Removed {n} file, freed {size}."
 msgid_plural "Removed {n} files, freed {size}."
 msgstr[0] "{n} फ़ाइल हटाई गई, {size} खाली हुआ।"
 msgstr[1] "{n} फ़ाइलें हटाई गईं, {size} खाली हुआ।"
 
-#: gui/dialogs.py:3113 gui/dialogs.py:3120
+#: gui/dialogs.py:3114 gui/dialogs.py:3121
 msgid "Import failed"
 msgstr "आयात विफल"
 
-#: gui/dialogs.py:3136
+#: gui/dialogs.py:3137
 msgid "Executables"
 msgstr "निष्पादन योग्य फ़ाइलें"
 
-#: gui/dialogs.py:3136 gui/dialogs.py:3138 gui/dialogs.py:2981
-#: gui/dialogs.py:3099
+#: gui/dialogs.py:3137 gui/dialogs.py:3139 gui/dialogs.py:557
+#: gui/dialogs.py:2982
 msgid "All files"
 msgstr "सभी फ़ाइलें"
 
-#: gui/dialogs.py:3209
+#: gui/dialogs.py:3210
 msgid "Invalid command"
 msgstr "अमान्य कमांड"
 
-#: gui/dialogs.py:3428
+#: gui/dialogs.py:3429
 msgid "URL:"
 msgstr "URL:"
 
-#: gui/dialogs.py:3447
+#: gui/dialogs.py:3448
 msgid "Refresh interval for this feed:"
 msgstr "इस फ़ीड के लिए रिफ़्रेश अंतराल:"
 
-#: gui/dialogs.py:3491
+#: gui/dialogs.py:3492
 msgid "Custom request headers (one per line, Name: Value):"
 msgstr "कस्टम अनुरोध हेडर (प्रति पंक्ति एक, नाम: मान):"
 
-#: gui/dialogs.py:3507
+#: gui/dialogs.py:3508
 msgid "Request timeout in seconds (blank = default):"
 msgstr "सेकंड में अनुरोध टाइमआउट (खाली = डिफ़ॉल्ट):"
 
-#: gui/dialogs.py:3522
+#: gui/dialogs.py:3523
 msgid "Browser impersonation:"
 msgstr "ब्राउज़र प्रतिरूपण:"
 
-#: gui/dialogs.py:3523
+#: gui/dialogs.py:3524
 msgid "Auto"
 msgstr "स्वचालित"
 
-#: gui/dialogs.py:3523
+#: gui/dialogs.py:3524
 msgid "Always"
 msgstr "हमेशा"
 
-#: gui/dialogs.py:3535
+#: gui/dialogs.py:3536
 msgid "Proxy URL (optional, e.g. http://host:port):"
 msgstr "प्रॉक्सी URL (वैकल्पिक, जैसे http://host:port):"
 
-#: gui/dialogs.py:3552
+#: gui/dialogs.py:3553
 msgid "Feed encoding (blank = automatic, e.g. utf-8, windows-1251):"
 msgstr "फ़ीड एन्कोडिंग (खाली = स्वचालित, जैसे utf-8, windows-1251):"
 
-#: gui/dialogs.py:3567
+#: gui/dialogs.py:3568
 msgid "Full text extraction encoding (blank = automatic):"
 msgstr "पूर्ण पाठ निष्कर्षण एन्कोडिंग (खाली = स्वचालित):"
 
-#: gui/dialogs.py:3588
+#: gui/dialogs.py:3589
 msgid "When I delete an article from this feed:"
 msgstr "जब मैं इस फ़ीड से कोई लेख हटाता हूं:"
 
-#: gui/dialogs.py:3692
+#: gui/dialogs.py:3693
 msgid ""
 "Unknown text encoding: %s. Use a Python codec name such as utf-8, "
 "windows-1251 or koi8-r, or leave the field blank for automatic detection."
@@ -3158,19 +3204,25 @@ msgstr ""
 "अज्ञात पाठ एन्कोडिंग: %s। utf-8, windows-1251 या koi8-r जैसा Python कोडेक "
 "नाम उपयोग करें, या स्वचालित पहचान के लिए फ़ील्ड खाली छोड़ें।"
 
-#: gui/dialogs.py:4025
+#: gui/dialogs.py:3957
+msgid "{n} consecutive failed attempt (likely a persistent problem)."
+msgid_plural "{n} consecutive failed attempts (likely a persistent problem)."
+msgstr[0] "{n} लगातार विफल प्रयास (संभवतः एक स्थायी समस्या)।"
+msgstr[1] "{n} लगातार विफल प्रयास (संभवतः एक स्थायी समस्या)।"
+
+#: gui/dialogs.py:4044
 msgid "Refreshing '{title}'..."
 msgstr "'{title}' रिफ़्रेश हो रहा है..."
 
-#: gui/dialogs.py:4174 gui/dialogs.py:5106
+#: gui/dialogs.py:4193 gui/dialogs.py:5125
 msgid "Search:"
 msgstr "खोजें:"
 
-#: gui/dialogs.py:4183
+#: gui/dialogs.py:4202
 msgid "Source:"
 msgstr "स्रोत:"
 
-#: gui/dialogs.py:4211
+#: gui/dialogs.py:4230
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
 "Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
@@ -3182,59 +3234,63 @@ msgstr ""
 "(Lemmy/Kbin/Mastodon/Bluesky/PieFed)। Feedly एक स्पष्ट स्रोत के रूप में "
 "उपलब्ध है।"
 
-#: gui/dialogs.py:4600 gui/dialogs.py:4625
+#: gui/dialogs.py:4619 gui/dialogs.py:4644
 msgid "News search feed"
 msgstr "समाचार खोज फ़ीड"
 
-#: gui/dialogs.py:5120
+#: gui/dialogs.py:5139
 msgid "Search Sites:"
 msgstr "खोज साइटें:"
 
-#: gui/dialogs.py:5124
+#: gui/dialogs.py:5143
 msgid "Filter Results:"
 msgstr "परिणाम फ़िल्टर करें:"
 
-#: gui/dialogs.py:5128
+#: gui/dialogs.py:5147
 msgid "Sort by:"
 msgstr "इसके अनुसार क्रमबद्ध करें:"
 
-#: gui/dialogs.py:6531
+#: gui/dialogs.py:6550
 msgid "Subscribe Error"
 msgstr "सदस्यता त्रुटि"
 
-#: gui/dialogs.py:6569
+#: gui/dialogs.py:6588
 msgid "Copied URL."
 msgstr "URL कॉपी की गई।"
 
-#: gui/dialogs.py:6582
+#: gui/dialogs.py:6601
 msgid "Saved searches:"
 msgstr "सहेजी गई खोजें:"
 
-#: gui/dialogs.py:7089
+#: gui/dialogs.py:7108
 msgid "(none)"
 msgstr "(कोई नहीं)"
 
-#: gui/dialogs.py:7224
+#: gui/dialogs.py:7243
 msgid "{sign}{v} dB"
 msgstr "{sign}{v} dB"
 
-#: gui/dialogs.py:7270
+#: gui/dialogs.py:7289
 msgid "&Preset:"
 msgstr "प्रीसेट(&P):"
 
-#: gui/dialogs.py:1611
+#: gui/dialogs.py:557 gui/dialogs.py:2982 gui/dialogs.py:3100
+msgid "Cookies"
+msgstr "कुकीज़"
+
+#: gui/dialogs.py:1612
 msgid "Inoreader App ID:"
 msgstr "Inoreader ऐप आईडी:"
 
-#: gui/dialogs.py:1618
+#: gui/dialogs.py:1619
 msgid "Inoreader App Key:"
 msgstr "Inoreader ऐप कुंजी:"
 
-#: gui/dialogs.py:1629
+#: gui/dialogs.py:1630
 msgid "Redirect URI:"
 msgstr "रीडायरेक्ट URI:"
 
-#: gui/dialogs.py:2577
+#: gui/dialogs.py:2578
 msgid ""
 "BlindRSS announcement test. If you can hear or read this, announcements are "
 "working."
@@ -3242,47 +3298,43 @@ msgstr ""
 "BlindRSS घोषणा परीक्षण। यदि आप इसे सुन या पढ़ सकते हैं, तो घोषणाएं काम कर "
 "रही हैं।"
 
-#: gui/dialogs.py:2981 gui/dialogs.py:3099
-msgid "Cookies"
-msgstr "कुकीज़"
-
-#: gui/dialogs.py:3012
+#: gui/dialogs.py:3013
 msgid "The playback cache is already empty."
 msgstr "प्लेबैक कैश पहले से खाली है।"
 
-#: gui/dialogs.py:3018
+#: gui/dialogs.py:3019
 msgid "Delete {n} cached file ({size})?"
 msgid_plural "Delete {n} cached files ({size})?"
 msgstr[0] "{n} कैश की गई फ़ाइल हटाएं ({size})?"
 msgstr[1] "{n} कैश की गई फ़ाइलें हटाएं ({size})?"
 
-#: gui/dialogs.py:4025
+#: gui/dialogs.py:4044
 msgid "feed"
 msgstr "फ़ीड"
 
-#: gui/dialogs.py:4608
+#: gui/dialogs.py:4627
 msgid "News topic feed"
 msgstr "समाचार विषय फ़ीड"
 
-#: gui/dialogs.py:6505
+#: gui/dialogs.py:6524
 msgid "Playback Error"
 msgstr "प्लेबैक त्रुटि"
 
-#: gui/dialogs.py:6811
+#: gui/dialogs.py:6830
 msgid "{index}. {title}, from {source}"
 msgstr "{index}. {title}, {source} से"
 
-#: gui/dialogs.py:6815
+#: gui/dialogs.py:6834
 msgid "{index}. {title}"
 msgstr "{index}. {title}"
 
-#: gui/dialogs.py:6822
+#: gui/dialogs.py:6841
 msgid "{n} item in queue."
 msgid_plural "{n} items in queue."
 msgstr[0] "कतार में {n} आइटम।"
 msgstr[1] "कतार में {n} आइटम।"
 
-#: gui/dialogs.py:6939
+#: gui/dialogs.py:6958
 msgid ""
 "Press the new shortcut for “{command}”.\n"
 "It must include Ctrl, Alt or Shift. Press Escape to cancel."
@@ -3290,15 +3342,15 @@ msgstr ""
 "“{command}” के लिए नया शॉर्टकट दबाएँ।\n"
 "इसमें Ctrl, Alt या Shift शामिल होना चाहिए। रद्द करने के लिए Escape दबाएँ।"
 
-#: gui/dialogs.py:7156
+#: gui/dialogs.py:7175
 msgid "Shortcut Conflict"
 msgstr "शॉर्टकट विरोध"
 
-#: gui/dialogs.py:7370
+#: gui/dialogs.py:7389
 msgid "{name} (my preset)"
 msgstr "{name} (मेरा प्रीसेट)"
 
-#: gui/dialogs.py:7488
+#: gui/dialogs.py:7507
 msgid "Delete the preset \"{name}\"?"
 msgstr "प्रीसेट \"{name}\" हटाएँ?"
 
@@ -3306,7 +3358,7 @@ msgstr "प्रीसेट \"{name}\" हटाएँ?"
 msgid "Could not read cookies from {browser}."
 msgstr "{browser} से कुकीज़ नहीं पढ़ी जा सकीं।"
 
-#: gui/dialogs.py:2273
+#: gui/dialogs.py:2274
 msgid ""
 "User Data Folder path:\n"
 "  {path}\n"
@@ -3314,7 +3366,7 @@ msgstr ""
 "उपयोगकर्ता डेटा फ़ोल्डर का पथ:\n"
 "  {path}\n"
 
-#: gui/dialogs.py:2274
+#: gui/dialogs.py:2275
 msgid ""
 "App Install Folder path:\n"
 "  {path}"
@@ -3322,27 +3374,27 @@ msgstr ""
 "ऐप इंस्टॉलेशन फ़ोल्डर का पथ:\n"
 "  {path}"
 
-#: gui/dialogs.py:6530
+#: gui/dialogs.py:6549
 msgid "Could not subscribe: {error}"
 msgstr "सदस्यता नहीं ली जा सकी: {error}"
 
-#: gui/dialogs.py:7462
+#: gui/dialogs.py:7481
 msgid "A preset named \"{name}\" already exists. Overwrite it?"
 msgstr "\"{name}\" नाम का प्रीसेट पहले से मौजूद है। उसे अधिलेखित करें?"
 
-#: gui/dialogs.py:1521
+#: gui/dialogs.py:1522
 msgid "{tool} path:"
 msgstr "{tool} पथ:"
 
-#: gui/dialogs.py:1722
+#: gui/dialogs.py:1723
 msgid "WAV files"
 msgstr "WAV फ़ाइलें"
 
-#: gui/dialogs.py:6504
+#: gui/dialogs.py:6523
 msgid "Could not start playback: {error}"
 msgstr "प्लेबैक शुरू नहीं किया जा सका: {error}"
 
-#: gui/dialogs.py:7152
+#: gui/dialogs.py:7171
 msgid ""
 "{accel} is already assigned to “{other}”.\n"
 "Reassign it to “{this}”?"
@@ -3775,23 +3827,23 @@ msgstr "सभी फ़ीड में सभी आइटम को पढ़
 msgid "Enter the address of a webpage to scan for feeds:"
 msgstr "फ़ीड खोजने के लिए वेब पृष्ठ का पता दर्ज करें:"
 
-#: gui/mainframe.py:12089
+#: gui/mainframe.py:12094
 msgid "Select a feed to subscribe to:"
 msgstr "सदस्यता के लिए एक फ़ीड चुनें:"
 
-#: gui/mainframe.py:12090
+#: gui/mainframe.py:12095
 msgid "Detected Feeds"
 msgstr "पहचानी गई फ़ीड"
 
-#: gui/mainframe.py:13051
+#: gui/mainframe.py:13056
 msgid "Release notes are available on GitHub."
 msgstr "रिलीज़ नोट्स GitHub पर उपलब्ध हैं।"
 
-#: gui/mainframe.py:13078
+#: gui/mainframe.py:13083
 msgid "Updating BlindRSS"
 msgstr "BlindRSS अपडेट हो रहा है"
 
-#: gui/mainframe.py:13079
+#: gui/mainframe.py:13084
 msgid "Starting update..."
 msgstr "अपडेट शुरू हो रहा है..."
 
@@ -4098,7 +4150,7 @@ msgstr "जानकारी"
 msgid "The Uncategorized folder cannot be removed."
 msgstr "अवर्गीकृत फ़ोल्डर को हटाया नहीं जा सकता।"
 
-#: gui/mainframe.py:7028 gui/mainframe.py:6983 gui/mainframe.py:12234
+#: gui/mainframe.py:7028 gui/mainframe.py:6983 gui/mainframe.py:12239
 msgid "Confirm"
 msgstr "पुष्टि करें"
 
@@ -4126,15 +4178,15 @@ msgstr "डाउनलोड अक्षम हैं। उन्हें �
 msgid "Downloads disabled"
 msgstr "डाउनलोड अक्षम"
 
-#: gui/mainframe.py:12073
+#: gui/mainframe.py:12078
 msgid "No feeds detected on this page."
 msgstr "इस पृष्ठ पर कोई फ़ीड नहीं मिली।"
 
-#: gui/mainframe.py:12227
+#: gui/mainframe.py:12232
 msgid "Failed to add feed."
 msgstr "फ़ीड जोड़ने में विफल।"
 
-#: gui/mainframe.py:12383
+#: gui/mainframe.py:12388
 msgid ""
 "This provider does not support changing the feed URL.\n"
 "The title and category will be updated, but the URL will stay the same."
@@ -4142,22 +4194,22 @@ msgstr ""
 "यह प्रदाता फ़ीड URL बदलने का समर्थन नहीं करता है।\n"
 "शीर्षक और श्रेणी अपडेट की जाएंगी, लेकिन URL वही रहेगा।"
 
-#: gui/mainframe.py:12387
+#: gui/mainframe.py:12392
 msgid "Feed URL not supported"
 msgstr "फ़ीड URL समर्थित नहीं है"
 
-#: gui/mainframe.py:12657
+#: gui/mainframe.py:12662
 msgid "Import successful."
 msgstr "आयात सफल।"
 
-#: gui/mainframe.py:12659
+#: gui/mainframe.py:12664
 msgid ""
 "Import failed. Please check the latest opml_debug_*.log in the temporary "
 "directory."
 msgstr ""
 "आयात विफल। कृपया अस्थायी निर्देशिका में नवीनतम opml_debug_*.log जांचें।"
 
-#: gui/mainframe.py:13052
+#: gui/mainframe.py:13057
 msgid ""
 "A new version of BlindRSS is available ({version}).\n"
 "\n"
@@ -4171,11 +4223,11 @@ msgstr ""
 "\n"
 "क्या अभी इस अपडेट को डाउनलोड और इंस्टॉल करें?"
 
-#: gui/mainframe.py:13057
+#: gui/mainframe.py:13062
 msgid "Update Available"
 msgstr "अपडेट उपलब्ध है"
 
-#: gui/mainframe.py:13065
+#: gui/mainframe.py:13070
 msgid ""
 "Auto-update is only available in the packaged app build.\n"
 "Download the latest release from GitHub."
@@ -4183,51 +4235,51 @@ msgstr ""
 "ऑटो-अपडेट केवल पैकेज्ड ऐप बिल्ड में उपलब्ध है।\n"
 "GitHub से नवीनतम रिलीज़ डाउनलोड करें।"
 
-#: gui/mainframe.py:13134
+#: gui/mainframe.py:13139
 msgid "Update Failed"
 msgstr "अपडेट विफल"
 
-#: gui/mainframe.py:13252
+#: gui/mainframe.py:13257
 msgid "Smart Folder"
 msgstr "स्मार्ट फ़ोल्डर"
 
-#: gui/mainframe.py:13265
+#: gui/mainframe.py:13270
 msgid "Show articles that match"
 msgstr "मेल खाने वाले लेख दिखाएं"
 
-#: gui/mainframe.py:13374
+#: gui/mainframe.py:13379
 msgid "Filter Rule"
 msgstr "फ़िल्टर नियम"
 
-#: gui/mainframe.py:13396
+#: gui/mainframe.py:13401
 msgid "Apply this rule to articles that match"
 msgstr "इस नियम को मेल खाने वाले लेखों पर लागू करें"
 
-#: gui/mainframe.py:13453
+#: gui/mainframe.py:13458
 msgid "Mark as &read"
 msgstr "&पढ़ा गया चिह्नित करें"
 
-#: gui/mainframe.py:13455
+#: gui/mainframe.py:13460
 msgid "Mark as &favorite"
 msgstr "&पसंदीदा चिह्नित करें"
 
-#: gui/mainframe.py:13457
+#: gui/mainframe.py:13462
 msgid "&Delete (uses the configured delete behavior)"
 msgstr "&हटाएं (कॉन्फ़िगर किए गए हटाने के व्यवहार का उपयोग करता है)"
 
-#: gui/mainframe.py:13459
+#: gui/mainframe.py:13464
 msgid "Skip &notification"
 msgstr "सूचना &छोड़ें"
 
-#: gui/mainframe.py:13465
+#: gui/mainframe.py:13470
 msgid "&Stop processing later rules when this rule matches"
 msgstr "जब यह नियम मेल खाता है तो बाद के नियमों को संसाधित करना &रोकें"
 
-#: gui/mainframe.py:13468
+#: gui/mainframe.py:13473
 msgid "Rule &enabled"
 msgstr "नियम &सक्षम"
 
-#: gui/mainframe.py:13527
+#: gui/mainframe.py:13532
 msgid ""
 "Choose at least one action for this rule (move, label, mark, delete, or skip"
 " notification)."
@@ -4235,35 +4287,35 @@ msgstr ""
 "इस नियम के लिए कम से कम एक क्रिया चुनें (स्थानांतरित करें, लेबल करें, "
 "चिह्नित करें, हटाएं, या सूचना छोड़ें)।"
 
-#: gui/mainframe.py:13528
+#: gui/mainframe.py:13533
 msgid "No Actions"
 msgstr "कोई क्रिया नहीं"
 
-#: gui/mainframe.py:13568
+#: gui/mainframe.py:13573
 msgid "&Add..."
 msgstr "&जोड़ें..."
 
-#: gui/mainframe.py:13569
+#: gui/mainframe.py:13574
 msgid "&Edit..."
 msgstr "&संपादित करें..."
 
-#: gui/mainframe.py:13570
+#: gui/mainframe.py:13575
 msgid "De&lete"
 msgstr "&हटाएं"
 
-#: gui/mainframe.py:13573
+#: gui/mainframe.py:13578
 msgid "En&able/Disable"
 msgstr "&सक्षम/अक्षम करें"
 
-#: gui/mainframe.py:13574
+#: gui/mainframe.py:13579
 msgid "Apply to E&xisting Articles"
 msgstr "मौजूदा लेखों पर &लागू करें"
 
-#: gui/mainframe.py:13680
+#: gui/mainframe.py:13685
 msgid "Delete Rule"
 msgstr "नियम हटाएं"
 
-#: gui/mainframe.py:13719
+#: gui/mainframe.py:13724
 msgid ""
 "Run all enabled rules against every existing article now? This may move, "
 "label, or delete articles."
@@ -4271,11 +4323,11 @@ msgstr ""
 "क्या अभी सभी सक्षम नियमों को हर मौजूदा लेख पर चलाना है? इससे लेख "
 "स्थानांतरित, लेबल या हटाए जा सकते हैं।"
 
-#: gui/mainframe.py:13723
+#: gui/mainframe.py:13728
 msgid "Apply to Existing Articles"
 msgstr "मौजूदा लेखों पर लागू करें"
 
-#: gui/mainframe.py:13750
+#: gui/mainframe.py:13755
 msgid "Filter Rules Applied"
 msgstr "फ़िल्टर नियम लागू किए गए"
 
@@ -4448,59 +4500,59 @@ msgstr "डाउनलोड विफल: {title}"
 msgid "Downloading: {title}"
 msgstr "डाउनलोड हो रहा है: {title}"
 
-#: gui/mainframe.py:12337
+#: gui/mainframe.py:12342
 msgid "This provider does not support editing feeds."
 msgstr "यह प्रदाता फ़ीड संपादित करने का समर्थन नहीं करता है।"
 
-#: gui/mainframe.py:12337 gui/mainframe.py:12437
+#: gui/mainframe.py:12342 gui/mainframe.py:12442
 msgid "Not supported"
 msgstr "समर्थित नहीं"
 
-#: gui/mainframe.py:12436
+#: gui/mainframe.py:12441
 msgid "This provider does not support resetting feed titles."
 msgstr "यह प्रदाता फ़ीड शीर्षकों को रीसेट करने का समर्थन नहीं करता है।"
 
-#: gui/mainframe.py:13027
+#: gui/mainframe.py:13032
 msgid "Update Check Failed"
 msgstr "अपडेट जांच विफल"
 
-#: gui/mainframe.py:13032
+#: gui/mainframe.py:13037
 msgid "No Updates"
 msgstr "कोई अपडेट नहीं"
 
-#: gui/mainframe.py:13037
+#: gui/mainframe.py:13042
 msgid "Unable to determine update status."
 msgstr "अपडेट स्थिति निर्धारित करने में असमर्थ।"
 
-#: gui/mainframe.py:13257
+#: gui/mainframe.py:13262
 msgid "Folder &name:"
 msgstr "फ़ोल्डर का &नाम:"
 
-#: gui/mainframe.py:13274 gui/mainframe.py:13406
+#: gui/mainframe.py:13279 gui/mainframe.py:13411
 msgid "Field"
 msgstr "फ़ील्ड"
 
-#: gui/mainframe.py:13275 gui/mainframe.py:13407
+#: gui/mainframe.py:13280 gui/mainframe.py:13412
 msgid "Condition"
 msgstr "स्थिति"
 
-#: gui/mainframe.py:13276 gui/mainframe.py:13408
+#: gui/mainframe.py:13281 gui/mainframe.py:13413
 msgid "Value"
 msgstr "मान"
 
-#: gui/mainframe.py:13388
+#: gui/mainframe.py:13393
 msgid "Rule &name:"
 msgstr "नियम का &नाम:"
 
-#: gui/mainframe.py:13432
+#: gui/mainframe.py:13437
 msgid "&Move to category:"
 msgstr "श्रेणी में &स्थानांतरित करें:"
 
-#: gui/mainframe.py:13443
+#: gui/mainframe.py:13448
 msgid "Also &label with category:"
 msgstr "इसके साथ भी &लेबल करें:"
 
-#: gui/mainframe.py:13557
+#: gui/mainframe.py:13562
 msgid "Rules run top to bottom for each incoming article, like email filters."
 msgstr ""
 "नियम प्रत्येक आने वाले लेख के लिए ऊपर से नीचे तक चलते हैं, ईमेल फ़िल्टर की "
@@ -4678,41 +4730,41 @@ msgstr "डाउनलोड पूर्ण"
 msgid "Download complete: {title}"
 msgstr "डाउनलोड पूर्ण: {title}"
 
-#: gui/mainframe.py:12046
+#: gui/mainframe.py:12053
 msgid ""
-"This site is protected by a browser verification page (such as a Cloudflare challenge) that no feed reader can pass on its own.\n"
+"BlindRSS could not complete this site's browser verification page automatically.\n"
 "\n"
-"To access it: open the site in your web browser once, export its cookies with a cookies.txt browser extension, then use Tools > Import Site Cookies."
+"You can still open the site in your web browser, export its cookies with a cookies.txt extension, then use Tools > Import Site Cookies."
 msgstr ""
-"यह साइट एक ब्राउज़र सत्यापन पृष्ठ (जैसे Cloudflare चुनौती) द्वारा सुरक्षित है जिसे कोई भी फ़ीड रीडर स्वयं पार नहीं कर सकता।\n"
+"BlindRSS इस साइट के ब्राउज़र सत्यापन पृष्ठ को स्वचालित रूप से पूरा नहीं कर सका।\n"
 "\n"
-"इसे एक्सेस करने के लिए: साइट को एक बार अपने वेब ब्राउज़र में खोलें, cookies.txt ब्राउज़र एक्सटेंशन से इसकी कुकीज़ निर्यात करें, फिर उपकरण > साइट कुकीज़ आयात करें का उपयोग करें।"
+"आप अब भी साइट को अपने वेब ब्राउज़र में खोल सकते हैं, cookies.txt एक्सटेंशन से इसकी कुकीज़ निर्यात कर सकते हैं, फिर उपकरण > साइट कुकीज़ आयात करें का उपयोग कर सकते हैं।"
 
-#: gui/mainframe.py:12055
+#: gui/mainframe.py:12060
 msgid "Unable to retrieve the page."
 msgstr "पृष्ठ प्राप्त नहीं किया जा सका।"
 
-#: gui/mainframe.py:12234
+#: gui/mainframe.py:12239
 msgid "Are you sure you want to remove this feed?"
 msgstr "क्या आप वाकई इस फ़ीड को हटाना चाहते हैं?"
 
-#: gui/mainframe.py:12474 gui/mainframe.py:12662 gui/mainframe.py:12711
+#: gui/mainframe.py:12479 gui/mainframe.py:12667 gui/mainframe.py:12716
 msgid "OPML files"
 msgstr "OPML फ़ाइलें"
 
-#: gui/mainframe.py:12668 gui/mainframe.py:12721
+#: gui/mainframe.py:12673 gui/mainframe.py:12726
 msgid "Export successful."
 msgstr "निर्यात सफल।"
 
-#: gui/mainframe.py:12670 gui/mainframe.py:12723
+#: gui/mainframe.py:12675 gui/mainframe.py:12728
 msgid "Export failed."
 msgstr "निर्यात विफल।"
 
-#: gui/mainframe.py:12786
+#: gui/mainframe.py:12791
 msgid "Storage Location"
 msgstr "संग्रहण स्थान"
 
-#: gui/mainframe.py:12791
+#: gui/mainframe.py:12796
 msgid ""
 "Config has been moved. The feed database will be migrated to the new "
 "location the next time BlindRSS starts."
@@ -4720,11 +4772,11 @@ msgstr ""
 "कॉन्फ़िग स्थानांतरित कर दिया गया है। अगली बार जब BlindRSS शुरू होगा तो फ़ीड "
 "डेटाबेस को नए स्थान पर माइग्रेट किया जाएगा।"
 
-#: gui/mainframe.py:12795
+#: gui/mainframe.py:12800
 msgid "Storage Location Changed"
 msgstr "संग्रहण स्थान बदला गया"
 
-#: gui/mainframe.py:13679
+#: gui/mainframe.py:13684
 msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
 "फ़िल्टर नियम \"{name}\" हटाएं? यह जिन लेखों को पहले ही फ़ाइल कर चुका है वे "
@@ -4858,19 +4910,19 @@ msgstr ""
 msgid "Download failed: {error}"
 msgstr "डाउनलोड विफल: {error}"
 
-#: gui/mainframe.py:12785
+#: gui/mainframe.py:12790
 msgid "Could not move config file."
 msgstr "कॉन्फ़िग फ़ाइल स्थानांतरित नहीं की जा सकी।"
 
-#: gui/mainframe.py:13637
+#: gui/mainframe.py:13642
 msgid "Could not create the rule."
 msgstr "नियम नहीं बनाया जा सका।"
 
-#: gui/mainframe.py:13666
+#: gui/mainframe.py:13671
 msgid "Could not update the rule."
 msgstr "नियम अपडेट नहीं किया जा सका।"
 
-#: gui/mainframe.py:13742
+#: gui/mainframe.py:13747
 msgid ""
 "Could not apply rules.\n"
 "\n"
@@ -4937,11 +4989,11 @@ msgstr ""
 "इसमें डाउनलोड किया गया:\n"
 "{path}"
 
-#: gui/mainframe.py:12725
+#: gui/mainframe.py:12730
 msgid "Export failed: {error}"
 msgstr "निर्यात विफल: {error}"
 
-#: gui/mainframe.py:12874
+#: gui/mainframe.py:12879
 msgid "Windows notification prerequisites could not be fully configured."
 msgstr "Windows सूचना पूर्वापेक्षाएं पूरी तरह कॉन्फ़िगर नहीं की जा सकीं।"
 
@@ -5151,6 +5203,9 @@ msgstr "अपठित: {count}"
 #: main.py:267
 msgid "BlindRSS is already running."
 msgstr "BlindRSS पहले से ही चल रहा है।"
+
+#~ msgid "Text files (*.txt)|*.txt|All files (*.*)|*.*"
+#~ msgstr "टेक्स्ट फ़ाइलें (*.txt)|*.txt|सभी फ़ाइलें (*.*)|*.*"
 
 #~ msgid "Show/Hide &Player (Ctrl+Shift+P)"
 #~ msgstr "प्लेयर दिखाएँ/छिपाएँ(&P) (Ctrl+Shift+P)"

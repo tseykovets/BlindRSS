@@ -92,8 +92,8 @@ msgstr "Apenas Braille"
 msgid "Speech and Braille"
 msgstr "Voz e Braille"
 
-#: core/article_columns.py:64 gui/dialogs.py:4202 gui/dialogs.py:5134
-#: gui/dialogs.py:5156
+#: core/article_columns.py:64 gui/dialogs.py:4221 gui/dialogs.py:5153
+#: gui/dialogs.py:5175
 msgid "Title"
 msgstr "Título"
 
@@ -109,7 +109,7 @@ msgstr "Multimédia"
 msgid "Date"
 msgstr "Data"
 
-#: core/article_columns.py:68 gui/dialogs.py:3852
+#: core/article_columns.py:68 gui/dialogs.py:3853
 msgid "Feed"
 msgstr "Feed"
 
@@ -160,7 +160,7 @@ msgstr ""
 "O Google News não conseguiu resolver a ligação original do editor. Abra a "
 "ligação original no seu navegador para o ler."
 
-#: core/article_extractor.py:2805
+#: core/article_extractor.py:2805 gui/dialogs.py:3963
 msgid "(unknown)"
 msgstr "(desconhecido)"
 
@@ -188,7 +188,7 @@ msgstr ""
 "Página transferida, mas não foi possível extrair texto legível (resultado "
 "vazio)."
 
-#: core/article_extractor.py:2806 gui/dialogs.py:3421
+#: core/article_extractor.py:2806 gui/dialogs.py:3422
 msgid "Title:"
 msgstr "Título:"
 
@@ -205,21 +205,21 @@ msgstr "Erro de extração desconhecido"
 msgid "Uncategorized"
 msgstr "Sem categoria"
 
-#: core/config.py:721
+#: core/config.py:729
 msgid "Installed Windows builds store data in the User Data Folder."
 msgstr ""
 "As versões instaladas do Windows guardam os dados na pasta de dados do "
 "utilizador."
 
-#: core/config.py:723
+#: core/config.py:731
 msgid "No change."
 msgstr "Sem alterações."
 
-#: core/config.py:749
+#: core/config.py:757
 msgid "Config moved to {path}."
 msgstr "Configuração movida para {path}."
 
-#: core/config.py:736
+#: core/config.py:744
 msgid "Could not write config at new location: {error}"
 msgstr "Não foi possível guardar a configuração na nova localização: {error}"
 
@@ -336,7 +336,7 @@ msgstr "Ordenação"
 msgid "Player"
 msgstr "Reprodutor"
 
-#: core/shortcuts.py:133 gui/dialogs.py:6703
+#: core/shortcuts.py:133 gui/dialogs.py:6722
 msgid "Play Queue"
 msgstr "Fila de reprodução"
 
@@ -352,8 +352,8 @@ msgstr "Ferramentas"
 msgid "Add Feed"
 msgstr "Adicionar feed"
 
-#: core/shortcuts.py:138 gui/mainframe.py:12025 gui/mainframe.py:12074
-#: gui/mainframe.py:12059
+#: core/shortcuts.py:138 gui/mainframe.py:12025 gui/mainframe.py:12079
+#: gui/mainframe.py:12064
 msgid "Detect Feeds on Page"
 msgstr "Detetar feeds na página"
 
@@ -398,19 +398,19 @@ msgstr "Adicionar categoria"
 msgid "Remove Category"
 msgstr "Remover categoria"
 
-#: core/shortcuts.py:149 gui/mainframe.py:12474
+#: core/shortcuts.py:149 gui/mainframe.py:12479
 msgid "Import OPML"
 msgstr "Importar OPML"
 
-#: core/shortcuts.py:150 gui/mainframe.py:12662
+#: core/shortcuts.py:150 gui/mainframe.py:12667
 msgid "Export OPML"
 msgstr "Exportar OPML"
 
-#: core/shortcuts.py:151 gui/dialogs.py:4164
+#: core/shortcuts.py:151 gui/dialogs.py:4183
 msgid "Find a Podcast or RSS Feed"
 msgstr "Encontrar um podcast ou feed RSS"
 
-#: core/shortcuts.py:152 gui/dialogs.py:2295 gui/dialogs.py:5055
+#: core/shortcuts.py:152 gui/dialogs.py:2296 gui/dialogs.py:5074
 msgid "Video Search"
 msgstr "Pesquisa de vídeo"
 
@@ -568,7 +568,7 @@ msgstr "Diminuir velocidade de reprodução"
 msgid "Reset Playback Speed (1x)"
 msgstr "Repor velocidade de reprodução (1x)"
 
-#: core/shortcuts.py:191 gui/mainframe.py:13550
+#: core/shortcuts.py:191 gui/mainframe.py:13555
 msgid "Filter Rules"
 msgstr "Regras de filtro"
 
@@ -577,15 +577,15 @@ msgstr "Regras de filtro"
 msgid "Import Site Cookies"
 msgstr "Importar cookies do site"
 
-#: core/shortcuts.py:193 gui/dialogs.py:6576
+#: core/shortcuts.py:193 gui/dialogs.py:6595
 msgid "Configure Persistent Search"
 msgstr "Configurar pesquisa persistente"
 
-#: core/shortcuts.py:194 gui/dialogs.py:7007
+#: core/shortcuts.py:194 gui/dialogs.py:7026
 msgid "Keyboard Shortcuts"
 msgstr "Atalhos de teclado"
 
-#: core/shortcuts.py:195 gui/dialogs.py:655 gui/mainframe.py:12861
+#: core/shortcuts.py:195 gui/dialogs.py:655 gui/mainframe.py:12866
 msgid "Settings"
 msgstr "Definições"
 
@@ -966,7 +966,7 @@ msgstr "Não foi possível carregar os artigos: {error}"
 msgid "No articles found."
 msgstr "Não foram encontrados artigos."
 
-#: gui/accessibility.py:246 gui/dialogs.py:216 gui/dialogs.py:3439
+#: gui/accessibility.py:246 gui/dialogs.py:216 gui/dialogs.py:3440
 msgid "Category:"
 msgstr "Categoria:"
 
@@ -990,11 +990,11 @@ msgstr ""
 "Escolha onde adicionar os atalhos do BlindRSS.\n"
 "Afixar na barra de tarefas pode ser limitado pela sua versão ou políticas do Windows."
 
-#: gui/dialogs.py:2523
+#: gui/dialogs.py:2524
 msgid "BlindRSS notification test"
 msgstr "Teste de notificação do BlindRSS"
 
-#: gui/dialogs.py:2524
+#: gui/dialogs.py:2525
 msgid "If you can read this, notifications are working."
 msgstr "Se conseguir ler isto, as notificações estão a funcionar."
 
@@ -1022,151 +1022,151 @@ msgstr "não assinalado"
 msgid "Choose the exported cookies.txt"
 msgstr "Escolher o cookies.txt exportado"
 
-#: gui/dialogs.py:874 gui/dialogs.py:3523
+#: gui/dialogs.py:875 gui/dialogs.py:3524
 msgid "Never"
 msgstr "Nunca"
 
-#: gui/dialogs.py:875 gui/dialogs.py:3451
+#: gui/dialogs.py:876 gui/dialogs.py:3452
 msgid "30 seconds"
 msgstr "30 segundos"
 
-#: gui/dialogs.py:876 gui/dialogs.py:3452
+#: gui/dialogs.py:877 gui/dialogs.py:3453
 msgid "1 minute"
 msgstr "1 minuto"
 
-#: gui/dialogs.py:877 gui/dialogs.py:3453
+#: gui/dialogs.py:878 gui/dialogs.py:3454
 msgid "2 minutes"
 msgstr "2 minutos"
 
-#: gui/dialogs.py:878 gui/dialogs.py:3454
+#: gui/dialogs.py:879 gui/dialogs.py:3455
 msgid "3 minutes"
 msgstr "3 minutos"
 
-#: gui/dialogs.py:879 gui/dialogs.py:3455
+#: gui/dialogs.py:880 gui/dialogs.py:3456
 msgid "4 minutes"
 msgstr "4 minutos"
 
-#: gui/dialogs.py:880 gui/dialogs.py:3456
+#: gui/dialogs.py:881 gui/dialogs.py:3457
 msgid "5 minutes"
 msgstr "5 minutos"
 
-#: gui/dialogs.py:881 gui/dialogs.py:3457
+#: gui/dialogs.py:882 gui/dialogs.py:3458
 msgid "10 minutes"
 msgstr "10 minutos"
 
-#: gui/dialogs.py:882 gui/dialogs.py:3458
+#: gui/dialogs.py:883 gui/dialogs.py:3459
 msgid "15 minutes"
 msgstr "15 minutos"
 
-#: gui/dialogs.py:883 gui/dialogs.py:3459
+#: gui/dialogs.py:884 gui/dialogs.py:3460
 msgid "30 minutes"
 msgstr "30 minutos"
 
-#: gui/dialogs.py:884 gui/dialogs.py:3460
+#: gui/dialogs.py:885 gui/dialogs.py:3461
 msgid "60 minutes"
 msgstr "60 minutos"
 
-#: gui/dialogs.py:885 gui/dialogs.py:3461
+#: gui/dialogs.py:886 gui/dialogs.py:3462
 msgid "2 hours"
 msgstr "2 horas"
 
-#: gui/dialogs.py:886 gui/dialogs.py:3462
+#: gui/dialogs.py:887 gui/dialogs.py:3463
 msgid "3 hours"
 msgstr "3 horas"
 
-#: gui/dialogs.py:887 gui/dialogs.py:3463
+#: gui/dialogs.py:888 gui/dialogs.py:3464
 msgid "4 hours"
 msgstr "4 horas"
 
-#: gui/dialogs.py:914
+#: gui/dialogs.py:915
 msgid "Titles only"
 msgstr "Somente títulos"
 
-#: gui/dialogs.py:915
+#: gui/dialogs.py:916
 msgid "Titles and article text"
 msgstr "Títulos e texto do artigo"
 
-#: gui/dialogs.py:1000 gui/dialogs.py:3601
+#: gui/dialogs.py:1001 gui/dialogs.py:3602
 msgid "Category / Path"
 msgstr "Categoria / Caminho"
 
-#: gui/dialogs.py:1100
+#: gui/dialogs.py:1101
 msgid "Use feed cache (fastest)"
 msgstr "Usar cache de feeds (mais rápido)"
 
-#: gui/dialogs.py:1101
+#: gui/dialogs.py:1102
 msgid "Fully refresh feeds at startup"
 msgstr "Atualizar totalmente os feeds ao iniciar"
 
-#: gui/dialogs.py:1102
+#: gui/dialogs.py:1103
 msgid "Always fully refresh feeds"
 msgstr "Atualizar sempre totalmente os feeds"
 
-#: gui/dialogs.py:1109
+#: gui/dialogs.py:1110
 msgid "Local RSS automatic feed refresh workload"
 msgstr "Modo de atualização automática de feeds do RSS local"
 
-#: gui/dialogs.py:1207
+#: gui/dialogs.py:1208
 msgid "Path to a cookies.txt file"
 msgstr "Caminho para um ficheiro cookies.txt"
 
-#: gui/dialogs.py:1242
+#: gui/dialogs.py:1243
 msgid "Leave blank for the default location"
 msgstr "Deixe em branco para o local predefinido"
 
-#: gui/dialogs.py:1311
+#: gui/dialogs.py:1312
 msgid "Automatic (system language)"
 msgstr "Automático (idioma do sistema)"
 
-#: gui/dialogs.py:1369 gui/dialogs.py:1377
+#: gui/dialogs.py:1370 gui/dialogs.py:1378
 msgid "All items expanded"
 msgstr "Todos os itens expandidos"
 
-#: gui/dialogs.py:1370 gui/dialogs.py:1377
+#: gui/dialogs.py:1371 gui/dialogs.py:1378
 msgid "All items collapsed"
 msgstr "Todos os itens recolhidos"
 
-#: gui/dialogs.py:1389 gui/dialogs.py:1397
+#: gui/dialogs.py:1390 gui/dialogs.py:1398
 msgid "Default browser"
 msgstr "Navegador padrão"
 
-#: gui/dialogs.py:1390 gui/dialogs.py:3189 gui/dialogs.py:1397
+#: gui/dialogs.py:1391 gui/dialogs.py:3190 gui/dialogs.py:1398
 msgid "Custom command"
 msgstr "Comando personalizado"
 
-#: gui/dialogs.py:1428 gui/dialogs.py:3621
+#: gui/dialogs.py:1429 gui/dialogs.py:3622
 msgid "General"
 msgstr "Geral"
 
-#: gui/dialogs.py:1430
+#: gui/dialogs.py:1431
 msgid "Feeds && Articles"
 msgstr "Feeds e artigos"
 
-#: gui/dialogs.py:1432
+#: gui/dialogs.py:1433
 msgid "Downloads"
 msgstr "Transferências"
 
-#: gui/dialogs.py:1434
+#: gui/dialogs.py:1435
 msgid "Startup && Tray"
 msgstr "Arranque && área de notificação"
 
-#: gui/dialogs.py:1436
+#: gui/dialogs.py:1437
 msgid "YouTube"
 msgstr "YouTube"
 
-#: gui/dialogs.py:1447
+#: gui/dialogs.py:1448
 msgid "Loading soundcards..."
 msgstr "A carregar placas de som..."
 
-#: gui/dialogs.py:1502
+#: gui/dialogs.py:1503
 msgid "Media tools (ffmpeg, ffprobe, yt-dlp)"
 msgstr "Ferramentas multimédia (ffmpeg, ffprobe, yt-dlp)"
 
-#: gui/dialogs.py:1543
+#: gui/dialogs.py:1544
 msgid "Media Player"
 msgstr "Reprodutor de multimédia"
 
-#: gui/dialogs.py:1681
+#: gui/dialogs.py:1682
 msgid ""
 "Local provider uses the feeds you add inside the app (Add Feed / Import "
 "OPML)."
@@ -1174,61 +1174,61 @@ msgstr ""
 "O fornecedor local usa os feeds que adiciona na aplicação (Adicionar feed / "
 "Importar OPML)."
 
-#: gui/dialogs.py:1700 gui/dialogs.py:4203
+#: gui/dialogs.py:1701 gui/dialogs.py:4222
 msgid "Provider"
 msgstr "Fornecedor"
 
-#: gui/dialogs.py:1732
+#: gui/dialogs.py:1733
 msgid "Refresh Complete Sound:"
 msgstr "Som de atualização concluída:"
 
-#: gui/dialogs.py:1733
+#: gui/dialogs.py:1734
 msgid "Refresh Error Sound:"
 msgstr "Som de erro de atualização:"
 
-#: gui/dialogs.py:1736
+#: gui/dialogs.py:1737
 msgid "Sounds"
 msgstr "Sons"
 
-#: gui/dialogs.py:1807 gui/dialogs.py:2520 gui/dialogs.py:2554
-#: gui/mainframe.py:12875
+#: gui/dialogs.py:1808 gui/dialogs.py:2521 gui/dialogs.py:2555
+#: gui/mainframe.py:12880
 msgid "Notifications"
 msgstr "Notificações"
 
-#: gui/dialogs.py:1853 gui/dialogs.py:1852
+#: gui/dialogs.py:1854 gui/dialogs.py:1853
 msgid "Test Announcement"
 msgstr "Anúncio de teste"
 
-#: gui/dialogs.py:1855
+#: gui/dialogs.py:1856
 msgid "Send a test announcement to your screen reader via speech and Braille."
 msgstr ""
 "Enviar um anúncio de teste para o seu leitor de ecrã por voz e braille."
 
-#: gui/dialogs.py:1861 gui/dialogs.py:2597
+#: gui/dialogs.py:1862 gui/dialogs.py:2598
 msgid "Announcements"
 msgstr "Anúncios"
 
-#: gui/dialogs.py:2214
+#: gui/dialogs.py:2215
 msgid "Translate"
 msgstr "Traduzir"
 
-#: gui/dialogs.py:2224 gui/dialogs.py:3629
+#: gui/dialogs.py:2225 gui/dialogs.py:3630
 msgid "List Headers"
 msgstr "Cabeçalhos de lista"
 
-#: gui/dialogs.py:2244
+#: gui/dialogs.py:2245
 msgid "User Data Folder"
 msgstr "Pasta de dados do utilizador"
 
-#: gui/dialogs.py:2245
+#: gui/dialogs.py:2246
 msgid "App Install Folder"
 msgstr "Pasta de instalação da aplicação"
 
-#: gui/dialogs.py:2319
+#: gui/dialogs.py:2320
 msgid "Advanced"
 msgstr "Avançado"
 
-#: gui/dialogs.py:2591
+#: gui/dialogs.py:2592
 msgid ""
 "The announcement could not be delivered.\n"
 "\n"
@@ -1238,165 +1238,181 @@ msgstr ""
 "\n"
 "Não havia saída de leitor de ecrã disponível. Verifique se o seu leitor de ecrã está em execução e se a biblioteca accessible-output2 está instalada para suporte completo de voz e braille."
 
-#: gui/dialogs.py:2979
+#: gui/dialogs.py:2980
 msgid "Choose yt-dlp cookies.txt"
 msgstr "Escolher cookies.txt do yt-dlp"
 
-#: gui/dialogs.py:3020
+#: gui/dialogs.py:3021
 msgid "Clear playback cache"
 msgstr "Limpar cache de reprodução"
 
-#: gui/dialogs.py:3028
+#: gui/dialogs.py:3029
 msgid "Playback cache cleared"
 msgstr "Cache de reprodução limpo"
 
-#: gui/dialogs.py:3060
+#: gui/dialogs.py:3061
 msgid "Find my export"
 msgstr "Encontrar a minha exportação"
 
-#: gui/dialogs.py:3060
+#: gui/dialogs.py:3061
 msgid "Open extension page"
 msgstr "Abrir página da extensão"
 
-#: gui/dialogs.py:3060 gui/dialogs.py:3091 gui/player.py:402
+#: gui/dialogs.py:3061 gui/dialogs.py:3092 gui/player.py:402
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: gui/dialogs.py:3130
+#: gui/dialogs.py:3131
 msgid "Cookies imported"
 msgstr "Cookies importados"
 
-#: gui/dialogs.py:3466
+#: gui/dialogs.py:3467
 msgid "Refresh interval for this feed"
 msgstr "Intervalo de atualização para este feed"
 
-#: gui/dialogs.py:3853
+#: gui/dialogs.py:3854
 msgid "Last attempt"
 msgstr "Última tentativa"
 
-#: gui/dialogs.py:3854
+#: gui/dialogs.py:3855
 msgid "Failures"
 msgstr "Falhas"
 
-#: gui/dialogs.py:3855 gui/mainframe.py:12420 gui/mainframe.py:12471
+#: gui/dialogs.py:3856 gui/mainframe.py:12425 gui/mainframe.py:12476
 #: gui/mainframe.py:6881
 msgid "Error"
 msgstr "Erro"
 
-#: gui/dialogs.py:3900
+#: gui/dialogs.py:3901
 msgid "No feeds reported errors during their most recent update."
 msgstr "Nenhuma fonte comunicou erros durante a última atualização."
 
-#: gui/dialogs.py:3902
-msgid "1 feed failed to update during its most recent attempt:"
-msgstr "1 fonte falhou ao atualizar na última tentativa:"
+#: gui/dialogs.py:3910 gui/dialogs.py:3914
+msgid "Unknown"
+msgstr "Desconhecido"
 
-#: gui/dialogs.py:4179
+#: gui/dialogs.py:3955
+msgid "1 failed attempt so far (this may be a one-off glitch)."
+msgstr "Até agora 1 tentativa falhada (pode ser uma falha pontual)."
+
+#: gui/dialogs.py:3962
+msgid "Untitled feed"
+msgstr "Fonte sem título"
+
+#: gui/dialogs.py:3966
+msgid "No successful update recorded."
+msgstr "Nenhuma atualização bem-sucedida registada."
+
+#: gui/dialogs.py:3968
+msgid "Unknown error"
+msgstr "Erro desconhecido"
+
+#: gui/dialogs.py:4198
 msgid "Podcast name, topic, or site URL"
 msgstr "Nome do podcast, tópico ou URL do site"
 
-#: gui/dialogs.py:4204 gui/dialogs.py:5160
+#: gui/dialogs.py:4223 gui/dialogs.py:5179
 msgid "Details"
 msgstr "Detalhes"
 
-#: gui/dialogs.py:4205 gui/dialogs.py:5161
+#: gui/dialogs.py:4224 gui/dialogs.py:5180
 msgid "URL"
 msgstr "URL"
 
-#: gui/dialogs.py:5110
+#: gui/dialogs.py:5129
 msgid "Search videos across sites"
 msgstr "Pesquisar vídeos em vários sites"
 
-#: gui/dialogs.py:5134
+#: gui/dialogs.py:5153
 msgid "Relevance"
 msgstr "Relevância"
 
-#: gui/dialogs.py:5134 gui/dialogs.py:5157
+#: gui/dialogs.py:5153 gui/dialogs.py:5176
 msgid "Site"
 msgstr "Site"
 
-#: gui/dialogs.py:5134 gui/dialogs.py:5159
+#: gui/dialogs.py:5153 gui/dialogs.py:5178
 msgid "Plays"
 msgstr "Reproduções"
 
-#: gui/dialogs.py:5158
+#: gui/dialogs.py:5177
 msgid "Kind"
 msgstr "Tipo"
 
-#: gui/dialogs.py:5165 gui/dialogs.py:6671 gui/mainframe.py:5987
+#: gui/dialogs.py:5184 gui/dialogs.py:6690 gui/mainframe.py:5987
 #: gui/mainframe.py:5085
 msgid "Close"
 msgstr "Fechar"
 
-#: gui/dialogs.py:6345 gui/player.py:2023
+#: gui/dialogs.py:6364 gui/player.py:2023
 msgid "Play"
 msgstr "Reproduzir"
 
-#: gui/dialogs.py:6346 gui/dialogs.py:6523
+#: gui/dialogs.py:6365 gui/dialogs.py:6542
 msgid "Subscribe"
 msgstr "Subscrever"
 
-#: gui/dialogs.py:6347
+#: gui/dialogs.py:6366
 msgid "Copy URL"
 msgstr "Copiar URL"
 
-#: gui/dialogs.py:6617
+#: gui/dialogs.py:6636
 msgid "Search query:"
 msgstr "Consulta de pesquisa:"
 
-#: gui/dialogs.py:6617
+#: gui/dialogs.py:6636
 msgid "Add Search"
 msgstr "Adicionar pesquisa"
 
-#: gui/dialogs.py:6714
+#: gui/dialogs.py:6733
 msgid "Queued media"
 msgstr "Multimédia em fila"
 
-#: gui/dialogs.py:6842
+#: gui/dialogs.py:6861
 msgid "&Pause"
 msgstr "&Pausar"
 
-#: gui/dialogs.py:6842 gui/dialogs.py:6725
+#: gui/dialogs.py:6861 gui/dialogs.py:6744
 msgid "&Play"
 msgstr "&Reproduzir"
 
-#: gui/dialogs.py:6947
+#: gui/dialogs.py:6966
 msgid "Captured keyboard shortcut"
 msgstr "Atalho de teclado capturado"
 
-#: gui/dialogs.py:7024
+#: gui/dialogs.py:7043
 msgid "Keyboard shortcuts"
 msgstr "Atalhos de teclado"
 
-#: gui/dialogs.py:7025
+#: gui/dialogs.py:7044
 msgid "Category"
 msgstr "Categoria"
 
-#: gui/dialogs.py:7026
+#: gui/dialogs.py:7045
 msgid "Command"
 msgstr "Comando"
 
-#: gui/dialogs.py:7027
+#: gui/dialogs.py:7046
 msgid "Shortcut"
 msgstr "Atalho"
 
-#: gui/dialogs.py:7272
+#: gui/dialogs.py:7291
 msgid "Preset"
 msgstr "Predefinição"
 
-#: gui/dialogs.py:7281
+#: gui/dialogs.py:7300
 msgid "Preamp"
 msgstr "Pré-amplificador"
 
-#: gui/dialogs.py:7364
+#: gui/dialogs.py:7383
 msgid "Custom"
 msgstr "Personalizado"
 
-#: gui/dialogs.py:7451
+#: gui/dialogs.py:7470
 msgid "Name for this equalizer preset:"
 msgstr "Nome para esta predefinição do equalizador:"
 
-#: gui/dialogs.py:7451 gui/dialogs.py:7477 gui/dialogs.py:7463
+#: gui/dialogs.py:7470 gui/dialogs.py:7496 gui/dialogs.py:7482
 msgid "Save Preset"
 msgstr "Guardar predefinição"
 
@@ -1404,15 +1420,15 @@ msgstr "Guardar predefinição"
 msgid "Use the global column layout"
 msgstr "Usar o esquema global de colunas"
 
-#: gui/dialogs.py:109 gui/dialogs.py:6729 gui/mainframe.py:13571
+#: gui/dialogs.py:109 gui/dialogs.py:6748 gui/mainframe.py:13576
 msgid "Move &Up"
 msgstr "Mover para &cima"
 
-#: gui/dialogs.py:110 gui/dialogs.py:6733 gui/mainframe.py:13572
+#: gui/dialogs.py:110 gui/dialogs.py:6752 gui/mainframe.py:13577
 msgid "Move &Down"
 msgstr "Mover para &baixo"
 
-#: gui/dialogs.py:111 gui/dialogs.py:7042
+#: gui/dialogs.py:111 gui/dialogs.py:7061
 msgid "Reset All to &Defaults"
 msgstr "Repor tudo para as pre&definições"
 
@@ -1484,10 +1500,6 @@ msgstr ""
 msgid "&Browse..."
 msgstr "Procurar..."
 
-#: gui/dialogs.py:557
-msgid "Text files (*.txt)|*.txt|All files (*.*)|*.*"
-msgstr "Ficheiros de texto (*.txt)|*.txt|Todos os ficheiros (*.*)|*.*"
-
 #: gui/dialogs.py:574
 msgid ""
 "No supported browser profiles were found.\n"
@@ -1504,7 +1516,9 @@ msgstr "Escolha o perfil do navegador do qual importar os cookies:"
 
 #: gui/dialogs.py:625
 msgid "Imported {count} cookies from {browser}."
-msgstr "{count} cookies importados de {browser}."
+msgid_plural "Imported {count} cookies from {browser}."
+msgstr[0] "{count} cookie importado de {browser}."
+msgstr[1] "{count} cookies importados de {browser}."
 
 #: gui/dialogs.py:658
 msgid "Abkhazian"
@@ -1667,655 +1681,659 @@ msgid "Divehi"
 msgstr "Divehi"
 
 #: gui/dialogs.py:698
+msgid "Dutch (Belgium)"
+msgstr "Neerlandês (Bélgica)"
+
+#: gui/dialogs.py:699
 msgid "Dutch"
 msgstr "Neerlandês"
 
-#: gui/dialogs.py:699
+#: gui/dialogs.py:700
 msgid "Dzongkha"
 msgstr "Dzonga"
 
-#: gui/dialogs.py:700 gui/dialogs.py:2857
+#: gui/dialogs.py:701 gui/dialogs.py:2858
 msgid "English"
 msgstr "Inglês"
 
-#: gui/dialogs.py:701
+#: gui/dialogs.py:702
 msgid "Esperanto"
 msgstr "Esperanto"
 
-#: gui/dialogs.py:702
+#: gui/dialogs.py:703
 msgid "Estonian"
 msgstr "Estónio"
 
-#: gui/dialogs.py:703
+#: gui/dialogs.py:704
 msgid "Ewe"
 msgstr "Ewe"
 
-#: gui/dialogs.py:704
+#: gui/dialogs.py:705
 msgid "Faroese"
 msgstr "Feroês"
 
-#: gui/dialogs.py:705
+#: gui/dialogs.py:706
 msgid "Fijian"
 msgstr "Fijiano"
 
-#: gui/dialogs.py:706
+#: gui/dialogs.py:707
 msgid "Finnish"
 msgstr "Finlandês"
 
-#: gui/dialogs.py:707
+#: gui/dialogs.py:708
 msgid "French"
 msgstr "Francês"
 
-#: gui/dialogs.py:708
+#: gui/dialogs.py:709
 msgid "Fulah"
 msgstr "Fula"
 
-#: gui/dialogs.py:709
+#: gui/dialogs.py:710
 msgid "Galician"
 msgstr "Galego"
 
-#: gui/dialogs.py:710
+#: gui/dialogs.py:711
 msgid "Ganda"
 msgstr "Ganda"
 
-#: gui/dialogs.py:711
+#: gui/dialogs.py:712
 msgid "Georgian"
 msgstr "Georgiano"
 
-#: gui/dialogs.py:712
+#: gui/dialogs.py:713
 msgid "German"
 msgstr "Alemão"
 
-#: gui/dialogs.py:713
+#: gui/dialogs.py:714
 msgid "Guarani"
 msgstr "Guarani"
 
-#: gui/dialogs.py:714
+#: gui/dialogs.py:715
 msgid "Gujarati"
 msgstr "Guzerate"
 
-#: gui/dialogs.py:715
+#: gui/dialogs.py:716
 msgid "Haitian"
 msgstr "Haitiano"
 
-#: gui/dialogs.py:716
+#: gui/dialogs.py:717
 msgid "Hausa"
 msgstr "Haúça"
 
-#: gui/dialogs.py:717
+#: gui/dialogs.py:718
 msgid "Hebrew"
 msgstr "Hebraico"
 
-#: gui/dialogs.py:718
+#: gui/dialogs.py:719
 msgid "Herero"
 msgstr "Herero"
 
-#: gui/dialogs.py:719
+#: gui/dialogs.py:720
 msgid "Hindi"
 msgstr "Hindi"
 
-#: gui/dialogs.py:720
+#: gui/dialogs.py:721
 msgid "Hiri Motu"
 msgstr "Hiri motu"
 
-#: gui/dialogs.py:721
+#: gui/dialogs.py:722
 msgid "Hungarian"
 msgstr "Húngaro"
 
-#: gui/dialogs.py:722
+#: gui/dialogs.py:723
 msgid "Icelandic"
 msgstr "Islandês"
 
-#: gui/dialogs.py:723
+#: gui/dialogs.py:724
 msgid "Ido"
 msgstr "Ido"
 
-#: gui/dialogs.py:724
+#: gui/dialogs.py:725
 msgid "Igbo"
 msgstr "Igbo"
 
-#: gui/dialogs.py:725
+#: gui/dialogs.py:726
 msgid "Indonesian"
 msgstr "Indonésio"
 
-#: gui/dialogs.py:726
+#: gui/dialogs.py:727
 msgid "Interlingua (International Auxiliary Language Association)"
 msgstr "Interlíngua"
 
-#: gui/dialogs.py:727
+#: gui/dialogs.py:728
 msgid "Interlingue"
 msgstr "Interlingue"
 
-#: gui/dialogs.py:728
+#: gui/dialogs.py:729
 msgid "Inuktitut"
 msgstr "Inuktitut"
 
-#: gui/dialogs.py:729
+#: gui/dialogs.py:730
 msgid "Inupiaq"
 msgstr "Inupiaque"
 
-#: gui/dialogs.py:730
+#: gui/dialogs.py:731
 msgid "Irish"
 msgstr "Irlandês"
 
-#: gui/dialogs.py:731
+#: gui/dialogs.py:732
 msgid "Italian"
 msgstr "Italiano"
 
-#: gui/dialogs.py:732
+#: gui/dialogs.py:733
 msgid "Japanese"
 msgstr "Japonês"
 
-#: gui/dialogs.py:733
+#: gui/dialogs.py:734
 msgid "Javanese"
 msgstr "Javanês"
 
-#: gui/dialogs.py:734
+#: gui/dialogs.py:735
 msgid "Kalaallisut"
 msgstr "Gronelandês"
 
-#: gui/dialogs.py:735
+#: gui/dialogs.py:736
 msgid "Kannada"
 msgstr "Canarim"
 
-#: gui/dialogs.py:736
+#: gui/dialogs.py:737
 msgid "Kanuri"
 msgstr "Canúri"
 
-#: gui/dialogs.py:737
+#: gui/dialogs.py:738
 msgid "Kashmiri"
 msgstr "Caxemira"
 
-#: gui/dialogs.py:738
+#: gui/dialogs.py:739
 msgid "Kazakh"
 msgstr "Cazaque"
 
-#: gui/dialogs.py:739
+#: gui/dialogs.py:740
 msgid "Khmer"
 msgstr "Khmer"
 
-#: gui/dialogs.py:740
+#: gui/dialogs.py:741
 msgid "Kikuyu"
 msgstr "Quicuio"
 
-#: gui/dialogs.py:741
+#: gui/dialogs.py:742
 msgid "Kinyarwanda"
 msgstr "Quiniaruanda"
 
-#: gui/dialogs.py:742
+#: gui/dialogs.py:743
 msgid "Kirghiz"
 msgstr "Quirguiz"
 
-#: gui/dialogs.py:743
+#: gui/dialogs.py:744
 msgid "Komi"
 msgstr "Komi"
 
-#: gui/dialogs.py:744
+#: gui/dialogs.py:745
 msgid "Kongo"
 msgstr "Congolês"
 
-#: gui/dialogs.py:745
+#: gui/dialogs.py:746
 msgid "Korean"
 msgstr "Coreano"
 
-#: gui/dialogs.py:746
+#: gui/dialogs.py:747
 msgid "Kuanyama"
 msgstr "Cuanhama"
 
-#: gui/dialogs.py:747
+#: gui/dialogs.py:748
 msgid "Kurdish"
 msgstr "Curdo"
 
-#: gui/dialogs.py:748
+#: gui/dialogs.py:749
 msgid "Lao"
 msgstr "Laosiano"
 
-#: gui/dialogs.py:749
+#: gui/dialogs.py:750
 msgid "Latin"
 msgstr "Latim"
 
-#: gui/dialogs.py:750
+#: gui/dialogs.py:751
 msgid "Latvian"
 msgstr "Letão"
 
-#: gui/dialogs.py:751
+#: gui/dialogs.py:752
 msgid "Limburgan"
 msgstr "Limburguês"
 
-#: gui/dialogs.py:752
+#: gui/dialogs.py:753
 msgid "Lingala"
 msgstr "Lingala"
 
-#: gui/dialogs.py:753
+#: gui/dialogs.py:754
 msgid "Lithuanian"
 msgstr "Lituano"
 
-#: gui/dialogs.py:754
+#: gui/dialogs.py:755
 msgid "Luba-Katanga"
 msgstr "Luba-catanga"
 
-#: gui/dialogs.py:755
+#: gui/dialogs.py:756
 msgid "Luxembourgish"
 msgstr "Luxemburguês"
 
-#: gui/dialogs.py:756
+#: gui/dialogs.py:757
 msgid "Macedonian"
 msgstr "Macedónio"
 
-#: gui/dialogs.py:757
+#: gui/dialogs.py:758
 msgid "Malagasy"
 msgstr "Malgaxe"
 
-#: gui/dialogs.py:758
+#: gui/dialogs.py:759
 msgid "Malay (macrolanguage)"
 msgstr "Malaio"
 
-#: gui/dialogs.py:759
+#: gui/dialogs.py:760
 msgid "Malayalam"
 msgstr "Malaiala"
 
-#: gui/dialogs.py:760
+#: gui/dialogs.py:761
 msgid "Maltese"
 msgstr "Maltês"
 
-#: gui/dialogs.py:761
+#: gui/dialogs.py:762
 msgid "Manx"
 msgstr "Manx"
 
-#: gui/dialogs.py:762
+#: gui/dialogs.py:763
 msgid "Maori"
 msgstr "Maori"
 
-#: gui/dialogs.py:763
+#: gui/dialogs.py:764
 msgid "Marathi"
 msgstr "Marata"
 
-#: gui/dialogs.py:764
+#: gui/dialogs.py:765
 msgid "Marshallese"
 msgstr "Marshalês"
 
-#: gui/dialogs.py:765
+#: gui/dialogs.py:766
 msgid "Modern Greek (1453-)"
 msgstr "Grego"
 
-#: gui/dialogs.py:766
+#: gui/dialogs.py:767
 msgid "Mongolian"
 msgstr "Mongol"
 
-#: gui/dialogs.py:767
+#: gui/dialogs.py:768
 msgid "Nauruan"
 msgstr "Nauruano"
 
-#: gui/dialogs.py:768
+#: gui/dialogs.py:769
 msgid "Navajo"
 msgstr "Navajo"
 
-#: gui/dialogs.py:769
+#: gui/dialogs.py:770
 msgid "Ndonga"
 msgstr "Dongo"
 
-#: gui/dialogs.py:770
+#: gui/dialogs.py:771
 msgid "Nepali (macrolanguage)"
 msgstr "Nepalês"
 
-#: gui/dialogs.py:771
+#: gui/dialogs.py:772
 msgid "North Ndebele"
 msgstr "Ndebele do norte"
 
-#: gui/dialogs.py:772
+#: gui/dialogs.py:773
 msgid "Northern Sami"
 msgstr "Sami do norte"
 
-#: gui/dialogs.py:773
+#: gui/dialogs.py:774
 msgid "Norwegian"
 msgstr "Norueguês"
 
-#: gui/dialogs.py:774
+#: gui/dialogs.py:775
 msgid "Norwegian Bokmal"
 msgstr "Norueguês bokmål"
 
-#: gui/dialogs.py:775
+#: gui/dialogs.py:776
 msgid "Norwegian Nynorsk"
 msgstr "Norueguês nynorsk"
 
-#: gui/dialogs.py:776
+#: gui/dialogs.py:777
 msgid "Occitan (post 1500)"
 msgstr "Occitano"
 
-#: gui/dialogs.py:777
+#: gui/dialogs.py:778
 msgid "Ojibwa"
 msgstr "Ojibwa"
 
-#: gui/dialogs.py:778
+#: gui/dialogs.py:779
 msgid "Oriya (macrolanguage)"
 msgstr "Oriá"
 
-#: gui/dialogs.py:779
+#: gui/dialogs.py:780
 msgid "Oromo"
 msgstr "Oromo"
 
-#: gui/dialogs.py:780
+#: gui/dialogs.py:781
 msgid "Ossetian"
 msgstr "Ossético"
 
-#: gui/dialogs.py:781
+#: gui/dialogs.py:782
 msgid "Pali"
 msgstr "Páli"
 
-#: gui/dialogs.py:782
+#: gui/dialogs.py:783
 msgid "Panjabi"
 msgstr "Panjabi"
 
-#: gui/dialogs.py:783
+#: gui/dialogs.py:784
 msgid "Persian"
 msgstr "Persa"
 
-#: gui/dialogs.py:784
+#: gui/dialogs.py:785
 msgid "Polish"
 msgstr "Polaco"
 
-#: gui/dialogs.py:785
+#: gui/dialogs.py:786
 msgid "Portuguese (Brazil)"
 msgstr "Português do Brasil"
 
-#: gui/dialogs.py:786
+#: gui/dialogs.py:787
 msgid "Portuguese (Portugal)"
 msgstr "Português europeu"
 
-#: gui/dialogs.py:787
+#: gui/dialogs.py:788
 msgid "Portuguese"
 msgstr "Português"
 
-#: gui/dialogs.py:788
+#: gui/dialogs.py:789
 msgid "Pushto"
 msgstr "Pastó"
 
-#: gui/dialogs.py:789
+#: gui/dialogs.py:790
 msgid "Quechua"
 msgstr "Quíchua"
 
-#: gui/dialogs.py:790
+#: gui/dialogs.py:791
 msgid "Romanian"
 msgstr "Romeno"
 
-#: gui/dialogs.py:791
+#: gui/dialogs.py:792
 msgid "Romansh"
 msgstr "Romanche"
 
-#: gui/dialogs.py:792
+#: gui/dialogs.py:793
 msgid "Rundi"
 msgstr "Rundi"
 
-#: gui/dialogs.py:793
+#: gui/dialogs.py:794
 msgid "Russian"
 msgstr "Russo"
 
-#: gui/dialogs.py:794
+#: gui/dialogs.py:795
 msgid "Samoan"
 msgstr "Samoano"
 
-#: gui/dialogs.py:795
+#: gui/dialogs.py:796
 msgid "Sango"
 msgstr "Sango"
 
-#: gui/dialogs.py:796
+#: gui/dialogs.py:797
 msgid "Sanskrit"
 msgstr "Sânscrito"
 
-#: gui/dialogs.py:797
+#: gui/dialogs.py:798
 msgid "Sardinian"
 msgstr "Sardo"
 
-#: gui/dialogs.py:798
+#: gui/dialogs.py:799
 msgid "Scottish Gaelic"
 msgstr "Gaélico escocês"
 
-#: gui/dialogs.py:799
+#: gui/dialogs.py:800
 msgid "Serbian"
 msgstr "Sérvio"
 
-#: gui/dialogs.py:800
+#: gui/dialogs.py:801
 msgid "Serbo-Croatian"
 msgstr "Servo-croata"
 
-#: gui/dialogs.py:801
+#: gui/dialogs.py:802
 msgid "Shona"
 msgstr "Shona"
 
-#: gui/dialogs.py:802
+#: gui/dialogs.py:803
 msgid "Sichuan Yi"
 msgstr "Sichuan yi"
 
-#: gui/dialogs.py:803
+#: gui/dialogs.py:804
 msgid "Sindhi"
 msgstr "Sindi"
 
-#: gui/dialogs.py:804
+#: gui/dialogs.py:805
 msgid "Sinhala"
 msgstr "Cingalês"
 
-#: gui/dialogs.py:805
+#: gui/dialogs.py:806
 msgid "Slovak"
 msgstr "Eslovaco"
 
-#: gui/dialogs.py:806
+#: gui/dialogs.py:807
 msgid "Slovenian"
 msgstr "Esloveno"
 
-#: gui/dialogs.py:807
+#: gui/dialogs.py:808
 msgid "Somali"
 msgstr "Somali"
 
-#: gui/dialogs.py:808
+#: gui/dialogs.py:809
 msgid "South Ndebele"
 msgstr "Ndebele do sul"
 
-#: gui/dialogs.py:809
+#: gui/dialogs.py:810
 msgid "Southern Sotho"
 msgstr "Sesoto"
 
-#: gui/dialogs.py:810
+#: gui/dialogs.py:811
 msgid "Spanish"
 msgstr "Espanhol"
 
-#: gui/dialogs.py:811
+#: gui/dialogs.py:812
 msgid "Sundanese"
 msgstr "Sundanês"
 
-#: gui/dialogs.py:812
+#: gui/dialogs.py:813
 msgid "Swahili (macrolanguage)"
 msgstr "Suaíli"
 
-#: gui/dialogs.py:813
+#: gui/dialogs.py:814
 msgid "Swati"
 msgstr "Suázi"
 
-#: gui/dialogs.py:814
+#: gui/dialogs.py:815
 msgid "Swedish"
 msgstr "Sueco"
 
-#: gui/dialogs.py:815
+#: gui/dialogs.py:816
 msgid "Tagalog"
 msgstr "Tagalo"
 
-#: gui/dialogs.py:816
+#: gui/dialogs.py:817
 msgid "Tahitian"
 msgstr "Taitiano"
 
-#: gui/dialogs.py:817
+#: gui/dialogs.py:818
 msgid "Tajik"
 msgstr "Tajique"
 
-#: gui/dialogs.py:818
+#: gui/dialogs.py:819
 msgid "Tamil"
 msgstr "Tâmil"
 
-#: gui/dialogs.py:819
+#: gui/dialogs.py:820
 msgid "Tatar"
 msgstr "Tatar"
 
-#: gui/dialogs.py:820
+#: gui/dialogs.py:821
 msgid "Telugu"
 msgstr "Telugu"
 
-#: gui/dialogs.py:821
+#: gui/dialogs.py:822
 msgid "Thai"
 msgstr "Tailandês"
 
-#: gui/dialogs.py:822
+#: gui/dialogs.py:823
 msgid "Tibetan"
 msgstr "Tibetano"
 
-#: gui/dialogs.py:823
+#: gui/dialogs.py:824
 msgid "Tigrinya"
 msgstr "Tigrínia"
 
-#: gui/dialogs.py:824
+#: gui/dialogs.py:825
 msgid "Tonga (Tonga Islands)"
 msgstr "Tonga"
 
-#: gui/dialogs.py:825
+#: gui/dialogs.py:826
 msgid "Tsonga"
 msgstr "Tsonga"
 
-#: gui/dialogs.py:826
+#: gui/dialogs.py:827
 msgid "Tswana"
 msgstr "Tswana"
 
-#: gui/dialogs.py:827
+#: gui/dialogs.py:828
 msgid "Turkish"
 msgstr "Turco"
 
-#: gui/dialogs.py:828
+#: gui/dialogs.py:829
 msgid "Turkmen"
 msgstr "Turcomano"
 
-#: gui/dialogs.py:829
+#: gui/dialogs.py:830
 msgid "Twi"
 msgstr "Twi"
 
-#: gui/dialogs.py:830
+#: gui/dialogs.py:831
 msgid "Uighur"
 msgstr "Uigur"
 
-#: gui/dialogs.py:831
+#: gui/dialogs.py:832
 msgid "Ukrainian"
 msgstr "Ucraniano"
 
-#: gui/dialogs.py:832
+#: gui/dialogs.py:833
 msgid "Urdu"
 msgstr "Urdu"
 
-#: gui/dialogs.py:833
+#: gui/dialogs.py:834
 msgid "Uzbek"
 msgstr "Usbeque"
 
-#: gui/dialogs.py:834
+#: gui/dialogs.py:835
 msgid "Venda"
 msgstr "Venda"
 
-#: gui/dialogs.py:835
+#: gui/dialogs.py:836
 msgid "Vietnamese"
 msgstr "Vietnamita"
 
-#: gui/dialogs.py:836
+#: gui/dialogs.py:837
 msgid "Volapuk"
 msgstr "Volapuque"
 
-#: gui/dialogs.py:837
+#: gui/dialogs.py:838
 msgid "Walloon"
 msgstr "Valão"
 
-#: gui/dialogs.py:838
+#: gui/dialogs.py:839
 msgid "Welsh"
 msgstr "Galês"
 
-#: gui/dialogs.py:839
+#: gui/dialogs.py:840
 msgid "Western Frisian"
 msgstr "Frísico ocidental"
 
-#: gui/dialogs.py:840
+#: gui/dialogs.py:841
 msgid "Wolof"
 msgstr "Uólofe"
 
-#: gui/dialogs.py:841
+#: gui/dialogs.py:842
 msgid "Xhosa"
 msgstr "Xosa"
 
-#: gui/dialogs.py:842
+#: gui/dialogs.py:843
 msgid "Yiddish"
 msgstr "Iídiche"
 
-#: gui/dialogs.py:843
+#: gui/dialogs.py:844
 msgid "Yoruba"
 msgstr "Ioruba"
 
-#: gui/dialogs.py:844
+#: gui/dialogs.py:845
 msgid "Zhuang"
 msgstr "Zhuang"
 
-#: gui/dialogs.py:845
+#: gui/dialogs.py:846
 msgid "Zulu"
 msgstr "Zulu"
 
-#: gui/dialogs.py:970
+#: gui/dialogs.py:971
 msgid "Cache full text in background"
 msgstr "Colocar o texto completo em cache em segundo plano"
 
-#: gui/dialogs.py:975
+#: gui/dialogs.py:976
 msgid "Enable Downloads"
 msgstr "Ativar transferências"
 
-#: gui/dialogs.py:979
+#: gui/dialogs.py:980
 msgid "Confirm before deleting articles"
 msgstr "Confirmar antes de eliminar artigos"
 
-#: gui/dialogs.py:989
+#: gui/dialogs.py:990
 msgid "Move it to Deleted Articles (restorable)"
 msgstr "Mover para Artigos eliminados (recuperável)"
 
-#: gui/dialogs.py:990 gui/dialogs.py:3593
+#: gui/dialogs.py:991 gui/dialogs.py:3594
 msgid "Remove it permanently"
 msgstr "Removê-lo permanentemente"
 
-#: gui/dialogs.py:991 gui/dialogs.py:3594
+#: gui/dialogs.py:992 gui/dialogs.py:3595
 msgid "Move it to a category"
 msgstr "Movê-lo para uma categoria"
 
-#: gui/dialogs.py:1021 gui/dialogs.py:1209 gui/dialogs.py:1244
-#: gui/dialogs.py:1527
+#: gui/dialogs.py:1022 gui/dialogs.py:1210 gui/dialogs.py:1245
+#: gui/dialogs.py:1528
 msgid "Browse..."
 msgstr "Procurar..."
 
-#: gui/dialogs.py:1062
+#: gui/dialogs.py:1063
 msgid "Close to system tray"
 msgstr "Minimizar para a área de notificação ao fechar"
 
-#: gui/dialogs.py:1066
+#: gui/dialogs.py:1067
 msgid "Minimize to system tray"
 msgstr "Minimizar para a área de notificação"
 
-#: gui/dialogs.py:1071
+#: gui/dialogs.py:1072
 msgid "Start BlindRSS in the system tray"
 msgstr "Iniciar o BlindRSS na área de notificação"
 
-#: gui/dialogs.py:1076
+#: gui/dialogs.py:1077
 msgid "Always start maximized"
 msgstr "Iniciar sempre maximizado"
 
-#: gui/dialogs.py:1080
+#: gui/dialogs.py:1081
 msgid "Debug mode (show console on startup)"
 msgstr "Modo de depuração (mostrar consola ao iniciar)"
 
-#: gui/dialogs.py:1084
+#: gui/dialogs.py:1085
 msgid "Check for updates on startup"
 msgstr "Verificar atualizações ao iniciar"
 
-#: gui/dialogs.py:1088
+#: gui/dialogs.py:1089
 msgid "Automatically refresh feeds upon start"
 msgstr "Atualizar feeds automaticamente ao iniciar"
 
-#: gui/dialogs.py:1139
+#: gui/dialogs.py:1140
 msgid ""
 "Article formatting: preserve structure from the original page as spoken text"
 " markers. Applies to newly loaded articles and full text."
@@ -2324,32 +2342,32 @@ msgstr ""
 "marcadores de texto falados. Aplica-se a artigos recém-carregados e ao texto"
 " completo."
 
-#: gui/dialogs.py:1147
+#: gui/dialogs.py:1148
 msgid "Describe tables (\"Table with 3 rows...\" and one line per row)"
 msgstr ""
 "Descrever tabelas (\"Table with 3 rows...\" e uma linha por cada linha da "
 "tabela)"
 
-#: gui/dialogs.py:1153
+#: gui/dialogs.py:1154
 msgid "Announce headings (\"Heading level 2:\" before each heading)"
 msgstr "Anunciar títulos (\"Heading level 2:\" antes de cada título)"
 
-#: gui/dialogs.py:1159
+#: gui/dialogs.py:1160
 msgid "Mark list items with bullets and numbers"
 msgstr "Marcar itens de lista com marcas e números"
 
-#: gui/dialogs.py:1165
+#: gui/dialogs.py:1166
 msgid "Mark quotations (\"Quote:\" before and \"End of quote.\" after)"
 msgstr "Marcar citações (\"Quote:\" antes e \"End of quote.\" depois)"
 
-#: gui/dialogs.py:1171
+#: gui/dialogs.py:1172
 msgid ""
 "Show links as \"text (address)\" and open the link at the cursor with Enter"
 msgstr ""
 "Mostrar as ligações como \"texto (endereço)\" e abrir a ligação no cursor "
 "com Enter"
 
-#: gui/dialogs.py:1177
+#: gui/dialogs.py:1178
 msgid ""
 "Rich full-text view: show links, embedded videos, and tweets in a web view "
 "(instead of plain text). Falls back to plain text if unavailable."
@@ -2358,14 +2376,14 @@ msgstr ""
 " tweets numa vista web (em vez de texto simples). Recorre ao texto simples "
 "se não estiver disponível."
 
-#: gui/dialogs.py:1187
+#: gui/dialogs.py:1188
 msgid ""
 "Include image alt text in articles (announces images, can override per feed)"
 msgstr ""
 "Incluir texto alternativo de imagens nos artigos (anuncia imagens, pode ser "
 "substituído por feed)"
 
-#: gui/dialogs.py:1194
+#: gui/dialogs.py:1195
 msgid ""
 "yt-dlp cookies file (cookies.txt) — only needed for age-restricted, private,"
 " or members-only YouTube content. Installed browsers are detected "
@@ -2384,99 +2402,99 @@ msgstr ""
 "compatíveis com o Firefox. \"Nightly\" no Chrome significa Chrome Canary; "
 "\"Nightly\" no Edge significa Edge Canary."
 
-#: gui/dialogs.py:1213
+#: gui/dialogs.py:1214
 msgid "Import from browser..."
 msgstr "Importar do navegador..."
 
-#: gui/dialogs.py:1220
+#: gui/dialogs.py:1221
 msgid "Automatically import browser cookies.txt exports from Downloads"
 msgstr ""
 "Importar automaticamente exportações cookies.txt do navegador da pasta "
 "Transferências"
 
-#: gui/dialogs.py:1227
+#: gui/dialogs.py:1228
 msgid "Play YouTube by downloading first (most reliable; slower to start)"
 msgstr ""
 "Reproduzir YouTube transferindo primeiro (mais fiável; início mais lento)"
 
-#: gui/dialogs.py:1234
+#: gui/dialogs.py:1235
 msgid "YouTube playback cache folder (blank = default, next to your data):"
 msgstr ""
 "Pasta de cache de reprodução do YouTube (em branco = predefinição, junto aos"
 " seus dados):"
 
-#: gui/dialogs.py:1248
+#: gui/dialogs.py:1249
 msgid "Clear cache now"
 msgstr "Limpar cache agora"
 
-#: gui/dialogs.py:1267
+#: gui/dialogs.py:1268
 msgid "Ask to install missing media dependencies on startup"
 msgstr ""
 "Perguntar se deve instalar dependências de multimédia em falta ao iniciar"
 
-#: gui/dialogs.py:1280
+#: gui/dialogs.py:1281
 msgid "Remember last selected feed/folder on startup"
 msgstr "Lembrar da última feed/pasta selecionada ao iniciar"
 
-#: gui/dialogs.py:1412
+#: gui/dialogs.py:1413
 msgid "Test"
 msgstr "Testar"
 
-#: gui/dialogs.py:1419
+#: gui/dialogs.py:1420
 msgid "Use %1 for the article URL. Example: chrome --incognito %1"
 msgstr "Use %1 para o URL do artigo. Exemplo: chrome --incognito %1"
 
-#: gui/dialogs.py:1446 gui/dialogs.py:2912
+#: gui/dialogs.py:1447 gui/dialogs.py:2913
 msgid "System Default"
 msgstr "Predefinição do sistema"
 
-#: gui/dialogs.py:1454
+#: gui/dialogs.py:1455
 msgid "Skip Silence (Experimental)"
 msgstr "Saltar silêncio (experimental)"
 
-#: gui/dialogs.py:1483
+#: gui/dialogs.py:1484
 msgid "Show player window when starting playback"
 msgstr "Mostrar janela do reprodutor ao iniciar a reprodução"
 
-#: gui/dialogs.py:1494
+#: gui/dialogs.py:1495
 msgid "Verbose range-cache proxy debug logs"
 msgstr "Registos de depuração detalhados do proxy de cache de intervalos"
 
-#: gui/dialogs.py:1577
+#: gui/dialogs.py:1578
 msgid "Provider information"
 msgstr "Informações do fornecedor"
 
-#: gui/dialogs.py:1706
+#: gui/dialogs.py:1707
 msgid "Enable Sound Notifications"
 msgstr "Ativar notificações sonoras"
 
-#: gui/dialogs.py:1750
+#: gui/dialogs.py:1751
 msgid "Enable notifications for new articles"
 msgstr "Ativar notificações para novos artigos"
 
-#: gui/dialogs.py:1759
+#: gui/dialogs.py:1760
 msgid "Include feed name in notification text"
 msgstr "Incluir o nome do feed no texto da notificação"
 
-#: gui/dialogs.py:1784
+#: gui/dialogs.py:1785
 msgid "Show a summary notification when notification cap is reached"
 msgstr ""
 "Mostrar uma notificação de resumo quando o limite de notificações for "
 "atingido"
 
-#: gui/dialogs.py:1791
+#: gui/dialogs.py:1792
 msgid "Test Notification"
 msgstr "Notificação de teste"
 
-#: gui/dialogs.py:1795
+#: gui/dialogs.py:1796
 msgid "Exclude Feeds..."
 msgstr "Excluir feeds..."
 
-#: gui/dialogs.py:1875
+#: gui/dialogs.py:1876
 msgid "Enable automatic translation for article content"
 msgstr "Ativar tradução automática do conteúdo dos artigos"
 
-#: gui/dialogs.py:1968
+#: gui/dialogs.py:1969
 msgid ""
 "Grok is by xAI. Get a key at console.x.ai. For Groq (LLaMA/Mistral), select "
 "'Groq (LLaMA, Mistral)' instead."
@@ -2484,7 +2502,7 @@ msgstr ""
 "O Grok é da xAI. Obtenha uma chave em console.x.ai. Para o Groq "
 "(LLaMA/Mistral), selecione antes 'Groq (LLaMA, Mistral)'."
 
-#: gui/dialogs.py:2027
+#: gui/dialogs.py:2028
 msgid ""
 "Groq is NOT Grok. Get a free Groq key at console.groq.com/keys (runs LLaMA "
 "and Mistral models)."
@@ -2492,19 +2510,19 @@ msgstr ""
 "Groq NÃO é Grok. Obtenha uma chave gratuita do Groq em console.groq.com/keys"
 " (executa modelos LLaMA e Mistral)."
 
-#: gui/dialogs.py:2113
+#: gui/dialogs.py:2114
 msgid "Load OpenRouter Models"
 msgstr "Carregar modelos do OpenRouter"
 
-#: gui/dialogs.py:2117
+#: gui/dialogs.py:2118
 msgid "Loads all available model IDs from OpenRouter."
 msgstr "Carrega todos os IDs de modelo disponíveis do OpenRouter."
 
-#: gui/dialogs.py:2230
+#: gui/dialogs.py:2231
 msgid "Data Storage Location"
 msgstr "Localização de armazenamento de dados"
 
-#: gui/dialogs.py:2235
+#: gui/dialogs.py:2236
 msgid ""
 "Where BlindRSS stores config.json and rss.db.\n"
 "User Data Folder keeps your settings and feeds across app upgrades,\n"
@@ -2514,104 +2532,110 @@ msgstr ""
 "A pasta de dados do utilizador mantém as suas definições e feeds entre atualizações da aplicação,\n"
 "especialmente no macOS, onde o pacote da aplicação instalada é substituído."
 
-#: gui/dialogs.py:2282 gui/mainframe.py:13069 gui/mainframe.py:13037
+#: gui/dialogs.py:2283 gui/mainframe.py:13074 gui/mainframe.py:13042
 msgid "Updates"
 msgstr "Atualizações"
 
-#: gui/dialogs.py:2286
+#: gui/dialogs.py:2287
 msgid "Automatically install updates without confirmation"
 msgstr "Instalar atualizações automaticamente sem confirmação"
 
-#: gui/dialogs.py:2299
+#: gui/dialogs.py:2300
 msgid "Enable adult sites in Video Search"
 msgstr "Ativar sites para adultos na Pesquisa de Vídeos"
 
-#: gui/dialogs.py:2358
+#: gui/dialogs.py:2359
 msgid "Loading OpenRouter models..."
 msgstr "A carregar modelos do OpenRouter..."
 
-#: gui/dialogs.py:2520
+#: gui/dialogs.py:2521
 msgid "Notifications are not supported on this platform."
 msgstr "As notificações não são suportadas nesta plataforma."
 
-#: gui/dialogs.py:2672
+#: gui/dialogs.py:2673
 msgid "Enter your Inoreader App ID and App Key first."
 msgstr "Introduza primeiro o ID de app e a chave de app do Inoreader."
 
-#: gui/dialogs.py:2701
+#: gui/dialogs.py:2702
 msgid "Paste the full URL from your browser address bar"
 msgstr "Cole o URL completo da barra de endereços do navegador"
 
-#: gui/dialogs.py:3013
+#: gui/dialogs.py:3014
 msgid "Playback cache"
 msgstr "Cache de reprodução"
 
-#: gui/dialogs.py:3091
+#: gui/dialogs.py:3092
 msgid "Choose file..."
 msgstr "Escolher ficheiro..."
 
-#: gui/dialogs.py:3098
+#: gui/dialogs.py:3099
 msgid "Choose exported cookies.txt"
 msgstr "Escolher cookies.txt exportado"
 
-#: gui/dialogs.py:3198
+#: gui/dialogs.py:3199
 msgid "Enter a command to test. Use %1 where the article URL should go."
 msgstr ""
 "Introduza um comando para testar. Use %1 onde deve ficar o URL do artigo."
 
-#: gui/dialogs.py:3199
+#: gui/dialogs.py:3200
 msgid "Nothing to test"
 msgstr "Nada para testar"
 
-#: gui/dialogs.py:3218
+#: gui/dialogs.py:3219
 msgid "Test launched"
 msgstr "Teste iniciado"
 
-#: gui/dialogs.py:3223
+#: gui/dialogs.py:3224
 msgid "Test failed"
 msgstr "O teste falhou"
 
-#: gui/dialogs.py:3396 gui/dialogs.py:3693
+#: gui/dialogs.py:3397 gui/dialogs.py:3694
 msgid "Feed Properties"
 msgstr "Propriedades do feed"
 
-#: gui/dialogs.py:3449 gui/dialogs.py:3591
+#: gui/dialogs.py:3450 gui/dialogs.py:3592
 msgid "Use global setting"
 msgstr "Utilizar definição global"
 
-#: gui/dialogs.py:3450
+#: gui/dialogs.py:3451
 msgid "Never (manual refresh only)"
 msgstr "Nunca (apenas atualização manual)"
 
-#: gui/dialogs.py:3592
+#: gui/dialogs.py:3593
 msgid "Move it to Deleted Articles"
 msgstr "Movê-lo para Artigos eliminados"
 
-#: gui/dialogs.py:3834
+#: gui/dialogs.py:3835
 msgid "Feeds with Errors"
 msgstr "Feeds com erros"
 
-#: gui/dialogs.py:3858
+#: gui/dialogs.py:3859
 msgid "Error &details:"
 msgstr "&Detalhes do erro:"
 
-#: gui/dialogs.py:3869
+#: gui/dialogs.py:3870
 msgid "&Refresh Selected"
 msgstr "&Atualizar selecionados"
 
-#: gui/dialogs.py:3870
+#: gui/dialogs.py:3871
 msgid "&Copy Details"
 msgstr "&Copiar detalhes"
 
-#: gui/dialogs.py:3871
+#: gui/dialogs.py:3872
 msgid "Feed &Properties..."
 msgstr "&Propriedades do feed..."
 
-#: gui/dialogs.py:3872
+#: gui/dialogs.py:3873
 msgid "Re&move Feed"
 msgstr "Re&mover feed"
 
-#: gui/dialogs.py:3934
+#: gui/dialogs.py:3902
+msgid "{n} feed failed to update during its most recent attempt:"
+msgid_plural "{n} feeds failed to update during their most recent attempt:"
+msgstr[0] "{n} fonte falhou ao atualizar na tentativa mais recente:"
+msgstr[1] "{n} fontes falharam ao atualizar na tentativa mais recente:"
+
+#: gui/dialogs.py:3936
 msgid ""
 "No feeds reported errors during their most recent update attempt.\n"
 "\n"
@@ -2621,244 +2645,266 @@ msgstr ""
 "\n"
 "As fontes aparecem aqui automaticamente quando uma atualização falha (por exemplo, um URL morto, um erro HTTP, um tempo limite ou um formato de fonte inválido)."
 
-#: gui/dialogs.py:4066
+#: gui/dialogs.py:3969
+msgid ""
+"Feed: {title}\n"
+"URL: {url}\n"
+"Category: {category}\n"
+"Last update attempt: {attempt}\n"
+"Last successful update: {successful}\n"
+"{description}\n"
+"\n"
+"Error:\n"
+"{error}"
+msgstr ""
+"Fonte: {title}\n"
+"URL: {url}\n"
+"Categoria: {category}\n"
+"Última tentativa de atualização: {attempt}\n"
+"Última atualização bem-sucedida: {successful}\n"
+"{description}\n"
+"\n"
+"Erro:\n"
+"{error}"
+
+#: gui/dialogs.py:4085
 msgid "Editing feed properties is not available here."
 msgstr "A edição das propriedades do feed não está disponível aqui."
 
-#: gui/dialogs.py:4067
+#: gui/dialogs.py:4086
 msgid "Not available"
 msgstr "Não disponível"
 
-#: gui/dialogs.py:4091
+#: gui/dialogs.py:4110
 msgid "Confirm Remove"
 msgstr "Confirmar remoção"
 
-#: gui/dialogs.py:4190 gui/dialogs.py:5112
+#: gui/dialogs.py:4209 gui/dialogs.py:5131
 msgid "Search"
 msgstr "Pesquisar"
 
-#: gui/dialogs.py:4196 gui/dialogs.py:5142 gui/dialogs.py:6451
+#: gui/dialogs.py:4215 gui/dialogs.py:5161 gui/dialogs.py:6470
 msgid "Ready."
 msgstr "Pronto."
 
-#: gui/dialogs.py:4339
+#: gui/dialogs.py:4358
 msgid "Searching all sources..."
 msgstr "A pesquisar em todas as fontes..."
 
-#: gui/dialogs.py:5114
+#: gui/dialogs.py:5133
 msgid "Load More Results (+80/site)"
 msgstr "Carregar mais resultados (+80/site)"
 
-#: gui/dialogs.py:6070
+#: gui/dialogs.py:6089
 msgid "No searchable sites."
 msgstr "Nenhum site pesquisável."
 
-#: gui/dialogs.py:6523
+#: gui/dialogs.py:6542
 msgid "Parent window does not support subscribing from this dialog."
 msgstr ""
 "A janela principal não suporta subscrever a partir desta caixa de diálogo."
 
-#: gui/dialogs.py:6589
+#: gui/dialogs.py:6608
 msgid "Add..."
 msgstr "Adicionar..."
 
-#: gui/dialogs.py:6590
+#: gui/dialogs.py:6609
 msgid "Remove"
 msgstr "Remover"
 
-#: gui/dialogs.py:6644 gui/mainframe.py:2356
+#: gui/dialogs.py:6663 gui/mainframe.py:2356
 msgid "About BlindRSS"
 msgstr "Sobre o BlindRSS"
 
-#: gui/dialogs.py:6655
+#: gui/dialogs.py:6674
 msgid "Copyright (c) 2024-2026 serrebidev and contributors"
 msgstr "Copyright (c) 2024-2026 serrebidev e colaboradores"
 
-#: gui/dialogs.py:6661
+#: gui/dialogs.py:6680
 msgid "Follow me on GitHub (@serrebidev)"
 msgstr "Siga-me no GitHub (@serrebidev)"
 
-#: gui/dialogs.py:6662
+#: gui/dialogs.py:6681
 msgid "Visit Repository"
 msgstr "Visitar repositório"
 
-#: gui/dialogs.py:6663
+#: gui/dialogs.py:6682
 msgid "View Changelog"
 msgstr "Ver registo de alterações"
 
-#: gui/dialogs.py:6737
+#: gui/dialogs.py:6756
 msgid "&Remove"
 msgstr "&Remover"
 
-#: gui/dialogs.py:6741
+#: gui/dialogs.py:6760
 msgid "&Clear All"
 msgstr "&Limpar tudo"
 
-#: gui/dialogs.py:6808
+#: gui/dialogs.py:6827
 msgid "Untitled"
 msgstr "Sem título"
 
-#: gui/dialogs.py:6829
+#: gui/dialogs.py:6848
 msgid "The play queue is empty."
 msgstr "A fila de reprodução está vazia."
 
-#: gui/dialogs.py:6890
+#: gui/dialogs.py:6909
 msgid "Remove all items from the play queue?"
 msgstr "Remover todos os itens da fila de reprodução?"
 
-#: gui/dialogs.py:6891
+#: gui/dialogs.py:6910
 msgid "Clear Play Queue"
 msgstr "Limpar fila de reprodução"
 
-#: gui/dialogs.py:6933
+#: gui/dialogs.py:6952
 msgid "Press Shortcut"
 msgstr "Premir atalho"
 
-#: gui/dialogs.py:6946
+#: gui/dialogs.py:6965
 msgid "Waiting for a key…"
 msgstr "A aguardar uma tecla…"
 
-#: gui/dialogs.py:7019
+#: gui/dialogs.py:7038
 msgid "Select a command and choose Change to set its shortcut."
 msgstr "Selecione um comando e escolha Alterar para definir o seu atalho."
 
-#: gui/dialogs.py:7034
+#: gui/dialogs.py:7053
 msgid "&Change Shortcut..."
 msgstr "&Alterar atalho..."
 
-#: gui/dialogs.py:7038
+#: gui/dialogs.py:7057
 msgid "&Remove Shortcut"
 msgstr "&Remover atalho"
 
-#: gui/dialogs.py:7067
+#: gui/dialogs.py:7086
 msgid "Enter"
 msgstr "Enter"
 
-#: gui/dialogs.py:7067
+#: gui/dialogs.py:7086
 msgid "Open or play the selected article"
 msgstr "Abrir ou reproduzir o artigo selecionado"
 
-#: gui/dialogs.py:7068
+#: gui/dialogs.py:7087
 msgid "Del"
 msgstr "Del"
 
-#: gui/dialogs.py:7068
+#: gui/dialogs.py:7087
 msgid "Delete the selected article"
 msgstr "Eliminar o artigo selecionado"
 
-#: gui/dialogs.py:7069
+#: gui/dialogs.py:7088
 msgid "Shift+Del"
 msgstr "Shift+Del"
 
-#: gui/dialogs.py:7069
+#: gui/dialogs.py:7088
 msgid "Delete the selected article without confirmation"
 msgstr "Eliminar o artigo selecionado sem confirmação"
 
-#: gui/dialogs.py:7070
+#: gui/dialogs.py:7089
 msgid "Backspace"
 msgstr "Backspace"
 
-#: gui/dialogs.py:7070
+#: gui/dialogs.py:7089
 msgid "Toggle read/unread in the article list"
 msgstr "Alternar lido/não lido na lista de artigos"
 
-#: gui/dialogs.py:7071
+#: gui/dialogs.py:7090
 msgid "Refresh feeds (fixed alias)"
 msgstr "Atualizar feeds (alias fixo)"
 
-#: gui/dialogs.py:7072
+#: gui/dialogs.py:7091
 msgid "Ctrl+Left / Ctrl+Right"
 msgstr "Ctrl+Esquerda / Ctrl+Direita"
 
-#: gui/dialogs.py:7072
+#: gui/dialogs.py:7091
 msgid "Rewind / fast forward playback"
 msgstr "Retroceder / avançar a reprodução"
 
-#: gui/dialogs.py:7073
+#: gui/dialogs.py:7092
 msgid "Ctrl+Up / Ctrl+Down"
 msgstr "Ctrl+Cima / Ctrl+Baixo"
 
-#: gui/dialogs.py:7073
+#: gui/dialogs.py:7092
 msgid "Volume up / volume down"
 msgstr "Aumentar / diminuir volume"
 
-#: gui/dialogs.py:7074
+#: gui/dialogs.py:7093
 msgid "Ctrl+Shift+Left / Ctrl+Shift+Right"
 msgstr "Ctrl+Shift+Esquerda / Ctrl+Shift+Direita"
 
-#: gui/dialogs.py:7074
+#: gui/dialogs.py:7093
 msgid "Previous / next chapter"
 msgstr "Capítulo anterior / seguinte"
 
-#: gui/dialogs.py:7075
+#: gui/dialogs.py:7094
 msgid "Ctrl+F"
 msgstr "Ctrl+F"
 
-#: gui/dialogs.py:7075
+#: gui/dialogs.py:7094
 msgid "Find in the article reader"
 msgstr "Localizar no artigo"
 
-#: gui/dialogs.py:7076
+#: gui/dialogs.py:7095
 msgid "F3 / Shift+F3"
 msgstr "F3 / Shift+F3"
 
-#: gui/dialogs.py:7076
+#: gui/dialogs.py:7095
 msgid "Next / previous match in the article reader"
 msgstr "Correspondência seguinte / anterior no artigo"
 
-#: gui/dialogs.py:7077
+#: gui/dialogs.py:7096
 msgid "F6 / Shift+F6"
 msgstr "F6 / Shift+F6"
 
-#: gui/dialogs.py:7077
+#: gui/dialogs.py:7096
 msgid "Move between panes in the rich view"
 msgstr "Mover entre painéis na vista rica"
 
-#: gui/dialogs.py:7078
+#: gui/dialogs.py:7097
 msgid "Ctrl+X / Ctrl+C / Ctrl+V / Ctrl+A"
 msgstr "Ctrl+X / Ctrl+C / Ctrl+V / Ctrl+A"
 
-#: gui/dialogs.py:7078
+#: gui/dialogs.py:7097
 msgid "Cut / Copy / Paste / Select All in text fields"
 msgstr "Cortar / copiar / colar / selecionar tudo em campos de texto"
 
-#: gui/dialogs.py:7092
+#: gui/dialogs.py:7111
 msgid "Fixed keys"
 msgstr "Teclas fixas"
 
-#: gui/dialogs.py:7184
+#: gui/dialogs.py:7203
 msgid "Reset all keyboard shortcuts to their defaults?"
 msgstr "Repor todos os atalhos de teclado para as predefinições?"
 
-#: gui/dialogs.py:7185
+#: gui/dialogs.py:7204
 msgid "Reset Shortcuts"
 msgstr "Repor atalhos"
 
-#: gui/dialogs.py:7238
+#: gui/dialogs.py:7257
 msgid "Equalizer"
 msgstr "Equalizador"
 
-#: gui/dialogs.py:7263
+#: gui/dialogs.py:7282
 msgid "&Enable equalizer"
 msgstr "&Ativar equalizador"
 
-#: gui/dialogs.py:7300
+#: gui/dialogs.py:7319
 msgid "&Save as Preset..."
 msgstr "&Guardar como predefinição..."
 
-#: gui/dialogs.py:7303
+#: gui/dialogs.py:7322
 msgid "&Delete Preset"
 msgstr "&Eliminar predefinição"
 
-#: gui/dialogs.py:7306
+#: gui/dialogs.py:7325
 msgid "&Reset (Flat)"
 msgstr "&Repor (plano)"
 
-#: gui/dialogs.py:7477
+#: gui/dialogs.py:7496
 msgid "Could not save the preset."
 msgstr "Não foi possível guardar a predefinição."
 
-#: gui/dialogs.py:7489
+#: gui/dialogs.py:7508
 msgid "Delete Preset"
 msgstr "Eliminar predefinição"
 
@@ -2906,55 +2952,55 @@ msgstr "Ficheiro de cookies:"
 msgid "Browser User-Agent (recommended):"
 msgstr "User-Agent do navegador (recomendado):"
 
-#: gui/dialogs.py:871
+#: gui/dialogs.py:872
 msgid "Refresh Interval:"
 msgstr "Intervalo de atualização:"
 
-#: gui/dialogs.py:912
+#: gui/dialogs.py:913
 msgid "Search Matches:"
 msgstr "Correspondências de pesquisa:"
 
-#: gui/dialogs.py:939
+#: gui/dialogs.py:940
 msgid "Max Concurrent Refreshes:"
 msgstr "Máximo de atualizações simultâneas:"
 
-#: gui/dialogs.py:945
+#: gui/dialogs.py:946
 msgid "Max Connections Per Host:"
 msgstr "Máximo de ligações por anfitrião:"
 
-#: gui/dialogs.py:951
+#: gui/dialogs.py:952
 msgid "Feed Timeout (seconds):"
 msgstr "Tempo limite do feed (segundos):"
 
-#: gui/dialogs.py:957
+#: gui/dialogs.py:958
 msgid "Feed Retry Attempts:"
 msgstr "Tentativas de repetição do feed:"
 
-#: gui/dialogs.py:964
+#: gui/dialogs.py:965
 msgid "Max Cached Views:"
 msgstr "Máximo de vistas em cache:"
 
-#: gui/dialogs.py:986
+#: gui/dialogs.py:987
 msgid "When I delete an article:"
 msgstr "Ao eliminar um artigo:"
 
-#: gui/dialogs.py:1017
+#: gui/dialogs.py:1018
 msgid "Download Path:"
 msgstr "Caminho de transferência:"
 
-#: gui/dialogs.py:1046
+#: gui/dialogs.py:1047
 msgid "Retention Policy:"
 msgstr "Política de retenção:"
 
-#: gui/dialogs.py:1054
+#: gui/dialogs.py:1055
 msgid "Article Retention:"
 msgstr "Retenção de artigos:"
 
-#: gui/dialogs.py:1094
+#: gui/dialogs.py:1095
 msgid "Local RSS automatic refresh workload:"
 msgstr "Atualização automática do RSS local:"
 
-#: gui/dialogs.py:1128
+#: gui/dialogs.py:1129
 msgid ""
 "Using the Local RSS feed cache lowers CPU and network use. Manual Refresh "
 "All always checks every feed."
@@ -2962,49 +3008,49 @@ msgstr ""
 "Usar a cache de feeds reduz a utilização de CPU e rede. Atualizar tudo "
 "manualmente verifica sempre cada feed."
 
-#: gui/dialogs.py:1255
+#: gui/dialogs.py:1256
 msgid "Max cache size (MB, 0 = unlimited):"
 msgstr "Tamanho máximo do cache (MB, 0 = ilimitado):"
 
-#: gui/dialogs.py:1289
+#: gui/dialogs.py:1290
 msgid "Interface language (requires restart):"
 msgstr "Idioma da interface (requer reinício):"
 
-#: gui/dialogs.py:1365
+#: gui/dialogs.py:1366
 msgid "Feed category tree on startup:"
 msgstr "Árvore de categorias de feed ao iniciar:"
 
-#: gui/dialogs.py:1385
+#: gui/dialogs.py:1386
 msgid "Article opening method:"
 msgstr "Método de abertura de artigos:"
 
-#: gui/dialogs.py:1404
+#: gui/dialogs.py:1405
 msgid "Custom command:"
 msgstr "Comando personalizado:"
 
-#: gui/dialogs.py:1444
+#: gui/dialogs.py:1445
 msgid "Preferred Soundcard:"
 msgstr "Placa de som preferida:"
 
-#: gui/dialogs.py:1460
+#: gui/dialogs.py:1461
 msgid "Default Playback Speed:"
 msgstr "Velocidade de reprodução predefinida:"
 
-#: gui/dialogs.py:1489
+#: gui/dialogs.py:1490
 msgid "Network Cache (ms):"
 msgstr "Cache de rede (ms):"
 
-#: gui/dialogs.py:1507
+#: gui/dialogs.py:1508
 msgid "Leave a path blank to auto-detect. A set path overrides detection."
 msgstr ""
 "Deixe um caminho em branco para detetar automaticamente. Um caminho definido"
 " substitui a deteção."
 
-#: gui/dialogs.py:1549
+#: gui/dialogs.py:1550
 msgid "Active Provider:"
 msgstr "Fornecedor ativo:"
 
-#: gui/dialogs.py:1637
+#: gui/dialogs.py:1638
 msgid ""
 "Note: If your Redirect URI uses HTTPS (common/required), your browser may fail to load\n"
 "localhost after authorization. Copy the full redirected URL from the address bar and paste it\n"
@@ -3014,83 +3060,83 @@ msgstr ""
 "localhost após a autorização. Copie o URL completo redirecionado da barra de endereços e cole-o\n"
 "quando solicitado."
 
-#: gui/dialogs.py:1649
+#: gui/dialogs.py:1650
 msgid "Authorize Inoreader"
 msgstr "Autorizar Inoreader"
 
-#: gui/dialogs.py:1650
+#: gui/dialogs.py:1651
 msgid "Clear Authorization"
 msgstr "Limpar autorização"
 
-#: gui/dialogs.py:1768
+#: gui/dialogs.py:1769
 msgid "Max notifications per refresh (0 = no limit):"
 msgstr "Máximo de notificações por atualização (0 = sem limite):"
 
-#: gui/dialogs.py:1895
+#: gui/dialogs.py:1896
 msgid "Provider:"
 msgstr "Fornecedor:"
 
-#: gui/dialogs.py:1915
+#: gui/dialogs.py:1916
 msgid "Target language:"
 msgstr "Idioma de destino:"
 
-#: gui/dialogs.py:1938
+#: gui/dialogs.py:1939
 msgid "Choose a language or type a code (e.g. en, es, fr, pt-BR)."
 msgstr "Escolha um idioma ou introduza um código (ex.: en, es, fr, pt-BR)."
 
-#: gui/dialogs.py:1947
+#: gui/dialogs.py:1948
 msgid "Grok (xAI) model (optional):"
 msgstr "Modelo Grok (xAI) (opcional):"
 
-#: gui/dialogs.py:1978
+#: gui/dialogs.py:1979
 msgid "Grok (xAI) API key (starts with xai-):"
 msgstr "Chave de API Grok (xAI) (começa com xai-):"
 
-#: gui/dialogs.py:1990
+#: gui/dialogs.py:1991
 msgid "Groq model (optional) - hosts LLaMA and Mistral:"
 msgstr "Modelo Groq (opcional) - aloja LLaMA e Mistral:"
 
-#: gui/dialogs.py:2012
+#: gui/dialogs.py:2013
 msgid "Groq API key (starts with gsk_):"
 msgstr "Chave de API Groq (começa com gsk_):"
 
-#: gui/dialogs.py:2038
+#: gui/dialogs.py:2039
 msgid "OpenAI model (optional):"
 msgstr "Modelo OpenAI (opcional):"
 
-#: gui/dialogs.py:2060
+#: gui/dialogs.py:2061
 msgid "OpenAI API key:"
 msgstr "Chave de API OpenAI:"
 
-#: gui/dialogs.py:2076
+#: gui/dialogs.py:2077
 msgid "OpenRouter model (optional):"
 msgstr "Modelo OpenRouter (opcional):"
 
-#: gui/dialogs.py:2098
+#: gui/dialogs.py:2099
 msgid "OpenRouter API key:"
 msgstr "Chave de API OpenRouter:"
 
-#: gui/dialogs.py:2124
+#: gui/dialogs.py:2125
 msgid "Gemini model (optional):"
 msgstr "Modelo Gemini (opcional):"
 
-#: gui/dialogs.py:2146
+#: gui/dialogs.py:2147
 msgid "Gemini API key:"
 msgstr "Chave de API Gemini:"
 
-#: gui/dialogs.py:2162
+#: gui/dialogs.py:2163
 msgid "Qwen model (optional):"
 msgstr "Modelo Qwen (opcional):"
 
-#: gui/dialogs.py:2184
+#: gui/dialogs.py:2185
 msgid "Qwen API key:"
 msgstr "Chave de API Qwen:"
 
-#: gui/dialogs.py:2250
+#: gui/dialogs.py:2251
 msgid "Storage Location:"
 msgstr "Localização de armazenamento:"
 
-#: gui/dialogs.py:2307
+#: gui/dialogs.py:2308
 msgid ""
 "When off, adult sites never appear in the Video Search site list.\n"
 "When on, adult sites are added and must still be selected explicitly to search them."
@@ -3098,11 +3144,11 @@ msgstr ""
 "Quando desativado, os sites para adultos nunca aparecem na lista de sites da Pesquisa de Vídeos.\n"
 "Quando ativado, os sites para adultos são adicionados e ainda têm de ser selecionados explicitamente para serem pesquisados."
 
-#: gui/dialogs.py:2690
+#: gui/dialogs.py:2691
 msgid "Inoreader Authorization"
 msgstr "Autorização do Inoreader"
 
-#: gui/dialogs.py:2827
+#: gui/dialogs.py:2828
 msgid ""
 "Inoreader authorization failed:\n"
 "{message}"
@@ -3110,74 +3156,74 @@ msgstr ""
 "Falha na autorização do Inoreader:\n"
 "{message}"
 
-#: gui/dialogs.py:3027
+#: gui/dialogs.py:3028
 msgid "Removed {n} file, freed {size}."
 msgid_plural "Removed {n} files, freed {size}."
 msgstr[0] "{n} ficheiro removido, {size} libertados."
 msgstr[1] "{n} ficheiros removidos, {size} libertados."
 
-#: gui/dialogs.py:3113 gui/dialogs.py:3120
+#: gui/dialogs.py:3114 gui/dialogs.py:3121
 msgid "Import failed"
 msgstr "Falha na importação"
 
-#: gui/dialogs.py:3136
+#: gui/dialogs.py:3137
 msgid "Executables"
 msgstr "Executáveis"
 
-#: gui/dialogs.py:3136 gui/dialogs.py:3138 gui/dialogs.py:2981
-#: gui/dialogs.py:3099
+#: gui/dialogs.py:3137 gui/dialogs.py:3139 gui/dialogs.py:557
+#: gui/dialogs.py:2982
 msgid "All files"
 msgstr "Todos os ficheiros"
 
-#: gui/dialogs.py:3209
+#: gui/dialogs.py:3210
 msgid "Invalid command"
 msgstr "Comando inválido"
 
-#: gui/dialogs.py:3428
+#: gui/dialogs.py:3429
 msgid "URL:"
 msgstr "URL:"
 
-#: gui/dialogs.py:3447
+#: gui/dialogs.py:3448
 msgid "Refresh interval for this feed:"
 msgstr "Intervalo de atualização para esta fonte:"
 
-#: gui/dialogs.py:3491
+#: gui/dialogs.py:3492
 msgid "Custom request headers (one per line, Name: Value):"
 msgstr "Cabeçalhos de pedido personalizados (um por linha, Nome: Valor):"
 
-#: gui/dialogs.py:3507
+#: gui/dialogs.py:3508
 msgid "Request timeout in seconds (blank = default):"
 msgstr "Tempo limite do pedido em segundos (em branco = predefinição):"
 
-#: gui/dialogs.py:3522
+#: gui/dialogs.py:3523
 msgid "Browser impersonation:"
 msgstr "Personificação de navegador:"
 
-#: gui/dialogs.py:3523
+#: gui/dialogs.py:3524
 msgid "Auto"
 msgstr "Automático"
 
-#: gui/dialogs.py:3523
+#: gui/dialogs.py:3524
 msgid "Always"
 msgstr "Sempre"
 
-#: gui/dialogs.py:3535
+#: gui/dialogs.py:3536
 msgid "Proxy URL (optional, e.g. http://host:port):"
 msgstr "URL do proxy (opcional, ex.: http://anfitrião:porta):"
 
-#: gui/dialogs.py:3552
+#: gui/dialogs.py:3553
 msgid "Feed encoding (blank = automatic, e.g. utf-8, windows-1251):"
 msgstr "Codificação do feed (vazio = automática, ex.: utf-8, windows-1251):"
 
-#: gui/dialogs.py:3567
+#: gui/dialogs.py:3568
 msgid "Full text extraction encoding (blank = automatic):"
 msgstr "Codificação da extração de texto completo (vazio = automática):"
 
-#: gui/dialogs.py:3588
+#: gui/dialogs.py:3589
 msgid "When I delete an article from this feed:"
 msgstr "Ao eliminar um artigo deste feed:"
 
-#: gui/dialogs.py:3692
+#: gui/dialogs.py:3693
 msgid ""
 "Unknown text encoding: %s. Use a Python codec name such as utf-8, "
 "windows-1251 or koi8-r, or leave the field blank for automatic detection."
@@ -3186,19 +3232,28 @@ msgstr ""
 "como utf-8, windows-1251 ou koi8-r, ou deixe o campo vazio para deteção "
 "automática."
 
-#: gui/dialogs.py:4025
+#: gui/dialogs.py:3957
+msgid "{n} consecutive failed attempt (likely a persistent problem)."
+msgid_plural "{n} consecutive failed attempts (likely a persistent problem)."
+msgstr[0] ""
+"{n} tentativa falhada consecutiva (provavelmente um problema persistente)."
+msgstr[1] ""
+"{n} tentativas falhadas consecutivas (provavelmente um problema "
+"persistente)."
+
+#: gui/dialogs.py:4044
 msgid "Refreshing '{title}'..."
 msgstr "A atualizar '{title}'..."
 
-#: gui/dialogs.py:4174 gui/dialogs.py:5106
+#: gui/dialogs.py:4193 gui/dialogs.py:5125
 msgid "Search:"
 msgstr "Pesquisar:"
 
-#: gui/dialogs.py:4183
+#: gui/dialogs.py:4202
 msgid "Source:"
 msgstr "Fonte:"
 
-#: gui/dialogs.py:4211
+#: gui/dialogs.py:4230
 msgid ""
 "Sources: NewsBlur, iTunes, gPodder, fyyd, Podverse, YouTube, Feedspot, "
 "Google News, Bing News, Feedsearch, Website scan, Reddit, Fediverse "
@@ -3210,59 +3265,63 @@ msgstr ""
 "(Lemmy/Kbin/Mastodon/Bluesky/PieFed). O Feedly está disponível como fonte "
 "explícita."
 
-#: gui/dialogs.py:4600 gui/dialogs.py:4625
+#: gui/dialogs.py:4619 gui/dialogs.py:4644
 msgid "News search feed"
 msgstr "Fonte de pesquisa de notícias"
 
-#: gui/dialogs.py:5120
+#: gui/dialogs.py:5139
 msgid "Search Sites:"
 msgstr "Sites de pesquisa:"
 
-#: gui/dialogs.py:5124
+#: gui/dialogs.py:5143
 msgid "Filter Results:"
 msgstr "Filtrar resultados:"
 
-#: gui/dialogs.py:5128
+#: gui/dialogs.py:5147
 msgid "Sort by:"
 msgstr "Ordenar por:"
 
-#: gui/dialogs.py:6531
+#: gui/dialogs.py:6550
 msgid "Subscribe Error"
 msgstr "Erro ao subscrever"
 
-#: gui/dialogs.py:6569
+#: gui/dialogs.py:6588
 msgid "Copied URL."
 msgstr "URL copiado."
 
-#: gui/dialogs.py:6582
+#: gui/dialogs.py:6601
 msgid "Saved searches:"
 msgstr "Pesquisas guardadas:"
 
-#: gui/dialogs.py:7089
+#: gui/dialogs.py:7108
 msgid "(none)"
 msgstr "(nenhum)"
 
-#: gui/dialogs.py:7224
+#: gui/dialogs.py:7243
 msgid "{sign}{v} dB"
 msgstr "{sign}{v} dB"
 
-#: gui/dialogs.py:7270
+#: gui/dialogs.py:7289
 msgid "&Preset:"
 msgstr "&Predefinição:"
 
-#: gui/dialogs.py:1611
+#: gui/dialogs.py:557 gui/dialogs.py:2982 gui/dialogs.py:3100
+msgid "Cookies"
+msgstr "Cookies"
+
+#: gui/dialogs.py:1612
 msgid "Inoreader App ID:"
 msgstr "ID de app Inoreader:"
 
-#: gui/dialogs.py:1618
+#: gui/dialogs.py:1619
 msgid "Inoreader App Key:"
 msgstr "Chave de app Inoreader:"
 
-#: gui/dialogs.py:1629
+#: gui/dialogs.py:1630
 msgid "Redirect URI:"
 msgstr "URI de redirecionamento:"
 
-#: gui/dialogs.py:2577
+#: gui/dialogs.py:2578
 msgid ""
 "BlindRSS announcement test. If you can hear or read this, announcements are "
 "working."
@@ -3270,47 +3329,43 @@ msgstr ""
 "Teste de anúncio do BlindRSS. Se consegue ouvir ou ler isto, os anúncios "
 "estão a funcionar."
 
-#: gui/dialogs.py:2981 gui/dialogs.py:3099
-msgid "Cookies"
-msgstr "Cookies"
-
-#: gui/dialogs.py:3012
+#: gui/dialogs.py:3013
 msgid "The playback cache is already empty."
 msgstr "A cache de reprodução já está vazia."
 
-#: gui/dialogs.py:3018
+#: gui/dialogs.py:3019
 msgid "Delete {n} cached file ({size})?"
 msgid_plural "Delete {n} cached files ({size})?"
 msgstr[0] "Eliminar {n} ficheiro em cache ({size})?"
 msgstr[1] "Eliminar {n} ficheiros em cache ({size})?"
 
-#: gui/dialogs.py:4025
+#: gui/dialogs.py:4044
 msgid "feed"
 msgstr "feed"
 
-#: gui/dialogs.py:4608
+#: gui/dialogs.py:4627
 msgid "News topic feed"
 msgstr "Fonte de tópicos de notícias"
 
-#: gui/dialogs.py:6505
+#: gui/dialogs.py:6524
 msgid "Playback Error"
 msgstr "Erro de reprodução"
 
-#: gui/dialogs.py:6811
+#: gui/dialogs.py:6830
 msgid "{index}. {title}, from {source}"
 msgstr "{index}. {title}, de {source}"
 
-#: gui/dialogs.py:6815
+#: gui/dialogs.py:6834
 msgid "{index}. {title}"
 msgstr "{index}. {title}"
 
-#: gui/dialogs.py:6822
+#: gui/dialogs.py:6841
 msgid "{n} item in queue."
 msgid_plural "{n} items in queue."
 msgstr[0] "{n} item na fila."
 msgstr[1] "{n} itens na fila."
 
-#: gui/dialogs.py:6939
+#: gui/dialogs.py:6958
 msgid ""
 "Press the new shortcut for “{command}”.\n"
 "It must include Ctrl, Alt or Shift. Press Escape to cancel."
@@ -3318,15 +3373,15 @@ msgstr ""
 "Prima o novo atalho para “{command}”.\n"
 "Deve incluir Ctrl, Alt ou Shift. Prima Escape para cancelar."
 
-#: gui/dialogs.py:7156
+#: gui/dialogs.py:7175
 msgid "Shortcut Conflict"
 msgstr "Conflito de atalhos"
 
-#: gui/dialogs.py:7370
+#: gui/dialogs.py:7389
 msgid "{name} (my preset)"
 msgstr "{name} (minha predefinição)"
 
-#: gui/dialogs.py:7488
+#: gui/dialogs.py:7507
 msgid "Delete the preset \"{name}\"?"
 msgstr "Eliminar a predefinição \"{name}\"?"
 
@@ -3334,7 +3389,7 @@ msgstr "Eliminar a predefinição \"{name}\"?"
 msgid "Could not read cookies from {browser}."
 msgstr "Não foi possível ler os cookies de {browser}."
 
-#: gui/dialogs.py:2273
+#: gui/dialogs.py:2274
 msgid ""
 "User Data Folder path:\n"
 "  {path}\n"
@@ -3342,7 +3397,7 @@ msgstr ""
 "Caminho da pasta de dados do utilizador:\n"
 "  {path}\n"
 
-#: gui/dialogs.py:2274
+#: gui/dialogs.py:2275
 msgid ""
 "App Install Folder path:\n"
 "  {path}"
@@ -3350,27 +3405,27 @@ msgstr ""
 "Caminho da pasta de instalação da aplicação:\n"
 "  {path}"
 
-#: gui/dialogs.py:6530
+#: gui/dialogs.py:6549
 msgid "Could not subscribe: {error}"
 msgstr "Não foi possível subscrever: {error}"
 
-#: gui/dialogs.py:7462
+#: gui/dialogs.py:7481
 msgid "A preset named \"{name}\" already exists. Overwrite it?"
 msgstr "Já existe uma predefinição com o nome \"{name}\". Substituir?"
 
-#: gui/dialogs.py:1521
+#: gui/dialogs.py:1522
 msgid "{tool} path:"
 msgstr "Caminho do {tool}:"
 
-#: gui/dialogs.py:1722
+#: gui/dialogs.py:1723
 msgid "WAV files"
 msgstr "Ficheiros WAV"
 
-#: gui/dialogs.py:6504
+#: gui/dialogs.py:6523
 msgid "Could not start playback: {error}"
 msgstr "Não foi possível iniciar a reprodução: {error}"
 
-#: gui/dialogs.py:7152
+#: gui/dialogs.py:7171
 msgid ""
 "{accel} is already assigned to “{other}”.\n"
 "Reassign it to “{this}”?"
@@ -3807,23 +3862,23 @@ msgstr "Marcar todos os itens de todos os feeds como lidos?"
 msgid "Enter the address of a webpage to scan for feeds:"
 msgstr "Introduza o endereço de uma página web para procurar feeds:"
 
-#: gui/mainframe.py:12089
+#: gui/mainframe.py:12094
 msgid "Select a feed to subscribe to:"
 msgstr "Selecione um feed para subscrever:"
 
-#: gui/mainframe.py:12090
+#: gui/mainframe.py:12095
 msgid "Detected Feeds"
 msgstr "Feeds detetados"
 
-#: gui/mainframe.py:13051
+#: gui/mainframe.py:13056
 msgid "Release notes are available on GitHub."
 msgstr "As notas de versão estão disponíveis no GitHub."
 
-#: gui/mainframe.py:13078
+#: gui/mainframe.py:13083
 msgid "Updating BlindRSS"
 msgstr "A atualizar o BlindRSS"
 
-#: gui/mainframe.py:13079
+#: gui/mainframe.py:13084
 msgid "Starting update..."
 msgstr "A iniciar a atualização..."
 
@@ -4131,7 +4186,7 @@ msgstr "Informação"
 msgid "The Uncategorized folder cannot be removed."
 msgstr "A pasta Sem categoria não pode ser removida."
 
-#: gui/mainframe.py:7028 gui/mainframe.py:6983 gui/mainframe.py:12234
+#: gui/mainframe.py:7028 gui/mainframe.py:6983 gui/mainframe.py:12239
 msgid "Confirm"
 msgstr "Confirmar"
 
@@ -4161,15 +4216,15 @@ msgstr ""
 msgid "Downloads disabled"
 msgstr "Transferências desativadas"
 
-#: gui/mainframe.py:12073
+#: gui/mainframe.py:12078
 msgid "No feeds detected on this page."
 msgstr "Nenhum feed detetado nesta página."
 
-#: gui/mainframe.py:12227
+#: gui/mainframe.py:12232
 msgid "Failed to add feed."
 msgstr "Falha ao adicionar o feed."
 
-#: gui/mainframe.py:12383
+#: gui/mainframe.py:12388
 msgid ""
 "This provider does not support changing the feed URL.\n"
 "The title and category will be updated, but the URL will stay the same."
@@ -4177,15 +4232,15 @@ msgstr ""
 "Este fornecedor não suporta a alteração do URL do feed.\n"
 "O título e a categoria serão atualizados, mas o URL permanecerá o mesmo."
 
-#: gui/mainframe.py:12387
+#: gui/mainframe.py:12392
 msgid "Feed URL not supported"
 msgstr "URL do feed não suportado"
 
-#: gui/mainframe.py:12657
+#: gui/mainframe.py:12662
 msgid "Import successful."
 msgstr "Importação concluída com sucesso."
 
-#: gui/mainframe.py:12659
+#: gui/mainframe.py:12664
 msgid ""
 "Import failed. Please check the latest opml_debug_*.log in the temporary "
 "directory."
@@ -4193,7 +4248,7 @@ msgstr ""
 "Falha na importação. Verifique o ficheiro opml_debug_*.log mais recente no "
 "diretório temporário."
 
-#: gui/mainframe.py:13052
+#: gui/mainframe.py:13057
 msgid ""
 "A new version of BlindRSS is available ({version}).\n"
 "\n"
@@ -4207,11 +4262,11 @@ msgstr ""
 "\n"
 "Transferir e instalar esta atualização agora?"
 
-#: gui/mainframe.py:13057
+#: gui/mainframe.py:13062
 msgid "Update Available"
 msgstr "Atualização disponível"
 
-#: gui/mainframe.py:13065
+#: gui/mainframe.py:13070
 msgid ""
 "Auto-update is only available in the packaged app build.\n"
 "Download the latest release from GitHub."
@@ -4219,51 +4274,51 @@ msgstr ""
 "A atualização automática só está disponível na compilação empacotada da aplicação.\n"
 "Transfira a versão mais recente do GitHub."
 
-#: gui/mainframe.py:13134
+#: gui/mainframe.py:13139
 msgid "Update Failed"
 msgstr "Falha na atualização"
 
-#: gui/mainframe.py:13252
+#: gui/mainframe.py:13257
 msgid "Smart Folder"
 msgstr "Pasta inteligente"
 
-#: gui/mainframe.py:13265
+#: gui/mainframe.py:13270
 msgid "Show articles that match"
 msgstr "Mostrar artigos que correspondam a"
 
-#: gui/mainframe.py:13374
+#: gui/mainframe.py:13379
 msgid "Filter Rule"
 msgstr "Regra de filtro"
 
-#: gui/mainframe.py:13396
+#: gui/mainframe.py:13401
 msgid "Apply this rule to articles that match"
 msgstr "Aplicar esta regra a artigos que correspondam a"
 
-#: gui/mainframe.py:13453
+#: gui/mainframe.py:13458
 msgid "Mark as &read"
 msgstr "Marca&r como lido"
 
-#: gui/mainframe.py:13455
+#: gui/mainframe.py:13460
 msgid "Mark as &favorite"
 msgstr "Marcar como &favorito"
 
-#: gui/mainframe.py:13457
+#: gui/mainframe.py:13462
 msgid "&Delete (uses the configured delete behavior)"
 msgstr "Elimina&r (usa o comportamento de eliminação configurado)"
 
-#: gui/mainframe.py:13459
+#: gui/mainframe.py:13464
 msgid "Skip &notification"
 msgstr "Ignorar &notificação"
 
-#: gui/mainframe.py:13465
+#: gui/mainframe.py:13470
 msgid "&Stop processing later rules when this rule matches"
 msgstr "&Parar de processar regras posteriores quando esta regra corresponder"
 
-#: gui/mainframe.py:13468
+#: gui/mainframe.py:13473
 msgid "Rule &enabled"
 msgstr "Regra ativad&a"
 
-#: gui/mainframe.py:13527
+#: gui/mainframe.py:13532
 msgid ""
 "Choose at least one action for this rule (move, label, mark, delete, or skip"
 " notification)."
@@ -4271,35 +4326,35 @@ msgstr ""
 "Escolha pelo menos uma ação para esta regra (mover, rotular, marcar, "
 "eliminar ou ignorar notificação)."
 
-#: gui/mainframe.py:13528
+#: gui/mainframe.py:13533
 msgid "No Actions"
 msgstr "Nenhuma ação"
 
-#: gui/mainframe.py:13568
+#: gui/mainframe.py:13573
 msgid "&Add..."
 msgstr "&Adicionar..."
 
-#: gui/mainframe.py:13569
+#: gui/mainframe.py:13574
 msgid "&Edit..."
 msgstr "&Editar..."
 
-#: gui/mainframe.py:13570
+#: gui/mainframe.py:13575
 msgid "De&lete"
 msgstr "Elimina&r"
 
-#: gui/mainframe.py:13573
+#: gui/mainframe.py:13578
 msgid "En&able/Disable"
 msgstr "H&abilitar/Desativar"
 
-#: gui/mainframe.py:13574
+#: gui/mainframe.py:13579
 msgid "Apply to E&xisting Articles"
 msgstr "Aplicar aos artigos e&xistentes"
 
-#: gui/mainframe.py:13680
+#: gui/mainframe.py:13685
 msgid "Delete Rule"
 msgstr "Eliminar regra"
 
-#: gui/mainframe.py:13719
+#: gui/mainframe.py:13724
 msgid ""
 "Run all enabled rules against every existing article now? This may move, "
 "label, or delete articles."
@@ -4307,11 +4362,11 @@ msgstr ""
 "Executar agora todas as regras ativadas em cada artigo existente? Isto pode "
 "mover, rotular ou eliminar artigos."
 
-#: gui/mainframe.py:13723
+#: gui/mainframe.py:13728
 msgid "Apply to Existing Articles"
 msgstr "Aplicar aos artigos existentes"
 
-#: gui/mainframe.py:13750
+#: gui/mainframe.py:13755
 msgid "Filter Rules Applied"
 msgstr "Regras de filtro aplicadas"
 
@@ -4482,59 +4537,59 @@ msgstr "Falha na transferência: {title}"
 msgid "Downloading: {title}"
 msgstr "A transferir: {title}"
 
-#: gui/mainframe.py:12337
+#: gui/mainframe.py:12342
 msgid "This provider does not support editing feeds."
 msgstr "Este fornecedor não suporta a edição de feeds."
 
-#: gui/mainframe.py:12337 gui/mainframe.py:12437
+#: gui/mainframe.py:12342 gui/mainframe.py:12442
 msgid "Not supported"
 msgstr "Não suportado"
 
-#: gui/mainframe.py:12436
+#: gui/mainframe.py:12441
 msgid "This provider does not support resetting feed titles."
 msgstr "Este fornecedor não suporta a reposição de títulos de feed."
 
-#: gui/mainframe.py:13027
+#: gui/mainframe.py:13032
 msgid "Update Check Failed"
 msgstr "Falha na verificação de atualização"
 
-#: gui/mainframe.py:13032
+#: gui/mainframe.py:13037
 msgid "No Updates"
 msgstr "Sem atualizações"
 
-#: gui/mainframe.py:13037
+#: gui/mainframe.py:13042
 msgid "Unable to determine update status."
 msgstr "Não foi possível determinar o estado da atualização."
 
-#: gui/mainframe.py:13257
+#: gui/mainframe.py:13262
 msgid "Folder &name:"
 msgstr "&Nome da pasta:"
 
-#: gui/mainframe.py:13274 gui/mainframe.py:13406
+#: gui/mainframe.py:13279 gui/mainframe.py:13411
 msgid "Field"
 msgstr "Campo"
 
-#: gui/mainframe.py:13275 gui/mainframe.py:13407
+#: gui/mainframe.py:13280 gui/mainframe.py:13412
 msgid "Condition"
 msgstr "Condição"
 
-#: gui/mainframe.py:13276 gui/mainframe.py:13408
+#: gui/mainframe.py:13281 gui/mainframe.py:13413
 msgid "Value"
 msgstr "Valor"
 
-#: gui/mainframe.py:13388
+#: gui/mainframe.py:13393
 msgid "Rule &name:"
 msgstr "&Nome da regra:"
 
-#: gui/mainframe.py:13432
+#: gui/mainframe.py:13437
 msgid "&Move to category:"
 msgstr "&Mover para a categoria:"
 
-#: gui/mainframe.py:13443
+#: gui/mainframe.py:13448
 msgid "Also &label with category:"
 msgstr "Também &rotular com a categoria:"
 
-#: gui/mainframe.py:13557
+#: gui/mainframe.py:13562
 msgid "Rules run top to bottom for each incoming article, like email filters."
 msgstr ""
 "As regras são executadas de cima para baixo para cada artigo recebido, tal "
@@ -4712,41 +4767,41 @@ msgstr "Transferência concluída"
 msgid "Download complete: {title}"
 msgstr "Transferência concluída: {title}"
 
-#: gui/mainframe.py:12046
+#: gui/mainframe.py:12053
 msgid ""
-"This site is protected by a browser verification page (such as a Cloudflare challenge) that no feed reader can pass on its own.\n"
+"BlindRSS could not complete this site's browser verification page automatically.\n"
 "\n"
-"To access it: open the site in your web browser once, export its cookies with a cookies.txt browser extension, then use Tools > Import Site Cookies."
+"You can still open the site in your web browser, export its cookies with a cookies.txt extension, then use Tools > Import Site Cookies."
 msgstr ""
-"Este site está protegido por uma página de verificação do navegador (como um desafio do Cloudflare) que nenhum leitor de feeds consegue passar sozinho.\n"
+"O BlindRSS não conseguiu concluir automaticamente a página de verificação do navegador deste site.\n"
 "\n"
-"Para aceder: abra o site uma vez no seu navegador, exporte os cookies com uma extensão cookies.txt e depois use Ferramentas > Importar cookies do site."
+"Ainda pode abrir o site no seu navegador, exportar os cookies com uma extensão cookies.txt e depois usar Ferramentas > Importar cookies do site."
 
-#: gui/mainframe.py:12055
+#: gui/mainframe.py:12060
 msgid "Unable to retrieve the page."
 msgstr "Não foi possível obter a página."
 
-#: gui/mainframe.py:12234
+#: gui/mainframe.py:12239
 msgid "Are you sure you want to remove this feed?"
 msgstr "Tem a certeza de que quer remover este feed?"
 
-#: gui/mainframe.py:12474 gui/mainframe.py:12662 gui/mainframe.py:12711
+#: gui/mainframe.py:12479 gui/mainframe.py:12667 gui/mainframe.py:12716
 msgid "OPML files"
 msgstr "Ficheiros OPML"
 
-#: gui/mainframe.py:12668 gui/mainframe.py:12721
+#: gui/mainframe.py:12673 gui/mainframe.py:12726
 msgid "Export successful."
 msgstr "Exportação concluída com sucesso."
 
-#: gui/mainframe.py:12670 gui/mainframe.py:12723
+#: gui/mainframe.py:12675 gui/mainframe.py:12728
 msgid "Export failed."
 msgstr "Falha na exportação."
 
-#: gui/mainframe.py:12786
+#: gui/mainframe.py:12791
 msgid "Storage Location"
 msgstr "Localização de armazenamento"
 
-#: gui/mainframe.py:12791
+#: gui/mainframe.py:12796
 msgid ""
 "Config has been moved. The feed database will be migrated to the new "
 "location the next time BlindRSS starts."
@@ -4754,11 +4809,11 @@ msgstr ""
 "A configuração foi movida. A base de dados de feeds será migrada para o novo"
 " local na próxima vez que o BlindRSS iniciar."
 
-#: gui/mainframe.py:12795
+#: gui/mainframe.py:12800
 msgid "Storage Location Changed"
 msgstr "Localização de armazenamento alterada"
 
-#: gui/mainframe.py:13679
+#: gui/mainframe.py:13684
 msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr ""
 "Eliminar a regra de filtro \"{name}\"? Os artigos que já arquivou não são "
@@ -4894,19 +4949,19 @@ msgstr ""
 msgid "Download failed: {error}"
 msgstr "Falha na transferência: {error}"
 
-#: gui/mainframe.py:12785
+#: gui/mainframe.py:12790
 msgid "Could not move config file."
 msgstr "Não foi possível mover o ficheiro de configuração."
 
-#: gui/mainframe.py:13637
+#: gui/mainframe.py:13642
 msgid "Could not create the rule."
 msgstr "Não foi possível criar a regra."
 
-#: gui/mainframe.py:13666
+#: gui/mainframe.py:13671
 msgid "Could not update the rule."
 msgstr "Não foi possível atualizar a regra."
 
-#: gui/mainframe.py:13742
+#: gui/mainframe.py:13747
 msgid ""
 "Could not apply rules.\n"
 "\n"
@@ -4974,11 +5029,11 @@ msgstr ""
 "Transferido para:\n"
 "{path}"
 
-#: gui/mainframe.py:12725
+#: gui/mainframe.py:12730
 msgid "Export failed: {error}"
 msgstr "Falha na exportação: {error}"
 
-#: gui/mainframe.py:12874
+#: gui/mainframe.py:12879
 msgid "Windows notification prerequisites could not be fully configured."
 msgstr ""
 "Não foi possível configurar totalmente os pré-requisitos de notificação do "
@@ -5190,6 +5245,9 @@ msgstr "Não lidos: {count}"
 #: main.py:267
 msgid "BlindRSS is already running."
 msgstr "O BlindRSS já está em execução."
+
+#~ msgid "Text files (*.txt)|*.txt|All files (*.*)|*.*"
+#~ msgstr "Ficheiros de texto (*.txt)|*.txt|Todos os ficheiros (*.*)|*.*"
 
 #~ msgid "Show/Hide &Player (Ctrl+Shift+P)"
 #~ msgstr "Mostrar/ocultar re&produtor (Ctrl+Shift+P)"

@@ -37,6 +37,38 @@ _MAX_PAGE_SOURCE_CHARS = 30 * 1024 * 1024
 _RUNTIME_FAILURE_COOLDOWN_SECONDS = 300.0
 _runtime_unavailable_until = 0.0
 
+# A URL whose browser attempt genuinely ran and still produced no feed is not
+# retried in the browser for this long. Refresh cycles over a large collection
+# would otherwise pay the same serialized Chromium launch for the same failing
+# feed on every cycle (issue #79 follow-up: a several-hundred-feed refresh went
+# from ~9 to ~21 minutes). Only the refresh path (fetch_feed) records and
+# honors this; user-initiated page detection must always be allowed to retry.
+_NEGATIVE_RESULT_COOLDOWN_SECONDS = 6 * 3600.0
+_MAX_NEGATIVE_RESULTS = 512
+_negative_results: dict[str, float] = {}
+_negative_results_lock = threading.Lock()
+
+
+def _negative_result_active(url: str) -> bool:
+    with _negative_results_lock:
+        return time.monotonic() < _negative_results.get(url, 0.0)
+
+
+def _record_negative_result(url: str) -> None:
+    now = time.monotonic()
+    with _negative_results_lock:
+        if len(_negative_results) >= _MAX_NEGATIVE_RESULTS:
+            for key in [k for k, until in _negative_results.items() if until <= now]:
+                _negative_results.pop(key, None)
+            if len(_negative_results) >= _MAX_NEGATIVE_RESULTS:
+                _negative_results.clear()
+        _negative_results[url] = now + _NEGATIVE_RESULT_COOLDOWN_SECONDS
+
+
+def _clear_negative_result(url: str) -> None:
+    with _negative_results_lock:
+        _negative_results.pop(url, None)
+
 
 def _local_name(tag) -> str:
     text = str(tag or "")
@@ -226,6 +258,7 @@ def _fetch_browser_document(
     proxy: str | None = None,
     cancel_event=None,
     feed_only: bool,
+    remember_failures: bool = False,
 ) -> BrowserPageResponse | None:
     """Fetch a browser document, optionally requiring a validated feed.
 
@@ -245,6 +278,9 @@ def _fetch_browser_document(
     if parts.scheme not in ("http", "https") or not parts.netloc:
         return None
     if _cancelled(cancel_event) or time.monotonic() < _runtime_unavailable_until:
+        return None
+    if remember_failures and _negative_result_active(target):
+        log.info("Skipping automated browser fetch during failure cooldown url=%s", target)
         return None
 
     timeout_s = max(15.0, min(float(timeout_s or 90.0), 180.0))
@@ -304,6 +340,7 @@ def _fetch_browser_document(
                             len(text.encode("utf-8")),
                             final_url,
                         )
+                        _clear_negative_result(target)
                         response_type = BrowserFeedResponse if feed_only else BrowserPageResponse
                         return response_type(text=text, url=final_url)
                     # This is fully automated. solve_captcha() is a no-op when
@@ -311,6 +348,8 @@ def _fetch_browser_document(
                     sb.solve_captcha()
         except Exception:
             log.exception("Automated browser feed fallback failed for %s", target)
+            if remember_failures and not _cancelled(cancel_event):
+                _record_negative_result(target)
             return None
 
         log.info(
@@ -318,6 +357,8 @@ def _fetch_browser_document(
             "feed" if feed_only else "page",
             target,
         )
+        if remember_failures:
+            _record_negative_result(target)
         return None
     finally:
         _FETCH_LOCK.release()
@@ -330,13 +371,18 @@ def fetch_feed(
     proxy: str | None = None,
     cancel_event=None,
 ) -> BrowserFeedResponse | None:
-    """Fetch a feed through the browser and return it only after validation."""
+    """Fetch a feed through the browser and return it only after validation.
+
+    Attempts that genuinely ran the browser and still produced no feed start a
+    per-URL cooldown so refresh cycles do not repeat the launch back to back.
+    """
     response = _fetch_browser_document(
         url,
         timeout_s=timeout_s,
         proxy=proxy,
         cancel_event=cancel_event,
         feed_only=True,
+        remember_failures=True,
     )
     return response if isinstance(response, BrowserFeedResponse) else None
 

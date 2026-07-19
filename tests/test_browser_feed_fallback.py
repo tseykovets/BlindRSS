@@ -28,6 +28,12 @@ _RSS_XML = """<?xml version="1.0" encoding="utf-8"?>
 
 _HTML = "<!doctype html><html><head><title>Blocked</title></head><body>No feed</body></html>"
 
+_CHALLENGE_HTML = (
+    "<!doctype html><html><head><title>Just a moment...</title>"
+    '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>'
+    "</head><body>Verifying you are human.</body></html>"
+)
+
 
 class _Response:
     def __init__(self, text, status=200, content_type="text/html"):
@@ -137,7 +143,7 @@ def test_http_error_uses_browser_fallback_once(monkeypatch):
             core.db.DB_FILE = old_db
 
 
-def test_html_success_response_also_uses_browser_fallback(monkeypatch):
+def test_challenge_interstitial_200_uses_browser_fallback(monkeypatch):
     with tempfile.TemporaryDirectory() as tmp:
         old_db = core.db.DB_FILE
         core.db.DB_FILE = os.path.join(tmp, "rss.db")
@@ -150,7 +156,7 @@ def test_html_success_response_also_uses_browser_fallback(monkeypatch):
             monkeypatch.setattr(
                 local_mod.utils,
                 "safe_requests_get",
-                lambda *_a, **_k: _Response(_HTML, status=200),
+                lambda *_a, **_k: _Response(_CHALLENGE_HTML, status=200),
             )
             monkeypatch.setattr(
                 local_mod.browser_feed_mod,
@@ -166,14 +172,44 @@ def test_html_success_response_also_uses_browser_fallback(monkeypatch):
             core.db.DB_FILE = old_db
 
 
-def test_malformed_feed_response_uses_browser_fallback(monkeypatch):
+def test_plain_html_response_skips_browser_fallback(monkeypatch):
+    """A 200 webpage without challenge markers is not bot protection (issue #79
+    follow-up: escalating those more than doubled large-collection refreshes)."""
     with tempfile.TemporaryDirectory() as tmp:
         old_db = core.db.DB_FILE
         core.db.DB_FILE = os.path.join(tmp, "rss.db")
         try:
             provider = _provider(enabled=True)
             feed_id = _insert_feed()
-            browser_calls = []
+            states = []
+
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", False)
+            monkeypatch.setattr(
+                local_mod.utils,
+                "safe_requests_get",
+                lambda *_a, **_k: _Response(_HTML, status=200),
+            )
+            monkeypatch.setattr(
+                local_mod.browser_feed_mod,
+                "fetch_feed",
+                lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("must not launch")),
+            )
+
+            assert provider.refresh_feed(feed_id, progress_cb=states.append) is True
+            assert states[-1]["status"] == "error"
+        finally:
+            core.db.DB_FILE = old_db
+
+
+def test_malformed_feed_response_skips_browser_fallback(monkeypatch):
+    """A truncated feed body is a broken feed, not bot protection."""
+    with tempfile.TemporaryDirectory() as tmp:
+        old_db = core.db.DB_FILE
+        core.db.DB_FILE = os.path.join(tmp, "rss.db")
+        try:
+            provider = _provider(enabled=True)
+            feed_id = _insert_feed()
+            states = []
 
             monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", False)
             monkeypatch.setattr(
@@ -188,6 +224,88 @@ def test_malformed_feed_response_uses_browser_fallback(monkeypatch):
             monkeypatch.setattr(
                 local_mod.browser_feed_mod,
                 "fetch_feed",
+                lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("must not launch")),
+            )
+
+            assert provider.refresh_feed(feed_id, progress_cb=states.append) is True
+            assert states[-1]["status"] == "error"
+        finally:
+            core.db.DB_FILE = old_db
+
+
+def test_dead_feed_404_skips_browser_fallback(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmp:
+        old_db = core.db.DB_FILE
+        core.db.DB_FILE = os.path.join(tmp, "rss.db")
+        try:
+            provider = _provider(enabled=True)
+            feed_id = _insert_feed()
+            states = []
+
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", False)
+            monkeypatch.setattr(
+                local_mod.utils,
+                "safe_requests_get",
+                lambda *_a, **_k: _Response(_HTML, status=404),
+            )
+            monkeypatch.setattr(
+                local_mod.browser_feed_mod,
+                "fetch_feed",
+                lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("must not launch")),
+            )
+
+            assert provider.refresh_feed(feed_id, progress_cb=states.append) is True
+            assert states[-1]["status"] == "error"
+        finally:
+            core.db.DB_FILE = old_db
+
+
+def test_timeout_skips_browser_fallback(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmp:
+        old_db = core.db.DB_FILE
+        core.db.DB_FILE = os.path.join(tmp, "rss.db")
+        try:
+            provider = _provider(enabled=True)
+            feed_id = _insert_feed()
+            states = []
+
+            def _timeout(*_a, **_k):
+                raise requests.exceptions.ReadTimeout("Read timed out.")
+
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", False)
+            monkeypatch.setattr(local_mod.utils, "safe_requests_get", _timeout)
+            monkeypatch.setattr(
+                local_mod.browser_feed_mod,
+                "fetch_feed",
+                lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("must not launch")),
+            )
+
+            assert provider.refresh_feed(feed_id, progress_cb=states.append) is True
+            assert states[-1]["status"] == "error"
+        finally:
+            core.db.DB_FILE = old_db
+
+
+def test_connection_reset_uses_browser_fallback(monkeypatch):
+    """A WAF-style reset after all plain retries still escalates to the browser."""
+    with tempfile.TemporaryDirectory() as tmp:
+        old_db = core.db.DB_FILE
+        core.db.DB_FILE = os.path.join(tmp, "rss.db")
+        try:
+            provider = _provider(enabled=True)
+            feed_id = _insert_feed()
+            browser_calls = []
+
+            def _reset(*_a, **_k):
+                raise requests.exceptions.ConnectionError(
+                    "('Connection aborted.', ConnectionResetError(10054, 'reset'))"
+                )
+
+            monkeypatch.setattr(local_mod.utils, "CURL_CFFI_AVAILABLE", False)
+            monkeypatch.setattr(local_mod.utils, "safe_requests_get", _reset)
+            monkeypatch.setattr(
+                local_mod.browser_feed_mod,
+                "fetch_feed",
                 lambda url, **_k: browser_calls.append(url)
                 or browser_feed.BrowserFeedResponse(_RSS_XML, url),
             )
@@ -197,6 +315,26 @@ def test_malformed_feed_response_uses_browser_fallback(monkeypatch):
             assert len(provider.get_articles(feed_id=feed_id)) == 1
         finally:
             core.db.DB_FILE = old_db
+
+
+def test_negative_cooldown_blocks_repeat_browser_attempts(monkeypatch):
+    url = "https://cooldown.example/feed.xml"
+    browser_feed._clear_negative_result(url)
+    assert not browser_feed._negative_result_active(url)
+
+    browser_feed._record_negative_result(url)
+    assert browser_feed._negative_result_active(url)
+
+    # fetch_feed must return before ever touching the browser lock.
+    monkeypatch.setattr(
+        browser_feed,
+        "_acquire_fetch_lock",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("must not attempt")),
+    )
+    assert browser_feed.fetch_feed(url, timeout_s=15) is None
+
+    browser_feed._clear_negative_result(url)
+    assert not browser_feed._negative_result_active(url)
 
 
 def test_partial_config_keeps_browser_fallback_disabled(monkeypatch):

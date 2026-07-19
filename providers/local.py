@@ -1265,6 +1265,64 @@ def _response_looks_blocked(resp) -> bool:
     return False
 
 
+_BROWSER_FALLBACK_STATUS_CODES = frozenset({401, 403, 429, 503})
+
+# Transport failures that look like an active anti-bot rejection: a TLS-level
+# reset or a mid-response abort. Connection-refused, unreachable-network,
+# timeout, and DNS failures mean a dead or unreachable server, which a real
+# browser cannot fix.
+_BROWSER_FALLBACK_RESET_MARKERS = (
+    "connection reset",
+    "reset by peer",
+    "connection aborted",
+    "remotedisconnected",
+    "curl: (56)",
+    "curl: (35)",
+    "unexpected eof",
+    "handshake",
+)
+
+
+def _browser_fallback_response_qualifies(resp) -> bool:
+    """True when a response carries actual bot-protection evidence.
+
+    The automated-browser fallback pays a serialized headless Chromium launch
+    of up to browser_feed_fallback_timeout_seconds, so ordinary failures --
+    dead feeds, 404s, webpages that simply are not feeds -- must never reach
+    it. Escalating every terminal failure more than doubled refresh time on a
+    several-hundred-feed collection (issue #79 follow-up)."""
+    try:
+        status_code = int(getattr(resp, "status_code", 0) or 0)
+    except Exception:
+        status_code = 0
+    if status_code in _BROWSER_FALLBACK_STATUS_CODES or status_code >= 520:
+        return True
+    if _response_looks_cloudflare_challenge(resp):
+        return True
+    try:
+        body = str(getattr(resp, "text", "") or "")
+    except Exception:
+        body = ""
+    return browser_feed_mod._looks_like_challenge_page(body)
+
+
+def _browser_fallback_error_qualifies(error: Exception) -> bool:
+    """True when a terminal refresh failure looks like bot protection rather
+    than a dead feed (see _browser_fallback_response_qualifies)."""
+    status = _http_status_from_error(error)
+    if status is not None:
+        if status in _BROWSER_FALLBACK_STATUS_CODES or status >= 520:
+            return True
+        response = getattr(error, "response", None)
+        return response is not None and _browser_fallback_response_qualifies(response)
+    if isinstance(error, requests.exceptions.Timeout):
+        return False
+    if _is_name_resolution_error(error):
+        return False
+    text = str(error or "").lower()
+    return any(marker in text for marker in _BROWSER_FALLBACK_RESET_MARKERS)
+
+
 def _feed_has_stored_articles(feed_id: str) -> bool:
     try:
         conn = get_connection()
@@ -1947,13 +2005,23 @@ class LocalProvider(RSSProvider):
             browser_feed_fallback_timeout = 90.0
         browser_feed_fallback_attempted = False
 
-        def _try_browser_feed_fallback(reason: str):
+        def _try_browser_feed_fallback(reason: str, *, response=None, error=None):
             nonlocal browser_feed_fallback_attempted
             if (
                 not browser_feed_fallback_enabled
                 or browser_feed_fallback_attempted
                 or self._refresh_cancelled(cancel_event)
             ):
+                return None
+            # The browser launch is expensive and process-serialized, so only
+            # failures that actually look like bot protection may escalate.
+            # Dead feeds, 404s, and plain non-feed pages never qualify: with
+            # several hundred feeds the unconditional escalation more than
+            # doubled total refresh time (issue #79 follow-up).
+            if error is not None:
+                if not _browser_fallback_error_qualifies(error):
+                    return None
+            elif response is not None and not _browser_fallback_response_qualifies(response):
                 return None
             browser_feed_fallback_attempted = True
             log.info(
@@ -2812,7 +2880,9 @@ class LocalProvider(RSSProvider):
                             break
                         resp.raise_for_status()
                         if direct_feed_probe_only and not _response_looks_feed_like(resp):
-                            browser_resp = _try_browser_feed_fallback("non-feed discovery response")
+                            browser_resp = _try_browser_feed_fallback(
+                                "non-feed discovery response", response=resp
+                            )
                             if browser_resp is None:
                                 status = "error"
                                 error_msg = f"Feed discovery failed for {feed_url}"
@@ -2927,7 +2997,9 @@ class LocalProvider(RSSProvider):
                             if self._sleep_or_cancel_refresh(0.01, cancel_event):
                                 return
                             continue
-                        browser_resp = _try_browser_feed_fallback(error_msg or "HTTP failure")
+                        browser_resp = _try_browser_feed_fallback(
+                            error_msg or "HTTP failure", error=e
+                        )
                         if browser_resp is not None:
                             resp = browser_resp
                             xml_data = resp.content
@@ -2978,7 +3050,7 @@ class LocalProvider(RSSProvider):
             try:
                 d = _parse_feed_document(xml_data, xml_text, response_content_type)
             except Exception:
-                browser_resp = _try_browser_feed_fallback("feed parse failure")
+                browser_resp = _try_browser_feed_fallback("feed parse failure", response=resp)
                 if browser_resp is None:
                     raise
                 resp = browser_resp
@@ -2999,7 +3071,9 @@ class LocalProvider(RSSProvider):
                 bool(getattr(d, "bozo", False)) or not _response_looks_feed_like(resp)
             )
             if parsed_document_invalid:
-                browser_resp = _try_browser_feed_fallback("invalid or non-feed parsed response")
+                browser_resp = _try_browser_feed_fallback(
+                    "invalid or non-feed parsed response", response=resp
+                )
                 if browser_resp is not None:
                     resp = browser_resp
                     xml_data = resp.content

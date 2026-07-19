@@ -2357,6 +2357,19 @@ def resolve_final_url(url: str, max_redirects: int = 30, timeout_s: float = 15.0
         return url
 
 
+def normalize_user_submitted_url(value: str) -> str:
+    """Remove common Markdown wrappers accidentally pasted with a URL.
+
+    A single trailing backtick is particularly easy to copy from issue text and
+    becomes a different upstream path (issue #79). Only presentation delimiters
+    are removed; URL query/path punctuation is otherwise preserved.
+    """
+    text = str(value or "").strip()
+    if len(text) >= 2 and text.startswith("<") and text.endswith(">"):
+        text = text[1:-1].strip()
+    return text.strip("`").strip()
+
+
 def normalize_url_for_vlc(url: str) -> str:
     """Ensure URL is safely encoded for VLC (avoid unescaped spaces, etc.)."""
     if not isinstance(url, str):

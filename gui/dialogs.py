@@ -272,7 +272,7 @@ class AddFeedDialog(wx.Dialog):
         category = normalize_category_input(
             self.cat_ctrl.GetValue(), self.category_identities
         )
-        return self.url_ctrl.GetValue(), category
+        return utils.normalize_user_submitted_url(self.url_ctrl.GetValue()), category
 
 
 class AddShortcutsDialog(wx.Dialog):

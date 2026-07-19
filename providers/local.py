@@ -1457,7 +1457,7 @@ class LocalProvider(RSSProvider):
         discovery_timeout: Optional[float] = None,
         use_cache: bool = False,
     ) -> str:
-        resolved = str(url or "").strip()
+        resolved = utils.normalize_user_submitted_url(url)
         if not resolved:
             return resolved
 

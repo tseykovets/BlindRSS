@@ -75,11 +75,106 @@ class MinifluxProvider(RSSProvider):
             "feed_id": None,
             "feed_url": None,
         }
+        # Optional same-origin companion used by self-hosted Miniflux instances
+        # to solve browser-verification challenges from the Miniflux host's own
+        # IP.  A 404 disables probing for the rest of this process, so ordinary
+        # Miniflux servers pay at most one cheap capability check.
+        self._browser_feed_fallback_available = None
         # Backoff for repeatedly failing targeted per-feed refresh endpoints.
         # This avoids hammering a single broken feed refresh route and spamming logs.
         self._targeted_refresh_backoff_until: dict[str, float] = {}
         self._targeted_refresh_fail_counts: dict[str, int] = {}
         self._targeted_refresh_backoff_lock = threading.Lock()
+
+    def _browser_feed_fallback_request(self, action: str, payload: dict, *, wait: bool = False):
+        """Call the optional direct-browser Miniflux companion endpoint.
+
+        The API token is forwarded only to the configured Miniflux origin.  The
+        companion validates it against ``/v1/me`` before doing any work.  This
+        path is intentionally separate from ``_req`` because it is an optional
+        BlindRSS extension rather than an upstream Miniflux API route.
+        """
+        if not bool(self.config.get("browser_feed_fallback_enabled", True)):
+            return None
+        if self._browser_feed_fallback_available is False or not self.base_url:
+            return None
+
+        path = str(
+            self.conf.get(
+                "browser_feed_fallback_path",
+                "/blindrss-browser-feed/v1",
+            )
+            or ""
+        ).strip()
+        if not path:
+            return None
+        if not path.startswith("/"):
+            path = "/" + path
+        endpoint = f"{self.base_url}{path.rstrip('/')}/{str(action or '').strip('/')}"
+
+        timeout_s = 12
+        if wait:
+            try:
+                browser_timeout = float(
+                    self.config.get("browser_feed_fallback_timeout_seconds", 90) or 90
+                )
+            except (TypeError, ValueError):
+                browser_timeout = 90.0
+            timeout_s = int(max(45.0, min(browser_timeout, 180.0)) + 30.0)
+
+        try:
+            response = self._session.post(
+                endpoint,
+                headers=self.headers,
+                json=dict(payload or {}),
+                timeout=(self.CONNECT_TIMEOUT_SECONDS, timeout_s),
+            )
+        except Exception:
+            log.debug("Miniflux browser-feed fallback request failed", exc_info=True)
+            return None
+
+        if response.status_code == 404:
+            self._browser_feed_fallback_available = False
+            return None
+        if response.status_code not in (200, 201, 202):
+            log.warning(
+                "Miniflux browser-feed fallback rejected action=%s status=%s",
+                action,
+                response.status_code,
+            )
+            return None
+
+        self._browser_feed_fallback_available = True
+        try:
+            value = response.json()
+        except Exception:
+            value = {}
+        return value if isinstance(value, dict) else {}
+
+    @staticmethod
+    def _looks_like_browser_challenge_error(value) -> bool:
+        text = str(value or "").casefold()
+        return any(
+            marker in text
+            for marker in (
+                "status code: 403",
+                "status code 403",
+                "http 403",
+                "forbidden",
+                "cloudflare",
+                "browser verification",
+                "bot challenge",
+                "cf-mitigated",
+            )
+        )
+
+    def _queue_browser_feed_recovery(self, feed_ids=None) -> bool:
+        result = self._browser_feed_fallback_request(
+            "recover",
+            {"feed_ids": [str(value) for value in (feed_ids or []) if str(value).strip()]},
+            wait=False,
+        )
+        return result is not None
 
     def _cacheable_get_endpoint(self, endpoint: str) -> str | None:
         ep = str(endpoint or "").split("?", 1)[0].strip()
@@ -1477,6 +1572,11 @@ class MinifluxProvider(RSSProvider):
                 "Miniflux refresh finished force=%s duration_s=%.2f feeds=%s stragglers_bg=%s",
                 force, duration_s, len(feeds or []), background_owns_scope,
             )
+            # The companion filters this list server-side and queues work only
+            # for feeds whose latest Miniflux error indicates a browser gate.
+            # The request returns immediately; Chrome never extends refresh UI
+            # latency for accounts that have one protected subscription.
+            self._queue_browser_feed_recovery()
             return True
         finally:
             # When stragglers are still loading, the background daemon releases the
@@ -1538,6 +1638,8 @@ class MinifluxProvider(RSSProvider):
             if (target.get("parsing_error_count") or 0) > 0:
                 status = "error"
                 error_msg = target.get("parsing_error_message")
+                if self._looks_like_browser_challenge_error(error_msg):
+                    self._queue_browser_feed_recovery([fid])
             elif checked_dt and checked_dt < stale_cutoff:
                 status = "stale"
 
@@ -1942,6 +2044,7 @@ class MinifluxProvider(RSSProvider):
         
         # Try to get native feed URL for media sites (e.g. YouTube)
         # Miniflux can sometimes fail to discover these natively, leading to 500 errors.
+        url = utils.normalize_user_submitted_url(url)
         real_url = get_ytdlp_feed_url(url) or discover_feed(url) or url
         
         # Explicitly normalize Odysee/Rumble URLs to their RSS/Listing formats
@@ -2009,6 +2112,31 @@ class MinifluxProvider(RSSProvider):
                 }
                 log.info("Miniflux feed already exists; treating add as success: %s", real_url)
                 return True
+
+        # A self-hosted Miniflux server may be blocked by a JavaScript/browser
+        # verification page even though BlindRSS can reach the feed locally.
+        # Ask the optional same-origin companion to solve the challenge from the
+        # server's IP, store the clearance cookie in Miniflux, and create the
+        # original feed URL through the normal Miniflux API.
+        browser_result = self._browser_feed_fallback_request(
+            "add",
+            {"feed_url": real_url, "category_id": category_id},
+            wait=True,
+        )
+        if isinstance(browser_result, dict) and browser_result.get("feed_id") is not None:
+            feed_id = str(browser_result.get("feed_id") or "").strip() or None
+            self._last_add_feed_result = {
+                "ok": True,
+                "duplicate": bool(browser_result.get("duplicate", False)),
+                "feed_id": feed_id,
+                "feed_url": real_url,
+            }
+            log.info(
+                "Miniflux browser-feed fallback added protected feed id=%s url=%s",
+                feed_id,
+                real_url,
+            )
+            return True
         
         # If Miniflux fails (likely on Rumble), warn the user but don't crash.
         if res is None and rumble_mod.is_rumble_url(real_url):

@@ -1,0 +1,32 @@
+[Unit]
+Description=BlindRSS direct-browser fallback for Miniflux feeds
+After=network-online.target miniflux.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=blindrss-browser
+Group=blindrss-browser
+Environment=BLINDRSS_BROWSER_LISTEN_HOST=127.0.0.1
+Environment=BLINDRSS_BROWSER_LISTEN_PORT=12794
+Environment=BLINDRSS_MINIFLUX_URL=http://127.0.0.1:12793
+Environment=BLINDRSS_BROWSER_PROFILE_DIR=/var/lib/blindrss-miniflux-browser/profile
+Environment=BLINDRSS_BROWSER_RUNTIME_DIR=/var/lib/blindrss-miniflux-browser/runtime
+Environment=BLINDRSS_BROWSER_TIMEOUT=90
+WorkingDirectory=/var/lib/blindrss-miniflux-browser
+ExecStart=/opt/blindrss-feed-browser/venv/bin/python /opt/blindrss-feed-browser/service.py
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+ReadWritePaths=/var/lib/blindrss-miniflux-browser
+
+[Install]
+WantedBy=multi-user.target

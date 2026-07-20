@@ -1,8 +1,12 @@
-"""Best-effort direct speech adapters for Windows screen readers.
+"""Best-effort direct speech adapters for screen readers.
 
-This module is intentionally small and GUI-free. Standard Windows accessibility
-events remain useful, but command feedback such as "not found" needs a direct
-path when a screen reader ignores UIA/MSAA notifications.
+This module is intentionally small and GUI-free. Standard accessibility events
+remain useful, but command feedback such as "not found" needs a direct path
+when a screen reader ignores UIA/MSAA notifications. On Windows that path is the
+NVDA/JAWS controller APIs; on macOS it is the built-in ``say`` command (macOS
+has no stdlib bridge to post a VoiceOver announcement, and the app deliberately
+avoids the pyobjc dependency), which gives VoiceOver users spoken confirmation
+the wx status bar alone does not.
 """
 
 from __future__ import annotations
@@ -10,32 +14,93 @@ from __future__ import annotations
 import ctypes
 import logging
 import os
+import shutil
+import subprocess
 import sys
-from ctypes import wintypes
+import threading
 from pathlib import Path
+
+try:
+    from ctypes import wintypes
+except (ImportError, ValueError):
+    # ctypes.wintypes only imports on Windows; the module must still load on
+    # macOS/Linux for the cross-platform speak_status path below.
+    wintypes = None  # type: ignore
 
 LOG = logging.getLogger(__name__)
 
 _NVDA_DLL = None
 _NVDA_LOAD_ATTEMPTED = False
 
+# macOS `say` process management: keep the last spawned process so an
+# interrupting announcement can cancel the previous one instead of overlapping.
+_SAY_LOCK = threading.Lock()
+_SAY_PROC = None
+_SAY_PATH_ATTEMPTED = False
+_SAY_PATH = None
+
 
 def speak_status(message: str, *, interrupt: bool = True) -> bool:
-    """Speak a short status string through NVDA or JAWS.
+    """Speak a short status string through the platform screen reader.
 
-    Returns True only when a matching screen-reader API reports success. All
-    errors fail closed so callers can continue to UIA/MSAA/bell fallbacks.
+    Windows routes through NVDA or JAWS; macOS through the ``say`` command.
+    Returns True only when a speech path reports success. All errors fail closed
+    so callers can continue to UIA/MSAA/bell fallbacks.
     """
-    if not sys.platform.startswith("win"):
-        return False
     text = str(message or "").strip()
     if not text:
+        return False
+    if sys.platform == "darwin":
+        return _speak_macos_say(text, interrupt=interrupt)
+    if not sys.platform.startswith("win"):
         return False
     if _speak_nvda(text, interrupt=interrupt):
         return True
     if _speak_jaws(text, interrupt=interrupt):
         return True
     return False
+
+
+def _macos_say_path():
+    """Locate the macOS ``say`` binary once (cached)."""
+    global _SAY_PATH_ATTEMPTED, _SAY_PATH
+    if _SAY_PATH_ATTEMPTED:
+        return _SAY_PATH
+    _SAY_PATH_ATTEMPTED = True
+    _SAY_PATH = shutil.which("say") or (
+        "/usr/bin/say" if os.path.isfile("/usr/bin/say") else None
+    )
+    return _SAY_PATH
+
+
+def _speak_macos_say(text: str, *, interrupt: bool = True) -> bool:
+    """Speak ``text`` via the macOS ``say`` command, non-blocking.
+
+    When ``interrupt`` is True a still-speaking prior announcement is terminated
+    first so status updates replace each other rather than queue up. Returns True
+    once the process is launched; speech itself is asynchronous.
+    """
+    global _SAY_PROC
+    say = _macos_say_path()
+    if not say:
+        return False
+    try:
+        with _SAY_LOCK:
+            if interrupt and _SAY_PROC is not None and _SAY_PROC.poll() is None:
+                try:
+                    _SAY_PROC.terminate()
+                except Exception:
+                    pass
+            _SAY_PROC = subprocess.Popen(
+                [say, "--", text],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        return True
+    except Exception as exc:
+        LOG.debug("macOS say speech failed: %s", exc)
+        return False
 
 
 def braille_message(message: str) -> bool:
@@ -279,6 +344,9 @@ def _windows_process_running(names: set[str]) -> bool:
 
 
 def _reset_for_tests() -> None:
-    global _NVDA_DLL, _NVDA_LOAD_ATTEMPTED
+    global _NVDA_DLL, _NVDA_LOAD_ATTEMPTED, _SAY_PROC, _SAY_PATH, _SAY_PATH_ATTEMPTED
     _NVDA_DLL = None
     _NVDA_LOAD_ATTEMPTED = False
+    _SAY_PROC = None
+    _SAY_PATH = None
+    _SAY_PATH_ATTEMPTED = False

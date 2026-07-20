@@ -15,9 +15,59 @@ permissions:
   contents: write
 
 jobs:
-  # No Windows job: the Windows installer is built, signed, and released locally
-  # via build.bat, so a runner build here would be redundant — and it failed
-  # anyway because the GitHub runner has no VLC (libvlc.dll) at the spec's path.
+  # Windows is built here (VLC/ffmpeg/Inno Setup installed via Chocolatey) so a
+  # release can be driven entirely from a Mac. This produces UNSIGNED artifacts
+  # (SKIP_SIGN=1): CI has no code-signing certificate. For a signed, authoritative
+  # Windows release with the updater manifest, run `.\build.bat release` on a
+  # Windows machine, or wire signing secrets into this job.
+  windows:
+    name: Build Windows Artifact
+    runs-on: windows-latest
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Windows build dependencies
+        shell: pwsh
+        run: |
+          choco install --no-progress -y vlc ffmpeg innosetup
+
+      - name: Build Windows package
+        shell: cmd
+        env:
+          # No signing certificate in CI: build unsigned. build.bat's `build`
+          # mode makes the portable ZIP + installer with no git/release effects.
+          SKIP_SIGN: "1"
+        run: |
+          call build.bat build
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlindRSS-windows-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.sha }}
+          path: |
+            dist/BlindRSS-v*.zip
+            dist/BlindRSS-Setup-v*.exe
+
+      - name: Upload release asset
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $zip = Get-ChildItem dist/BlindRSS-v*.zip | Select-Object -First 1
+          if ($zip) { gh release upload "${{ inputs.release_tag }}" $zip.FullName --clobber }
+          $exe = Get-ChildItem dist/BlindRSS-Setup-v*.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($exe) { gh release upload "${{ inputs.release_tag }}" $exe.FullName --clobber }
+
   macos:
     name: Build macOS Artifact
     runs-on: macos-14

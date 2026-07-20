@@ -1,3 +1,4 @@
+import html as html_stdlib
 import logging
 import math
 import subprocess
@@ -10,9 +11,11 @@ import wx
 
 from core import utils
 from core import article_extractor
+from core import article_html
+from core import article_lang
 from core.i18n import _
 from core.categories import UNCATEGORIZED, category_display_name
-from .clipboard_utils import copy_textctrl_selection_to_clipboard
+from .clipboard_utils import copy_text_to_clipboard, copy_textctrl_selection_to_clipboard
 
 log = logging.getLogger(__name__)
 
@@ -73,7 +76,15 @@ def format_accessible_chapters(chapters) -> str:
     return "\n".join(lines)
 
 
-def extract_article_body(article, *, provider_fetch=None, timeout: int = 20, max_pages: int = 6):
+def extract_article_body(
+    article,
+    *,
+    provider_fetch=None,
+    timeout: int = 20,
+    max_pages: int = 6,
+    encoding: str = "",
+    metadata_sink=None,
+):
     """Extract the readable full-text body for an article.
 
     GUI-free and safe to call off the main thread (does network I/O). Tries, in order of
@@ -103,7 +114,17 @@ def extract_article_body(article, *, provider_fetch=None, timeout: int = 20, max
     web_text = None
     if has_web_target:
         try:
-            art = article_extractor.extract_full_article(url, max_pages=max_pages, timeout=timeout)
+            # Per-feed full-text encoding override (issue #75) and structured-metadata
+            # enrichment ride the same fetch the main window uses; both are optional
+            # and passed only when provided so lean test doubles keep working.
+            extra = {}
+            if encoding:
+                extra["encoding"] = encoding
+            if metadata_sink is not None:
+                extra["metadata_sink"] = metadata_sink
+            art = article_extractor.extract_full_article(
+                url, max_pages=max_pages, timeout=timeout, **extra
+            )
             if art:
                 web_text = (getattr(art, "text", "") or "").strip() or None
         except article_extractor.ExtractionError:
@@ -347,6 +368,16 @@ class AccessibleBrowserFrame(wx.Frame):
         self._chapter_inflight = set()
         self._current_body_art_id = None
         self._current_body_text = ""
+        # Optional rich (HTML) reader surface, mirroring MainFrame's opt-in
+        # "Rich Full-Text View". Created lazily on first use; falls back to the
+        # plain TextCtrl when the WebView backend is unavailable. Gated on the
+        # SAME config key as the main window so the setting is shared.
+        self._rich_view = None
+        self._rich_view_unavailable = False
+        self._rich_html_cache = {}
+        self._rich_token = 0
+        self._rich_debounce = None
+        self._current_rich_art_id = None
         # Read-ahead prefetch: while the user reads one article, warm the full text of
         # the next few so VoiceOver reads the FULL article (not the feed snippet) the
         # moment they navigate to it. Web extraction is slow (2-7s); without this the
@@ -403,7 +434,11 @@ class AccessibleBrowserFrame(wx.Frame):
         self.download_btn = wx.Button(panel, label=_("Download"))
         self.download_btn.SetName("Download Article")
         self.download_btn.Enable(False)
-        toolbar.Add(self.download_btn, 0)
+        toolbar.Add(self.download_btn, 0, wx.RIGHT, 6)
+        self.rich_view_chk = wx.CheckBox(panel, label=_("Rich View"))
+        self.rich_view_chk.SetName(_("Rich Full-Text View"))
+        self.rich_view_chk.SetValue(self._rich_view_enabled())
+        toolbar.Add(self.rich_view_chk, 0, wx.ALIGN_CENTER_VERTICAL)
         root.Add(toolbar, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         search_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -474,6 +509,9 @@ class AccessibleBrowserFrame(wx.Frame):
             pass
         right.Add(self.content_ctrl, 1, wx.EXPAND)
         content.Add(right, 3, wx.ALL | wx.EXPAND, 8)
+        # Kept for lazy creation of the rich (WebView) reader surface.
+        self._reader_panel = panel
+        self._reader_right_sizer = right
 
         root.Add(content, 1, wx.EXPAND)
         panel.SetSizer(root)
@@ -491,10 +529,19 @@ class AccessibleBrowserFrame(wx.Frame):
         self.article_list.Bind(wx.EVT_LISTBOX, self.on_article_selected)
         self.article_list.Bind(wx.EVT_LISTBOX_DCLICK, self.on_open_article)
         self.article_list.Bind(wx.EVT_KEY_DOWN, self.on_article_list_key_down)
+        self.article_list.Bind(wx.EVT_CONTEXT_MENU, self.on_article_context_menu)
         self.content_ctrl.Bind(wx.EVT_TEXT_COPY, self.on_content_copy)
         self.content_ctrl.Bind(wx.EVT_SET_FOCUS, self.on_content_focus)
+        self.rich_view_chk.Bind(wx.EVT_CHECKBOX, self.on_toggle_rich_view)
         self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
         self.search_ctrl.Bind(wx.EVT_TEXT, self.on_search_changed)
+
+        self._build_menu_bar()
+
+        # Build the rich reader now if the shared setting opted into it, so the
+        # WebView is ready before the first article is shown.
+        if self._rich_view_enabled():
+            self._apply_reader_mode()
 
         self.refresh_views()
 
@@ -502,6 +549,302 @@ class AccessibleBrowserFrame(wx.Frame):
         if copy_textctrl_selection_to_clipboard(self.content_ctrl):
             return
         event.Skip()
+
+    # ---- Menu bar ---------------------------------------------------------
+    # The accessible browser had no menu bar, so a VoiceOver user who preferred
+    # this window could not reach Settings, the player dialogs, or app-level
+    # tools at all. Nearly every command delegates to the existing MainFrame
+    # handler; article-scoped items act on THIS window's selected article.
+
+    def _menu_item(self, menu, label, handler, help_text=""):
+        item = menu.Append(wx.ID_ANY, label, help_text)
+        self.Bind(wx.EVT_MENU, handler, item)
+        return item
+
+    def _delegate(self, method_name, *args):
+        """Invoke a MainFrame handler, guarded. Event-based handlers accept None."""
+        fn = getattr(self.mainframe, method_name, None)
+        if not callable(fn):
+            log.debug("Accessible browser: MainFrame has no %s to delegate to", method_name)
+            return
+        try:
+            fn(*args) if args else fn(None)
+        except Exception:
+            log.exception("Accessible browser delegate to %s failed", method_name)
+
+    def _build_menu_bar(self):
+        mb = wx.MenuBar()
+
+        file_menu = wx.Menu()
+        self._menu_item(file_menu, _("&Add Feed...\tCtrl+N"), lambda e: self._delegate("on_add_feed"))
+        self._menu_item(file_menu, _("Detect Feeds on &Page..."), lambda e: self._delegate("on_detect_page_feeds"))
+        self._menu_item(file_menu, _("&Import OPML..."), lambda e: self._delegate("on_import_opml"))
+        self._menu_item(file_menu, _("&Export OPML..."), lambda e: self._delegate("on_export_opml"))
+        file_menu.AppendSeparator()
+        self._menu_item(file_menu, _("&Refresh Feeds\tCtrl+R"), self.on_refresh_feeds)
+        self._menu_item(file_menu, _("&Stop Refresh"), lambda e: self._delegate("on_stop_refresh"))
+        self._menu_item(file_menu, _("Mark All in Current View as R&ead"), self.on_menu_mark_view_read)
+        file_menu.AppendSeparator()
+        self._menu_item(file_menu, _("&Settings..."), lambda e: self._delegate("on_settings"))
+        self._menu_item(file_menu, _("Close &Window\tCtrl+W"), lambda e: self.Close())
+        mb.Append(file_menu, _("&File"))
+
+        article_menu = wx.Menu()
+        self._menu_item(article_menu, _("&Open or Play"), self.on_open_article)
+        self._menu_item(article_menu, _("Open in &Browser"), self.on_menu_open_in_browser)
+        article_menu.AppendSeparator()
+        self._menu_item(article_menu, _("Copy &Link"), self.on_menu_copy_link)
+        self._menu_item(article_menu, _("Copy &Text"), self.on_menu_copy_text)
+        self._menu_item(article_menu, _("Copy &Media Link"), self.on_menu_copy_media_link)
+        article_menu.AppendSeparator()
+        self._menu_item(article_menu, _("Toggle &Favorite\tCtrl+D"), self.on_toggle_favorite)
+        self._menu_item(article_menu, _("Mark &Read"), self.on_mark_read)
+        self._menu_item(article_menu, _("Mark &Unread"), self.on_mark_unread)
+        self._menu_item(article_menu, _("De&lete"), self.on_delete_selected_article)
+        article_menu.AppendSeparator()
+        self._menu_item(article_menu, _("&Download"), self.on_download_article)
+        self._menu_item(article_menu, _("Detect &Audio"), self.on_menu_detect_audio)
+        self._menu_item(article_menu, _("&Find in Article...\tCtrl+F"), self.on_find_in_article)
+        self._menu_item(article_menu, _("View &History..."), self.on_view_history)
+        self._menu_item(article_menu, _("View Feed De&scription..."), self.on_view_feed_description)
+        mb.Append(article_menu, _("&Article"))
+
+        player_menu = wx.Menu()
+        self._menu_item(player_menu, _("&Show or Hide Player"), lambda e: self._delegate("toggle_player_visibility"))
+        self._menu_item(player_menu, _("Open Play &Queue..."), lambda e: self._delegate("on_open_play_queue"))
+        self._menu_item(player_menu, _("Play &Next in Queue"), lambda e: self._delegate("on_play_queue_next"))
+        self._menu_item(player_menu, _("Play &Previous in Queue"), lambda e: self._delegate("on_play_queue_prev"))
+        self._menu_item(player_menu, _("&Equalizer..."), lambda e: self._delegate("on_open_equalizer"))
+        mb.Append(player_menu, _("&Player"))
+
+        tools_menu = wx.Menu()
+        self._menu_item(tools_menu, _("&Persistent Search..."), lambda e: self._delegate("on_configure_persistent_search"))
+        self._menu_item(tools_menu, _("&Filter Rules..."), lambda e: self._delegate("on_manage_filter_rules"))
+        self._menu_item(tools_menu, _("Find a Podcast or &RSS..."), lambda e: self._delegate("on_find_feed"))
+        self._menu_item(tools_menu, _("&Video Search..."), lambda e: self._delegate("on_ytdlp_global_search"))
+        self._menu_item(tools_menu, _("Import Site &Cookies..."), lambda e: self._delegate("on_import_site_cookies"))
+        mb.Append(tools_menu, _("&Tools"))
+
+        help_menu = wx.Menu()
+        self._menu_item(help_menu, _("&Keyboard Shortcuts..."), lambda e: self._delegate("on_open_keyboard_shortcuts"))
+        self._menu_item(help_menu, _("View Feed &Errors..."), lambda e: self._delegate("on_view_feed_errors"))
+        self._menu_item(help_menu, _("Check for &Updates..."), lambda e: self._delegate("on_check_updates"))
+        self._menu_item(help_menu, _("&About"), lambda e: self._delegate("on_about"))
+        mb.Append(help_menu, _("&Help"))
+
+        self.SetMenuBar(mb)
+        return mb
+
+    def on_menu_open_in_browser(self, _event):
+        _idx, art = self._selected_article()
+        url = str(getattr(art, "url", "") or "") if art is not None else ""
+        if not url:
+            return
+        try:
+            webbrowser.open(url)
+        except Exception:
+            log.exception("Failed to open article in browser")
+
+    def on_menu_copy_link(self, _event):
+        _idx, art = self._selected_article()
+        url = str(getattr(art, "url", "") or "") if art is not None else ""
+        if url:
+            copy_text_to_clipboard(url)
+
+    def on_menu_copy_text(self, _event):
+        _idx, art = self._selected_article()
+        if art is None:
+            return
+        # Prefer the extracted full text currently in the reader; fall back to feed.
+        text = str(getattr(self, "_current_body_text", "") or "")
+        if not text:
+            try:
+                text = self.mainframe._strip_html(getattr(art, "content", "") or "")
+            except Exception:
+                text = str(getattr(art, "content", "") or "")
+        if text:
+            copy_text_to_clipboard(text)
+
+    def on_menu_copy_media_link(self, _event):
+        _idx, art = self._selected_article()
+        media = str(getattr(art, "media_url", "") or "") if art is not None else ""
+        if media:
+            copy_text_to_clipboard(media)
+
+    def on_menu_detect_audio(self, _event):
+        _idx, art = self._selected_article()
+        if art is not None:
+            self._delegate("on_detect_audio", art)
+
+    def on_menu_mark_view_read(self, _event):
+        view_id = str(getattr(self, "current_view_id", "") or "").strip() or "all"
+        try:
+            self.mainframe._confirm_and_mark_all_read(
+                view_id, _("Mark all items in this view as read?")
+            )
+        except Exception:
+            log.exception("Mark all in view failed")
+
+    def on_toggle_favorite(self, _event=None):
+        _idx, article = self._selected_article()
+        if article is None:
+            return
+        try:
+            if not self.mainframe._supports_favorites():
+                return
+        except Exception:
+            return
+        try:
+            new_state = self.mainframe.provider.toggle_favorite(article.id)
+        except Exception:
+            log.exception("Toggle favorite failed")
+            return
+        if new_state is None:
+            return
+        article.is_favorite = bool(new_state)
+        try:
+            msg = _("Added to favorites.") if new_state else _("Removed from favorites.")
+            self.mainframe._announce_event("favorite_toggle", msg)
+        except Exception:
+            pass
+        self._apply_filter()
+
+    def on_delete_selected_article(self, _event=None):
+        _idx, article = self._selected_article()
+        if article is None:
+            return
+        aid = getattr(article, "id", None)
+        if not aid:
+            return
+        try:
+            supports = self.mainframe._supports_article_delete()
+        except Exception:
+            supports = True
+        if not supports:
+            return
+        # Respect the shared "confirm before delete" setting (default on).
+        try:
+            confirm = bool(self.mainframe.config_manager.get("confirm_article_delete", True))
+        except Exception:
+            confirm = True
+        if confirm:
+            try:
+                if wx.MessageBox(
+                    _("Delete this article?"), _("Delete Article"),
+                    wx.YES_NO | wx.ICON_QUESTION, self,
+                ) != wx.YES:
+                    return
+            except Exception:
+                pass
+
+        def _worker():
+            try:
+                self.mainframe.provider.delete_article(aid)
+            except Exception:
+                log.exception("Delete article failed")
+
+        threading.Thread(target=_worker, daemon=True).start()
+        # Drop it from the local lists and refresh so the row disappears at once.
+        try:
+            self._base_articles = [
+                a for a in self._base_articles if getattr(a, "id", None) != aid
+            ]
+        except Exception:
+            pass
+        self._apply_filter()
+        try:
+            self.mainframe._announce_event("general", _("Article deleted."))
+        except Exception:
+            pass
+
+    def on_view_history(self, _event=None):
+        _idx, article = self._selected_article()
+        if article is not None:
+            self._delegate("on_view_article_history", article)
+
+    def on_view_feed_description(self, _event=None):
+        _idx, article = self._selected_article()
+        if article is None:
+            return
+        try:
+            desc = self.mainframe._article_description_text(article)
+        except Exception:
+            desc = ""
+        if not desc:
+            desc = _("No feed description is available for this item.")
+        try:
+            wx.MessageBox(desc, _("Feed Description"), wx.OK | wx.ICON_INFORMATION, self)
+        except Exception:
+            pass
+
+    def on_find_in_article(self, _event=None):
+        """Simple find within the reader text, with wrap-around and re-find."""
+        try:
+            haystack = self.content_ctrl.GetValue() or ""
+        except Exception:
+            haystack = ""
+        if not haystack:
+            return
+        default = str(getattr(self, "_last_find_term", "") or "")
+        dlg = wx.TextEntryDialog(self, _("Find in article:"), _("Find"), default)
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            term = dlg.GetValue()
+        finally:
+            dlg.Destroy()
+        term = str(term or "").strip()
+        if not term:
+            return
+        self._last_find_term = term
+        # Search AFTER the current caret first, then wrap to the top.
+        try:
+            start = self.content_ctrl.GetInsertionPoint()
+        except Exception:
+            start = 0
+        low_hay = haystack.lower()
+        low_term = term.lower()
+        pos = low_hay.find(low_term, start)
+        if pos < 0:
+            pos = low_hay.find(low_term, 0)
+        if pos < 0:
+            try:
+                self.mainframe._announce(_('"{term}" was not found.').format(term=term))
+            except Exception:
+                pass
+            return
+        try:
+            self.content_ctrl.SetFocus()
+            self.content_ctrl.SetSelection(pos, pos + len(term))
+            self.content_ctrl.ShowPosition(pos)
+        except Exception:
+            pass
+
+    def on_article_context_menu(self, _event):
+        _idx, article = self._selected_article()
+        menu = wx.Menu()
+        self._menu_item(menu, _("&Open or Play"), self.on_open_article)
+        self._menu_item(menu, _("Open in &Browser"), self.on_menu_open_in_browser)
+        menu.AppendSeparator()
+        self._menu_item(menu, _("Copy &Link"), self.on_menu_copy_link)
+        self._menu_item(menu, _("Copy &Text"), self.on_menu_copy_text)
+        self._menu_item(menu, _("Copy &Media Link"), self.on_menu_copy_media_link)
+        menu.AppendSeparator()
+        fav_label = _("Remove from &Favorites") if bool(getattr(article, "is_favorite", False)) else _("Add to &Favorites")
+        self._menu_item(menu, fav_label, self.on_toggle_favorite)
+        self._menu_item(menu, _("Mark &Read"), self.on_mark_read)
+        self._menu_item(menu, _("Mark &Unread"), self.on_mark_unread)
+        self._menu_item(menu, _("&Delete"), self.on_delete_selected_article)
+        menu.AppendSeparator()
+        self._menu_item(menu, _("&Download"), self.on_download_article)
+        self._menu_item(menu, _("Detect &Audio"), self.on_menu_detect_audio)
+        self._menu_item(menu, _("&Find in Article..."), self.on_find_in_article)
+        self._menu_item(menu, _("View &History..."), self.on_view_history)
+        self._menu_item(menu, _("View Feed De&scription..."), self.on_view_feed_description)
+        try:
+            self.article_list.PopupMenu(menu)
+        finally:
+            menu.Destroy()
 
     def on_article_list_key_down(self, event: wx.KeyEvent) -> None:
         key = event.GetKeyCode()
@@ -543,6 +886,24 @@ class AccessibleBrowserFrame(wx.Frame):
                 return
             if focused is self.content_ctrl and self._open_content_link_at_cursor():
                 return
+        focused = self.FindFocus()
+        ctrl_or_cmd = event.ControlDown() or event.MetaDown()
+        # Ctrl/Cmd+D: toggle favorite on the selected article (mirrors main window).
+        if key in (ord("D"), ord("d")) and ctrl_or_cmd and not (event.AltDown() or event.ShiftDown()):
+            self.on_toggle_favorite(event)
+            return
+        # Ctrl/Cmd+F: find within the reader (not while typing in the filter box).
+        if key in (ord("F"), ord("f")) and ctrl_or_cmd and focused is not self.search_ctrl:
+            self.on_find_in_article(event)
+            return
+        # Delete: delete the selected article.
+        if (
+            key == getattr(wx, "WXK_DELETE", 127)
+            and focused is self.article_list
+            and not (event.ControlDown() or event.ShiftDown() or event.AltDown() or event.MetaDown())
+        ):
+            self.on_delete_selected_article(event)
+            return
         event.Skip()
 
     def _open_content_link_at_cursor(self) -> bool:
@@ -571,11 +932,15 @@ class AccessibleBrowserFrame(wx.Frame):
         selected_view_id = selected_view_id or self.current_view_id or getattr(self.mainframe, "current_feed_id", None) or "all"
         entries = list(getattr(self.mainframe, "_accessible_view_entries", []) or [])
         if not entries:
+            try:
+                include_favorites = bool(self.mainframe._supports_favorites())
+            except Exception:
+                include_favorites = False
             entries = build_accessible_view_entries(
                 list(getattr(self.mainframe, "feed_map", {}).values()),
                 [],
                 {},
-                include_favorites=False,
+                include_favorites=include_favorites,
             )
         self._view_entries = entries
         self._view_index_by_id = {entry["view_id"]: idx for idx, entry in enumerate(entries)}
@@ -912,6 +1277,231 @@ class AccessibleBrowserFrame(wx.Frame):
             except Exception:
                 pass
 
+    # ---- Rich (HTML) reader surface ---------------------------------------
+    # Mirrors MainFrame's opt-in "Rich Full-Text View": an AccessibleWebView
+    # (WKWebView on macOS, read natively by VoiceOver) rendering the SAME HTML
+    # that core.article_html produces for the main window. Falls back to the
+    # plain TextCtrl whenever the WebView backend is missing.
+
+    def _rich_view_enabled(self) -> bool:
+        try:
+            return bool(self.mainframe.config_manager.get("full_text_rich_view", False))
+        except Exception:
+            return False
+
+    def _ensure_rich_view(self):
+        """Create the AccessibleWebView on first use; None if no backend exists."""
+        if self._rich_view is not None:
+            return self._rich_view
+        if self._rich_view_unavailable:
+            return None
+        try:
+            from wx_accessible_webview import AccessibleWebView
+        except Exception:
+            self._rich_view_unavailable = True
+            return None
+        try:
+            rv = AccessibleWebView(
+                self._reader_panel,
+                title=_("Article text"),
+                lang=article_lang.app_ui_language(),
+                live_region=False,
+                open_links_externally=True,
+                on_return=self._on_rich_view_return,
+            )
+        except Exception:
+            log.exception("Failed to create rich article view")
+            self._rich_view_unavailable = True
+            return None
+        if not getattr(rv, "using_webview", False):
+            # The library fell back to a degraded text control; prefer our own.
+            self._rich_view_unavailable = True
+            try:
+                rv.control.Destroy()
+            except Exception:
+                pass
+            return None
+        self._rich_view = rv
+        self._reader_right_sizer.Add(rv.control, 1, wx.EXPAND)
+        rv.control.Hide()
+        try:
+            self._reader_panel.Layout()
+        except Exception:
+            pass
+        return rv
+
+    def _rich_ready(self) -> bool:
+        """True when the rich view is enabled AND a WebView backend exists."""
+        return bool(self._rich_view_enabled() and self._ensure_rich_view() is not None)
+
+    def _apply_reader_mode(self) -> bool:
+        """Show either the plain text control or the rich WebView per the setting.
+
+        Returns whether the rich surface is the one now shown.
+        """
+        want_rich = self._rich_view_enabled()
+        rv = self._ensure_rich_view() if want_rich else self._rich_view
+        use_rich = bool(want_rich and rv is not None)
+        try:
+            self.content_ctrl.Show(not use_rich)
+        except Exception:
+            pass
+        if rv is not None:
+            try:
+                rv.control.Show(use_rich)
+            except Exception:
+                pass
+        try:
+            self._reader_panel.Layout()
+        except Exception:
+            pass
+        return use_rich
+
+    def _on_rich_view_return(self) -> None:
+        """Escape/F6 inside the web view hands focus back to the article list."""
+        try:
+            self.article_list.SetFocus()
+        except Exception:
+            pass
+
+    def _render_rich_html(self, html_body) -> None:
+        rv = self._ensure_rich_view()
+        if rv is None:
+            return
+        try:
+            rv.set_content(html_body)
+        except Exception:
+            log.exception("Failed to set rich reader content")
+
+    def _feed_language_for(self, feed_id):
+        try:
+            return self.mainframe._feed_language_for(feed_id)
+        except Exception:
+            return None
+
+    def _rich_feed_content_html(self, article) -> str:
+        """Instant no-network HTML view of the feed content shown on selection."""
+        url = str(getattr(article, "url", "") or "")
+        title = str(getattr(article, "title", "") or "")
+        author = str(getattr(article, "author", "") or "")
+        date = utils.humanize_article_date(getattr(article, "date", "") or "")
+        body = ""
+        try:
+            body = article_html.clean_article_html(
+                getattr(article, "content", "") or "", url, use_traf_prune=False
+            )
+        except Exception:
+            body = ""
+        header = f"<h1>{html_stdlib.escape(title or url)}</h1>"
+        meta = " · ".join(p for p in (date, author) if p)
+        if meta:
+            header += f'<p class="awv-meta">{html_stdlib.escape(meta)}</p>'
+        if url:
+            safe = html_stdlib.escape(url, quote=True)
+            header += f'<p class="awv-source"><a href="{safe}">{html_stdlib.escape(url)}</a></p>'
+        if not body:
+            body = f"<p>{html_stdlib.escape(_('Loading full text...'))}</p>"
+        lang = article_lang.resolve_content_language(
+            feed_item_lang=getattr(article, "language", None),
+            feed_lang=self._feed_language_for(getattr(article, "feed_id", None)),
+        )
+        safe_lang = html_stdlib.escape(lang, quote=True)
+        return f'<article lang="{safe_lang}">{header}<hr>{body}</article>'
+
+    def _show_article_rich(self, article, art_id) -> None:
+        """Render the rich surface: cached HTML, else instant feed HTML + async full text."""
+        self._current_rich_art_id = art_id
+        cached = self._rich_html_cache.get(art_id)
+        if cached is not None:
+            self._render_rich_html(cached)
+            return
+        try:
+            self._render_rich_html(self._rich_feed_content_html(article))
+        except Exception:
+            pass
+        self._schedule_rich_load(article, art_id)
+
+    def _schedule_rich_load(self, article, art_id, force=False) -> None:
+        if getattr(self, "_rich_debounce", None) is not None:
+            try:
+                self._rich_debounce.Stop()
+            except Exception:
+                pass
+            self._rich_debounce = None
+        self._rich_token += 1
+        token = self._rich_token
+        delay = 0 if force else int(getattr(self, "_fulltext_debounce_ms", 350))
+        req = {
+            "art_id": art_id,
+            "url": getattr(article, "url", "") or "",
+            "fallback_html": getattr(article, "content", "") or "",
+            "fallback_title": getattr(article, "title", "") or "",
+            "fallback_author": getattr(article, "author", "") or "",
+            "date": utils.humanize_article_date(getattr(article, "date", "") or ""),
+            "feed_item_lang": getattr(article, "language", "") or "",
+            "feed_lang": self._feed_language_for(getattr(article, "feed_id", None)) or "",
+            "token": token,
+        }
+        self._rich_debounce = wx.CallLater(delay, self._start_rich_load, req)
+
+    def _start_rich_load(self, req) -> None:
+        if req.get("token") != self._rich_token:
+            return
+        threading.Thread(target=self._rich_load_worker, args=(req,), daemon=True).start()
+
+    def _rich_load_worker(self, req) -> None:
+        html_body = None
+        try:
+            # max_pages=1: like the plain-text path, don't follow news-site "next"
+            # links (they point to the NEXT STORY, not pagination).
+            html_body = article_html.render_full_article_html(
+                req.get("url", ""),
+                fallback_html=req.get("fallback_html", ""),
+                fallback_title=req.get("fallback_title", ""),
+                fallback_author=req.get("fallback_author", ""),
+                date=req.get("date", ""),
+                feed_item_lang=req.get("feed_item_lang", ""),
+                feed_lang=req.get("feed_lang", ""),
+                max_pages=1,
+            )
+        except Exception:
+            log.debug("Rich full-text render failed", exc_info=True)
+            html_body = None
+        try:
+            wx.CallAfter(self._apply_rich_result, req.get("art_id"), html_body, req.get("token"))
+        except Exception:
+            pass
+
+    def _apply_rich_result(self, art_id, html_body, token) -> None:
+        if html_body:
+            self._rich_html_cache[art_id] = html_body
+        if token != self._rich_token:
+            return
+        if not html_body or self._current_rich_art_id != art_id:
+            return
+        self._render_rich_html(html_body)
+
+    def on_toggle_rich_view(self, event=None) -> None:
+        """Toolbar checkbox: switch between the plain text and rich HTML reader."""
+        try:
+            new_val = bool(self.rich_view_chk.GetValue())
+        except Exception:
+            new_val = not self._rich_view_enabled()
+        try:
+            self.mainframe.config_manager.set("full_text_rich_view", new_val)
+        except Exception:
+            log.exception("Failed to save rich-view toggle")
+        use_rich = self._apply_reader_mode()
+        # Reflect the EFFECTIVE state: the WebView backend may be unavailable, in
+        # which case the checkbox snaps back so the user isn't misled.
+        try:
+            self.rich_view_chk.SetValue(use_rich if new_val else False)
+        except Exception:
+            pass
+        idx = self._selected_article_index()
+        if idx is not None:
+            self._show_article_at_index(idx)
+
     def _cache_inline_chapters(self, article, art_id):
         chapters = normalize_accessible_chapters(getattr(article, "chapters", None))
         if not chapters:
@@ -1013,9 +1603,14 @@ class AccessibleBrowserFrame(wx.Frame):
         self._set_article_content(article, art_id, body)
         self._update_download_button(article)
         self._start_chapters_load(article, art_id, token)
-        if cached is None:
-            self._schedule_fulltext(art_id, token)
-        self._enqueue_prefetch_from(idx)
+        if self._rich_ready():
+            # The rich view runs its own HTML fetch; skip the parallel text
+            # extraction and read-ahead prefetch so a site isn't hit twice.
+            self._show_article_rich(article, art_id)
+        else:
+            if cached is None:
+                self._schedule_fulltext(art_id, token)
+            self._enqueue_prefetch_from(idx)
 
     def _enqueue_prefetch_from(self, idx):
         """Replace queued prefetch work with the bounded read-ahead window."""
@@ -1069,10 +1664,16 @@ class AccessibleBrowserFrame(wx.Frame):
             cacheable = False
             try:
                 body, cacheable = extract_article_body(
-                    article, provider_fetch=self._provider_fetch_locked, max_pages=1
+                    article,
+                    provider_fetch=self._provider_fetch_locked,
+                    max_pages=1,
+                    encoding=self._feed_fulltext_encoding(getattr(article, "feed_id", None)),
+                    metadata_sink=self._metadata_sink_for(article),
                 )
             except Exception:
                 body, cacheable = None, False
+            if body and cacheable:
+                body = self._maybe_translate(body)
             if self._prefetch_stop or wx.GetApp() is None:
                 with self._prefetch_lock:
                     self._prefetch_inflight.discard(art_id)
@@ -1145,6 +1746,57 @@ class AccessibleBrowserFrame(wx.Frame):
             target=self._fulltext_thread, args=(article, art_id, token), daemon=True
         ).start()
 
+    def _feed_fulltext_encoding(self, feed_id) -> str:
+        """Per-feed full-text decode override (issue #75), or "" when unset."""
+        fid = str(feed_id or "").strip()
+        if not fid:
+            return ""
+        try:
+            from core import db
+            return str((db.get_feed_settings(fid) or {}).get("fulltext_encoding") or "").strip()
+        except Exception:
+            return ""
+
+    def _maybe_translate(self, body):
+        """Translate the extracted body when translation is on; no-op otherwise.
+
+        Runs on a background worker (network I/O). The MainFrame helper returns
+        the input unchanged when translation is disabled or misconfigured.
+        """
+        text = str(body or "")
+        if not text:
+            return body
+        try:
+            return self.mainframe._translate_rendered_text_if_enabled(text)
+        except Exception:
+            return body
+
+    def _metadata_sink_for(self, article):
+        """Build a metadata-enrichment sink (author/tags for Filter Rules), or None.
+
+        Mirrors MainFrame: enrichment runs off-thread so a slow SQLite write lock
+        never stalls extraction, and any failure is swallowed.
+        """
+        aid = str(
+            getattr(article, "id", "") or getattr(article, "article_id", "") or ""
+        ).strip()
+        if not aid:
+            return None
+
+        def _sink(html, page_url):
+            def _enrich():
+                try:
+                    from core import metadata_enrich
+                    metadata_enrich.enrich_stored_article(aid, html, page_url)
+                except Exception:
+                    pass
+            try:
+                threading.Thread(target=_enrich, daemon=True).start()
+            except Exception:
+                pass
+
+        return _sink
+
     def _provider_fetch_locked(self, article_id, url):
         """Thread-safe wrapper over the provider's server-side full-text fetch."""
         prov = getattr(self.mainframe, "provider", None)
@@ -1164,11 +1816,17 @@ class AccessibleBrowserFrame(wx.Frame):
             # max_pages=1: don't follow "next" links — on news sites those point to the
             # NEXT STORY, not pagination, so following them merges unrelated articles.
             body, cacheable = extract_article_body(
-                article, provider_fetch=self._provider_fetch_locked, max_pages=1
+                article,
+                provider_fetch=self._provider_fetch_locked,
+                max_pages=1,
+                encoding=self._feed_fulltext_encoding(getattr(article, "feed_id", None)),
+                metadata_sink=self._metadata_sink_for(article),
             )
         except Exception:
             log.exception("Full-text extraction failed for %s", art_id)
             body, cacheable = None, False
+        if body:
+            body = self._maybe_translate(body)
         wx.CallAfter(self._finish_fulltext, art_id, token, body, cacheable)
 
     def _finish_fulltext(self, art_id, token, body, cacheable):

@@ -461,13 +461,38 @@ class MainFrame(wx.Frame):
                             args=(missing_vlc, missing_ffmpeg, missing_ytdlp),
                             daemon=True,
                         ).start()
+                elif sys.platform == "darwin" and dependency_check._has_brew():
+                    msg += "\n" + _(
+                        "Would you like to install them automatically via Homebrew?"
+                        "\n\nTip: You can disable this prompt in Settings > YouTube."
+                    )
+
+                    if wx.MessageBox(msg, _("Install Dependencies"), wx.YES_NO | wx.ICON_QUESTION) == wx.YES:
+                        self.SetStatusText("Installing dependencies...")
+                        threading.Thread(
+                            target=self._install_dependencies_thread,
+                            args=(missing_vlc, missing_ffmpeg, missing_ytdlp),
+                            daemon=True,
+                        ).start()
                 else:
                     log_path = dependency_check.get_dependency_log_path()
-                    msg += "\n\n" + _(
-                        "This macOS/Linux build should already bundle these tools."
-                        "\nIf they still appear missing, see the log: {log_path}"
-                        "\n\nTip: You can disable this prompt in Settings > YouTube."
-                    ).format(log_path=log_path)
+                    if sys.platform == "darwin":
+                        # Homebrew is the macOS auto-install path; without it we can
+                        # only point the user at a manual install.
+                        msg += "\n\n" + _(
+                            "Install Homebrew (https://brew.sh) to let BlindRSS install these "
+                            "automatically, or install them yourself with:"
+                            "\n    brew install --cask vlc"
+                            "\n    brew install ffmpeg yt-dlp"
+                            "\n\nIf this is a packaged build that should bundle them, see the log: {log_path}"
+                            "\n\nTip: You can disable this prompt in Settings > YouTube."
+                        ).format(log_path=log_path)
+                    else:
+                        msg += "\n\n" + _(
+                            "This Linux build should already bundle these tools."
+                            "\nIf they still appear missing, see the log: {log_path}"
+                            "\n\nTip: You can disable this prompt in Settings > YouTube."
+                        ).format(log_path=log_path)
                     wx.MessageBox(msg, _("Missing Dependencies"), wx.OK | wx.ICON_WARNING)
         except Exception as e:
             log.error(f"Dependency check failed: {e}")
@@ -9481,7 +9506,10 @@ class MainFrame(wx.Frame):
             self._announce_status_changed()
         except Exception:
             pass
-        if sys.platform.startswith("win") and screen_reader_announce.speak_status(message, interrupt=True):
+        # Direct speech: NVDA/JAWS on Windows, `say` on macOS. Both give the
+        # screen-reader user spoken confirmation the status bar alone does not.
+        if (sys.platform.startswith("win") or sys.platform == "darwin") and \
+                screen_reader_announce.speak_status(message, interrupt=True):
             return
         if sys.platform.startswith("win") and self._announce_via_uia(message):
             return

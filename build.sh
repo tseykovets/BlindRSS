@@ -365,7 +365,7 @@ ensure_vlc_linux() {
   echo "[BlindRSS Build] Using VLC plugins: $plugin_dir"
 }
 
-dispatch_macos_release_workflow() {
+dispatch_cross_platform_release() {
   local release_tag="$1"
   if [[ -z "$release_tag" ]]; then
     echo "[X] ./build.sh release requires an existing GitHub release tag."
@@ -382,13 +382,17 @@ dispatch_macos_release_workflow() {
   fi
   if ! gh release view "$release_tag" >/dev/null 2>&1; then
     echo "[X] GitHub release $release_tag was not found in this repository."
-    echo "[X] Create the Windows release first with .\\build.bat release."
+    echo "[X] Create the release first (e.g. 'gh release create $release_tag')."
     exit 1
   fi
-  echo "[BlindRSS Build] Dispatching GitHub macOS release workflow for $release_tag..."
+  echo "[BlindRSS Build] Dispatching GitHub cross-platform release workflow for $release_tag..."
   gh workflow run cross-platform-release.yml -f release_tag="$release_tag"
   echo "[BlindRSS Build] Workflow dispatched."
-  echo "[BlindRSS Build] GitHub Actions will build the macOS ZIP and upload it to release $release_tag."
+  echo "[BlindRSS Build] GitHub Actions will build the Windows, macOS, and Linux"
+  echo "[BlindRSS Build] artifacts and upload them to release $release_tag."
+  echo "[BlindRSS Build] Note: CI Windows/Linux builds are UNSIGNED. The macOS app"
+  echo "[BlindRSS Build] you build locally with './build.sh build' is ad-hoc signed;"
+  echo "[BlindRSS Build] upload it to override the CI macOS asset if you prefer."
 }
 
 read_version() {
@@ -447,7 +451,7 @@ if [[ "$MODE" == "dry-run" ]]; then
   if [[ "$PLATFORM_ID" == "macos" ]]; then
     echo "[Dry Run] Would prepare .venv, install dependencies, compile translations, bundle yt-dlp, deno, ffmpeg, and macOS VLC assets."
     echo "[Dry Run] Would ad-hoc sign dist/BlindRSS.app and zip it to dist/BlindRSS-macos-v<version>.zip"
-    echo "[Dry Run] ./build.sh release <tag> would dispatch the macOS GitHub Actions build to upload a ZIP to an existing GitHub release."
+    echo "[Dry Run] ./build.sh release <tag> would dispatch the GitHub Actions build (Windows + macOS + Linux) to upload assets to an existing GitHub release."
   else
     echo "[Dry Run] Would prepare .venv, install dependencies, compile translations, bundle yt-dlp, deno, ffmpeg, and Linux VLC assets."
     echo "[Dry Run] Would build dist/BlindRSS/ and tar it to dist/BlindRSS-linux-v<version>.tar.gz"
@@ -457,7 +461,7 @@ if [[ "$MODE" == "dry-run" ]]; then
 fi
 
 if [[ "$MODE" == "release" ]]; then
-  dispatch_macos_release_workflow "$RELEASE_TAG"
+  dispatch_cross_platform_release "$RELEASE_TAG"
   exit 0
 fi
 

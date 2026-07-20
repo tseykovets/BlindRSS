@@ -27,6 +27,15 @@ You do not normally need to build locally on both Windows and macOS.
   - Run `./build.sh build`.
   - This builds the mac app (macOS) or Linux tarball locally only.
   - If you push to `main`, GitHub Actions will build validation artifacts for Windows, macOS, and Linux automatically.
+- Mac-driven release (no Windows machine):
+  - Build the macOS app locally with `./build.sh build` (ad-hoc signed).
+  - Create the GitHub release tag (e.g. `gh release create vX.Y.Z`) and upload the local macOS ZIP.
+  - Run `./build.sh release vX.Y.Z` to dispatch GitHub Actions, which builds and
+    attaches the **Windows** and **Linux** assets (and a macOS validation build) to that release.
+  - Caveat: CI Windows/Linux assets are **unsigned** — CI has no code-signing
+    certificate. The signed, authoritative Windows release + updater manifest
+    still requires `.\build.bat release` on Windows, or signing secrets wired
+    into the `windows` job of `cross-platform-release.yml`.
 - Official release from macOS:
   - Not the primary release path.
   - macOS can republish or rerun the mac asset for an existing release tag with `./build.sh release vX.Y.Z`.
@@ -203,10 +212,14 @@ On macOS, `./build.sh release <tag>` is the approved way to publish the macOS ZI
 
 ### `build.sh release`
 
-- Requires an existing GitHub release tag created by the approved Windows release flow.
+- Requires an existing GitHub release tag (create it with the Windows release
+  flow, or from the Mac with `gh release create vX.Y.Z`).
 - Uses GitHub CLI to dispatch `cross-platform-release.yml` with `release_tag=<tag>`.
-- GitHub Actions builds the macOS ZIP on a macOS runner and uploads it to the existing GitHub release.
-- Does not bump versions, create a new release, or generate Windows updater metadata.
+- GitHub Actions builds the **Windows ZIP + installer** (Windows runner, unsigned),
+  the **Linux tarball** (Ubuntu runner), and a **macOS ZIP** (macOS runner), and
+  uploads them to the existing GitHub release.
+- Does not bump versions, create a new release, or generate the signed Windows
+  updater metadata (`BlindRSS-update.json`). Those remain part of `.\build.bat release`.
 
 ## Optional Environment Variables
 

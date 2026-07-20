@@ -867,6 +867,50 @@ def _winget_install(package_id, scope=None):
     _log(f"Winget install failed for {package_id} with rc={rc}")
     return False
 
+def _brew_path():
+    """Locate the Homebrew executable on macOS.
+
+    `shutil.which` misses brew when the app is launched from Finder/LaunchAgent
+    with a minimal PATH, so also probe the two standard prefixes: Apple Silicon
+    (/opt/homebrew) and Intel (/usr/local).
+    """
+    if platform.system().lower() != "darwin":
+        return None
+    exe = shutil.which("brew")
+    if exe:
+        return exe
+    for candidate in ("/opt/homebrew/bin/brew", "/usr/local/bin/brew"):
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def _has_brew():
+    return bool(_brew_path())
+
+
+def _brew_install(name, cask=False):
+    """Install a Homebrew formula (or cask). Returns True on success."""
+    if platform.system().lower() != "darwin":
+        return False
+    brew = _brew_path()
+    if not brew:
+        _log("Homebrew not available.")
+        return False
+    cmd = [brew, "install"]
+    if cask:
+        cmd.append("--cask")
+    cmd.append(name)
+    # Non-interactive so a Finder-launched app never blocks on a prompt.
+    env_note = "--cask " if cask else ""
+    _log(f"Installing {env_note}{name} via Homebrew...")
+    rc = _run_quiet(cmd)
+    if rc == 0:
+        return True
+    _log(f"Homebrew install failed for {name} with rc={rc}")
+    return False
+
+
 def _download_file(url, dest_path):
     try:
         from core import utils
@@ -1055,9 +1099,54 @@ def _wait_for_executable(tool_name, timeout=30):
         time.sleep(1)
     return False
 
+def _install_media_tools_macos(vlc=True, ffmpeg=True, ytdlp=False):
+    """Install missing media tools on macOS via Homebrew.
+
+    VLC is a cask (app bundle); ffmpeg and yt-dlp are formulae. Each install is
+    verified by polling for the executable so a reported success that didn't
+    actually land is logged rather than silently trusted.
+    """
+    if not _has_brew():
+        _log("Homebrew not available; cannot auto-install media tools on macOS.")
+        return
+
+    if vlc:
+        if not _brew_install("vlc", cask=True):
+            _log("Homebrew VLC install failed.")
+        if not _wait_for_executable("vlc"):
+            _log("VLC installation verification failed.")
+
+    if ffmpeg:
+        if not _brew_install("ffmpeg"):
+            _log("Homebrew FFmpeg install failed.")
+        if not _wait_for_executable("ffmpeg"):
+            _log("FFmpeg installation verification failed.")
+
+    if ytdlp:
+        if not _brew_install("yt-dlp"):
+            _log("Homebrew yt-dlp install failed.")
+        if not _wait_for_executable("yt-dlp"):
+            _log("yt-dlp installation verification failed.")
+
+    if vlc:
+        _ensure_tool_on_path("vlc")
+    if ffmpeg:
+        _ensure_tool_on_path("ffmpeg")
+    if ytdlp:
+        _ensure_tool_on_path("yt-dlp")
+
+
 def install_media_tools(vlc=True, ffmpeg=True, ytdlp=False):
-    """Installs missing tools via winget (Windows only)."""
-    if platform.system().lower() != "windows":
+    """Installs missing media tools.
+
+    Windows uses winget (with direct-download fallbacks); macOS uses Homebrew.
+    Other platforms have no automated path.
+    """
+    system = platform.system().lower()
+    if system == "darwin":
+        _install_media_tools_macos(vlc=vlc, ffmpeg=ffmpeg, ytdlp=ytdlp)
+        return
+    if system != "windows":
         return
 
     def _winget_install_with_fallback(package_id):

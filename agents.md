@@ -364,6 +364,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\gsmarena-headings-and-richedit-rtl.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\installed-app-debug-landscape.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\localization-guardrails.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\macos-parity-v1112-2.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\miniflux-refresh-streaming.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\nvda-columnsreview-focused-row-mutation.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\playback-rate-gap-and-render-lag.md

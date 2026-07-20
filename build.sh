@@ -385,14 +385,12 @@ dispatch_cross_platform_release() {
     echo "[X] Create the release first (e.g. 'gh release create $release_tag')."
     exit 1
   fi
-  echo "[BlindRSS Build] Dispatching GitHub cross-platform release workflow for $release_tag..."
+  echo "[BlindRSS Build] Dispatching GitHub macOS/Linux release workflow for $release_tag..."
   gh workflow run cross-platform-release.yml -f release_tag="$release_tag"
   echo "[BlindRSS Build] Workflow dispatched."
-  echo "[BlindRSS Build] GitHub Actions will build the Windows, macOS, and Linux"
-  echo "[BlindRSS Build] artifacts and upload them to release $release_tag."
-  echo "[BlindRSS Build] Note: CI Windows/Linux builds are UNSIGNED. The macOS app"
-  echo "[BlindRSS Build] you build locally with './build.sh build' is ad-hoc signed;"
-  echo "[BlindRSS Build] upload it to override the CI macOS asset if you prefer."
+  echo "[BlindRSS Build] GitHub Actions will build the macOS and Linux artifacts"
+  echo "[BlindRSS Build] and upload them to release $release_tag."
+  echo "[BlindRSS Build] Windows is built separately with '.\\build.bat release' on Windows."
 }
 
 read_version() {
@@ -451,7 +449,7 @@ if [[ "$MODE" == "dry-run" ]]; then
   if [[ "$PLATFORM_ID" == "macos" ]]; then
     echo "[Dry Run] Would prepare .venv, install dependencies, compile translations, bundle yt-dlp, deno, ffmpeg, and macOS VLC assets."
     echo "[Dry Run] Would ad-hoc sign dist/BlindRSS.app and zip it to dist/BlindRSS-macos-v<version>.zip"
-    echo "[Dry Run] ./build.sh release <tag> would dispatch the GitHub Actions build (Windows + macOS + Linux) to upload assets to an existing GitHub release."
+    echo "[Dry Run] ./build.sh release <tag> would dispatch the GitHub Actions build (macOS + Linux) to upload assets to an existing GitHub release. Windows is built on Windows with build.bat."
   else
     echo "[Dry Run] Would prepare .venv, install dependencies, compile translations, bundle yt-dlp, deno, ffmpeg, and Linux VLC assets."
     echo "[Dry Run] Would build dist/BlindRSS/ and tar it to dist/BlindRSS-linux-v<version>.tar.gz"

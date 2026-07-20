@@ -26,16 +26,13 @@ You do not normally need to build locally on both Windows and macOS.
 - Local build from macOS or Linux:
   - Run `./build.sh build`.
   - This builds the mac app (macOS) or Linux tarball locally only.
-  - If you push to `main`, GitHub Actions will build validation artifacts for Windows, macOS, and Linux automatically.
-- Mac-driven release (no Windows machine):
-  - Build the macOS app locally with `./build.sh build` (ad-hoc signed).
-  - Create the GitHub release tag (e.g. `gh release create vX.Y.Z`) and upload the local macOS ZIP.
+  - If you push to `main`, GitHub Actions will build validation artifacts for macOS and Linux automatically.
+- Mac-driven macOS/Linux release:
+  - Build the macOS app locally with `./build.sh build` (ad-hoc signed) if you want a local mac ZIP.
+  - Create the GitHub release tag (e.g. `gh release create vX.Y.Z`).
   - Run `./build.sh release vX.Y.Z` to dispatch GitHub Actions, which builds and
-    attaches the **Windows** and **Linux** assets (and a macOS validation build) to that release.
-  - Caveat: CI Windows/Linux assets are **unsigned** — CI has no code-signing
-    certificate. The signed, authoritative Windows release + updater manifest
-    still requires `.\build.bat release` on Windows, or signing secrets wired
-    into the `windows` job of `cross-platform-release.yml`.
+    attaches the **macOS** and **Linux** assets (and their updater manifests) to that release.
+  - Windows is built and signed separately with `.\build.bat release` on a Windows machine.
 - Official release from macOS:
   - Not the primary release path.
   - macOS can republish or rerun the mac asset for an existing release tag with `./build.sh release vX.Y.Z`.
@@ -62,7 +59,7 @@ GitHub release publication may happen from any OS after the required artifacts a
 - Signs `BlindRSS.exe` and the installer when `signtool.exe` is available.
 - Bumps `core/version.py`, tags Git, pushes, and creates the GitHub release.
 - Dispatches the GitHub Actions macOS and Linux release-asset build after the Windows release is created.
-- Pushes to `main` also trigger GitHub Actions workflow builds for Windows, macOS, and Linux as workflow artifacts so you can validate packaging without publishing a release.
+- Pushes to `main` also trigger GitHub Actions workflow builds for macOS and Linux as workflow artifacts so you can validate packaging without publishing a release.
 - Forces the created GitHub release to published/latest, verifies there are no draft releases, and verifies GitHub's `/releases/latest` endpoint points at the new tag before exiting. Never leave draft releases behind. Do not automatically delete releases during this check; publish or delete drafts manually by exact tag if needed.
 
 ## Updater Visibility Rule
@@ -215,9 +212,9 @@ On macOS, `./build.sh release <tag>` is the approved way to publish the macOS ZI
 - Requires an existing GitHub release tag (create it with the Windows release
   flow, or from the Mac with `gh release create vX.Y.Z`).
 - Uses GitHub CLI to dispatch `cross-platform-release.yml` with `release_tag=<tag>`.
-- GitHub Actions builds the **Windows ZIP + installer** (Windows runner, unsigned),
-  the **Linux tarball** (Ubuntu runner), and a **macOS ZIP** (macOS runner), and
-  uploads them to the existing GitHub release.
+- GitHub Actions builds the **macOS ZIP** (macOS runner) and the **Linux tarball**
+  (Ubuntu runner) and uploads them (with their updater manifests) to the release.
+- Windows is built separately on Windows via `.\build.bat release`.
 - Does not bump versions, create a new release, or generate the signed Windows
   updater metadata (`BlindRSS-update.json`). Those remain part of `.\build.bat release`.
 

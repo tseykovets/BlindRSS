@@ -309,6 +309,42 @@ def _macos_app_bundle_root() -> Optional[str]:
     return None
 
 
+def _posix_helper_search_roots() -> Tuple[str, ...]:
+    """Directories that may hold ``update_helper.sh`` in a frozen build.
+
+    PyInstaller 6 no longer puts bundled data files next to the executable:
+    on macOS the executable lives in ``Contents/MacOS`` while data lands in
+    ``Contents/Resources`` (mirrored into ``Contents/Frameworks``, which is
+    what ``sys._MEIPASS`` points at); on Linux data lands in ``_internal/``
+    beside the executable. Checking only ``APP_DIR`` therefore reported
+    auto-update as unsupported on macOS/Linux even though the helper ships in
+    every build. ``APP_DIR`` stays first so a helper placed next to the
+    executable still wins.
+    """
+    roots = [APP_DIR]
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        roots.append(str(meipass))
+    bundle = _macos_app_bundle_root()
+    if bundle:
+        roots.append(os.path.join(bundle, "Contents", "Frameworks"))
+        roots.append(os.path.join(bundle, "Contents", "Resources"))
+    roots.append(os.path.join(APP_DIR, "_internal"))
+    return _dedupe_paths(roots)
+
+
+def _find_posix_update_helper() -> Optional[str]:
+    """Return the full path of the bundled POSIX update helper, or None."""
+    for root in _posix_helper_search_roots():
+        candidate = os.path.join(root, POSIX_UPDATE_HELPER_NAME)
+        try:
+            if os.path.isfile(candidate):
+                return candidate
+        except Exception:
+            continue
+    return None
+
+
 def is_update_supported() -> bool:
     if not getattr(sys, "frozen", False):
         return False
@@ -318,7 +354,7 @@ def is_update_supported() -> bool:
     if platform in ("macos", "linux"):
         if platform == "macos" and not _macos_app_bundle_root():
             return False
-        return os.path.isfile(os.path.join(APP_DIR, POSIX_UPDATE_HELPER_NAME))
+        return _find_posix_update_helper() is not None
     return False
 
 
@@ -603,16 +639,23 @@ def cleanup_update_artifacts(install_dir: Optional[str] = None) -> None:
         if base.startswith(f"{install_base}_backup_"):
             _safe_remove_dir(path, install_dir, "backup")
 
-    update_tmp_parent = os.path.join(parent_dir, "_BlindRSS_update_tmp")
-    try:
-        if os.path.isdir(update_tmp_parent):
-            for entry in os.listdir(update_tmp_parent):
-                if entry.startswith("BlindRSS_update_"):
-                    _safe_remove_dir(os.path.join(update_tmp_parent, entry), install_dir, "temp")
-            if not os.listdir(update_tmp_parent):
-                _safe_remove_dir(update_tmp_parent, install_dir, "temp parent")
-    except Exception as e:
-        log.debug("Failed to clean update temp parent: %s", e)
+    # Temp parents: next to the install dir, and (macOS) next to the .app
+    # bundle, where download_and_apply_update anchors its working dir.
+    tmp_parent_dirs = [parent_dir]
+    bundle_root = _macos_app_bundle_root()
+    if bundle_root:
+        tmp_parent_dirs.append(os.path.dirname(bundle_root))
+    for tmp_parent in dict.fromkeys(tmp_parent_dirs):
+        update_tmp_parent = os.path.join(tmp_parent, "_BlindRSS_update_tmp")
+        try:
+            if os.path.isdir(update_tmp_parent):
+                for entry in os.listdir(update_tmp_parent):
+                    if entry.startswith("BlindRSS_update_"):
+                        _safe_remove_dir(os.path.join(update_tmp_parent, entry), install_dir, "temp")
+                if not os.listdir(update_tmp_parent):
+                    _safe_remove_dir(update_tmp_parent, install_dir, "temp parent")
+        except Exception as e:
+            log.debug("Failed to clean update temp parent: %s", e)
 
     try:
         temp_dir = tempfile.gettempdir()
@@ -651,7 +694,18 @@ def download_and_apply_update(info: UpdateInfo, debug_mode: bool = False, progre
     platform = current_platform()
     install_dir = APP_DIR
 
-    temp_root = _make_update_temp_root(install_dir)
+    # The temp/staging dir must live OUTSIDE the tree the helper swaps. On
+    # macOS APP_DIR is Contents/MacOS inside the .app: staging there would be
+    # carried away by the helper's backup move of the old bundle before the
+    # staged copy is applied, failing every update. Anchor it to the bundle
+    # path so the working dir lands next to BlindRSS.app instead.
+    temp_anchor = install_dir
+    if platform == "macos":
+        bundle_root = _macos_app_bundle_root()
+        if bundle_root:
+            temp_anchor = bundle_root
+
+    temp_root = _make_update_temp_root(temp_anchor)
     archive_path = os.path.join(temp_root, info.asset_name)
     extract_dir = os.path.join(temp_root, "extract")
     os.makedirs(extract_dir, exist_ok=True)
@@ -841,8 +895,8 @@ def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str
     if not bundle_root:
         return False, _("Could not locate the running .app bundle to update.")
 
-    helper_path = os.path.join(install_dir, POSIX_UPDATE_HELPER_NAME)
-    if not os.path.isfile(helper_path):
+    helper_path = _find_posix_update_helper()
+    if not helper_path:
         return False, _("{name} is missing from the app bundle.").format(name=POSIX_UPDATE_HELPER_NAME)
 
     staging_app = _find_macos_app_staging(extract_dir)
@@ -868,8 +922,8 @@ def _apply_macos(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str
 
 
 def _apply_linux(install_dir, temp_root, extract_dir, report) -> Tuple[bool, str]:
-    helper_path = os.path.join(install_dir, POSIX_UPDATE_HELPER_NAME)
-    if not os.path.isfile(helper_path):
+    helper_path = _find_posix_update_helper()
+    if not helper_path:
         return False, _("{name} is missing from the install directory.").format(name=POSIX_UPDATE_HELPER_NAME)
 
     staging_dir = _find_linux_staging(extract_dir)

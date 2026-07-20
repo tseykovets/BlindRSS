@@ -112,6 +112,88 @@ def test_is_update_supported_false_when_not_frozen(monkeypatch):
     assert updater.is_update_supported() is False
 
 
+# --- PyInstaller 6 layouts: helper is NOT next to the executable ----------------
+# macOS .app: executable in Contents/MacOS, data in Contents/Resources (mirrored
+# into Contents/Frameworks = sys._MEIPASS). Linux onedir: data in _internal/.
+
+
+def test_is_update_supported_linux_internal_layout(monkeypatch, tmp_path):
+    monkeypatch.setattr(updater.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(updater, "current_platform", lambda: "linux")
+    install = tmp_path / "BlindRSS"
+    internal = install / "_internal"
+    internal.mkdir(parents=True)
+    monkeypatch.setattr(updater, "APP_DIR", str(install))
+    assert updater.is_update_supported() is False
+    (internal / "update_helper.sh").write_text("#!/bin/sh\n")
+    assert updater.is_update_supported() is True
+
+
+def test_is_update_supported_macos_resources_layout(monkeypatch, tmp_path):
+    monkeypatch.setattr(updater.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(updater, "current_platform", lambda: "macos")
+    contents = tmp_path / "BlindRSS.app" / "Contents"
+    macos_dir = contents / "MacOS"
+    resources = contents / "Resources"
+    macos_dir.mkdir(parents=True)
+    resources.mkdir(parents=True)
+    exe = macos_dir / "BlindRSS"
+    exe.write_text("x")
+    monkeypatch.setattr(updater.sys, "executable", str(exe))
+    monkeypatch.setattr(updater, "APP_DIR", str(macos_dir))
+    assert updater.is_update_supported() is False
+    (resources / "update_helper.sh").write_text("#!/bin/sh\n")
+    assert updater.is_update_supported() is True
+
+
+def test_is_update_supported_finds_helper_in_meipass(monkeypatch, tmp_path):
+    monkeypatch.setattr(updater.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(updater, "current_platform", lambda: "linux")
+    meipass = tmp_path / "meipass"
+    meipass.mkdir()
+    monkeypatch.setattr(updater, "APP_DIR", str(tmp_path / "empty-install"))
+    monkeypatch.setattr(updater.sys, "_MEIPASS", str(meipass), raising=False)
+    assert updater.is_update_supported() is False
+    (meipass / "update_helper.sh").write_text("#!/bin/sh\n")
+    assert updater.is_update_supported() is True
+
+
+def test_apply_macos_resolves_helper_outside_install_dir(monkeypatch, tmp_path):
+    """The helper handed to _launch_posix_helper must come from the resolved
+    bundle location, not blindly from install_dir (Contents/MacOS)."""
+    contents = tmp_path / "BlindRSS.app" / "Contents"
+    macos_dir = contents / "MacOS"
+    resources = contents / "Resources"
+    macos_dir.mkdir(parents=True)
+    resources.mkdir(parents=True)
+    exe = macos_dir / "BlindRSS"
+    exe.write_text("x")
+    helper = resources / "update_helper.sh"
+    helper.write_text("#!/bin/sh\n")
+    monkeypatch.setattr(updater.sys, "executable", str(exe))
+    monkeypatch.setattr(updater, "APP_DIR", str(macos_dir))
+
+    extract = tmp_path / "extract"
+    app = extract / "BlindRSS.app" / "Contents" / "MacOS"
+    app.mkdir(parents=True)
+    (app / "BlindRSS").write_text("bin")
+
+    monkeypatch.setattr(updater, "_verify_macos_codesign", lambda p: (True, ""))
+
+    calls = {}
+
+    def fake_launch(helper_path, platform, *, install_target, staging_root, relaunch_path, temp_root):
+        calls["helper"] = helper_path
+        calls["install_target"] = install_target
+        return True, "ok"
+
+    monkeypatch.setattr(updater, "_launch_posix_helper", fake_launch)
+    ok, _msg = updater._apply_macos(str(macos_dir), str(tmp_path / "tmp"), str(extract), lambda *a: True)
+    assert ok
+    assert calls["helper"] == str(helper)
+    assert calls["install_target"].endswith("BlindRSS.app")
+
+
 # --- check_for_updates platform manifest selection ----------------------------
 
 def _release(tag):

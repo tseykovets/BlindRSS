@@ -526,6 +526,7 @@ class AccessibleBrowserFrame(wx.Frame):
         self.download_btn.Bind(wx.EVT_BUTTON, self.on_download_article)
         self.view_list.Bind(wx.EVT_LISTBOX, self.on_view_selected)
         self.view_list.Bind(wx.EVT_KEY_DOWN, self.on_view_list_key_down)
+        self.view_list.Bind(wx.EVT_CONTEXT_MENU, self.on_view_context_menu)
         self.article_list.Bind(wx.EVT_LISTBOX, self.on_article_selected)
         self.article_list.Bind(wx.EVT_LISTBOX_DCLICK, self.on_open_article)
         self.article_list.Bind(wx.EVT_KEY_DOWN, self.on_article_list_key_down)
@@ -578,6 +579,8 @@ class AccessibleBrowserFrame(wx.Frame):
         file_menu = wx.Menu()
         self._menu_item(file_menu, _("&Add Feed...\tCtrl+N"), lambda e: self._delegate("on_add_feed"))
         self._menu_item(file_menu, _("Detect Feeds on &Page..."), lambda e: self._delegate("on_detect_page_feeds"))
+        self._menu_item(file_menu, _("Add &Category..."), lambda e: self._delegate("on_add_category"))
+        self._menu_item(file_menu, _("New Smart F&older..."), lambda e: self._ctx_new_smart_folder())
         self._menu_item(file_menu, _("&Import OPML..."), lambda e: self._delegate("on_import_opml"))
         self._menu_item(file_menu, _("&Export OPML..."), lambda e: self._delegate("on_export_opml"))
         file_menu.AppendSeparator()
@@ -834,7 +837,10 @@ class AccessibleBrowserFrame(wx.Frame):
         self._menu_item(menu, fav_label, self.on_toggle_favorite)
         self._menu_item(menu, _("Mark &Read"), self.on_mark_read)
         self._menu_item(menu, _("Mark &Unread"), self.on_mark_unread)
-        self._menu_item(menu, _("&Delete"), self.on_delete_selected_article)
+        if self._in_deleted_view():
+            self._menu_item(menu, _("&Restore"), self.on_restore_article)
+        else:
+            self._menu_item(menu, _("&Delete"), self.on_delete_selected_article)
         menu.AppendSeparator()
         self._menu_item(menu, _("&Download"), self.on_download_article)
         self._menu_item(menu, _("Detect &Audio"), self.on_menu_detect_audio)
@@ -845,6 +851,176 @@ class AccessibleBrowserFrame(wx.Frame):
             self.article_list.PopupMenu(menu)
         finally:
             menu.Destroy()
+
+    def _in_deleted_view(self):
+        try:
+            return bool(self.mainframe._is_deleted_view(str(getattr(self, "current_view_id", "") or "")))
+        except Exception:
+            return False
+
+    def on_restore_article(self, _event=None):
+        _idx, article = self._selected_article()
+        if article is None:
+            return
+        aid = getattr(article, "id", None)
+        if not aid:
+            return
+        feed_id = getattr(article, "feed_id", None)
+
+        def _worker():
+            try:
+                self.mainframe.provider.restore_article(aid, feed_id)
+            except Exception:
+                log.exception("Restore article failed")
+
+        threading.Thread(target=_worker, daemon=True).start()
+        try:
+            self._base_articles = [
+                a for a in self._base_articles if getattr(a, "id", None) != aid
+            ]
+        except Exception:
+            pass
+        self._apply_filter()
+        try:
+            self.mainframe._announce_event("general", _("Article restored."))
+        except Exception:
+            pass
+
+    # ---- View-list (feed/category) context menu ---------------------------
+
+    def on_view_context_menu(self, _event):
+        entry = self._selected_view_entry()
+        if not entry:
+            return
+        kind = str(entry.get("kind", "") or "")
+        menu = wx.Menu()
+        if kind == "feed":
+            feed_id = str(entry.get("view_id", "") or "")
+            self._menu_item(menu, _("&Refresh Feed"), lambda e: self._ctx_refresh_feed(feed_id))
+            self._menu_item(menu, _("Mark All as &Read"), lambda e: self._ctx_mark_view_read(feed_id))
+            self._menu_item(menu, _("&Copy Feed URL"), lambda e: self._ctx_copy_feed_url(feed_id))
+            notif = menu.AppendCheckItem(wx.ID_ANY, _("&Notifications for This Feed"))
+            try:
+                notif.Check(bool(self.mainframe._is_feed_notifications_enabled(feed_id)))
+            except Exception:
+                pass
+            self.Bind(wx.EVT_MENU, lambda e, fid=feed_id: self._ctx_toggle_notifications(fid), notif)
+            img = wx.Menu()
+            self._menu_item(img, _("Use default setting"), lambda e: self._delegate("on_set_feed_images", feed_id, None))
+            self._menu_item(img, _("Always show image alt text"), lambda e: self._delegate("on_set_feed_images", feed_id, True))
+            self._menu_item(img, _("Never show image alt text"), lambda e: self._delegate("on_set_feed_images", feed_id, False))
+            menu.AppendSubMenu(img, _("Image Alt Text"))
+            menu.AppendSeparator()
+            self._menu_item(menu, _("Remove &Feed"), lambda e: self._ctx_remove_feed(feed_id))
+        elif kind == "category":
+            cat = str(entry.get("cat_name", "") or "")
+            self._menu_item(menu, _("&Refresh Category"), lambda e: self._delegate("on_refresh_category", None, cat))
+            self._menu_item(menu, _("Mark All as &Read"), lambda e: self._ctx_mark_view_read(str(entry.get("view_id", "") or "")))
+            self._menu_item(menu, _("Re&name Category"), lambda e: self._delegate("on_rename_category", cat))
+            self._menu_item(menu, _("Add &Subcategory"), lambda e: self._delegate("on_add_subcategory", cat))
+            menu.AppendSeparator()
+            self._menu_item(menu, _("Remove &Category"), lambda e: self._ctx_remove_category(cat))
+        menu.AppendSeparator()
+        self._menu_item(menu, _("&Add Feed..."), lambda e: self._delegate("on_add_feed"))
+        self._menu_item(menu, _("Add Cate&gory..."), lambda e: self._delegate("on_add_category"))
+        self._menu_item(menu, _("New Smart &Folder..."), lambda e: self._ctx_new_smart_folder())
+        try:
+            self.view_list.PopupMenu(menu)
+        finally:
+            menu.Destroy()
+
+    def _ctx_refresh_feed(self, feed_id):
+        if not feed_id:
+            return
+        try:
+            self.mainframe._refresh_single_feed_thread(feed_id)
+        except Exception:
+            log.exception("Refresh feed failed")
+
+    def _ctx_mark_view_read(self, view_id):
+        vid = str(view_id or "").strip()
+        if not vid:
+            return
+        try:
+            self.mainframe._confirm_and_mark_all_read(
+                vid, _("Mark all items in this view as read?")
+            )
+        except Exception:
+            log.exception("Mark all read failed")
+
+    def _ctx_copy_feed_url(self, feed_id):
+        try:
+            feed = self.mainframe.feed_map.get(feed_id)
+        except Exception:
+            feed = None
+        url = str(getattr(feed, "url", "") or "") if feed else ""
+        if url:
+            copy_text_to_clipboard(url)
+
+    def _ctx_toggle_notifications(self, feed_id):
+        try:
+            enabled = bool(self.mainframe._is_feed_notifications_enabled(feed_id))
+            self.mainframe._set_feed_notifications_enabled(feed_id, not enabled)
+        except Exception:
+            log.exception("Toggle feed notifications failed")
+
+    def _ctx_remove_feed(self, feed_id):
+        if not feed_id:
+            return
+        try:
+            title = self.mainframe._get_feed_title(feed_id)
+        except Exception:
+            title = ""
+        try:
+            if wx.MessageBox(
+                _("Remove this feed?"), _("Confirm"),
+                wx.YES_NO | wx.ICON_QUESTION, self,
+            ) != wx.YES:
+                return
+        except Exception:
+            pass
+        try:
+            self.mainframe.remove_feed_by_id(feed_id, title or None)
+        except Exception:
+            log.exception("Remove feed failed")
+
+    def _ctx_remove_category(self, cat):
+        if not cat:
+            return
+        try:
+            from core.categories import is_uncategorized
+            if is_uncategorized(cat):
+                wx.MessageBox(
+                    _("The Uncategorized folder cannot be removed."), _("Info"),
+                    wx.OK | wx.ICON_INFORMATION, self,
+                )
+                return
+        except Exception:
+            pass
+        try:
+            if wx.MessageBox(
+                _("Remove this category? Feeds will be moved to Uncategorized."),
+                _("Confirm"), wx.YES_NO | wx.ICON_QUESTION, self,
+            ) != wx.YES:
+                return
+        except Exception:
+            pass
+        try:
+            if self.mainframe.provider.delete_category(cat):
+                self.mainframe.refresh_feeds()
+            else:
+                wx.MessageBox(
+                    _("Could not remove category."), _("Error"),
+                    wx.OK | wx.ICON_ERROR, self,
+                )
+        except Exception:
+            log.exception("Remove category failed")
+
+    def _ctx_new_smart_folder(self):
+        try:
+            self.mainframe.on_new_smart_folder()
+        except Exception:
+            log.exception("New smart folder failed")
 
     def on_article_list_key_down(self, event: wx.KeyEvent) -> None:
         key = event.GetKeyCode()
@@ -942,6 +1118,19 @@ class AccessibleBrowserFrame(wx.Frame):
                 {},
                 include_favorites=include_favorites,
             )
+        # Offer a Deleted Articles view when the provider supports restoring.
+        try:
+            if self.mainframe._supports_restore_deleted() and not any(
+                str(e.get("view_id", "")) == "deleted:all" for e in entries
+            ):
+                entries = list(entries) + [{
+                    "label": _("Deleted Articles"),
+                    "view_id": "deleted:all",
+                    "kind": "special",
+                    "parent_cats": [],
+                }]
+        except Exception:
+            pass
         self._view_entries = entries
         self._view_index_by_id = {entry["view_id"]: idx for idx, entry in enumerate(entries)}
         self._sync_expanded_categories()

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import html as _html
 import re
+import time
 from typing import Optional
 from urllib.parse import quote, urljoin, urlsplit
 
@@ -790,8 +791,14 @@ def render_full_article_html(
     feed_lang: str = "",
     feed_item_lang: str = "",
     translation_target: str = "",
+    max_pages: int = 6,
 ) -> Optional[str]:
     """Fetch ``url`` and return a full rich-reader HTML fragment (header + body).
+
+    Multi-page articles (e.g. GSM Arena phone reviews split across "next page"
+    links) are followed and their cleaned bodies concatenated, mirroring the
+    plain-text reader's ``extract_full_article`` — the rich reader used to show
+    only page 1 while the classic full-text view showed the whole story.
 
     Falls back to cleaned feed content when the page can't be fetched or yields
     no usable body. Returns None only when there is nothing at all to show.
@@ -822,19 +829,52 @@ def render_full_article_html(
                 display_url = resolved
 
         if fetch_url:
-            try:
-                res = ae._fetch_page(fetch_url, timeout=timeout)
-                page_html = res.html or ""
-            except Exception:
-                page_html = ""
-            if page_html:
-                t, a = ae._extract_title_author_from_meta(page_html, fetch_url)
-                title = title or t
-                author = author or a
-                # Read the source page's declared language before cleaning: the
-                # cleaner keeps only the body, so <html lang> is gone after it.
-                page_lang = article_lang.lang_from_page_html(page_html)
-                body = clean_article_html(page_html, fetch_url)
+            # Follow simple pagination (rel=next / "next page" controls) and
+            # concatenate each page's cleaned body — the same _find_next_page
+            # the plain-text extractor uses, so host exclusions and next-STORY
+            # guards apply identically. Without this the rich reader stopped at
+            # page 1 of multi-page articles (e.g. GSM Arena reviews) while the
+            # classic full-text view rendered the whole story.
+            body_parts: list = []
+            seen_sigs: set = set()
+            visited: set = set()
+            current = fetch_url
+            harvested_meta = False
+            for _ in range(max(1, max_pages)):
+                if not current or current in visited:
+                    break
+                visited.add(current)
+                try:
+                    res = ae._fetch_page(current, timeout=timeout)
+                    page_html = res.html or ""
+                except Exception:
+                    page_html = ""
+                if not page_html:
+                    break
+                if not harvested_meta:
+                    harvested_meta = True
+                    t, a = ae._extract_title_author_from_meta(page_html, current)
+                    title = title or t
+                    author = author or a
+                    # Read the source page's declared language before cleaning:
+                    # the cleaner keeps only the body, so <html lang> is gone
+                    # after it. Only page 1's language is authoritative.
+                    page_lang = article_lang.lang_from_page_html(page_html)
+                page_body = clean_article_html(page_html, current)
+                if page_body:
+                    # De-dupe whole pages by normalized text: some sites' "next"
+                    # control eventually loops back to already-seen content, and
+                    # the page must not be appended twice.
+                    sig = _norm(BeautifulSoup(page_body, "html.parser").get_text(" ", strip=True))
+                    if sig and sig not in seen_sigs:
+                        seen_sigs.add(sig)
+                        body_parts.append(page_body)
+                next_url = ae._find_next_page(page_html, current)
+                if not next_url or next_url in visited:
+                    break
+                current = next_url
+                time.sleep(0.15)
+            body = "".join(body_parts)
 
         # Blocked/unresolvable Google News: fall back to the read-proxy rendering
         # (text only, no embeds) so the article still shows, like the text path.

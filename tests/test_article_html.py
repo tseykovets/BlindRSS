@@ -220,6 +220,80 @@ class RenderFullArticleHtmlTests(unittest.TestCase):
         out = article_html.render_full_article_html("", fallback_html="")
         self.assertIsNone(out)
 
+    def test_follows_pagination_and_merges_pages(self):
+        # A multi-page review (GSM Arena style): each page carries a "Next page"
+        # link to the following page. The rich reader must render every page,
+        # not just the first, matching the classic full-text view.
+        from unittest import mock
+
+        from core import article_extractor as ae
+
+        pages = {
+            "https://www.gsmarena.com/phone_review.php": (
+                "<html><body><article>"
+                "<h1>Phone review</h1>"
+                "<p>Page one covers the design and the in-hand feel of the device at length.</p>"
+                '<a class="pages-next" href="phone_review-p2.php">Next page</a>'
+                "</article></body></html>"
+            ),
+            "https://www.gsmarena.com/phone_review-p2.php": (
+                "<html><body><article>"
+                "<p>Page two covers the display quality and its outdoor brightness in detail.</p>"
+                '<a class="pages-next" href="phone_review-p3.php">Next page</a>'
+                "</article></body></html>"
+            ),
+            "https://www.gsmarena.com/phone_review-p3.php": (
+                "<html><body><article>"
+                "<p>Page three covers battery life and the overall verdict for this phone.</p>"
+                "</article></body></html>"
+            ),
+        }
+        fetched = []
+
+        def fake_fetch(url, timeout=20, encoding_override=""):
+            fetched.append(url)
+            return ae._FetchResult(html=pages.get(url, ""))
+
+        with mock.patch.object(ae, "_fetch_page", side_effect=fake_fetch):
+            out = article_html.render_full_article_html(
+                "https://www.gsmarena.com/phone_review.php"
+            )
+
+        self.assertIsNotNone(out)
+        text = BeautifulSoup(out, "html.parser").get_text(" ", strip=True)
+        self.assertIn("Page one covers the design", text)
+        self.assertIn("Page two covers the display", text)
+        self.assertIn("Page three covers battery life", text)
+        # All three pages were actually fetched by following the "Next page" links.
+        self.assertEqual(len(fetched), 3)
+
+    def test_pagination_stops_on_repeated_content(self):
+        # If a "next" control loops back to already-seen content, the page must
+        # not be appended twice.
+        from unittest import mock
+
+        from core import article_extractor as ae
+
+        body = (
+            "<html><body><article>"
+            "<p>The single page of this article repeats its own next link forever here.</p>"
+            '<a class="pages-next" href="loop-p2.php">Next page</a>'
+            "</article></body></html>"
+        )
+
+        def fake_fetch(url, timeout=20, encoding_override=""):
+            # Every URL returns the same body (a self-referential "next" loop).
+            return ae._FetchResult(html=body)
+
+        with mock.patch.object(ae, "_fetch_page", side_effect=fake_fetch):
+            out = article_html.render_full_article_html(
+                "https://example.com/loop.php"
+            )
+
+        self.assertIsNotNone(out)
+        text = BeautifulSoup(out, "html.parser").get_text(" ", strip=True)
+        self.assertEqual(text.count("The single page of this article repeats"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

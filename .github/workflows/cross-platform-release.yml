@@ -15,38 +15,9 @@ permissions:
   contents: write
 
 jobs:
-  windows:
-    if: ${{ github.event_name == 'push' }}
-    name: Build Windows Artifact
-    runs-on: windows-2022
-    steps:
-      - name: Check out current commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Windows build dependencies
-        shell: powershell
-        run: choco install vlc -y --no-progress
-
-      - name: Build Windows package
-        shell: cmd
-        run: |
-          set SKIP_SIGN=1
-          call build.bat build
-
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: BlindRSS-windows-${{ github.sha }}
-          path: dist/BlindRSS-v*.zip
-
+  # No Windows job: the Windows installer is built, signed, and released locally
+  # via build.bat, so a runner build here would be redundant — and it failed
+  # anyway because the GitHub runner has no VLC (libvlc.dll) at the spec's path.
   macos:
     name: Build macOS Artifact
     runs-on: macos-14

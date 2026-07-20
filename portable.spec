@@ -87,6 +87,10 @@ except Exception:
 hiddenimports = [
     "vlc",
     "trafilatura",
+    # Rich full-text reader backend (WKWebView on macOS, WebKitGTK on Linux).
+    # Imported lazily at runtime, so name it explicitly rather than relying on
+    # bytecode scanning of lazy imports.
+    "wx.html2",
 ]
 
 

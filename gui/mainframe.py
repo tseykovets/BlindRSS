@@ -9325,6 +9325,20 @@ class MainFrame(wx.Frame):
         except Exception:
             pass
 
+        # macOS: VoiceOver cursor navigation never fires EVT_SET_FOCUS on the
+        # reader, so the focus-triggered full-text load (on_content_focus /
+        # _on_rich_view_focus) never runs and VoiceOver users only ever hear
+        # the feed snippet. Mirror the accessible browser: start the load on
+        # selection (debounced + token-guarded, so fast arrowing is safe).
+        if sys.platform == "darwin":
+            try:
+                if self._rich_view_active():
+                    self._schedule_rich_load_for_index(idx, force=False)
+                else:
+                    self._schedule_fulltext_load_for_index(idx, force=False)
+            except Exception:
+                pass
+
     def on_content_copy(self, event):
         if copy_textctrl_selection_to_clipboard(self.content_ctrl):
             return

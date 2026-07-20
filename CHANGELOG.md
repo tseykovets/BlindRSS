@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.112.0 - 2026-07-20
+
+- Feed/category management, smart folders, and Deleted view in accessible browser.
+
 ## v1.111.7 - 2026-07-20
 
 - Accessible-browser parity, spoken announcements, Homebrew install, Mac-driven CI.

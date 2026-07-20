@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.111.5 - 2026-07-20
+
+- Render all pages of multi-page articles in the rich full-text view.
+
 ## v1.111.4 - 2026-07-19
 
 - Complete all locale translations for the View Feed Errors dialog strings.

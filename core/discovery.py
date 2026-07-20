@@ -43,6 +43,11 @@ _MEDIA_PATH_HINTS = (
 # to avoid classifying arbitrary articles as playable.
 _EXTRACTORS_REQUIRE_MEDIA_HINTS = {
     "VoxMedia",  # Matches most pages on theverge.com/vox.com/etc, not just media
+    # Bluesky's post URL (bsky.app/profile/<handle>/post/<id>) is identical for a
+    # plain-text post and a video post, so yt-dlp's Bluesky extractor matches
+    # every post link. Without this, every article from a Bluesky RSS feed was
+    # mislabeled "Contains audio" regardless of content.
+    "Bluesky",
 }
 
 # Cache for yt-dlp extractors (loaded once in background)

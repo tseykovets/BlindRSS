@@ -15,9 +15,92 @@ permissions:
   contents: write
 
 jobs:
-  # No Windows job: the Windows installer is built, signed, and released locally
-  # via build.bat on a Windows machine, so a runner build here would be redundant
-  # (and unsigned). GitHub Actions builds only the macOS and Linux assets.
+  # Windows is normally built and signed locally via build.bat, but this job lets
+  # a release be cut entirely from macOS/Linux: it reuses build.bat unchanged
+  # (via a code-signing cert imported from the WINDOWS_CODESIGN_PFX/PASSWORD
+  # secrets) and only runs on workflow_dispatch, since it needs an existing
+  # release tag to build against and to upload assets to.
+  windows:
+    name: Build Windows Artifact
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: windows-latest
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install VLC and Inno Setup
+        run: |
+          choco install vlc --no-progress -y
+          choco install innosetup --no-progress -y
+
+      - name: Locate signtool
+        id: signtool
+        run: |
+          $found = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\x64\\' } |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $found) { throw "signtool.exe not found on this runner image" }
+          "path=$($found.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Import code-signing certificate
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "blindrss-codesign.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:PFX_BASE64))
+          $securePwd = ConvertTo-SecureString -String $env:PFX_PASSWORD -Force -AsPlainText
+          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $securePwd | Out-Null
+          Remove-Item $pfxPath -Force
+
+      - name: Build, sign, and package Windows release
+        env:
+          SIGNTOOL_PATH: ${{ steps.signtool.outputs.path }}
+        run: .\build.bat build
+
+      - name: Compute checksums and write update manifest
+        id: manifest
+        run: |
+          $version = "${{ inputs.release_tag }}".TrimStart('v')
+          $zip = "dist\BlindRSS-v$version.zip"
+          $installer = "dist\BlindRSS-Setup-v$version.exe"
+          $zipSha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          $installerSha = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+          $thumbprint = (Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1).Thumbprint
+          .venv\Scripts\python.exe tools\release.py write-manifest `
+            --version-tag "${{ inputs.release_tag }}" `
+            --asset-name (Split-Path $zip -Leaf) `
+            --sha256 $zipSha `
+            --installer-asset-name (Split-Path $installer -Leaf) `
+            --installer-sha256 $installerSha `
+            --output dist\BlindRSS-update.json `
+            --signing-thumbprint $thumbprint
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          "installer=$installer" >> $env:GITHUB_OUTPUT
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlindRSS-windows-${{ inputs.release_tag }}
+          path: |
+            dist/BlindRSS-v*.zip
+            dist/BlindRSS-Setup-v*.exe
+            dist/BlindRSS-update.json
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ inputs.release_tag }}" "${{ steps.manifest.outputs.zip }}" "${{ steps.manifest.outputs.installer }}" dist\BlindRSS-update.json --clobber
+
   macos:
     name: Build macOS Artifact
     runs-on: macos-14

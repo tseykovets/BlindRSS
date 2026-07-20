@@ -16,6 +16,7 @@ loads libVLC.
 from __future__ import annotations
 
 import logging
+import sys
 import threading
 
 from core.vlc_options import build_vlc_instance_args
@@ -40,26 +41,37 @@ def _build_args(config_manager) -> tuple:
         startup_volume = max(0, min(100, int(config_manager.get("volume", 100))))
     except Exception:
         startup_volume = 100
-    return build_vlc_instance_args(
+    args = [
         "--no-video",
         "--input-fast-seek",
-        # WASAPI, not directsound: with --aout=directsound every set_rate()
-        # (playback-speed change) drained/rebuilt the output, silencing audio
-        # for 0.2-3s per step (measured via session-peak metering; mmdevice
-        # measured gapless). mmdevice is also what apply_preferred_soundcard()
-        # already switches to for endpoint selection.
-        "--aout=mmdevice",
-        # libvlc drops audio_set_volume until the audio output exists,
-        # and the output is only created once the stream actually
-        # produces audio. Seed the output modules' startup volume so
-        # the very first audible sample is already at the configured
-        # level instead of VLC's own default.
-        f"--directx-volume={startup_volume / 100.0:.4f}",
-        f"--mmdevice-volume={startup_volume / 100.0:.4f}",
+    ]
+    # The audio-output selection and volume seeding below are Windows-only
+    # module options (mmdevice/directx plugins). libvlc_new() FAILS (returns
+    # NULL) when handed an option no loaded plugin registers, so passing these
+    # on macOS/Linux — where those plugins do not exist — made instance
+    # creation fail outright and playback report "VLC is not initialized".
+    if sys.platform == "win32":
+        args += [
+            # WASAPI, not directsound: with --aout=directsound every set_rate()
+            # (playback-speed change) drained/rebuilt the output, silencing audio
+            # for 0.2-3s per step (measured via session-peak metering; mmdevice
+            # measured gapless). mmdevice is also what apply_preferred_soundcard()
+            # already switches to for endpoint selection.
+            "--aout=mmdevice",
+            # libvlc drops audio_set_volume until the audio output exists,
+            # and the output is only created once the stream actually
+            # produces audio. Seed the output modules' startup volume so
+            # the very first audible sample is already at the configured
+            # level instead of VLC's own default.
+            f"--directx-volume={startup_volume / 100.0:.4f}",
+            f"--mmdevice-volume={startup_volume / 100.0:.4f}",
+        ]
+    args += [
         f"--network-caching={cache_ms}",
         f"--file-caching={file_cache_ms}",
         "--http-reconnect",
-    )
+    ]
+    return build_vlc_instance_args(*args)
 
 
 def _create(config_manager) -> None:
@@ -69,6 +81,14 @@ def _create(config_manager) -> None:
         import vlc
 
         inst = vlc.Instance(*_build_args(config_manager))
+        if inst is None:
+            # libvlc_new() returns NULL when any startup option is unknown to
+            # the loaded plugin set (platform-specific option landmine). Retry
+            # with the minimal safe set so playback still works.
+            log.error(
+                "libVLC rejected the configured startup options; retrying with safe defaults"
+            )
+            inst = vlc.Instance(*build_vlc_instance_args("--no-video"))
         if inst is None:
             raise RuntimeError("libVLC returned no instance (is VLC installed?)")
     except Exception:

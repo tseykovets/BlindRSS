@@ -875,11 +875,13 @@ class PlayerFrame(wx.Frame):
         prev_device_id = getattr(self, "_last_applied_soundcard_id", None)
         try:
             if device_id:
-                try:
-                    # mmdevice supports selecting specific Windows endpoint IDs.
-                    player.audio_output_set("mmdevice")
-                except Exception:
-                    pass
+                if sys.platform == "win32":
+                    try:
+                        # mmdevice supports selecting specific Windows endpoint IDs;
+                        # forcing it on macOS/Linux (no such plugin) would mute output.
+                        player.audio_output_set("mmdevice")
+                    except Exception:
+                        pass
                 player.audio_output_device_set(None, str(device_id))
             else:
                 player.audio_output_device_set(None, None)

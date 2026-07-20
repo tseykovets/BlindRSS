@@ -4,6 +4,12 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.112.2 - 2026-07-20
+
+- MacOS and Linux auto-update now work like Windows.
+- Full text and rich view now load on article selection under VoiceOver.
+- Playback failed with 'VLC is not initialized' because Windows-only libVLC options reached libvlc_new.
+
 ## v1.112.1 - 2026-07-20
 
 - Maintenance update.

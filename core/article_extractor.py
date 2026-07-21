@@ -138,6 +138,12 @@ _BOT_INTERSTITIAL_MARKERS = (
     "performing security verification",
     "uses a security service to protect against malicious bots",
     "while the website verifies you are not a bot",
+    # DataDome (nytimes.com and others). Its block document carries no human-readable
+    # sentence beyond "Please enable JS and disable any ad blocker" — the reliable
+    # signals are its CAPTCHA host and the `dd` config object it ships.
+    "geo.captcha-delivery.com",
+    "ct.captcha-delivery.com",
+    "please enable js and disable any ad blocker",
 )
 
 # Block-page bodies are short; a long article that merely mentions one of these phrases should not be
@@ -240,6 +246,32 @@ def _looks_like_paywall_stub(text: str) -> bool:
     return bool(_PAYWALL_CTA_RE.search(text))
 
 
+# Metered publishers (nytimes.com) sometimes serve only the first few paragraphs and end
+# the article body with a role="note" subscribe line; other times the same URL renders in
+# full. Extraction then "succeeds" with a story that just stops mid-report, because the
+# note explaining why is stripped as chrome by both readers. Match that cut-off note so
+# the truncation is stated instead of trailing off.
+#
+# Do NOT key on NYT's `data-paywall-inert` attribute: it is present on the full render
+# too, so it would label complete articles as previews (verified live 2026-07-20).
+_METERED_PREVIEW_MARKERS = ("to read as many articles as you like",)
+
+
+def _looks_like_metered_preview(html_text: str) -> bool:
+    """Return True if `html_text` is a metered free preview rather than the whole article."""
+    if not html_text:
+        return False
+    low = html_text[:400000].lower()
+    return any(marker in low for marker in _METERED_PREVIEW_MARKERS)
+
+
+def metered_preview_notice() -> str:
+    return _(
+        "Only the free preview of this article is published on the page — the rest "
+        "requires a subscription. Open the original link in your browser to read it."
+    )
+
+
 def _lead_recovery_enabled(url: str) -> bool:
     if not url:
         return False
@@ -307,6 +339,18 @@ def _strip_title_suffix(title: str) -> str:
             # because it's common in legitimate titles.
             return max(t.rsplit(sep, 1), key=len).strip()
     return t
+
+
+# Byline meta tags, checked only when trafilatura found no author. `byl` is NYT's
+# (value already reads "By Simon Romero"), the rest are the common conventions.
+_AUTHOR_META_CANDIDATES = [
+    {"name": "byl"},
+    {"name": "author"},
+    {"property": "article:author"},
+    {"name": "parsely-author"},
+    {"name": "sailthru.author"},
+]
+_AUTHOR_BY_PREFIX_RE = re.compile(r"(?i)^\s*by[\s:]+")
 
 
 def _extract_meta_content(soup: BeautifulSoup, candidates: List[dict]) -> str:
@@ -1727,6 +1771,10 @@ _SMRY_STREAM_API = "https://smry.ai/api/article/auto/stream?url={quoted}&uiLocal
 _SMRY_MIN_TEXT_LEN = 300
 _SMRY_DATA_LINE_RE = re.compile(r"^data:\s*(\{.*)$", re.M)
 
+# A Chromium launch plus the page render needs far more headroom than an HTTP
+# fetch; matches core.config's browser_feed_fallback_timeout_seconds default.
+_BROWSER_FALLBACK_TIMEOUT_S = 90.0
+
 _HTML_ACCEPT_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
@@ -2287,6 +2335,33 @@ def _download_sky_via_google_translate(target_url: str, timeout: int) -> Optiona
     return None
 
 
+def _download_via_browser(target_url: str, timeout: int) -> Optional[str]:
+    """Last-resort: render the page in the invisible automated browser (SeleniumBase UC).
+
+    Some publishers (nytimes.com and other DataDome sites) refuse every plain and
+    TLS-impersonated request and are also refused by the read-proxies, so a real
+    browser is the only way to reach the article at all. This is expensive (a
+    serialized Chromium launch), so it runs only after every cheap fallback failed
+    AND a gate was actually seen — the same evidence gate the feed path uses. A
+    per-URL failure cooldown keeps a permanently blocked link from paying for a
+    browser launch on every extraction attempt.
+    """
+    try:
+        from core import browser_feed
+    except Exception:
+        return None
+    try:
+        response = browser_feed.fetch_page(
+            target_url,
+            timeout_s=max(float(timeout or 20), _BROWSER_FALLBACK_TIMEOUT_S),
+            remember_failures=True,
+        )
+    except Exception:
+        return None
+    body = getattr(response, "text", "") if response is not None else ""
+    return body or None
+
+
 def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _FetchResult:
     """Fetch a page, treating anti-bot/verification interstitials as a (recoverable) block.
 
@@ -2299,7 +2374,8 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
     2. impersonated refetch of the live page (real-browser TLS fingerprint, beats most WAF gates);
     3. Jina read-proxy (live; gates only);
     4. Smry.ai reader (live);
-    5. Wayback Machine snapshot.
+    5. Wayback Machine snapshot;
+    6. the invisible automated browser (gates only — see _download_via_browser).
     """
     if not url:
         return _FetchResult()
@@ -2322,6 +2398,11 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
             candidates.append(lambda: _download_via_jina(url, timeout))
         candidates.append(lambda: _download_via_smry(url, timeout))
         candidates.append(lambda: _download_via_wayback(url, timeout))
+        if gate_seen:
+            # Costly (serialized Chromium launch), so it is genuinely last and only
+            # runs when a gate was actually seen: sites like nytimes.com refuse every
+            # HTTP fallback above, and a real browser is the only way in.
+            candidates.append(lambda: _download_via_browser(url, timeout))
         for fetch in candidates:
             alt = fetch()
             if alt and not _looks_like_bot_interstitial(alt):
@@ -2388,12 +2469,22 @@ def _extract_title_author_from_meta(html: str, url: str) -> Tuple[str, str]:
         except Exception:
             pass
 
-    if not title:
+    if not title or not author:
         try:
             soup = BeautifulSoup(html, "html.parser")
-            t = soup.find("title")
-            if t and t.get_text(strip=True):
-                title = t.get_text(strip=True)
+            if not title:
+                t = soup.find("title")
+                if t and t.get_text(strip=True):
+                    title = t.get_text(strip=True)
+            if not author:
+                # NYT publishes the byline only as <meta name="byl" content="By ...">,
+                # which trafilatura does not read; the reader header was left blank.
+                candidate = _AUTHOR_BY_PREFIX_RE.sub(
+                    "", _extract_meta_content(soup, _AUTHOR_META_CANDIDATES)
+                ).strip()
+                # `article:author` often holds a profile URL, not a name — never a byline.
+                if candidate and not re.match(r"(?i)^(?:https?:)?//", candidate):
+                    author = candidate
         except Exception:
             pass
 
@@ -2911,8 +3002,11 @@ def extract_full_article(
     downloaded_any = False
     blocked = False
     used_proxy_text = False
+    metered_preview = False
 
-    for _ in range(max_pages):
+    # Not `for _ in ...`: that rebinds the gettext `_` to an int for the whole
+    # function, so every _( ) error message below raised instead of translating.
+    for _page_index in range(max_pages):
         if not current or current in visited:
             break
         visited.add(current)
@@ -2941,6 +3035,8 @@ def extract_full_article(
                 metadata_sink(html, current)
             except Exception:
                 pass
+        if not downloaded_any:
+            metered_preview = _looks_like_metered_preview(html)
         downloaded_any = True
 
         if not title or not author:
@@ -2982,6 +3078,10 @@ def extract_full_article(
         raise ExtractionError(_paywall_message())
     if not merged:
         raise ExtractionError(_("Downloaded page, but could not extract readable text (empty result)."))
+    # Metered preview: the text above is only the free excerpt, so say why it stops
+    # instead of letting the story trail off mid-report.
+    if metered_preview:
+        merged = merged.rstrip() + "\n\n" + metered_preview_notice()
 
     return FullArticle(url=url, title=title or "", author=author or "", text=merged)
 

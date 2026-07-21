@@ -70,6 +70,9 @@ def test_fetch_page_reports_blocked_for_http200_gate(monkeypatch):
         return _resp(200, BLOOMBERG_GATE)
 
     monkeypatch.setattr(utils, "safe_requests_get", fake_get)
+    # This covers the HTTP-level gate logic; the browser escalation is a real
+    # Chromium launch and must never run from the test suite.
+    monkeypatch.setattr(article_extractor, "_download_via_browser", lambda url, timeout: None)
     res = article_extractor._fetch_page("https://www.bloomberg.com/news/articles/x")
     assert res.blocked is True
     assert res.html is None

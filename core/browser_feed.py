@@ -393,12 +393,20 @@ def fetch_page(
     timeout_s: float = 90.0,
     proxy: str | None = None,
     cancel_event=None,
+    remember_failures: bool = False,
 ) -> BrowserPageResponse | None:
-    """Fetch a webpage after automatically completing a browser challenge."""
+    """Fetch a webpage after automatically completing a browser challenge.
+
+    ``remember_failures`` starts the per-URL cooldown on a genuine failure, for
+    repeating callers (full-text extraction) that would otherwise pay the
+    serialized Chromium launch again for a permanently blocked page. It stays
+    off for one-shot, user-initiated detection, which must always retry.
+    """
     return _fetch_browser_document(
         url,
         timeout_s=timeout_s,
         proxy=proxy,
         cancel_event=cancel_event,
         feed_only=False,
+        remember_failures=remember_failures,
     )

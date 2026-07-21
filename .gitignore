@@ -34,6 +34,11 @@ rss.db-shm
 # Downloads
 podcasts/
 
+# Invisible-browser fallback runtime (chromedriver cache + Chromium profile).
+# Created in the data dir, which is the repo itself when running from source.
+feed_browser_profile/
+feed_browser_runtime/
+
 # OS
 .DS_Store
 Thumbs.db

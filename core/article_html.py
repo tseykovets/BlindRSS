@@ -125,7 +125,9 @@ _CHROME_RE = re.compile(
     r"(?i)(?:^|[-_ ])(?:sidebar|advert|advertisement|\bads?\b|promo|newsletter|"
     r"subscribe|signup|related|recommend|trending|sharethis|share-|social|"
     r"comments?|disqus|cookie|consent|ticker|breaking-?bar|popup|modal|"
-    r"paywall|meter|taboola|outbrain|more-from|read-?more|back-to-top|"
+    # `meter` targets paywall meter widgets, but must not swallow NYT's
+    # `meteredContent` wrapper — that container IS the article body.
+    r"paywall|meter(?!ed)|taboola|outbrain|more-from|read-?more|back-to-top|"
     r"breadcrumb|post-?meta|entry-?meta|post-?tags?|tags?-list|tag-?cloud|"
     r"cat-?links|post-?categories|author-?bio|author-?box|byline|most-?popular|"
     r"up-?next|read-?next|editors?-?picks?|sponsor|partner|follow-?us|"
@@ -816,6 +818,7 @@ def render_full_article_html(
     body = ""
     page_lang = None  # source page's <html lang>, when the fetch succeeds
     display_url = url  # publisher URL once a Google News redirect is resolved
+    metered_preview = False  # page served only the free excerpt (e.g. NYT)
 
     if url and not ae._looks_like_media_url(url):
         # Google News feed items are signed redirects, not publisher pages.
@@ -860,6 +863,7 @@ def render_full_article_html(
                     # the cleaner keeps only the body, so <html lang> is gone
                     # after it. Only page 1's language is authoritative.
                     page_lang = article_lang.lang_from_page_html(page_html)
+                    metered_preview = ae._looks_like_metered_preview(page_html)
                 page_body = clean_article_html(page_html, current)
                 if page_body:
                     # De-dupe whole pages by normalized text: some sites' "next"
@@ -905,11 +909,20 @@ def render_full_article_html(
             if feed_len > body_len * 1.25:
                 embeds = "".join(_harvest_embeds_html(BeautifulSoup(body or "", "html.parser")))
                 body = feed_body + embeds
+                # The feed carried more than the page did, so the free-excerpt
+                # notice no longer describes what is being shown.
+                metered_preview = False
 
     if not body:
         body = _feed_fallback_html(fallback_html, display_url)
+        metered_preview = False
     if not body:
         return None
+    # Metered publishers (NYT) serve a few paragraphs and withhold the rest. Without
+    # this the story just stops, and the subscribe note that explains it has been
+    # stripped as chrome.
+    if metered_preview:
+        body += f'<p class="awv-notice">{_html.escape(ae.metered_preview_notice())}</p>'
 
     header_bits = [f"<h1>{_html.escape(title.strip() or display_url or '')}</h1>"]
     meta_line = " · ".join(

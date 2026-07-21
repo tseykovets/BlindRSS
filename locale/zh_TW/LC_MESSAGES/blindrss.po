@@ -99,7 +99,7 @@ msgstr "標題"
 msgid "Author"
 msgstr "作者"
 
-#: core/article_columns.py:66 gui/mainframe.py:1716
+#: core/article_columns.py:66 gui/mainframe.py:1741
 msgid "Media"
 msgstr "媒體"
 
@@ -119,7 +119,7 @@ msgstr "描述"
 msgid "Status"
 msgstr "狀態"
 
-#: core/article_extractor.py:148
+#: core/article_extractor.py:154
 msgid ""
 "This page is behind an anti-bot / human-verification check (e.g. Cloudflare "
 "or a \"you're not a robot\" page), so the full text can't be fetched "
@@ -127,57 +127,63 @@ msgid ""
 msgstr ""
 "此頁面受到反機器人／真人驗證檢查（例如 Cloudflare 或「您不是機器人」頁面）的保護，因此無法自動取得全文。請在瀏覽器中開啟原始連結閱讀。"
 
-#: core/article_extractor.py:165
+#: core/article_extractor.py:175
 msgid ""
 "The page has no readable article text — only navigation or related-story "
 "links were found (common for video-only pages). Open the original link in "
 "your browser to view it."
 msgstr "該頁面沒有可讀的文章內文——只找到導覽或相關報導連結（純影片頁面很常見）。請在瀏覽器中開啟原始連結檢視。"
 
-#: core/article_extractor.py:228
+#: core/article_extractor.py:242
 msgid ""
 "This article is behind a paywall (subscription required), so the full text "
 "can't be fetched automatically. Open the original link in your browser to "
 "read it."
 msgstr "這篇文章位於付費牆之後（需要訂閱），因此無法自動取得全文。請在瀏覽器中開啟原始連結閱讀。"
 
-#: core/article_extractor.py:1527
+#: core/article_extractor.py:277
+msgid ""
+"Only the free preview of this article is published on the page — the rest "
+"requires a subscription. Open the original link in your browser to read it."
+msgstr "頁面上僅發布了這篇文章的免費預覽部分，其餘內容需要訂閱。請在瀏覽器中開啟原始連結閱讀。"
+
+#: core/article_extractor.py:1990
 msgid ""
 "Google News could not resolve the original publisher link. Open the original"
 " link in your browser to read it."
 msgstr "Google 新聞無法解析原始發布者連結。請在瀏覽器中開啟原始連結閱讀。"
 
-#: core/article_extractor.py:2805 gui/dialogs.py:3963
+#: core/article_extractor.py:3325 gui/dialogs.py:3963
 msgid "(unknown)"
 msgstr "(未知)"
 
-#: core/article_extractor.py:2856
+#: core/article_extractor.py:3376
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr "無法從網頁或訂閱來源內容中擷取全文。"
 
-#: core/article_extractor.py:2647
+#: core/article_extractor.py:3158
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr "未安裝 trafilatura 或匯入失敗。請重新安裝相依元件。"
 
-#: core/article_extractor.py:2735
+#: core/article_extractor.py:3251
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr "下載失敗（網站被封鎖、離線或連線問題）。"
 
-#: core/article_extractor.py:2755
+#: core/article_extractor.py:3271
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr "已下載頁面，但無法擷取可讀文字（結果為空）。"
 
-#: core/article_extractor.py:2806 gui/dialogs.py:3422
+#: core/article_extractor.py:3326 gui/dialogs.py:3422
 msgid "Title:"
 msgstr "標題:"
 
-#: core/article_extractor.py:2807 gui/accessibility.py:872
-#: gui/mainframe.py:5600 gui/mainframe.py:9266
+#: core/article_extractor.py:3327 gui/accessibility.py:1437
+#: gui/mainframe.py:5664 gui/mainframe.py:9330
 msgid "Author:"
 msgstr "作者:"
 
-#: core/article_extractor.py:2847
+#: core/article_extractor.py:3367
 msgid "Unknown extraction error"
 msgstr "未知擷取錯誤"
 
@@ -291,7 +297,7 @@ msgstr "無限制"
 msgid "Feeds"
 msgstr "訂閱來源"
 
-#: core/shortcuts.py:128 gui/accessibility.py:447 gui/mainframe.py:587
+#: core/shortcuts.py:128 gui/accessibility.py:493 gui/mainframe.py:612
 msgid "Articles"
 msgstr "文章"
 
@@ -327,25 +333,25 @@ msgstr "工具"
 msgid "Add Feed"
 msgstr "新增訂閱來源"
 
-#: core/shortcuts.py:138 gui/mainframe.py:12025 gui/mainframe.py:12079
-#: gui/mainframe.py:12064
+#: core/shortcuts.py:138 gui/mainframe.py:12107 gui/mainframe.py:12161
+#: gui/mainframe.py:12146
 msgid "Detect Feeds on Page"
 msgstr "偵測頁面上的訂閱來源"
 
-#: core/shortcuts.py:139 gui/mainframe.py:4513
+#: core/shortcuts.py:139 gui/mainframe.py:4538
 msgid "Remove Feed"
 msgstr "移除訂閱來源"
 
-#: core/shortcuts.py:140 gui/accessibility.py:383 gui/accessibility.py:382
-#: gui/mainframe.py:3067
+#: core/shortcuts.py:140 gui/accessibility.py:425 gui/accessibility.py:424
+#: gui/mainframe.py:3092
 msgid "Refresh Feeds"
 msgstr "重新整理訂閱來源"
 
-#: core/shortcuts.py:141 gui/mainframe.py:3073
+#: core/shortcuts.py:141 gui/mainframe.py:3098
 msgid "Stop Refresh"
 msgstr "停止重新整理"
 
-#: core/shortcuts.py:142 gui/mainframe.py:4462
+#: core/shortcuts.py:142 gui/mainframe.py:4487
 msgid "Refresh Feed"
 msgstr "重新整理訂閱來源"
 
@@ -353,7 +359,7 @@ msgstr "重新整理訂閱來源"
 msgid "Edit Feed"
 msgstr "編輯訂閱來源"
 
-#: core/shortcuts.py:144 gui/mainframe.py:4429 gui/mainframe.py:4470
+#: core/shortcuts.py:144 gui/mainframe.py:4454 gui/mainframe.py:4495
 msgid "Mark All Items as Read"
 msgstr "將所有項目標記為已讀"
 
@@ -361,23 +367,23 @@ msgstr "將所有項目標記為已讀"
 msgid "View Feed Errors"
 msgstr "檢視訂閱來源錯誤"
 
-#: core/shortcuts.py:146 gui/mainframe.py:4488
+#: core/shortcuts.py:146 gui/mainframe.py:4513
 msgid "Copy Feed URL"
 msgstr "複製訂閱來源網址"
 
-#: core/shortcuts.py:147 gui/mainframe.py:6905
+#: core/shortcuts.py:147 gui/mainframe.py:6969
 msgid "Add Category"
 msgstr "新增分類"
 
-#: core/shortcuts.py:148 gui/mainframe.py:4447
+#: core/shortcuts.py:148 gui/mainframe.py:4472
 msgid "Remove Category"
 msgstr "移除分類"
 
-#: core/shortcuts.py:149 gui/mainframe.py:12479
+#: core/shortcuts.py:149 gui/mainframe.py:12561
 msgid "Import OPML"
 msgstr "匯入 OPML"
 
-#: core/shortcuts.py:150 gui/mainframe.py:12667
+#: core/shortcuts.py:150 gui/mainframe.py:12749
 msgid "Export OPML"
 msgstr "匯出 OPML"
 
@@ -393,15 +399,15 @@ msgstr "影片搜尋"
 msgid "Open in Browser"
 msgstr "在瀏覽器中開啟"
 
-#: core/shortcuts.py:154 gui/mainframe.py:4773
+#: core/shortcuts.py:154 gui/mainframe.py:4798
 msgid "Copy Link"
 msgstr "複製連結"
 
-#: core/shortcuts.py:155 gui/mainframe.py:4794
+#: core/shortcuts.py:155 gui/mainframe.py:4819
 msgid "Copy Media Link"
 msgstr "複製媒體連結"
 
-#: core/shortcuts.py:156 gui/mainframe.py:4780
+#: core/shortcuts.py:156 gui/mainframe.py:4805
 msgid "Copy Text"
 msgstr "複製文字"
 
@@ -413,12 +419,12 @@ msgstr "切換已讀/未讀"
 msgid "Add to or Remove from Favorites"
 msgstr "新增至或從我的最愛移除"
 
-#: core/shortcuts.py:159
+#: core/shortcuts.py:159 gui/accessibility.py:747
 msgid "Delete Article"
 msgstr "刪除文章"
 
-#: core/shortcuts.py:160 gui/accessibility.py:403 gui/mainframe.py:11657
-#: gui/mainframe.py:4797
+#: core/shortcuts.py:160 gui/accessibility.py:445 gui/mainframe.py:11739
+#: gui/mainframe.py:4822
 msgid "Download"
 msgstr "下載"
 
@@ -438,7 +444,7 @@ msgstr "聚焦搜尋欄位"
 msgid "Show or Hide Search Field"
 msgstr "顯示或隱藏搜尋欄位"
 
-#: core/shortcuts.py:165
+#: core/shortcuts.py:165 gui/accessibility.py:450
 msgid "Rich Full-Text View"
 msgstr "豐富全文檢視"
 
@@ -446,7 +452,7 @@ msgstr "豐富全文檢視"
 msgid "Open Accessible Browser"
 msgstr "開啟無障礙瀏覽器"
 
-#: core/shortcuts.py:167 gui/accessibility.py:201 gui/mainframe.py:7982
+#: core/shortcuts.py:167 gui/accessibility.py:233 gui/mainframe.py:8046
 msgid "All Articles"
 msgstr "所有文章"
 
@@ -498,16 +504,16 @@ msgstr "依狀態排序"
 msgid "Toggle Ascending Sort"
 msgstr "切換遞增排序"
 
-#: core/shortcuts.py:180 gui/mainframe.py:2253 gui/tray.py:105
+#: core/shortcuts.py:180 gui/mainframe.py:2278 gui/tray.py:105
 msgid "Play/Pause"
 msgstr "播放/暫停"
 
-#: core/shortcuts.py:181 gui/mainframe.py:2256 gui/player.py:2028
+#: core/shortcuts.py:181 gui/mainframe.py:2281 gui/player.py:2030
 #: gui/tray.py:106
 msgid "Stop"
 msgstr "停止"
 
-#: core/shortcuts.py:182 gui/mainframe.py:2248 gui/tray.py:98
+#: core/shortcuts.py:182 gui/mainframe.py:2273 gui/tray.py:98
 msgid "Show/Hide Player"
 msgstr "顯示/隱藏播放器"
 
@@ -523,11 +529,11 @@ msgstr "顯示章節"
 msgid "Open Play Queue"
 msgstr "開啟播放佇列"
 
-#: core/shortcuts.py:186 gui/mainframe.py:2264
+#: core/shortcuts.py:186 gui/mainframe.py:2289
 msgid "Play Next in Queue"
 msgstr "播放佇列中的下一項"
 
-#: core/shortcuts.py:187 gui/mainframe.py:2268
+#: core/shortcuts.py:187 gui/mainframe.py:2293
 msgid "Play Previous in Queue"
 msgstr "播放佇列中的上一項"
 
@@ -543,7 +549,7 @@ msgstr "減慢播放速度"
 msgid "Reset Playback Speed (1x)"
 msgstr "重設播放速度 (1x)"
 
-#: core/shortcuts.py:191 gui/mainframe.py:13555
+#: core/shortcuts.py:191 gui/mainframe.py:13637
 msgid "Filter Rules"
 msgstr "篩選規則"
 
@@ -560,7 +566,7 @@ msgstr "設定永久搜尋"
 msgid "Keyboard Shortcuts"
 msgstr "鍵盤快速鍵"
 
-#: core/shortcuts.py:195 gui/dialogs.py:655 gui/mainframe.py:12866
+#: core/shortcuts.py:195 gui/dialogs.py:655 gui/mainframe.py:12948
 msgid "Settings"
 msgstr "設定"
 
@@ -572,24 +578,24 @@ msgstr "檢查更新"
 msgid "Update available."
 msgstr "有可用更新。"
 
-#: core/updater.py:439
+#: core/updater.py:496
 msgid "Authenticode verification failed: PowerShell was not found."
 msgstr "Authenticode 驗證失敗：未找到 PowerShell。"
 
-#: core/updater.py:681
+#: core/updater.py:756
 msgid "Verifying download…"
 msgstr "正在驗證下載…"
 
-#: core/updater.py:696
+#: core/updater.py:771
 msgid "Extracting update…"
 msgstr "正在解壓縮更新…"
 
-#: core/updater.py:722 core/updater.py:776 core/updater.py:854
+#: core/updater.py:797 core/updater.py:851 core/updater.py:929
 msgid "Verifying signature…"
 msgstr "正在驗證簽章…"
 
-#: core/updater.py:727 core/updater.py:781 core/updater.py:859
-#: core/updater.py:879
+#: core/updater.py:802 core/updater.py:856 core/updater.py:934
+#: core/updater.py:954
 msgid "Preparing restart…"
 msgstr "正在準備重新啟動…"
 
@@ -621,43 +627,43 @@ msgstr "更新清單缺少下載網址。"
 msgid "Update manifest has an invalid SHA-256 hash."
 msgstr "更新清單的 SHA-256 雜湊值無效。"
 
-#: core/updater.py:649
+#: core/updater.py:713
 msgid "Auto-update is not available for this build."
 msgstr "此版本不提供自動更新。"
 
-#: core/updater.py:684
+#: core/updater.py:759
 msgid "Downloaded update failed SHA-256 verification."
 msgstr "下載的更新未通過 SHA-256 驗證。"
 
-#: core/updater.py:774
+#: core/updater.py:849
 msgid "Downloaded Windows installer is missing."
 msgstr "下載的 Windows 安裝程式遺失。"
 
-#: core/updater.py:842
+#: core/updater.py:917
 msgid "Could not locate the running .app bundle to update."
 msgstr "找不到要更新的執行中 .app 套件。"
 
-#: core/updater.py:850
+#: core/updater.py:925
 msgid "Update package does not contain a BlindRSS.app bundle."
 msgstr "更新套件中不包含 BlindRSS.app 套件。"
 
-#: core/updater.py:852
+#: core/updater.py:927
 msgid "Update package .app is missing its executable."
 msgstr "更新套件中的 .app 缺少其可執行檔。"
 
-#: core/updater.py:877
+#: core/updater.py:952
 msgid "Update package is missing the BlindRSS executable."
 msgstr "更新套件缺少 BlindRSS 可執行檔。"
 
-#: core/updater.py:668 core/updater.py:676
+#: core/updater.py:743 core/updater.py:751
 msgid "Downloading update…"
 msgstr "正在下載更新…"
 
-#: core/updater.py:709 core/updater.py:205
+#: core/updater.py:784 core/updater.py:205
 msgid "Auto-update is not supported on this platform ({platform})."
 msgstr "此平台不支援自動更新({platform})。"
 
-#: core/updater.py:836
+#: core/updater.py:911
 msgid "Update signature verification failed: {error}"
 msgstr "更新簽章驗證失敗：{error}"
 
@@ -705,19 +711,19 @@ msgstr "更新安裝程式的 SHA-256 雜湊值無效。"
 msgid "Update installer is missing a download URL."
 msgstr "更新安裝程式缺少下載網址。"
 
-#: core/updater.py:438
+#: core/updater.py:495
 msgid "Authenticode verification failed: {error}"
 msgstr "Authenticode 驗證失敗：{error}"
 
-#: core/updater.py:715 core/updater.py:772 core/updater.py:873
+#: core/updater.py:790 core/updater.py:847 core/updater.py:948
 msgid "{name} is missing from the install directory."
 msgstr "安裝目錄中缺少 {name}。"
 
-#: core/updater.py:720
+#: core/updater.py:795
 msgid "Update package is missing {name}."
 msgstr "更新套件缺少 {name}。"
 
-#: core/updater.py:846
+#: core/updater.py:921
 msgid "{name} is missing from the app bundle."
 msgstr "應用程式套件中缺少 {name}。"
 
@@ -733,19 +739,19 @@ msgstr "無效的 GitHub 回應：{error}"
 msgid "Failed to download update metadata: {error}"
 msgstr "無法下載更新中繼資料：{error}"
 
-#: core/updater.py:347
+#: core/updater.py:404
 msgid "Unsupported update archive type: {type}"
 msgstr "不支援的更新封存類型：{type}"
 
-#: core/updater.py:529 core/updater.py:937
+#: core/updater.py:586 core/updater.py:1012
 msgid "Failed to start update helper: {error}"
 msgstr "無法啟動更新協助程式：{error}"
 
-#: core/updater.py:679
+#: core/updater.py:754
 msgid "Failed to download update: {error}"
 msgstr "無法下載更新：{error}"
 
-#: core/updater.py:700
+#: core/updater.py:775
 msgid "Failed to extract update: {error}"
 msgstr "無法解壓更新：{error}"
 
@@ -753,20 +759,20 @@ msgstr "無法解壓更新：{error}"
 msgid "Update installer '{name}' not found in release assets."
 msgstr "在發行資源中找不到更新安裝程式「{name}」。"
 
-#: core/updater.py:426
+#: core/updater.py:483
 msgid "Update is signed but not by a trusted certificate{suffix}"
 msgstr "更新已簽章，但並非由受信任的憑證簽章{suffix}"
 
-#: core/utils.py:1245
+#: core/utils.py:1275
 msgid "Just now"
 msgstr "剛剛"
 
-#: core/utils.py:1250
+#: core/utils.py:1280
 msgid "{n} hour ago"
 msgid_plural "{n} hours ago"
 msgstr[0] "{n} 小時前"
 
-#: core/utils.py:1248
+#: core/utils.py:1278
 msgid "{n} minute ago"
 msgid_plural "{n} minutes ago"
 msgstr[0] "{n} 分鐘前"
@@ -799,146 +805,505 @@ msgstr "現在登入 Windows 時將啟動 BlindRSS。"
 msgid "Could not update Windows startup setting: {error}"
 msgstr "無法更新 Windows 啟動設定:{error}"
 
-#: gui/accessibility.py:319
+#: gui/accessibility.py:351
 msgid "expanded"
 msgstr "已展開"
 
-#: gui/accessibility.py:319
+#: gui/accessibility.py:351
 msgid "collapsed"
 msgstr "已摺疊"
 
-#: gui/accessibility.py:202
+#: gui/accessibility.py:234
 msgid "Unread Articles"
 msgstr "未讀文章"
 
-#: gui/accessibility.py:203
+#: gui/accessibility.py:235
 msgid "Read Articles"
 msgstr "已讀文章"
 
-#: gui/accessibility.py:608 gui/mainframe.py:7318
+#: gui/accessibility.py:591
+msgid "&Add Feed...\tCtrl+N"
+msgstr "新增訂閱來源(&A)...\tCtrl+N"
+
+#: gui/accessibility.py:592 gui/mainframe.py:2132
+msgid "Detect Feeds on &Page..."
+msgstr "偵測頁面上的訂閱來源(&P)..."
+
+#: gui/accessibility.py:593
+msgid "Add &Category..."
+msgstr "新增分類(&C)..."
+
+#: gui/accessibility.py:594
+msgid "New Smart F&older..."
+msgstr "新增智慧資料夾..."
+
+#: gui/accessibility.py:595 gui/mainframe.py:2155
+msgid "&Import OPML..."
+msgstr "匯入 OPML(&I)..."
+
+#: gui/accessibility.py:596
+msgid "&Export OPML..."
+msgstr "匯出 OPML(&X)..."
+
+#: gui/accessibility.py:598
+msgid "&Refresh Feeds\tCtrl+R"
+msgstr "重新整理訂閱來源"
+
+#: gui/accessibility.py:599
+msgid "&Stop Refresh"
+msgstr "停止重新整理"
+
+#: gui/accessibility.py:600
+msgid "Mark All in Current View as R&ead"
+msgstr "將目前檢視中的全部標記為已讀(&E)"
+
+#: gui/accessibility.py:602 gui/mainframe.py:2372
+msgid "&Settings..."
+msgstr "設定(&S)..."
+
+#: gui/accessibility.py:603
+msgid "Close &Window\tCtrl+W"
+msgstr "關閉視窗(&W)\tCtrl+W"
+
+#: gui/accessibility.py:604 gui/mainframe.py:2383
+msgid "&File"
+msgstr "檔案(&F)"
+
+#: gui/accessibility.py:607 gui/accessibility.py:840
+msgid "&Open or Play"
+msgstr "開啟或播放(&O)"
+
+#: gui/accessibility.py:608 gui/accessibility.py:841
+msgid "Open in &Browser"
+msgstr "在瀏覽器中開啟"
+
+#: gui/accessibility.py:610 gui/accessibility.py:843
+msgid "Copy &Link"
+msgstr "複製連結"
+
+#: gui/accessibility.py:611 gui/accessibility.py:844
+msgid "Copy &Text"
+msgstr "複製文字"
+
+#: gui/accessibility.py:612 gui/accessibility.py:845
+msgid "Copy &Media Link"
+msgstr "複製媒體連結"
+
+#: gui/accessibility.py:614
+msgid "Toggle &Favorite\tCtrl+D"
+msgstr "切換我的最愛(&F)\tCtrl+D"
+
+#: gui/accessibility.py:615 gui/accessibility.py:849
+msgid "Mark &Read"
+msgstr "標記為已讀"
+
+#: gui/accessibility.py:616 gui/accessibility.py:850
+msgid "Mark &Unread"
+msgstr "標記為未讀"
+
+#: gui/accessibility.py:617 gui/mainframe.py:13657
+msgid "De&lete"
+msgstr "刪除(&L)"
+
+#: gui/accessibility.py:619 gui/accessibility.py:856
+msgid "&Download"
+msgstr "下載"
+
+#: gui/accessibility.py:620 gui/accessibility.py:857
+msgid "Detect &Audio"
+msgstr "偵測音訊"
+
+#: gui/accessibility.py:621
+msgid "&Find in Article...\tCtrl+F"
+msgstr "在文章中搜尋(&F)...\tCtrl+F"
+
+#: gui/accessibility.py:622 gui/accessibility.py:859
+msgid "View &History..."
+msgstr "檢視記錄..."
+
+#: gui/accessibility.py:623 gui/accessibility.py:860
+msgid "View Feed De&scription..."
+msgstr "檢視訂閱來源描述..."
+
+#: gui/accessibility.py:624
+msgid "&Article"
+msgstr "文章(&A)"
+
+#: gui/accessibility.py:627
+msgid "&Show or Hide Player"
+msgstr "顯示或隱藏播放器(&S)"
+
+#: gui/accessibility.py:628
+msgid "Open Play &Queue..."
+msgstr "開啟播放佇列..."
+
+#: gui/accessibility.py:629
+msgid "Play &Next in Queue"
+msgstr "播放佇列中的下一項"
+
+#: gui/accessibility.py:630
+msgid "Play &Previous in Queue"
+msgstr "播放佇列中的上一項"
+
+#: gui/accessibility.py:631 gui/mainframe.py:2324
+msgid "&Equalizer..."
+msgstr "等化器(&E)..."
+
+#: gui/accessibility.py:632 gui/mainframe.py:2386
+msgid "&Player"
+msgstr "播放器(&P)"
+
+#: gui/accessibility.py:635
+msgid "&Persistent Search..."
+msgstr "永久搜尋(&P)..."
+
+#: gui/accessibility.py:636
+msgid "&Filter Rules..."
+msgstr "篩選規則(&R)..."
+
+#: gui/accessibility.py:637
+msgid "Find a Podcast or &RSS..."
+msgstr "尋找 Podcast 或 RSS(&R)..."
+
+#: gui/accessibility.py:638 gui/mainframe.py:2354
+msgid "&Video Search..."
+msgstr "影片搜尋(&V)..."
+
+#: gui/accessibility.py:639 gui/mainframe.py:2363
+msgid "Import Site &Cookies..."
+msgstr "匯入網站 Cookie..."
+
+#: gui/accessibility.py:640 gui/mainframe.py:2387
+msgid "&Tools"
+msgstr "工具(&T)"
+
+#: gui/accessibility.py:643 gui/mainframe.py:2368
+msgid "&Keyboard Shortcuts..."
+msgstr "鍵盤快速鍵(&K)..."
+
+#: gui/accessibility.py:644 gui/mainframe.py:2146
+msgid "View Feed &Errors..."
+msgstr "檢視訂閱來源錯誤(&E)..."
+
+#: gui/accessibility.py:645 gui/mainframe.py:2378
+msgid "Check for &Updates..."
+msgstr "檢查更新(&U)..."
+
+#: gui/accessibility.py:646 gui/mainframe.py:2381
+msgid "&About"
+msgstr "關於(&A)"
+
+#: gui/accessibility.py:647 gui/mainframe.py:2388
+msgid "&Help"
+msgstr "說明(&H)"
+
+#: gui/accessibility.py:788 gui/mainframe.py:5080
+msgid "No feed description is available for this item."
+msgstr "此項目沒有可用的訂閱來源描述。"
+
+#: gui/accessibility.py:803 gui/mainframe.py:9718
+msgid "Find in article:"
+msgstr "在文章中尋找:"
+
+#: gui/accessibility.py:803 gui/mainframe.py:9718
+msgid "Find"
+msgstr "尋找"
+
+#: gui/accessibility.py:847
+msgid "Remove from &Favorites"
+msgstr "從我的最愛移除"
+
+#: gui/accessibility.py:847
+msgid "Add to &Favorites"
+msgstr "新增至我的最愛"
+
+#: gui/accessibility.py:858
+msgid "&Find in Article..."
+msgstr "在文章中搜尋(&F)..."
+
+#: gui/accessibility.py:935
+msgid "&Add Feed..."
+msgstr "新增訂閱來源(&A)..."
+
+#: gui/accessibility.py:936
+msgid "Add Cate&gory..."
+msgstr "新增分類(&G)..."
+
+#: gui/accessibility.py:937
+msgid "New Smart &Folder..."
+msgstr "新增智慧資料夾..."
+
+#: gui/accessibility.py:1173 gui/mainframe.py:7382
 msgid "Refreshing feeds..."
 msgstr "正在重新整理訂閱來源..."
 
-#: gui/accessibility.py:750
+#: gui/accessibility.py:1315
 msgid "Loading articles..."
 msgstr "正在載入文章..."
 
-#: gui/accessibility.py:1261
+#: gui/accessibility.py:1937 gui/mainframe.py:5628
+msgid "Full text loaded."
+msgstr "全文已載入。"
+
+#: gui/accessibility.py:1939 gui/mainframe.py:5630
+msgid "Full text unavailable. Showing feed content."
+msgstr "無法取得全文。正在顯示訂閱來源內容。"
+
+#: gui/accessibility.py:2153
 msgid "Loading more articles..."
 msgstr "正在載入更多文章..."
 
-#: gui/accessibility.py:66
+#: gui/accessibility.py:69
 msgid "Chapters available: {count}."
 msgstr "可用章節:{count}。"
 
-#: gui/accessibility.py:69
+#: gui/accessibility.py:72
 msgid "Chapter {index}: {timestamp}, {title}."
 msgstr "章節 {index}:{timestamp},{title}。"
 
-#: gui/accessibility.py:206 gui/mainframe.py:7991
+#: gui/accessibility.py:238 gui/mainframe.py:8055
 msgid "Favorites"
 msgstr "我的最愛"
 
-#: gui/accessibility.py:325
+#: gui/accessibility.py:357
 msgid "BlindRSS Accessible Browser"
 msgstr "BlindRSS 無障礙瀏覽器"
 
-#: gui/accessibility.py:374
+#: gui/accessibility.py:416
 msgid ""
 "VoiceOver-friendly browser for feeds, articles, and content. Use the lists "
 "below to choose a view and article."
 msgstr "適用於訂閱來源、文章與內容的 VoiceOver 友善瀏覽器。請使用下方清單選擇檢視方式與文章。"
 
-#: gui/accessibility.py:385
+#: gui/accessibility.py:427
 msgid "Load More Articles"
 msgstr "載入更多文章"
 
-#: gui/accessibility.py:388
+#: gui/accessibility.py:430
 msgid "Expand Category"
 msgstr "展開分類"
 
-#: gui/accessibility.py:391
+#: gui/accessibility.py:433
 msgid "Collapse Category"
 msgstr "摺疊分類"
 
-#: gui/accessibility.py:394
+#: gui/accessibility.py:436
 msgid "Open or Play Article"
 msgstr "開啟或播放文章"
 
-#: gui/accessibility.py:397
+#: gui/accessibility.py:439
 msgid "Mark Read"
 msgstr "標記為已讀"
 
-#: gui/accessibility.py:400
+#: gui/accessibility.py:442
 msgid "Mark Unread"
 msgstr "標記為未讀"
 
-#: gui/accessibility.py:410
+#: gui/accessibility.py:449
+msgid "Rich View"
+msgstr "豐富檢視"
+
+#: gui/accessibility.py:456
 msgid "Filter Articles:"
 msgstr "篩選文章:"
 
-#: gui/accessibility.py:424
+#: gui/accessibility.py:470
 msgid "Views"
 msgstr "檢視"
 
-#: gui/accessibility.py:438
+#: gui/accessibility.py:484
 msgid ""
 "Categories can be expanded or collapsed. Use the buttons, or use Right Arrow"
 " to expand and Left Arrow to collapse."
 msgstr "分類可以展開或摺疊。請使用按鈕,或按右方向鍵展開、左方向鍵摺疊。"
 
-#: gui/accessibility.py:457
+#: gui/accessibility.py:503
 msgid "Choose a view to load articles."
 msgstr "選擇一個檢視以載入文章。"
 
-#: gui/accessibility.py:462
+#: gui/accessibility.py:508
 msgid "Article Content"
 msgstr "文章內容"
 
-#: gui/accessibility.py:767
+#: gui/accessibility.py:697 gui/accessibility.py:957
+msgid "Mark all items in this view as read?"
+msgstr "要將此檢視中的所有項目標記為已讀嗎?"
+
+#: gui/accessibility.py:720
+msgid "Added to favorites."
+msgstr "已新增至我的最愛。"
+
+#: gui/accessibility.py:720
+msgid "Removed from favorites."
+msgstr "已從我的最愛中移除。"
+
+#: gui/accessibility.py:770
+msgid "Article deleted."
+msgstr "文章已刪除。"
+
+#: gui/accessibility.py:790 gui/mainframe.py:5082
+msgid "Feed Description"
+msgstr "訂閱來源描述"
+
+#: gui/accessibility.py:852
+msgid "&Restore"
+msgstr "還原"
+
+#: gui/accessibility.py:854
+msgid "&Delete"
+msgstr "刪除(&L)"
+
+#: gui/accessibility.py:896
+msgid "Article restored."
+msgstr "文章已還原。"
+
+#: gui/accessibility.py:910
+msgid "&Refresh Feed"
+msgstr "重新整理訂閱來源"
+
+#: gui/accessibility.py:911 gui/accessibility.py:929
+msgid "Mark All as &Read"
+msgstr "全部標記為已讀"
+
+#: gui/accessibility.py:912
+msgid "&Copy Feed URL"
+msgstr "複製訂閱來源網址"
+
+#: gui/accessibility.py:913
+msgid "&Notifications for This Feed"
+msgstr "此訂閱來源的通知"
+
+#: gui/accessibility.py:920 gui/mainframe.py:4527
+msgid "Use default setting"
+msgstr "使用預設設定"
+
+#: gui/accessibility.py:921 gui/mainframe.py:4528
+msgid "Always show image alt text"
+msgstr "永遠顯示圖片替代文字"
+
+#: gui/accessibility.py:922 gui/mainframe.py:4529
+msgid "Never show image alt text"
+msgstr "永不顯示圖片替代文字"
+
+#: gui/accessibility.py:923 gui/mainframe.py:4536
+msgid "Image Alt Text"
+msgstr "圖片替代文字"
+
+#: gui/accessibility.py:925
+msgid "Remove &Feed"
+msgstr "移除訂閱來源"
+
+#: gui/accessibility.py:1332
 msgid "Failed to load articles."
 msgstr "文章載入失敗。"
 
-#: gui/accessibility.py:871 gui/mainframe.py:5599 gui/mainframe.py:9265
+#: gui/accessibility.py:1436 gui/mainframe.py:5663 gui/mainframe.py:9329
 msgid "Date:"
 msgstr "日期:"
 
-#: gui/accessibility.py:873 gui/mainframe.py:5601 gui/mainframe.py:9267
+#: gui/accessibility.py:1438 gui/mainframe.py:5665 gui/mainframe.py:9331
 msgid "Link:"
 msgstr "連結:"
 
-#: gui/accessibility.py:71
+#: gui/accessibility.py:74
 msgid " Link: {url}"
 msgstr " 連結:{url}"
 
-#: gui/accessibility.py:265
+#: gui/accessibility.py:297
 msgid "Feed:"
 msgstr "訂閱來源:"
 
-#: gui/accessibility.py:768
+#: gui/accessibility.py:928
+msgid "&Refresh Category"
+msgstr "重新整理分類"
+
+#: gui/accessibility.py:930
+msgid "Re&name Category"
+msgstr "重新命名分類"
+
+#: gui/accessibility.py:931
+msgid "Add &Subcategory"
+msgstr "新增子分類"
+
+#: gui/accessibility.py:933
+msgid "Remove &Category"
+msgstr "移除分類"
+
+#: gui/accessibility.py:987
+msgid "Remove this feed?"
+msgstr "要移除此訂閱來源嗎?"
+
+#: gui/accessibility.py:987 gui/accessibility.py:1014 gui/mainframe.py:7092
+#: gui/mainframe.py:7047
+msgid "Confirm"
+msgstr "確認"
+
+#: gui/accessibility.py:1005 gui/mainframe.py:7069 gui/mainframe.py:7041
+msgid "The Uncategorized folder cannot be removed."
+msgstr "無法移除「未分類」資料夾。"
+
+#: gui/accessibility.py:1005 gui/mainframe.py:7064 gui/mainframe.py:7069
+#: gui/mainframe.py:7056
+msgid "Info"
+msgstr "資訊"
+
+#: gui/accessibility.py:1013
+msgid "Remove this category? Feeds will be moved to Uncategorized."
+msgstr "要移除此類別嗎? 訂閱來源將移動到「未分類」。"
+
+#: gui/accessibility.py:1024 gui/mainframe.py:7054
+msgid "Could not remove category."
+msgstr "無法移除分類。"
+
+#: gui/accessibility.py:1024 gui/dialogs.py:3856 gui/mainframe.py:12507
+#: gui/mainframe.py:12558
+msgid "Error"
+msgstr "錯誤"
+
+#: gui/accessibility.py:1333
 msgid "Failed to load articles: {error}"
 msgstr "文章載入失敗:{error}"
 
-#: gui/accessibility.py:811 gui/mainframe.py:1132 gui/mainframe.py:1532
-#: gui/mainframe.py:1575
+#: gui/accessibility.py:1376 gui/mainframe.py:1157 gui/mainframe.py:1557
+#: gui/mainframe.py:1600
 msgid "No articles found."
 msgstr "找不到文章。"
 
-#: gui/accessibility.py:246 gui/dialogs.py:216 gui/dialogs.py:3440
+#: gui/accessibility.py:1506 gui/mainframe.py:5187
+msgid "Article text"
+msgstr "文章內文"
+
+#: gui/accessibility.py:278 gui/dialogs.py:216 gui/dialogs.py:3440
 msgid "Category:"
 msgstr "分類:"
 
-#: gui/accessibility.py:267
+#: gui/accessibility.py:299
 msgid ", unread: {unread}"
 msgstr ",未讀:{unread}"
 
-#: gui/accessibility.py:790
+#: gui/accessibility.py:747
+msgid "Delete this article?"
+msgstr "要刪除這篇文章嗎?"
+
+#: gui/accessibility.py:1355
 msgid "Articles loaded: {count}."
 msgstr "已載入文章:{count}。"
 
-#: gui/accessibility.py:793
+#: gui/accessibility.py:1358
 msgid "Articles loaded: {count} of {total}."
 msgstr "已載入文章:{count}/{total}。"
+
+#: gui/accessibility.py:1603 gui/mainframe.py:5497
+msgid "Loading full text..."
+msgstr "正在載入全文……"
+
+#: gui/accessibility.py:826
+msgid "\"{term}\" was not found."
+msgstr "找不到「{term}」。"
+
+#: gui/accessibility.py:1138 gui/mainframe.py:8063
+msgid "Deleted Articles"
+msgstr "已刪除文章"
 
 #: gui/dialogs.py:284
 msgid ""
@@ -1147,7 +1512,7 @@ msgid "Sounds"
 msgstr "音效"
 
 #: gui/dialogs.py:1808 gui/dialogs.py:2521 gui/dialogs.py:2555
-#: gui/mainframe.py:12880
+#: gui/mainframe.py:12962
 msgid "Notifications"
 msgstr "通知"
 
@@ -1233,11 +1598,6 @@ msgstr "上次嘗試"
 msgid "Failures"
 msgstr "失敗次數"
 
-#: gui/dialogs.py:3856 gui/mainframe.py:12425 gui/mainframe.py:12476
-#: gui/mainframe.py:6881
-msgid "Error"
-msgstr "錯誤"
-
 #: gui/dialogs.py:3901
 msgid "No feeds reported errors during their most recent update."
 msgstr "沒有摘要來源在最近一次更新中回報錯誤。"
@@ -1294,12 +1654,12 @@ msgstr "播放次數"
 msgid "Kind"
 msgstr "類型"
 
-#: gui/dialogs.py:5184 gui/dialogs.py:6690 gui/mainframe.py:5987
-#: gui/mainframe.py:5085
+#: gui/dialogs.py:5184 gui/dialogs.py:6690 gui/mainframe.py:6051
+#: gui/mainframe.py:5110
 msgid "Close"
 msgstr "關閉"
 
-#: gui/dialogs.py:6364 gui/player.py:2023
+#: gui/dialogs.py:6364 gui/player.py:2025 gui/player.py:5450
 msgid "Play"
 msgstr "播放"
 
@@ -1375,11 +1735,11 @@ msgstr "儲存預設集"
 msgid "Use the global column layout"
 msgstr "使用全域欄位配置"
 
-#: gui/dialogs.py:109 gui/dialogs.py:6748 gui/mainframe.py:13576
+#: gui/dialogs.py:109 gui/dialogs.py:6748 gui/mainframe.py:13658
 msgid "Move &Up"
 msgstr "上移(&U)"
 
-#: gui/dialogs.py:110 gui/dialogs.py:6752 gui/mainframe.py:13577
+#: gui/dialogs.py:110 gui/dialogs.py:6752 gui/mainframe.py:13659
 msgid "Move &Down"
 msgstr "下移(&D)"
 
@@ -2459,7 +2819,7 @@ msgstr ""
 "使用者資料資料夾會在應用程式更新後保留您的設定與訂閱來源,\n"
 "在 macOS 上尤其重要,因為已安裝的應用程式套件會被取代。"
 
-#: gui/dialogs.py:2283 gui/mainframe.py:13074 gui/mainframe.py:13042
+#: gui/dialogs.py:2283 gui/mainframe.py:13156 gui/mainframe.py:13124
 msgid "Updates"
 msgstr "更新"
 
@@ -2636,7 +2996,7 @@ msgstr "新增..."
 msgid "Remove"
 msgstr "移除"
 
-#: gui/dialogs.py:6663 gui/mainframe.py:2356
+#: gui/dialogs.py:6663 gui/mainframe.py:2381
 msgid "About BlindRSS"
 msgstr "關於 BlindRSS"
 
@@ -3327,6 +3687,11 @@ msgstr "{tool} 路徑:"
 msgid "WAV files"
 msgstr "WAV 檔案"
 
+#: gui/dialogs.py:6466 gui/mainframe.py:1754 gui/player.py:3949
+#: gui/player.py:6324
+msgid "Playing"
+msgstr "正在播放"
+
 #: gui/dialogs.py:6523
 msgid "Could not start playback: {error}"
 msgstr "無法開始播放:{error}"
@@ -3339,788 +3704,732 @@ msgstr ""
 "{accel} 已指派給「{other}」。\n"
 "要將其重新指派給「{this}」嗎?"
 
-#: gui/mainframe.py:3931
+#: gui/dialogs.py:6468 gui/mainframe.py:1754 gui/player.py:6380
+#: gui/player.py:6397
+msgid "Paused"
+msgstr "已暫停"
+
+#: gui/dialogs.py:6466
+msgid "Playing: {title}"
+msgstr "正在播放：{title}"
+
+#: gui/dialogs.py:6468
+msgid "Paused: {title}"
+msgstr "已暫停：{title}"
+
+#: gui/dialogs.py:6472 gui/player.py:4010 gui/player.py:4416
+msgid "Buffering..."
+msgstr "緩衝中..."
+
+#: gui/dialogs.py:6474 gui/player.py:4147
+msgid "Connecting..."
+msgstr "連線中..."
+
+#: gui/dialogs.py:6472
+msgid "Buffering: {title}"
+msgstr "正在緩衝：{title}"
+
+#: gui/dialogs.py:6474
+msgid "Connecting: {title}"
+msgstr "正在連線：{title}"
+
+#: gui/mainframe.py:3956
 msgid "New article available."
 msgstr "有新文章。"
 
-#: gui/mainframe.py:10925 gui/mainframe.py:1297 gui/mainframe.py:10893
-#: gui/mainframe.py:11104
+#: gui/mainframe.py:11007 gui/mainframe.py:1322 gui/mainframe.py:10975
+#: gui/mainframe.py:11186
 msgid "Read"
 msgstr "已讀"
 
-#: gui/mainframe.py:540 gui/mainframe.py:523
+#: gui/mainframe.py:565 gui/mainframe.py:548
 msgid "Shortcuts"
 msgstr "捷徑"
 
-#: gui/mainframe.py:816
+#: gui/mainframe.py:841
 msgid "Configure Persistent Search..."
 msgstr "設定永久搜尋..."
 
-#: gui/mainframe.py:2105
+#: gui/mainframe.py:2130
 msgid "&Add Feed"
 msgstr "新增訂閱來源(&A)"
 
-#: gui/mainframe.py:2105
+#: gui/mainframe.py:2130
 msgid "Add a new RSS feed"
 msgstr "新增 RSS 訂閱來源"
 
-#: gui/mainframe.py:2107
-msgid "Detect Feeds on &Page..."
-msgstr "偵測頁面上的訂閱來源(&P)..."
-
-#: gui/mainframe.py:2108
+#: gui/mainframe.py:2133
 msgid "Scan a webpage for RSS, Atom, or JSON feed links"
 msgstr "掃描網頁中的 RSS、Atom 或 JSON 訂閱來源連結"
 
-#: gui/mainframe.py:2110
+#: gui/mainframe.py:2135
 msgid "&Remove Feed"
 msgstr "移除訂閱來源(&R)"
 
-#: gui/mainframe.py:2110
+#: gui/mainframe.py:2135
 msgid "Remove selected feed"
 msgstr "移除所選訂閱來源"
 
-#: gui/mainframe.py:2112
+#: gui/mainframe.py:2137
 msgid "&Refresh Feeds"
 msgstr "重新整理訂閱來源(&R)"
 
-#: gui/mainframe.py:2112
+#: gui/mainframe.py:2137
 msgid "Refresh all feeds"
 msgstr "重新整理所有訂閱來源"
 
-#: gui/mainframe.py:2115
+#: gui/mainframe.py:2140
 msgid "S&top Refresh"
 msgstr "停止重新整理(&T)"
 
-#: gui/mainframe.py:2116
+#: gui/mainframe.py:2141
 msgid "Stop the feed refresh currently in progress"
 msgstr "停止目前進行中的摘要重新整理"
 
-#: gui/mainframe.py:2118
+#: gui/mainframe.py:2143
 msgid "Mark All Items as &Read"
 msgstr "將所有項目標記為已讀(&R)"
 
-#: gui/mainframe.py:2119
+#: gui/mainframe.py:2144
 msgid "Mark all items in all feeds as read"
 msgstr "將所有訂閱來源中的所有項目標記為已讀"
 
-#: gui/mainframe.py:2121
-msgid "View Feed &Errors..."
-msgstr "檢視訂閱來源錯誤(&E)..."
-
-#: gui/mainframe.py:2122
+#: gui/mainframe.py:2147
 msgid "View feeds that failed to update"
 msgstr "檢視更新失敗的訂閱來源"
 
-#: gui/mainframe.py:2125
+#: gui/mainframe.py:2150
 msgid "Add &Category"
 msgstr "新增分類(&C)"
 
-#: gui/mainframe.py:2125
+#: gui/mainframe.py:2150
 msgid "Add a new category"
 msgstr "新增分類"
 
-#: gui/mainframe.py:2127
+#: gui/mainframe.py:2152
 msgid "Remove C&ategory"
 msgstr "移除分類(&A)"
 
-#: gui/mainframe.py:2127
+#: gui/mainframe.py:2152
 msgid "Remove selected category"
 msgstr "移除所選分類"
 
-#: gui/mainframe.py:2130
-msgid "&Import OPML..."
-msgstr "匯入 OPML(&I)..."
-
-#: gui/mainframe.py:2130
+#: gui/mainframe.py:2155
 msgid "Import feeds from OPML"
 msgstr "從 OPML 匯入訂閱來源"
 
-#: gui/mainframe.py:2132
+#: gui/mainframe.py:2157
 msgid "E&xport OPML..."
 msgstr "匯出 OPML(&X)..."
 
-#: gui/mainframe.py:2132
+#: gui/mainframe.py:2157
 msgid "Export feeds to OPML"
 msgstr "將訂閱來源匯出至 OPML"
 
-#: gui/mainframe.py:2135
+#: gui/mainframe.py:2160
 msgid "Configure &Persistent Search..."
 msgstr "設定持續搜尋(&P)..."
 
-#: gui/mainframe.py:2136
+#: gui/mainframe.py:2161
 msgid "Configure saved search queries"
 msgstr "設定已儲存的搜尋查詢"
 
-#: gui/mainframe.py:2142
+#: gui/mainframe.py:2167
 msgid "E&xit"
 msgstr "結束(&X)"
 
-#: gui/mainframe.py:2142
+#: gui/mainframe.py:2167
 msgid "Exit application"
 msgstr "結束應用程式"
 
-#: gui/mainframe.py:2149
+#: gui/mainframe.py:2174
 msgid "Cut the selection"
 msgstr "剪下所選項目"
 
-#: gui/mainframe.py:2150
+#: gui/mainframe.py:2175
 msgid "Copy the selection"
 msgstr "複製所選項目"
 
-#: gui/mainframe.py:2151
+#: gui/mainframe.py:2176
 msgid "Paste from the clipboard"
 msgstr "從剪貼簿貼上"
 
-#: gui/mainframe.py:2152
+#: gui/mainframe.py:2177
 msgid "Select all"
 msgstr "全選"
 
-#: gui/mainframe.py:2156
+#: gui/mainframe.py:2181
 msgid "Show &Search Field"
 msgstr "顯示搜尋欄位(&S)"
 
-#: gui/mainframe.py:2157
+#: gui/mainframe.py:2182
 msgid "Show or hide the search field"
 msgstr "顯示或隱藏搜尋欄位"
 
-#: gui/mainframe.py:2164
+#: gui/mainframe.py:2189
 msgid "&Rich Full-Text View"
 msgstr "豐富全文檢視(&R)"
 
-#: gui/mainframe.py:2165
+#: gui/mainframe.py:2190
 msgid "Switch the reader between plain full text and the rich HTML view"
 msgstr "在純文字全文和豐富 HTML 檢視之間切換閱讀器"
 
-#: gui/mainframe.py:2204
+#: gui/mainframe.py:2229
 msgid "Article &Filter"
 msgstr "文章篩選(&F)"
 
-#: gui/mainframe.py:2204
+#: gui/mainframe.py:2229
 msgid "Filter all views by read status and media"
 msgstr "依已讀狀態和媒體篩選所有檢視"
 
-#: gui/mainframe.py:2206
+#: gui/mainframe.py:2231
 msgid "Open &Accessible Browser"
 msgstr "開啟無障礙瀏覽器(&A)"
 
-#: gui/mainframe.py:2207
+#: gui/mainframe.py:2232
 msgid "Open the VoiceOver-friendly browser window"
 msgstr "開啟 VoiceOver 友善瀏覽器視窗"
 
-#: gui/mainframe.py:2209
+#: gui/mainframe.py:2234
 msgid "Show/Hide &Player"
 msgstr "顯示/隱藏播放器"
 
-#: gui/mainframe.py:2210 gui/mainframe.py:2249
+#: gui/mainframe.py:2235 gui/mainframe.py:2274
 msgid "Show or hide the media player window"
 msgstr "顯示或隱藏媒體播放器視窗"
 
-#: gui/mainframe.py:2235
+#: gui/mainframe.py:2260
 msgid "&Ascending"
 msgstr "遞增(&A)"
 
-#: gui/mainframe.py:2236
+#: gui/mainframe.py:2261
 msgid "Sort in ascending order (default is descending by date)"
 msgstr "依遞增順序排序(預設為依日期遞減)"
 
-#: gui/mainframe.py:2240
+#: gui/mainframe.py:2265
 msgid "Sort &By"
 msgstr "排序依據(&B)"
 
-#: gui/mainframe.py:2253
+#: gui/mainframe.py:2278
 msgid "Toggle play/pause"
 msgstr "切換播放/暫停"
 
-#: gui/mainframe.py:2256
+#: gui/mainframe.py:2281
 msgid "Stop playback"
 msgstr "停止播放"
 
-#: gui/mainframe.py:2260
+#: gui/mainframe.py:2285
 msgid "Play &Queue..."
 msgstr "播放佇列(&Q)..."
 
-#: gui/mainframe.py:2261
+#: gui/mainframe.py:2286
 msgid "View and manage the media play queue"
 msgstr "檢視及管理媒體播放佇列"
 
-#: gui/mainframe.py:2265
+#: gui/mainframe.py:2290
 msgid "Play the next item in the play queue"
 msgstr "播放播放佇列中的下一個項目"
 
-#: gui/mainframe.py:2269
+#: gui/mainframe.py:2294
 msgid "Play the previous item in the play queue"
 msgstr "播放播放佇列中的上一個項目"
 
-#: gui/mainframe.py:2275
+#: gui/mainframe.py:2300
 msgid "Increase Speed"
 msgstr "加快速度"
 
-#: gui/mainframe.py:2275
+#: gui/mainframe.py:2300
 msgid "Play faster"
 msgstr "更快地播放"
 
-#: gui/mainframe.py:2278
+#: gui/mainframe.py:2303
 msgid "Decrease Speed"
 msgstr "減慢速度"
 
-#: gui/mainframe.py:2278
+#: gui/mainframe.py:2303
 msgid "Play slower"
 msgstr "更慢地播放"
 
-#: gui/mainframe.py:2281
+#: gui/mainframe.py:2306
 msgid "Normal Speed (1x)"
 msgstr "正常速度 (1x)"
 
-#: gui/mainframe.py:2281
+#: gui/mainframe.py:2306
 msgid "Reset to normal speed"
 msgstr "重設為正常速度"
 
-#: gui/mainframe.py:2296
+#: gui/mainframe.py:2321
 msgid "Playback &Speed"
 msgstr "播放速度(&S)"
 
-#: gui/mainframe.py:2299
-msgid "&Equalizer..."
-msgstr "等化器(&E)..."
-
-#: gui/mainframe.py:2300
+#: gui/mainframe.py:2325
 msgid "Adjust the audio equalizer"
 msgstr "調整音訊等化器"
 
-#: gui/mainframe.py:2306
+#: gui/mainframe.py:2331
 msgid "Rewind (Ctrl+Left)"
 msgstr "倒轉(Ctrl+左)"
 
-#: gui/mainframe.py:2306 gui/tray.py:107
+#: gui/mainframe.py:2331 gui/tray.py:107
 msgid "Rewind"
 msgstr "倒轉"
 
-#: gui/mainframe.py:2307
+#: gui/mainframe.py:2332
 msgid "Fast Forward (Ctrl+Right)"
 msgstr "快轉(Ctrl+右)"
 
-#: gui/mainframe.py:2307
+#: gui/mainframe.py:2332
 msgid "Fast forward"
 msgstr "快轉"
 
-#: gui/mainframe.py:2309
+#: gui/mainframe.py:2334
 msgid "Volume Up (Ctrl+Up)"
 msgstr "調高音量(Ctrl+↑)"
 
-#: gui/mainframe.py:2309
+#: gui/mainframe.py:2334
 msgid "Increase volume"
 msgstr "調高音量"
 
-#: gui/mainframe.py:2310
+#: gui/mainframe.py:2335
 msgid "Volume Down (Ctrl+Down)"
 msgstr "調低音量(Ctrl+↓)"
 
-#: gui/mainframe.py:2310
+#: gui/mainframe.py:2335
 msgid "Decrease volume"
 msgstr "調低音量"
 
-#: gui/mainframe.py:2313 gui/player.py:2051
+#: gui/mainframe.py:2338 gui/player.py:2053
 msgid "Chapters"
 msgstr "章節"
 
-#: gui/mainframe.py:2325
+#: gui/mainframe.py:2350
 msgid "Find a &Podcast or RSS Feed..."
 msgstr "尋找 Podcast 或 RSS 訂閱來源(&P)..."
 
-#: gui/mainframe.py:2326
+#: gui/mainframe.py:2351
 msgid "Find and add a podcast or RSS feed"
 msgstr "尋找並新增 Podcast 或 RSS 訂閱來源"
 
-#: gui/mainframe.py:2329
-msgid "&Video Search..."
-msgstr "影片搜尋(&V)..."
-
-#: gui/mainframe.py:2330
+#: gui/mainframe.py:2355
 msgid "Search all yt-dlp query-search sites"
 msgstr "搜尋所有 yt-dlp 可查詢搜尋網站"
 
-#: gui/mainframe.py:2334
+#: gui/mainframe.py:2359
 msgid "Filter &Rules..."
 msgstr "篩選規則(&R)..."
 
-#: gui/mainframe.py:2335
+#: gui/mainframe.py:2360
 msgid "Create rules that categorize, label, or delete articles as they arrive"
 msgstr "建立在文章送達時進行分類、標記或刪除的規則"
 
-#: gui/mainframe.py:2338
-msgid "Import Site &Cookies..."
-msgstr "匯入網站 Cookie..."
-
-#: gui/mainframe.py:2339
+#: gui/mainframe.py:2364
 msgid "Import browser cookies so challenge-protected sites can be read"
 msgstr "匯入瀏覽器 Cookie 以便閱讀受驗證保護的網站"
 
-#: gui/mainframe.py:2343
-msgid "&Keyboard Shortcuts..."
-msgstr "鍵盤快速鍵(&K)..."
-
-#: gui/mainframe.py:2344
+#: gui/mainframe.py:2369
 msgid "View and customize keyboard shortcuts"
 msgstr "檢視及自訂鍵盤快速鍵"
 
-#: gui/mainframe.py:2347
-msgid "&Settings..."
-msgstr "設定(&S)..."
-
-#: gui/mainframe.py:2347
+#: gui/mainframe.py:2372
 msgid "Configure application"
 msgstr "設定應用程式"
 
-#: gui/mainframe.py:2353
-msgid "Check for &Updates..."
-msgstr "檢查更新(&U)..."
-
-#: gui/mainframe.py:2354
+#: gui/mainframe.py:2379
 msgid "Check for new versions"
 msgstr "檢查新版本"
 
-#: gui/mainframe.py:2356
-msgid "&About"
-msgstr "關於(&A)"
-
-#: gui/mainframe.py:2358
-msgid "&File"
-msgstr "檔案(&F)"
-
-#: gui/mainframe.py:2359
+#: gui/mainframe.py:2384
 msgid "&Edit"
 msgstr "編輯(&E)"
 
-#: gui/mainframe.py:2360
+#: gui/mainframe.py:2385
 msgid "&View"
 msgstr "檢視(&V)"
 
-#: gui/mainframe.py:2361
-msgid "&Player"
-msgstr "播放器(&P)"
-
-#: gui/mainframe.py:2362
-msgid "&Tools"
-msgstr "工具(&T)"
-
-#: gui/mainframe.py:2363
-msgid "&Help"
-msgstr "說明(&H)"
-
-#: gui/mainframe.py:4732
+#: gui/mainframe.py:4757
 msgid "Open Article"
 msgstr "開啟文章"
 
-#: gui/mainframe.py:5055
-msgid "No feed description is available for this item."
-msgstr "此項目沒有可用的訂閱來源描述。"
-
-#: gui/mainframe.py:5736
+#: gui/mainframe.py:5800
 msgid "Scanning for audio... This may take a few seconds."
 msgstr "正在掃描音訊...這可能需要幾秒鐘。"
 
-#: gui/mainframe.py:5736 gui/mainframe.py:4800
+#: gui/mainframe.py:5800 gui/mainframe.py:4825
 msgid "Detect Audio"
 msgstr "偵測音訊"
 
-#: gui/mainframe.py:6889 gui/mainframe.py:4444
+#: gui/mainframe.py:6953 gui/mainframe.py:4469
 msgid "Rename Category"
 msgstr "重新命名分類"
 
-#: gui/mainframe.py:6951 gui/mainframe.py:4440
+#: gui/mainframe.py:7015 gui/mainframe.py:4465
 msgid "Add Subcategory"
 msgstr "新增子分類"
 
-#: gui/mainframe.py:7022
+#: gui/mainframe.py:7086
 msgid " (including subcategories)"
 msgstr " (含子分類)"
 
-#: gui/mainframe.py:7026
+#: gui/mainframe.py:7090
 msgid "This will remove the feeds and their articles."
 msgstr "這將移除這些訂閱來源及其文章。"
 
-#: gui/mainframe.py:7328
+#: gui/mainframe.py:7392
 msgid "Refresh complete"
 msgstr "重新整理完成"
 
-#: gui/mainframe.py:9637
-msgid "Find in article:"
-msgstr "在文章中尋找:"
-
-#: gui/mainframe.py:9637
-msgid "Find"
-msgstr "尋找"
-
-#: gui/mainframe.py:10923 gui/mainframe.py:1297 gui/mainframe.py:10903
+#: gui/mainframe.py:11005 gui/mainframe.py:1322 gui/mainframe.py:10985
 msgid "Unread"
 msgstr "未讀"
 
-#: gui/mainframe.py:10930
+#: gui/mainframe.py:11012
 msgid "Mark all items in all feeds as read?"
 msgstr "要將所有訂閱來源中的所有項目標記為已讀嗎?"
 
-#: gui/mainframe.py:12024
+#: gui/mainframe.py:12106
 msgid "Enter the address of a webpage to scan for feeds:"
 msgstr "請輸入要掃描訂閱來源的網頁位址:"
 
-#: gui/mainframe.py:12094
+#: gui/mainframe.py:12176
 msgid "Select a feed to subscribe to:"
 msgstr "請選擇要訂閱的訂閱來源:"
 
-#: gui/mainframe.py:12095
+#: gui/mainframe.py:12177
 msgid "Detected Feeds"
 msgstr "偵測到的訂閱來源"
 
-#: gui/mainframe.py:13056
+#: gui/mainframe.py:13138
 msgid "Release notes are available on GitHub."
 msgstr "發行說明可在 GitHub 上查看。"
 
-#: gui/mainframe.py:13083
+#: gui/mainframe.py:13165
 msgid "Updating BlindRSS"
 msgstr "正在更新 BlindRSS"
 
-#: gui/mainframe.py:13084
+#: gui/mainframe.py:13166
 msgid "Starting update..."
 msgstr "正在啟動更新..."
 
-#: gui/mainframe.py:812
+#: gui/mainframe.py:837
 msgid "(No saved searches)"
 msgstr "(沒有已儲存的搜尋)"
 
-#: gui/mainframe.py:1778 gui/mainframe.py:11344
+#: gui/mainframe.py:1803 gui/mainframe.py:11426
 msgid "Contains audio"
 msgstr "包含音訊"
 
-#: gui/mainframe.py:2140
+#: gui/mainframe.py:2165
 msgid "Add &Shortcuts..."
 msgstr "新增捷徑(&S)..."
 
-#: gui/mainframe.py:2140
+#: gui/mainframe.py:2165
 msgid "Create desktop, taskbar, or Start Menu shortcuts"
 msgstr "建立桌面、工作列或開始功能表捷徑"
 
-#: gui/mainframe.py:2149
+#: gui/mainframe.py:2174
 msgid "Cu&t"
 msgstr "剪下(&T)"
 
-#: gui/mainframe.py:2150 gui/mainframe.py:9357
+#: gui/mainframe.py:2175 gui/mainframe.py:9435
 msgid "&Copy"
 msgstr "複製(&C)"
 
-#: gui/mainframe.py:2151
+#: gui/mainframe.py:2176
 msgid "&Paste"
 msgstr "貼上(&P)"
 
-#: gui/mainframe.py:2152 gui/mainframe.py:9359
+#: gui/mainframe.py:2177 gui/mainframe.py:9437
 msgid "Select &All"
 msgstr "全選(&A)"
 
-#: gui/mainframe.py:2178
+#: gui/mainframe.py:2203
 msgid "&All Articles"
 msgstr "所有文章(&A)"
 
-#: gui/mainframe.py:2178
+#: gui/mainframe.py:2203
 msgid "Show read and unread articles in all views"
 msgstr "在所有檢視中顯示已讀與未讀文章"
 
-#: gui/mainframe.py:2179
+#: gui/mainframe.py:2204
 msgid "&Unread Only"
 msgstr "僅未讀(&U)"
 
-#: gui/mainframe.py:2179
+#: gui/mainframe.py:2204
 msgid "Show only unread articles in all views"
 msgstr "在所有檢視中僅顯示未讀文章"
 
-#: gui/mainframe.py:2180
+#: gui/mainframe.py:2205
 msgid "&Read Only"
 msgstr "僅已讀(&R)"
 
-#: gui/mainframe.py:2180
+#: gui/mainframe.py:2205
 msgid "Show only read articles in all views"
 msgstr "在所有檢視中僅顯示已讀文章"
 
-#: gui/mainframe.py:2194
+#: gui/mainframe.py:2219
 msgid "Media and &Non-media"
 msgstr "有無媒體皆顯示(&N)"
 
-#: gui/mainframe.py:2194
+#: gui/mainframe.py:2219
 msgid "Show articles whether or not they have media"
 msgstr "無論文章是否包含媒體都顯示"
 
-#: gui/mainframe.py:2195
+#: gui/mainframe.py:2220
 msgid "With &Media Only"
 msgstr "僅有媒體(&M)"
 
-#: gui/mainframe.py:2195
+#: gui/mainframe.py:2220
 msgid "Show only articles that have playable media"
 msgstr "僅顯示包含可播放媒體的文章"
 
-#: gui/mainframe.py:2196
+#: gui/mainframe.py:2221
 msgid "Wit&hout Media Only"
 msgstr "僅無媒體(&H)"
 
-#: gui/mainframe.py:2196
+#: gui/mainframe.py:2221
 msgid "Show only articles that have no playable media"
 msgstr "僅顯示不含可播放媒體的文章"
 
-#: gui/mainframe.py:2217
+#: gui/mainframe.py:2242
 msgid "&Date"
 msgstr "日期(&D)"
 
-#: gui/mainframe.py:2217
+#: gui/mainframe.py:2242
 msgid "Sort articles by date"
 msgstr "依日期排序文章"
 
-#: gui/mainframe.py:2218
+#: gui/mainframe.py:2243
 msgid "&Name"
 msgstr "名稱(&N)"
 
-#: gui/mainframe.py:2218
+#: gui/mainframe.py:2243
 msgid "Sort articles by name"
 msgstr "依名稱排序文章"
 
-#: gui/mainframe.py:2219
+#: gui/mainframe.py:2244
 msgid "A&uthor"
 msgstr "作者(&U)"
 
-#: gui/mainframe.py:2219
+#: gui/mainframe.py:2244
 msgid "Sort articles by author"
 msgstr "依作者排序文章"
 
-#: gui/mainframe.py:2220
+#: gui/mainframe.py:2245
 msgid "De&scription"
 msgstr "描述(&S)"
 
-#: gui/mainframe.py:2220
+#: gui/mainframe.py:2245
 msgid "Sort articles by description"
 msgstr "依描述排序文章"
 
-#: gui/mainframe.py:2221
+#: gui/mainframe.py:2246
 msgid "&Feed"
 msgstr "訂閱來源(&F)"
 
-#: gui/mainframe.py:2221
+#: gui/mainframe.py:2246
 msgid "Sort articles by feed"
 msgstr "依訂閱來源排序文章"
 
-#: gui/mainframe.py:2222
+#: gui/mainframe.py:2247
 msgid "S&tatus"
 msgstr "狀態(&T)"
 
-#: gui/mainframe.py:2222
+#: gui/mainframe.py:2247
 msgid "Sort articles by status"
 msgstr "依狀態排序文章"
 
-#: gui/mainframe.py:2866
+#: gui/mainframe.py:2891
 msgid "Play queue is empty."
 msgstr "播放佇列是空的。"
 
-#: gui/mainframe.py:3326 gui/mainframe.py:2943
+#: gui/mainframe.py:3351 gui/mainframe.py:2968
 msgid "Playback speed {speed}x"
 msgstr "播放速度 {speed}x"
 
-#: gui/mainframe.py:3482
+#: gui/mainframe.py:3507
 msgid "Show chapter list"
 msgstr "顯示章節清單"
 
-#: gui/mainframe.py:3492
+#: gui/mainframe.py:3517
 msgid "Previous Chapter (Ctrl+Shift+Left)"
 msgstr "上一章(Ctrl+Shift+左)"
 
-#: gui/mainframe.py:3493
+#: gui/mainframe.py:3518
 msgid "Jump to previous chapter"
 msgstr "跳至上一章"
 
-#: gui/mainframe.py:3503
+#: gui/mainframe.py:3528
 msgid "Next Chapter (Ctrl+Shift+Right)"
 msgstr "下一章(Ctrl+Shift+右)"
 
-#: gui/mainframe.py:3504
+#: gui/mainframe.py:3529
 msgid "Jump to next chapter"
 msgstr "跳至下一章"
 
-#: gui/mainframe.py:3580
+#: gui/mainframe.py:3605
 msgid "Stopping refresh..."
 msgstr "正在停止重新整理..."
 
-#: gui/mainframe.py:3582
+#: gui/mainframe.py:3607
 msgid "No refresh in progress"
 msgstr "目前沒有正在進行的重新整理"
 
-#: gui/mainframe.py:4426
+#: gui/mainframe.py:4451
 msgid "Refresh Category"
 msgstr "重新整理分類"
 
-#: gui/mainframe.py:4453
+#: gui/mainframe.py:4478
 msgid "Import OPML Here..."
 msgstr "在此匯入 OPML..."
 
-#: gui/mainframe.py:4456
+#: gui/mainframe.py:4481
 msgid "Export Category to OPML..."
 msgstr "將分類匯出至 OPML..."
 
-#: gui/mainframe.py:4596
+#: gui/mainframe.py:4621
 msgid "The current provider does not support filter rules."
 msgstr "目前的提供者不支援篩選規則。"
 
-#: gui/mainframe.py:4597 gui/mainframe.py:6556 gui/mainframe.py:6618
+#: gui/mainframe.py:4622 gui/mainframe.py:6620 gui/mainframe.py:6682
 msgid "Not Supported"
 msgstr "不支援"
 
-#: gui/mainframe.py:4665 gui/mainframe.py:4524
+#: gui/mainframe.py:4690 gui/mainframe.py:4549
 msgid "Delete Smart Folder"
 msgstr "刪除智慧資料夾"
 
-#: gui/mainframe.py:4734
+#: gui/mainframe.py:4759
 msgid "Open in Default Browser"
 msgstr "在預設瀏覽器中開啟"
 
-#: gui/mainframe.py:4740
+#: gui/mainframe.py:4765
 msgid "Mark as &Read"
 msgstr "標記為已讀(&R)"
 
-#: gui/mainframe.py:4741
+#: gui/mainframe.py:4766
 msgid "Mark as &Unread"
 msgstr "標記為未讀(&U)"
 
-#: gui/mainframe.py:4751
+#: gui/mainframe.py:4776
 msgid "Delete Article\tDel"
 msgstr "刪除文章\tDel"
 
-#: gui/mainframe.py:4766
+#: gui/mainframe.py:4791
 msgid "Restore Article"
 msgstr "還原文章"
 
-#: gui/mainframe.py:4772
+#: gui/mainframe.py:4797
 msgid "Copy Links"
 msgstr "複製連結"
 
-#: gui/mainframe.py:4784
+#: gui/mainframe.py:4809
 msgid "View Feed Description..."
 msgstr "檢視訂閱來源描述..."
 
-#: gui/mainframe.py:4855
+#: gui/mainframe.py:4880
 msgid "Open Play Queue..."
 msgstr "開啟播放佇列..."
 
-#: gui/mainframe.py:5057
-msgid "Feed Description"
-msgstr "訂閱來源描述"
-
-#: gui/mainframe.py:5719
+#: gui/mainframe.py:5783
 msgid "Opening link."
 msgstr "正在開啟連結。"
 
-#: gui/mainframe.py:5956
+#: gui/mainframe.py:6020
 msgid "No change history for this article."
 msgstr "此文章沒有變更記錄。"
 
-#: gui/mainframe.py:5956 gui/mainframe.py:5961
+#: gui/mainframe.py:6020 gui/mainframe.py:6025
 msgid "Article History"
 msgstr "文章記錄"
 
-#: gui/mainframe.py:6032
+#: gui/mainframe.py:6096
 msgid "Chapters available"
 msgstr "有可用章節"
 
-#: gui/mainframe.py:6088
+#: gui/mainframe.py:6152
 msgid ", played"
 msgstr ",已播放"
 
-#: gui/mainframe.py:6120
+#: gui/mainframe.py:6184
 msgid "played"
 msgstr "已播放"
 
-#: gui/mainframe.py:6234
+#: gui/mainframe.py:6298
 msgid "Already in play queue."
 msgstr "已在播放佇列中。"
 
-#: gui/mainframe.py:6555
+#: gui/mainframe.py:6619
 msgid "This provider does not support deleting articles."
 msgstr "此提供者不支援刪除文章。"
 
-#: gui/mainframe.py:6604
+#: gui/mainframe.py:6668
 msgid "this article"
 msgid_plural "{n} articles"
 msgstr[0] "{n} 篇文章"
 
-#: gui/mainframe.py:6611
+#: gui/mainframe.py:6675
 msgid ""
 "Delete {subject}? Deleted articles can be restored from the Deleted Articles"
 " view."
 msgstr "刪除{subject}?已刪除的文章可從已刪除文章檢視中還原。"
 
-#: gui/mainframe.py:6617
+#: gui/mainframe.py:6681
 msgid "This provider does not support permanently deleting articles."
 msgstr "此提供者不支援永久刪除文章。"
 
-#: gui/mainframe.py:6631
+#: gui/mainframe.py:6695
 msgid "Permanently delete this article? It cannot be restored."
 msgstr "永久刪除這篇文章?此操作無法還原。"
 
-#: gui/mainframe.py:6860
+#: gui/mainframe.py:6924
 msgid "Added to favorites"
 msgstr "已新增至我的最愛"
 
-#: gui/mainframe.py:6860
+#: gui/mainframe.py:6924
 msgid "Removed from favorites"
 msgstr "已從我的最愛中移除"
 
-#: gui/mainframe.py:6881 gui/mainframe.py:6898
+#: gui/mainframe.py:6945 gui/mainframe.py:6962
 msgid "Could not rename category."
 msgstr "無法重新命名分類。"
 
-#: gui/mainframe.py:7000 gui/mainframe.py:6992
+#: gui/mainframe.py:7064 gui/mainframe.py:7056
 msgid "Please select a category to remove."
 msgstr "請選擇要移除的分類。"
 
-#: gui/mainframe.py:7000 gui/mainframe.py:7005 gui/mainframe.py:6992
-#: gui/mainframe.py:6977
-msgid "Info"
-msgstr "資訊"
-
-#: gui/mainframe.py:7005 gui/mainframe.py:6977
-msgid "The Uncategorized folder cannot be removed."
-msgstr "無法移除「未分類」資料夾。"
-
-#: gui/mainframe.py:7028 gui/mainframe.py:6983 gui/mainframe.py:12239
-msgid "Confirm"
-msgstr "確認"
-
-#: gui/mainframe.py:7098
+#: gui/mainframe.py:7162
 msgid "Warning"
 msgstr "警告"
 
-#: gui/mainframe.py:7326
+#: gui/mainframe.py:7390
 msgid "Refresh stopped"
 msgstr "重新整理已停止"
 
-#: gui/mainframe.py:11344 gui/mainframe.py:11351
+#: gui/mainframe.py:11426 gui/mainframe.py:11433
 msgid "No audio"
 msgstr "無音訊"
 
-#: gui/mainframe.py:11657
+#: gui/mainframe.py:11739
 msgid "No downloadable media found for this item."
 msgstr "找不到此項目的可下載媒體。"
 
-#: gui/mainframe.py:11660
+#: gui/mainframe.py:11742
 msgid "Downloads are disabled. Enable them in Settings > Downloads."
 msgstr "下載功能已停用。請在設定 > 下載中啟用。"
 
-#: gui/mainframe.py:11660
+#: gui/mainframe.py:11742
 msgid "Downloads disabled"
 msgstr "下載功能已停用"
 
-#: gui/mainframe.py:12078
+#: gui/mainframe.py:12160
 msgid "No feeds detected on this page."
 msgstr "未在此頁面上偵測到訂閱來源。"
 
-#: gui/mainframe.py:12232
+#: gui/mainframe.py:12314
 msgid "Failed to add feed."
 msgstr "新增訂閱來源失敗。"
 
-#: gui/mainframe.py:12388
+#: gui/mainframe.py:12470
 msgid ""
 "This provider does not support changing the feed URL.\n"
 "The title and category will be updated, but the URL will stay the same."
@@ -4128,21 +4437,21 @@ msgstr ""
 "此提供者不支援變更訂閱來源網址。\n"
 "標題與分類將會更新,但網址將保持不變。"
 
-#: gui/mainframe.py:12392
+#: gui/mainframe.py:12474
 msgid "Feed URL not supported"
 msgstr "不支援訂閱來源網址"
 
-#: gui/mainframe.py:12662
+#: gui/mainframe.py:12744
 msgid "Import successful."
 msgstr "匯入成功。"
 
-#: gui/mainframe.py:12664
+#: gui/mainframe.py:12746
 msgid ""
 "Import failed. Please check the latest opml_debug_*.log in the temporary "
 "directory."
 msgstr "匯入失敗。請檢查暫存目錄中最新的 opml_debug_*.log。"
 
-#: gui/mainframe.py:13057
+#: gui/mainframe.py:13139
 msgid ""
 "A new version of BlindRSS is available ({version}).\n"
 "\n"
@@ -4156,11 +4465,11 @@ msgstr ""
 "\n"
 "是否立即下載並安裝此更新?"
 
-#: gui/mainframe.py:13062
+#: gui/mainframe.py:13144
 msgid "Update Available"
 msgstr "有可用更新"
 
-#: gui/mainframe.py:13070
+#: gui/mainframe.py:13152
 msgid ""
 "Auto-update is only available in the packaged app build.\n"
 "Download the latest release from GitHub."
@@ -4168,95 +4477,91 @@ msgstr ""
 "自動更新僅適用於封裝的應用程式版本。\n"
 "請從 GitHub 下載最新版本。"
 
-#: gui/mainframe.py:13139
+#: gui/mainframe.py:13221
 msgid "Update Failed"
 msgstr "更新失敗"
 
-#: gui/mainframe.py:13257
+#: gui/mainframe.py:13339
 msgid "Smart Folder"
 msgstr "智慧資料夾"
 
-#: gui/mainframe.py:13270
+#: gui/mainframe.py:13352
 msgid "Show articles that match"
 msgstr "顯示相符的文章"
 
-#: gui/mainframe.py:13379
+#: gui/mainframe.py:13461
 msgid "Filter Rule"
 msgstr "篩選規則"
 
-#: gui/mainframe.py:13401
+#: gui/mainframe.py:13483
 msgid "Apply this rule to articles that match"
 msgstr "將此規則套用至相符的文章"
 
-#: gui/mainframe.py:13458
+#: gui/mainframe.py:13540
 msgid "Mark as &read"
 msgstr "標記為已讀(&R)"
 
-#: gui/mainframe.py:13460
+#: gui/mainframe.py:13542
 msgid "Mark as &favorite"
 msgstr "標記為我的最愛(&F)"
 
-#: gui/mainframe.py:13462
+#: gui/mainframe.py:13544
 msgid "&Delete (uses the configured delete behavior)"
 msgstr "刪除(&D)(使用設定的刪除行為)"
 
-#: gui/mainframe.py:13464
+#: gui/mainframe.py:13546
 msgid "Skip &notification"
 msgstr "略過通知(&N)"
 
-#: gui/mainframe.py:13470
+#: gui/mainframe.py:13552
 msgid "&Stop processing later rules when this rule matches"
 msgstr "此規則相符時停止處理後續規則(&S)"
 
-#: gui/mainframe.py:13473
+#: gui/mainframe.py:13555
 msgid "Rule &enabled"
 msgstr "規則已啟用(&E)"
 
-#: gui/mainframe.py:13532
+#: gui/mainframe.py:13614
 msgid ""
 "Choose at least one action for this rule (move, label, mark, delete, or skip"
 " notification)."
 msgstr "請為此規則至少選擇一項動作(移動、標記、標籤、刪除或略過通知)。"
 
-#: gui/mainframe.py:13533
+#: gui/mainframe.py:13615
 msgid "No Actions"
 msgstr "沒有動作"
 
-#: gui/mainframe.py:13573
+#: gui/mainframe.py:13655
 msgid "&Add..."
 msgstr "新增(&A)..."
 
-#: gui/mainframe.py:13574
+#: gui/mainframe.py:13656
 msgid "&Edit..."
 msgstr "編輯(&E)..."
 
-#: gui/mainframe.py:13575
-msgid "De&lete"
-msgstr "刪除(&L)"
-
-#: gui/mainframe.py:13578
+#: gui/mainframe.py:13660
 msgid "En&able/Disable"
 msgstr "啟用/停用(&A)"
 
-#: gui/mainframe.py:13579
+#: gui/mainframe.py:13661
 msgid "Apply to E&xisting Articles"
 msgstr "套用至現有文章(&X)"
 
-#: gui/mainframe.py:13685
+#: gui/mainframe.py:13767
 msgid "Delete Rule"
 msgstr "刪除規則"
 
-#: gui/mainframe.py:13724
+#: gui/mainframe.py:13806
 msgid ""
 "Run all enabled rules against every existing article now? This may move, "
 "label, or delete articles."
 msgstr "要立即對每篇現有文章執行所有已啟用的規則嗎?這可能會移動、標記或刪除文章。"
 
-#: gui/mainframe.py:13728
+#: gui/mainframe.py:13810
 msgid "Apply to Existing Articles"
 msgstr "套用至現有文章"
 
-#: gui/mainframe.py:13755
+#: gui/mainframe.py:13837
 msgid "Filter Rules Applied"
 msgstr "已套用篩選規則"
 
@@ -4264,221 +4569,192 @@ msgstr "已套用篩選規則"
 msgid "Missing recommended tools:"
 msgstr "缺少建議的工具:"
 
-#: gui/mainframe.py:484
+#: gui/mainframe.py:509
 msgid "Install Incomplete"
 msgstr "安裝未完成"
 
-#: gui/mainframe.py:490
+#: gui/mainframe.py:515
 msgid "Dependencies installed and PATH updated. A restart is recommended."
 msgstr "相依項目已安裝,PATH 已更新。建議重新啟動。"
 
-#: gui/mainframe.py:491
+#: gui/mainframe.py:516
 msgid "Success"
 msgstr "成功"
 
-#: gui/mainframe.py:1729 gui/player.py:3947 gui/player.py:6322
-#: gui/player.py:6014
-msgid "Playing"
-msgstr "正在播放"
-
-#: gui/mainframe.py:1729 gui/player.py:6378 gui/player.py:6395
-msgid "Paused"
-msgstr "已暫停"
-
-#: gui/mainframe.py:2876
+#: gui/mainframe.py:2901
 msgid "End of play queue."
 msgstr "已到播放佇列結尾。"
 
-#: gui/mainframe.py:2876
+#: gui/mainframe.py:2901
 msgid "Start of play queue."
 msgstr "已到播放佇列開頭。"
 
-#: gui/mainframe.py:3450 gui/player.py:2261
+#: gui/mainframe.py:3475 gui/player.py:2263
 msgid "No chapters available"
 msgstr "沒有可用章節"
 
-#: gui/mainframe.py:3481
+#: gui/mainframe.py:3506
 msgid "Show Chapters..."
 msgstr "顯示章節..."
 
-#: gui/mainframe.py:4450
+#: gui/mainframe.py:4475
 msgid "Delete Category and Feeds"
 msgstr "刪除分類與訂閱來源"
 
-#: gui/mainframe.py:4468
+#: gui/mainframe.py:4493
 msgid "Mark all items in this feed as read?"
 msgstr "要將此訂閱來源中的所有項目標記為已讀嗎?"
 
-#: gui/mainframe.py:4491
+#: gui/mainframe.py:4516
 msgid "Notifications for This Feed"
 msgstr "此訂閱來源的通知"
 
-#: gui/mainframe.py:4502
-msgid "Use default setting"
-msgstr "使用預設設定"
-
-#: gui/mainframe.py:4503
-msgid "Always show image alt text"
-msgstr "永遠顯示圖片替代文字"
-
-#: gui/mainframe.py:4504
-msgid "Never show image alt text"
-msgstr "永不顯示圖片替代文字"
-
-#: gui/mainframe.py:4511
-msgid "Image Alt Text"
-msgstr "圖片替代文字"
-
-#: gui/mainframe.py:4758
+#: gui/mainframe.py:4783
 msgid "Delete Article Permanently\tDel"
 msgstr "永久刪除文章\tDel"
 
-#: gui/mainframe.py:4875
+#: gui/mainframe.py:4900
 msgid "Chapter Links"
 msgstr "章節連結"
 
-#: gui/mainframe.py:5084
+#: gui/mainframe.py:5109
 msgid "Copy"
 msgstr "複製"
 
-#: gui/mainframe.py:5162
-msgid "Article text"
-msgstr "文章內文"
-
-#: gui/mainframe.py:6124
+#: gui/mainframe.py:6188
 msgid "not played"
 msgstr "未播放"
 
-#: gui/mainframe.py:6570
+#: gui/mainframe.py:6634
 msgid "Confirm Delete"
 msgstr "確認刪除"
 
-#: gui/mainframe.py:6608
+#: gui/mainframe.py:6672
 msgid "Move {subject} to the '{category}' category?"
 msgstr "將{subject}移動至分類'{category}'?"
 
-#: gui/mainframe.py:6610
+#: gui/mainframe.py:6674
 msgid "Permanently delete {subject}? This cannot be undone."
 msgstr "永久刪除{subject}?此操作無法復原。"
 
-#: gui/mainframe.py:6636
+#: gui/mainframe.py:6700
 msgid "Confirm Permanent Delete"
 msgstr "確認永久刪除"
 
-#: gui/mainframe.py:6716
+#: gui/mainframe.py:6780
 msgid "Could not delete article."
 msgid_plural "Could not delete {n} articles."
 msgstr[0] "無法刪除 {n} 篇文章。"
 
-#: gui/mainframe.py:6888
+#: gui/mainframe.py:6952
 msgid "Rename category '{category}' to:"
 msgstr "將分類「{category}」重新命名為:"
 
-#: gui/mainframe.py:6908
+#: gui/mainframe.py:6972
 msgid "Category name:"
 msgstr "分類名稱:"
 
-#: gui/mainframe.py:6917
+#: gui/mainframe.py:6981
 msgid "(None - Top Level)"
 msgstr "(無 - 最上層)"
 
-#: gui/mainframe.py:6950
+#: gui/mainframe.py:7014
 msgid "Enter subcategory name (under '{category}'):"
 msgstr "輸入子分類名稱(在「{category}」下):"
 
-#: gui/mainframe.py:7318
+#: gui/mainframe.py:7382
 msgid "Refreshing {detail}..."
 msgstr "正在重新整理{detail}..."
 
-#: gui/mainframe.py:7339
+#: gui/mainframe.py:7403
 msgid "Error checking: {title}"
 msgstr "檢查時發生錯誤:{title}"
 
-#: gui/mainframe.py:7341
+#: gui/mainframe.py:7405
 msgid "Checked: {title}"
 msgstr "已檢查:{title}"
 
-#: gui/mainframe.py:10637
+#: gui/mainframe.py:10719
 msgid "Chapters ({count}):"
 msgstr "章節({count}):"
 
-#: gui/mainframe.py:10937 gui/mainframe.py:11092
+#: gui/mainframe.py:11019 gui/mainframe.py:11174
 msgid "Mark All as Read"
 msgstr "全部標記為已讀"
 
-#: gui/mainframe.py:11092
+#: gui/mainframe.py:11174
 msgid "All items are already marked as read."
 msgstr "所有項目皆已標記為已讀。"
 
-#: gui/mainframe.py:11260
+#: gui/mainframe.py:11342
 msgid "Custom command failed"
 msgstr "自訂指令失敗"
 
-#: gui/mainframe.py:11844 gui/mainframe.py:11918 gui/mainframe.py:11807
+#: gui/mainframe.py:11926 gui/mainframe.py:12000 gui/mainframe.py:11889
 msgid "Download error"
 msgstr "下載錯誤"
 
-#: gui/mainframe.py:11848 gui/mainframe.py:11922 gui/mainframe.py:11808
+#: gui/mainframe.py:11930 gui/mainframe.py:12004 gui/mainframe.py:11890
 msgid "Download failed: {title}"
 msgstr "下載失敗:{title}"
 
-#: gui/mainframe.py:11873
+#: gui/mainframe.py:11955
 msgid "Downloading: {title}"
 msgstr "正在下載:{title}"
 
-#: gui/mainframe.py:12342
+#: gui/mainframe.py:12424
 msgid "This provider does not support editing feeds."
 msgstr "此提供者不支援編輯訂閱來源。"
 
-#: gui/mainframe.py:12342 gui/mainframe.py:12442
+#: gui/mainframe.py:12424 gui/mainframe.py:12524
 msgid "Not supported"
 msgstr "不支援"
 
-#: gui/mainframe.py:12441
+#: gui/mainframe.py:12523
 msgid "This provider does not support resetting feed titles."
 msgstr "此提供者不支援重設訂閱來源標題。"
 
-#: gui/mainframe.py:13032
+#: gui/mainframe.py:13114
 msgid "Update Check Failed"
 msgstr "更新檢查失敗"
 
-#: gui/mainframe.py:13037
+#: gui/mainframe.py:13119
 msgid "No Updates"
 msgstr "沒有更新"
 
-#: gui/mainframe.py:13042
+#: gui/mainframe.py:13124
 msgid "Unable to determine update status."
 msgstr "無法判斷更新狀態。"
 
-#: gui/mainframe.py:13262
+#: gui/mainframe.py:13344
 msgid "Folder &name:"
 msgstr "資料夾名稱(&N):"
 
-#: gui/mainframe.py:13279 gui/mainframe.py:13411
+#: gui/mainframe.py:13361 gui/mainframe.py:13493
 msgid "Field"
 msgstr "欄位"
 
-#: gui/mainframe.py:13280 gui/mainframe.py:13412
+#: gui/mainframe.py:13362 gui/mainframe.py:13494
 msgid "Condition"
 msgstr "條件"
 
-#: gui/mainframe.py:13281 gui/mainframe.py:13413
+#: gui/mainframe.py:13363 gui/mainframe.py:13495
 msgid "Value"
 msgstr "值"
 
-#: gui/mainframe.py:13393
+#: gui/mainframe.py:13475
 msgid "Rule &name:"
 msgstr "規則名稱(&N):"
 
-#: gui/mainframe.py:13437
+#: gui/mainframe.py:13519
 msgid "&Move to category:"
 msgstr "移動至分類(&M):"
 
-#: gui/mainframe.py:13448
+#: gui/mainframe.py:13530
 msgid "Also &label with category:"
 msgstr "同時使用分類標記(&L):"
 
-#: gui/mainframe.py:13562
+#: gui/mainframe.py:13644
 msgid "Rules run top to bottom for each incoming article, like email filters."
 msgstr "規則會像郵件篩選器一樣,對每篇新到的文章由上而下執行。"
 
@@ -4492,165 +4768,153 @@ msgstr ""
 "\n"
 "提示:您可以在設定 > YouTube 中停用此提示。"
 
-#: gui/mainframe.py:471
-msgid "Missing Dependencies"
-msgstr "缺少相依套件"
-
-#: gui/mainframe.py:572
+#: gui/mainframe.py:597
 msgid "Filter current view (Enter)"
 msgstr "篩選目前檢視(Enter)"
 
-#: gui/mainframe.py:1600 gui/mainframe.py:1553 gui/mainframe.py:1937
+#: gui/mainframe.py:1625 gui/mainframe.py:1578 gui/mainframe.py:1962
 msgid "Filter: {count} of {total}"
 msgstr "篩選:{count}/{total}"
 
-#: gui/mainframe.py:1724
+#: gui/mainframe.py:1749
 msgid "{elapsed} / {total} ({remaining} left)"
 msgstr "{elapsed} / {total}(剩餘 {remaining})"
 
-#: gui/mainframe.py:2292
+#: gui/mainframe.py:2317
 msgid "{speed}x"
 msgstr "{speed}x"
 
-#: gui/mainframe.py:4478
+#: gui/mainframe.py:4503
 msgid "Edit Feed..."
 msgstr "編輯訂閱來源..."
 
-#: gui/mainframe.py:4517 gui/mainframe.py:4526
+#: gui/mainframe.py:4542 gui/mainframe.py:4551
 msgid "New Smart Folder..."
 msgstr "新增智慧資料夾..."
 
-#: gui/mainframe.py:4664
+#: gui/mainframe.py:4689
 msgid "Delete Smart Folder \"{name}\"? Your articles are not affected."
 msgstr "刪除智慧資料夾「{name}」?您的文章不會受到影響。"
 
-#: gui/mainframe.py:4737
+#: gui/mainframe.py:4762
 msgid "Mark {count} as &Read"
 msgstr "將 {count} 項標記為已讀(&R)"
 
-#: gui/mainframe.py:4738
+#: gui/mainframe.py:4763
 msgid "Mark {count} as &Unread"
 msgstr "將 {count} 項標記為未讀(&U)"
 
-#: gui/mainframe.py:4749
+#: gui/mainframe.py:4774
 msgid "Delete {count} Articles\tDel"
 msgstr "刪除 {count} 篇文章\tDel"
 
-#: gui/mainframe.py:4764
+#: gui/mainframe.py:4789
 msgid "Restore {count} Articles"
 msgstr "還原 {count} 篇文章"
 
-#: gui/mainframe.py:4778
+#: gui/mainframe.py:4803
 msgid "Copy Text ({count} articles)"
 msgstr "複製文字({count} 篇文章)"
 
-#: gui/mainframe.py:4804
+#: gui/mainframe.py:4829
 msgid "Copy Image Link"
 msgstr "複製圖片連結"
 
-#: gui/mainframe.py:4880
+#: gui/mainframe.py:4905
 msgid "Remove from Favorites"
 msgstr "從我的最愛移除"
 
-#: gui/mainframe.py:4882
+#: gui/mainframe.py:4907
 msgid "Add to Favorites"
 msgstr "新增至我的最愛"
 
-#: gui/mainframe.py:4893
+#: gui/mainframe.py:4918
 msgid "View History..."
 msgstr "檢視記錄..."
 
-#: gui/mainframe.py:5456
-msgid "Loading full text..."
-msgstr "正在載入全文……"
-
-#: gui/mainframe.py:5754
+#: gui/mainframe.py:5818
 msgid "No audio found."
 msgstr "找不到音訊。"
 
-#: gui/mainframe.py:5754
+#: gui/mainframe.py:5818
 msgid "Result"
 msgstr "結果"
 
-#: gui/mainframe.py:5967
+#: gui/mainframe.py:6031
 msgid "{total} versions of: {title}"
 msgstr "{title} 的 {total} 個版本"
 
-#: gui/mainframe.py:5979
+#: gui/mainframe.py:6043
 msgid "Version {num} - {when}{suffix}"
 msgstr "版本 {num} - {when}{suffix}"
 
-#: gui/mainframe.py:6090
+#: gui/mainframe.py:6154
 msgid ", {position} of {total}"
 msgstr ",第 {position} 項,共 {total} 項"
 
-#: gui/mainframe.py:6094
+#: gui/mainframe.py:6158
 msgid ", {total}"
 msgstr ",{total}"
 
-#: gui/mainframe.py:6096
+#: gui/mainframe.py:6160
 msgid ", {position} played"
 msgstr ",{position} 已播放"
 
-#: gui/mainframe.py:6231
+#: gui/mainframe.py:6295
 msgid "Added {count} to play queue ({total} queued)."
 msgstr "已將 {count} 個項目加入播放佇列(佇列中共 {total} 個)。"
 
-#: gui/mainframe.py:6252
+#: gui/mainframe.py:6316
 msgid "Removed {count} from play queue ({total} queued)."
 msgstr "已從播放佇列移除 {count} 個項目(佇列中共 {total} 個)。"
 
-#: gui/mainframe.py:6633
+#: gui/mainframe.py:6697
 msgid "Permanently delete {count} articles? They cannot be restored."
 msgstr "永久刪除 {count} 篇文章?此操作無法還原。"
 
-#: gui/mainframe.py:6801
+#: gui/mainframe.py:6865
 msgid "Could not restore article."
 msgstr "無法還原文章。"
 
-#: gui/mainframe.py:6920
+#: gui/mainframe.py:6984
 msgid "Parent category:"
 msgstr "父分類:"
 
-#: gui/mainframe.py:6941
+#: gui/mainframe.py:7005
 msgid "Could not add category."
 msgstr "無法新增分類。"
 
-#: gui/mainframe.py:6959
+#: gui/mainframe.py:7023
 msgid "Could not add subcategory."
 msgstr "無法新增子分類。"
 
-#: gui/mainframe.py:7024
+#: gui/mainframe.py:7088
 msgid "Delete category '{title}'{note} and its {count} feed?"
 msgid_plural "Delete category '{title}'{note} and its {count} feeds?"
 msgstr[0] "刪除分類'{title}'{note}及其 {count} 個訂閱來源?"
 
-#: gui/mainframe.py:7090
+#: gui/mainframe.py:7154
 msgid "Category '{title}' could not be deleted."
 msgstr "無法刪除分類'{title}'。"
 
-#: gui/mainframe.py:7095
+#: gui/mainframe.py:7159
 msgid "{n} feed could not be removed."
 msgid_plural "{n} feeds could not be removed."
 msgstr[0] "無法移除 {n} 個訂閱來源。"
 
-#: gui/mainframe.py:7999
-msgid "Deleted Articles"
-msgstr "已刪除文章"
-
-#: gui/mainframe.py:8011
+#: gui/mainframe.py:8075
 msgid "Smart Folders"
 msgstr "智慧資料夾"
 
-#: gui/mainframe.py:11909 gui/mainframe.py:11827
+#: gui/mainframe.py:11991 gui/mainframe.py:11909
 msgid "Download complete"
 msgstr "下載完成"
 
-#: gui/mainframe.py:11912 gui/mainframe.py:11830
+#: gui/mainframe.py:11994 gui/mainframe.py:11912
 msgid "Download complete: {title}"
 msgstr "下載完成:{title}"
 
-#: gui/mainframe.py:12053
+#: gui/mainframe.py:12135
 msgid ""
 "BlindRSS could not complete this site's browser verification page automatically.\n"
 "\n"
@@ -4660,41 +4924,41 @@ msgstr ""
 "\n"
 "您仍可在網頁瀏覽器中開啟該網站,使用 cookies.txt 瀏覽器擴充功能匯出其 Cookie,然後使用 工具 > 匯入網站 Cookie。"
 
-#: gui/mainframe.py:12060
+#: gui/mainframe.py:12142
 msgid "Unable to retrieve the page."
 msgstr "無法取得該頁面。"
 
-#: gui/mainframe.py:12239
+#: gui/mainframe.py:12321
 msgid "Are you sure you want to remove this feed?"
 msgstr "確定要移除此訂閱來源嗎?"
 
-#: gui/mainframe.py:12479 gui/mainframe.py:12667 gui/mainframe.py:12716
+#: gui/mainframe.py:12561 gui/mainframe.py:12749 gui/mainframe.py:12798
 msgid "OPML files"
 msgstr "OPML 檔案"
 
-#: gui/mainframe.py:12673 gui/mainframe.py:12726
+#: gui/mainframe.py:12755 gui/mainframe.py:12808
 msgid "Export successful."
 msgstr "匯出成功。"
 
-#: gui/mainframe.py:12675 gui/mainframe.py:12728
+#: gui/mainframe.py:12757 gui/mainframe.py:12810
 msgid "Export failed."
 msgstr "匯出失敗。"
 
-#: gui/mainframe.py:12791
+#: gui/mainframe.py:12873
 msgid "Storage Location"
 msgstr "儲存位置"
 
-#: gui/mainframe.py:12796
+#: gui/mainframe.py:12878
 msgid ""
 "Config has been moved. The feed database will be migrated to the new "
 "location the next time BlindRSS starts."
 msgstr "設定已移動。下次啟動 BlindRSS 時,訂閱來源資料庫將遷移至新位置。"
 
-#: gui/mainframe.py:12800
+#: gui/mainframe.py:12882
 msgid "Storage Location Changed"
 msgstr "儲存位置已變更"
 
-#: gui/mainframe.py:13684
+#: gui/mainframe.py:13766
 msgid "Delete filter rule \"{name}\"? Articles it already filed are not changed."
 msgstr "刪除篩選規則「{name}」?它已經歸檔的文章不會被變更。"
 
@@ -4710,11 +4974,25 @@ msgstr "FFmpeg(部分 Podcast 所需)"
 msgid "yt-dlp (required for YouTube and many media sources)"
 msgstr "yt-dlp(YouTube 及許多其他媒體來源所需)"
 
-#: gui/mainframe.py:456
+#: gui/mainframe.py:456 gui/mainframe.py:470
 msgid "Install Dependencies"
 msgstr "安裝相依套件"
 
-#: gui/mainframe.py:483
+#: gui/mainframe.py:465
+msgid ""
+"Would you like to install them automatically via Homebrew?\n"
+"\n"
+"Tip: You can disable this prompt in Settings > YouTube."
+msgstr ""
+"要透過 Homebrew 自動安裝它們嗎?\n"
+"\n"
+"提示：您可以在「設定 > YouTube」中停用此提示。"
+
+#: gui/mainframe.py:496
+msgid "Missing Dependencies"
+msgstr "缺少相依套件"
+
+#: gui/mainframe.py:508
 msgid ""
 "Some dependencies are still missing.\n"
 "\n"
@@ -4724,11 +5002,11 @@ msgstr ""
 "\n"
 "請查看記錄:{log_path}"
 
-#: gui/mainframe.py:495
+#: gui/mainframe.py:520
 msgid "Installation failed: {error}"
 msgstr "安裝失敗:{error}"
 
-#: gui/mainframe.py:522
+#: gui/mainframe.py:547
 msgid ""
 "Could not add shortcuts:\n"
 "{error}"
@@ -4736,79 +5014,75 @@ msgstr ""
 "無法新增捷徑:\n"
 "{error}"
 
-#: gui/mainframe.py:2886
+#: gui/mainframe.py:2911
 msgid "Playing {position} of {total}: {title}"
 msgstr "正在播放第 {position} 項,共 {total} 項:{title}"
 
-#: gui/mainframe.py:2890
+#: gui/mainframe.py:2915
 msgid "Playing {position} of {total}"
 msgstr "正在播放第 {position} 項,共 {total} 項"
 
-#: gui/mainframe.py:4168
+#: gui/mainframe.py:4193
 msgid "{hidden} new article notification(s) were suppressed by your cap."
 msgstr "{hidden} 則新文章通知已被您的上限抑制。"
 
-#: gui/mainframe.py:4467
+#: gui/mainframe.py:4492
 msgid "Mark all items in \"{feed}\" as read?"
 msgstr "要將「{feed}」中的所有項目標記為已讀嗎?"
 
-#: gui/mainframe.py:4483
+#: gui/mainframe.py:4508
 msgid "Reset Title to Feed Default"
 msgstr "將標題重設為訂閱來源預設值"
 
-#: gui/mainframe.py:4522
+#: gui/mainframe.py:4547
 msgid "Edit Smart Folder..."
 msgstr "編輯智慧資料夾..."
 
-#: gui/mainframe.py:4624
+#: gui/mainframe.py:4649
 msgid "Could not create the Smart Folder."
 msgstr "無法建立智慧資料夾。"
 
-#: gui/mainframe.py:4648
+#: gui/mainframe.py:4673
 msgid "Could not update the Smart Folder."
 msgstr "無法更新智慧資料夾。"
 
-#: gui/mainframe.py:4756
+#: gui/mainframe.py:4781
 msgid "Delete {count} Articles Permanently\tDel"
 msgstr "永久刪除 {count} 篇文章\tDel"
 
-#: gui/mainframe.py:4842
+#: gui/mainframe.py:4867
 msgid "Remove from Play Queue"
 msgstr "從播放佇列中移除"
 
-#: gui/mainframe.py:4849
+#: gui/mainframe.py:4874
 msgid "Add to Play Queue"
 msgstr "加入播放佇列"
 
-#: gui/mainframe.py:4866
+#: gui/mainframe.py:4891
 msgid "Open {chapter}"
 msgstr "開啟 {chapter}"
 
-#: gui/mainframe.py:5752
+#: gui/mainframe.py:5816
 msgid "Provider does not support updating media."
 msgstr "此提供者不支援更新媒體。"
 
-#: gui/mainframe.py:6087
+#: gui/mainframe.py:6151
 msgid ", played, {total}"
 msgstr ",已播放,{total}"
 
-#: gui/mainframe.py:6122
+#: gui/mainframe.py:6186
 msgid "played {position}"
 msgstr "已播放 {position}"
 
-#: gui/mainframe.py:6990
-msgid "Could not remove category."
-msgstr "無法移除分類。"
-
-#: gui/mainframe.py:7092
+#: gui/mainframe.py:7156
 msgid "Error: {error}"
 msgstr "錯誤:{error}"
 
-#: gui/mainframe.py:7188
+#: gui/mainframe.py:7252
 msgid "Error fetching feeds: {error}"
 msgstr "擷取訂閱來源時發生錯誤:{error}"
 
-#: gui/mainframe.py:11255
+#: gui/mainframe.py:11337
 msgid ""
 "Could not open the article with your custom command:\n"
 "\n"
@@ -4822,23 +5096,23 @@ msgstr ""
 "\n"
 "將改為在預設瀏覽器中開啟。您可以在「設定 > 一般 > 文章開啟方式」中變更此設定。"
 
-#: gui/mainframe.py:11843
+#: gui/mainframe.py:11925
 msgid "Download failed: {error}"
 msgstr "下載失敗:{error}"
 
-#: gui/mainframe.py:12790
+#: gui/mainframe.py:12872
 msgid "Could not move config file."
 msgstr "無法移動設定檔。"
 
-#: gui/mainframe.py:13642
+#: gui/mainframe.py:13724
 msgid "Could not create the rule."
 msgstr "無法建立規則。"
 
-#: gui/mainframe.py:13671
+#: gui/mainframe.py:13753
 msgid "Could not update the rule."
 msgstr "無法更新規則。"
 
-#: gui/mainframe.py:13747
+#: gui/mainframe.py:13829
 msgid ""
 "Could not apply rules.\n"
 "\n"
@@ -4848,55 +5122,43 @@ msgstr ""
 "\n"
 "{error}"
 
-#: gui/mainframe.py:466
-msgid ""
-"This macOS/Linux build should already bundle these tools.\n"
-"If they still appear missing, see the log: {log_path}\n"
-"\n"
-"Tip: You can disable this prompt in Settings > YouTube."
-msgstr ""
-"此 macOS/Linux 版本應已內建這些工具。\n"
-"如果仍顯示缺少,請查看記錄:{log_path}\n"
-"\n"
-"提示:您可以在設定 > YouTube 中停用此提示。"
-
-#: gui/mainframe.py:3465
+#: gui/mainframe.py:3490
 msgid "Current chapter, {label}"
 msgstr "目前章節,{label}"
 
-#: gui/mainframe.py:4434
+#: gui/mainframe.py:4459
 msgid "Mark all items in category \"{category}\" as read?"
 msgstr "要將分類「{category}」中的所有項目標記為已讀嗎?"
 
-#: gui/mainframe.py:4825
+#: gui/mainframe.py:4850
 msgid "Add {count} to Play Queue"
 msgstr "將 {count} 個項目加入播放佇列"
 
-#: gui/mainframe.py:4833
+#: gui/mainframe.py:4858
 msgid "Remove {count} from Play Queue"
 msgstr "從播放佇列移除 {count} 個項目"
 
-#: gui/mainframe.py:5756
+#: gui/mainframe.py:5820
 msgid "Error detecting audio: {error}"
 msgstr "偵測音訊時發生錯誤:{error}"
 
-#: gui/mainframe.py:6802
+#: gui/mainframe.py:6866
 msgid "Could not restore {count} articles."
 msgstr "無法還原 {count} 篇文章。"
 
-#: gui/mainframe.py:6980
+#: gui/mainframe.py:7044
 msgid "Remove category '{category}'? Feeds will be moved to Uncategorized."
 msgstr "移除分類「{category}」?訂閱來源將移至「未分類」。"
 
-#: gui/mainframe.py:10477
+#: gui/mainframe.py:10559
 msgid "No webpage URL for this item. Showing feed content."
 msgstr "此項目沒有網頁 URL。正在顯示訂閱來源內容。"
 
-#: gui/mainframe.py:10479
+#: gui/mainframe.py:10561
 msgid "Full-text extraction failed. Showing feed content."
 msgstr "全文擷取失敗。正在顯示訂閱來源內容。"
 
-#: gui/mainframe.py:11908 gui/mainframe.py:11826
+#: gui/mainframe.py:11990 gui/mainframe.py:11908
 msgid ""
 "Downloaded to:\n"
 "{path}"
@@ -4904,56 +5166,82 @@ msgstr ""
 "已下載至:\n"
 "{path}"
 
-#: gui/mainframe.py:12730
+#: gui/mainframe.py:12812
 msgid "Export failed: {error}"
 msgstr "匯出失敗:{error}"
 
-#: gui/mainframe.py:12879
+#: gui/mainframe.py:12961
 msgid "Windows notification prerequisites could not be fully configured."
 msgstr "無法完整設定 Windows 通知的必要條件。"
 
-#: gui/mainframe.py:11806
+#: gui/mainframe.py:11888
 msgid ""
 "yt-dlp is not installed. Install it via Settings to download YouTube items."
 msgstr "尚未安裝 yt-dlp。請透過設定安裝它以下載 YouTube 項目。"
+
+#: gui/mainframe.py:482
+msgid ""
+"Install Homebrew (https://brew.sh) to let BlindRSS install these automatically, or install them yourself with:\n"
+"    brew install --cask vlc\n"
+"    brew install ffmpeg yt-dlp\n"
+"\n"
+"If this is a packaged build that should bundle them, see the log: {log_path}\n"
+"\n"
+"Tip: You can disable this prompt in Settings > YouTube."
+msgstr ""
+"安裝 Homebrew (https://brew.sh) 以便 BlindRSS 自動安裝它們，或者自行安裝：\n"
+"    brew install --cask vlc\n"
+"    brew install ffmpeg yt-dlp\n"
+"\n"
+"如果這是本應綑定它們的打包版本，請查看日誌：{log_path}\n"
+"\n"
+"提示：您可以在「設定 > YouTube」中停用此提示。"
+
+#: gui/mainframe.py:491
+msgid ""
+"This Linux build should already bundle these tools.\n"
+"If they still appear missing, see the log: {log_path}\n"
+"\n"
+"Tip: You can disable this prompt in Settings > YouTube."
+msgstr ""
+"此 Linux 版本應該已經綑定了這些工具。\n"
+"如果它們仍然顯示為缺少，請查看日誌：{log_path}\n"
+"\n"
+"提示：您可以在「設定 > YouTube」中停用此提示。"
 
 #: gui/player.py:418
 msgid "Scanning..."
 msgstr "正在掃描..."
 
-#: gui/player.py:1993
+#: gui/player.py:1995
 msgid "Elapsed Time: 00:00"
 msgstr "已經過時間：00:00"
 
-#: gui/player.py:2010
+#: gui/player.py:2012
 msgid "Playback Time"
 msgstr "播放時間"
 
-#: gui/player.py:2124
+#: gui/player.py:2126
 msgid "Disconnect"
 msgstr "中斷連線"
 
-#: gui/player.py:2124 gui/player.py:2046
+#: gui/player.py:2126 gui/player.py:2048
 msgid "Cast"
 msgstr "投放"
 
-#: gui/player.py:2125
+#: gui/player.py:2127
 msgid "&Disconnect Cast"
 msgstr "中斷投放(&D)"
 
-#: gui/player.py:2125 gui/player.py:2094
+#: gui/player.py:2127 gui/player.py:2096
 msgid "&Cast to Device..."
 msgstr "投放至裝置(&C)..."
 
-#: gui/player.py:4145
-msgid "Connecting..."
-msgstr "連線中..."
-
-#: gui/player.py:5327
+#: gui/player.py:5329
 msgid "Elapsed Time"
 msgstr "已經過時間"
 
-#: gui/player.py:6434 gui/player.py:6546
+#: gui/player.py:6436 gui/player.py:6548 gui/player.py:4422
 msgid "Stopped"
 msgstr "已停止"
 
@@ -4977,71 +5265,67 @@ msgstr "找不到裝置"
 msgid "Audio Player"
 msgstr "音訊播放器"
 
-#: gui/player.py:1971
+#: gui/player.py:1973
 msgid "No Track Loaded"
 msgstr "未載入曲目"
 
-#: gui/player.py:2007
+#: gui/player.py:2009
 msgid "No media loaded"
 msgstr "未載入媒體"
 
-#: gui/player.py:2017
+#: gui/player.py:2019
 msgid "-10s"
 msgstr "-10秒"
 
-#: gui/player.py:2033
+#: gui/player.py:2035
 msgid "+10s"
 msgstr "+10秒"
 
-#: gui/player.py:2060 gui/tray.py:118
+#: gui/player.py:2062 gui/tray.py:118
 msgid "Volume"
 msgstr "音量"
 
-#: gui/player.py:2098
+#: gui/player.py:2100
 msgid "Show &Chapters\tCtrl+M"
 msgstr "顯示章節(&C)\tCtrl+M"
 
-#: gui/player.py:2101
+#: gui/player.py:2103
 msgid "Open Chapter &Link\tCtrl+Shift+L"
 msgstr "開啟章節連結(&L)\tCtrl+Shift+L"
 
-#: gui/player.py:2104
+#: gui/player.py:2106
 msgid "&Previous Chapter\tCtrl+Shift+Left"
 msgstr "上一章(&P)\tCtrl+Shift+左"
 
-#: gui/player.py:2105
+#: gui/player.py:2107
 msgid "&Next Chapter\tCtrl+Shift+Right"
 msgstr "下一章(&N)\tCtrl+Shift+右"
 
-#: gui/player.py:2107
+#: gui/player.py:2109
 msgid "&Playback"
 msgstr "播放(&P)"
 
-#: gui/player.py:2108
+#: gui/player.py:2110
 msgid "&Chapters"
 msgstr "章節(&C)"
 
-#: gui/player.py:2604
+#: gui/player.py:2606
 msgid "Cast device disconnected; resuming local playback"
 msgstr "投放裝置已中斷連線;正在恢復本機播放"
 
-#: gui/player.py:3341 gui/player.py:3862
+#: gui/player.py:3343 gui/player.py:3864
 msgid "Failed to load media"
 msgstr "媒體載入失敗"
 
-#: gui/player.py:3864
+#: gui/player.py:3866
 msgid "VLC is not initialized. Playback is unavailable."
 msgstr "VLC 尚未初始化。無法播放。"
 
-#: gui/player.py:4008
-msgid "Buffering..."
-msgstr "緩衝中..."
-
-#: gui/player.py:4205
+#: gui/player.py:4207
 msgid "Downloading for playback..."
 msgstr "正在下載以供播放..."
 
-#: gui/player.py:5353
+#: gui/player.py:5355
 msgid "Elapsed {elapsed}, Remaining {remaining}, Total {total}"
 msgstr "已經過 {elapsed},剩餘 {remaining},總計 {total}"
 
@@ -5057,21 +5341,25 @@ msgstr "AirPlay 配對"
 msgid "Connection failed: {error}"
 msgstr "連線失敗:{error}"
 
-#: gui/player.py:2197
+#: gui/player.py:2199
 msgid "Chapter link unavailable"
 msgstr "章節連結無法使用"
 
-#: gui/player.py:2208
+#: gui/player.py:2210
 msgid "Could not open chapter link"
 msgstr "無法開啟章節連結"
 
-#: gui/player.py:4124
+#: gui/player.py:4126
 msgid "Loading media..."
 msgstr "正在載入媒體..."
 
-#: gui/player.py:5351
+#: gui/player.py:5353
 msgid "Elapsed {elapsed}"
 msgstr "已經過 {elapsed}"
+
+#: gui/player.py:5450
+msgid "Pause"
+msgstr "暫停"
 
 #: gui/player.py:494
 msgid "Could not start pairing: {error}"
@@ -5081,11 +5369,15 @@ msgstr "無法開始配對:{error}"
 msgid "Pairing failed: {error}"
 msgstr "配對失敗:{error}"
 
-#: gui/player.py:2268
+#: gui/player.py:2270
 msgid "Open Link for {chapter}"
 msgstr "開啟 {chapter} 的連結"
 
-#: gui/player.py:2492
+#: gui/player.py:2284
+msgid "[Current]"
+msgstr "[目前]"
+
+#: gui/player.py:2494
 msgid "Casting failed: {error}"
 msgstr "投放失敗:{error}"
 
@@ -5116,6 +5408,17 @@ msgstr "未讀:{count}"
 #: main.py:267
 msgid "BlindRSS is already running."
 msgstr "BlindRSS 已在執行中。"
+
+#~ msgid ""
+#~ "This macOS/Linux build should already bundle these tools.\n"
+#~ "If they still appear missing, see the log: {log_path}\n"
+#~ "\n"
+#~ "Tip: You can disable this prompt in Settings > YouTube."
+#~ msgstr ""
+#~ "此 macOS/Linux 版本應已內建這些工具。\n"
+#~ "如果仍顯示缺少,請查看記錄:{log_path}\n"
+#~ "\n"
+#~ "提示:您可以在設定 > YouTube 中停用此提示。"
 
 #~ msgid "Text files (*.txt)|*.txt|All files (*.*)|*.*"
 #~ msgstr "文字檔案 (*.txt)|*.txt|所有檔案 (*.*)|*.*"

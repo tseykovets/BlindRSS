@@ -367,6 +367,27 @@ def _sha256_file(path: str) -> str:
 
 
 def _extract_zip(zip_path: str, dest_dir: str) -> None:
+    # macOS: the release zip is a ditto archive of a signed .app whose
+    # Python.framework relies on symlinks (Versions/Current etc.).
+    # zipfile.extractall writes symlink entries as REGULAR FILES, which
+    # flattens the framework and makes codesign report "code object is not
+    # signed at all / In subcomponent ... Python.framework" on a perfectly
+    # good download. Use ditto (symlink- and resource-fork-aware, always
+    # present at /usr/bin/ditto) to extract on macOS instead.
+    if sys.platform == "darwin":
+        ditto = "/usr/bin/ditto"
+        if os.path.isfile(ditto):
+            proc = subprocess.run(
+                [ditto, "-x", "-k", zip_path, dest_dir],
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode == 0:
+                return
+            log.warning(
+                "ditto extraction failed (%s); falling back to zipfile",
+                (proc.stderr or "").strip(),
+            )
     with zipfile.ZipFile(zip_path, "r") as zf:
         zf.extractall(dest_dir)
 

@@ -383,3 +383,36 @@ def test_apply_windows_installer_verifies_and_launches_helper(monkeypatch, tmp_p
     assert captured["install_dir"] == str(install)
     assert captured["staging_root"] == ""
     assert captured["kwargs"]["installer_path"] == str(installer)
+
+
+def test_extract_zip_preserves_symlinks_on_macos(tmp_path):
+    """The macOS release zip holds a signed .app whose Python.framework relies
+    on symlinks (Versions/Current). zipfile.extractall writes symlink entries
+    as regular files, which flattens the framework and made the updater's
+    codesign verification fail on every good download ("code object is not
+    signed at all ... In subcomponent Python.framework"). On macOS the
+    extractor must go through ditto, which preserves them.
+    """
+    if sys.platform != "darwin":
+        return  # ditto only exists on macOS; other platforms keep zipfile
+
+    app = tmp_path / "BlindRSS.app" / "Contents" / "Frameworks" / "Py.framework"
+    (app / "Versions" / "3.12").mkdir(parents=True)
+    (app / "Versions" / "3.12" / "Py").write_text("lib")
+    os.symlink("3.12", app / "Versions" / "Current")
+
+    z = tmp_path / "a.zip"
+    import subprocess
+    subprocess.run(
+        ["/usr/bin/ditto", "-c", "-k", "--keepParent",
+         str(tmp_path / "BlindRSS.app"), str(z)],
+        check=True,
+    )
+
+    dest = tmp_path / "out"
+    dest.mkdir()
+    updater._extract_zip(str(z), str(dest))
+
+    link = dest / "BlindRSS.app" / "Contents" / "Frameworks" / "Py.framework" / "Versions" / "Current"
+    assert os.path.islink(link), "symlink was flattened; codesign would reject the app"
+    assert os.readlink(link) == "3.12"

@@ -41,6 +41,36 @@ def test_extract_body_uses_web_when_longer_than_feed(monkeypatch):
     assert cacheable is True  # real web full text is authoritative
 
 
+def test_extract_body_strips_leading_share_buttons_from_feed(monkeypatch):
+    # The reported macOS bug: a hosted provider (Miniflux) serves full page HTML
+    # as the feed body, which is LONGER than the web extraction and wins the
+    # length comparison -- but html_to_text keeps the leading "Share on
+    # Facebook / Bluesky / X / Copy Link" toolbar. A VoiceOver user then opens
+    # on four junk labels and concludes full text never loaded, even though the
+    # whole article is right below. The chosen feed body must not lead with it.
+    monkeypatch.setattr(
+        article_extractor, "extract_full_article",
+        lambda url, **kw: SimpleNamespace(text="short web stub"),
+    )
+    feed_html = (
+        "<p>Share on Facebook</p><p>Share on Bluesky</p><p>Share on X</p>"
+        "<p>Copy Link</p>"
+        "<p>TORONTO — A’ja Wilson and Jackie Young combined for 50 points as the "
+        "Las Vegas Aces defeated the Toronto Tempo.</p>"
+        "<p>The Tempo have now lost three straight games and seven of their last "
+        "eight, extending a difficult homestand.</p>"
+    )
+    article = SimpleNamespace(
+        url="https://fraservalleytoday.ca/2026/07/20/aces-tempo/",
+        content=feed_html, title="T", author="A",
+    )
+    body, _cacheable = extract_article_body(article)
+    assert body.lstrip().startswith("TORONTO — A’ja Wilson")
+    assert "Share on Facebook" not in body
+    assert "Copy Link" not in body
+    assert "lost three straight games" in body
+
+
 def test_extract_body_keeps_feed_when_web_is_shorter(monkeypatch):
     # THE bug this whole episode chased: web extraction returned LESS than the feed
     # already had (e.g. fraservalleytoday feed_len=1886 vs web=672). We must NOT downgrade

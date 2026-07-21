@@ -278,5 +278,35 @@ Main article paragraph two.
         self.assertNotIn("Translate", cleaned)
         self.assertNotIn("Before it's here, it's on the Bloomberg Terminal", cleaned)
 
+    def test_leading_social_share_buttons_are_stripped(self):
+        # fraservalleytoday.ca (and many CMSes) prefix the body with a row of
+        # share buttons; a screen reader otherwise reads four junk labels before
+        # the story, which reads as "full text didn't load".
+        text = (
+            "Share on Facebook\nShare on Bluesky\nShare on X\nCopy Link\n"
+            "TORONTO — A’ja Wilson and Jackie Young combined for 50 points.\n"
+            "The Tempo have now lost three straight games."
+        )
+        cleaned = article_extractor._postprocess_extracted_text(
+            text, "https://fraservalleytoday.ca/2026/07/20/story/"
+        )
+        self.assertTrue(cleaned.startswith("TORONTO — A’ja Wilson"))
+        self.assertNotIn("Share on Facebook", cleaned)
+        self.assertNotIn("Copy Link", cleaned)
+        self.assertIn("lost three straight games", cleaned)
+
+    def test_social_share_strip_spares_real_prose(self):
+        # A real sentence that merely opens with "Share"/"Facebook" must survive.
+        keep = "Share your thoughts about the game in the comments below.\nSecond line."
+        self.assertEqual(
+            article_extractor._postprocess_extracted_text(keep, "https://example.com/x"),
+            keep,
+        )
+        fb = "Facebook announced a policy change today affecting millions of users."
+        self.assertEqual(
+            article_extractor._postprocess_extracted_text(fb, "https://example.com/y"),
+            fb,
+        )
+
 if __name__ == '__main__':
     unittest.main()

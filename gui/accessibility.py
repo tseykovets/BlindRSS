@@ -154,6 +154,17 @@ def extract_article_body(
             feed_candidates.append(raw)
     except Exception:
         pass
+    # html_to_text is a RAW render of the feed body — it keeps leading toolbar/
+    # ad/gallery chrome ("Share on Facebook", "Open this photo in gallery:",
+    # "Advertisement / This advertisement has not loaded yet") that the
+    # extractor's own output already strips. When a hosted provider (Miniflux)
+    # serves full page HTML, this raw candidate is the LONGEST and wins the
+    # comparison below, dragging that chrome back to the top of the reader.
+    # Strip it here so a screen reader never opens on junk labels regardless of
+    # which candidate wins.
+    feed_candidates = [
+        article_extractor._strip_leading_boilerplate(c) for c in feed_candidates
+    ]
     feed_text = max(feed_candidates, key=len) if feed_candidates else None
 
     if web_text and feed_text:
@@ -1788,6 +1799,10 @@ class AccessibleBrowserFrame(wx.Frame):
         else:
             try:
                 body = self.mainframe._strip_html(getattr(article, "content", "") or "")
+                # Instant snippet is a raw feed render; drop leading toolbar/ad/
+                # gallery chrome so the reader never opens on junk labels even
+                # before the background full-text load lands.
+                body = article_extractor._strip_leading_boilerplate(body)
             except Exception:
                 body = str(getattr(article, "content", "") or "")
         self._set_article_content(article, art_id, body)

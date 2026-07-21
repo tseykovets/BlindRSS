@@ -1380,7 +1380,85 @@ def _postprocess_extracted_text(text: str, url: str) -> str:
     elif netloc.endswith(".ning.com") or netloc == "ning.com":
         t = _strip_ning_activity_noise(t)
 
+    # Generic (all hosts): CMSes emit toolbar/ad/gallery chrome at the very top
+    # of the article body — a row of social-share buttons ("Share on Facebook /
+    # Bluesky / X / Copy Link", fraservalleytoday.ca), an ad placeholder
+    # ("Advertisement / This advertisement has not loaded yet.", Postmedia
+    # sites like vancouversun.com), or a gallery prompt ("Open this photo in
+    # gallery:", theglobeandmail.com). trafilatura keeps these as leading lines,
+    # so a screen reader reads several junk labels before the story starts —
+    # which reads as "it grabbed the page chrome, not the article" even though
+    # the full body is right there.
+    t = _strip_leading_boilerplate(t)
+
     return _normalize_whitespace(t)
+
+
+# A leading social-share/toolbar button row: each entry is a short label on its
+# own line. Only exact whole-line matches of known button labels are stripped,
+# and only from the very top, so real article prose is never touched.
+_SOCIAL_SHARE_NETWORKS = (
+    r"facebook|twitter|x|blue ?sky|linked ?in|reddit|whats ?app|threads|"
+    r"pinterest|telegram|mastodon|flipboard|tumblr|e-?mail|messenger|"
+    r"gab|truth\s*social|parler|line|viber|kakao"
+)
+_SOCIAL_SHARE_LINE_RE = re.compile(
+    r"(?i)^\s*(?:"
+    r"share(?:\s+(?:on|to|via)\s+(?:" + _SOCIAL_SHARE_NETWORKS + r"))?"
+    r"|(?:" + _SOCIAL_SHARE_NETWORKS + r")"
+    r"|copy\s+link|link\s+copied|copied"
+    r"|print(?:\s+article)?|save(?:\s+article)?|gift(?:\s+article)?"
+    r"|comments?|tweet|listen(?:\s+to\s+(?:this\s+)?article)?"
+    r")\s*$"
+)
+
+
+# Ad-placeholder and gallery/UI prompt lines that appear as leading chrome.
+# These are exact, unambiguous non-content phrases (some longer than the
+# social-share label cap), matched as whole lines only.
+_LEADING_JUNK_LINE_RE = re.compile(
+    r"(?i)^\s*(?:"
+    r"advertisement(?:\s*\d+)?"
+    r"|this\s+advertisement\s+has\s+not\s+loaded\s+yet\.?"
+    r"|(?:the\s+)?story\s+continues\s+below(?:\s+advertisement)?\.?"
+    r"|article\s+content"
+    r"|open\s+this\s+photo\s+in\s+gallery:?"
+    r"|we\s+apologi[sz]e,?\s+but\s+this\s+video\s+has\s+failed\s+to\s+load\.?"
+    r"|we\s+have\s+been\s+unable\s+to\s+load[^\n]{0,60}"
+    r")\s*$"
+)
+
+
+def _strip_leading_boilerplate(text: str) -> str:
+    """Drop a leading run of toolbar/ad/gallery chrome lines.
+
+    Consumes only consecutive leading lines that are, in full, a known
+    social-share button label (Share on X, Copy Link, Facebook, ...) or a known
+    ad/gallery placeholder phrase, and stops at the first real line. Share
+    labels also carry a 30-char cap so a sentence that merely opens with such a
+    word is never eaten. No-op unless something was removed and real text
+    remains.
+    """
+    if not text:
+        return text
+    lines = text.split("\n")
+    i = 0
+    removed = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+        is_share = len(line) <= 30 and bool(_SOCIAL_SHARE_LINE_RE.match(line))
+        is_junk = bool(_LEADING_JUNK_LINE_RE.match(line))
+        if is_share or is_junk:
+            i += 1
+            removed += 1
+            continue
+        break
+    if removed and i < len(lines):
+        return "\n".join(lines[i:]).lstrip("\n")
+    return text
 
 
 @dataclass

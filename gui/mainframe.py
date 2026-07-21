@@ -5612,19 +5612,25 @@ class MainFrame(wx.Frame):
         self._render_rich_html(html_body)
         self._announce_fulltext_loaded_macos()
 
-    def _announce_fulltext_loaded_macos(self) -> None:
-        """macOS only: announce that the reader was upgraded to full text.
+    def _announce_fulltext_loaded_macos(self, authoritative: bool = True) -> None:
+        """macOS only: announce what the async reader update delivered.
 
         On macOS the load starts on selection and the extracted text replaces
         the feed snippet silently a few seconds later; VoiceOver gives no cue,
         so users who already read the snippet conclude full text never loaded.
         Windows keeps its focus-triggered flow where the screen reader re-reads
-        the control anyway, so this stays quiet there.
+        the control anyway, so this stays quiet there. ``authoritative`` False
+        (total extraction failure, feed fallback shown) must not claim success.
         """
         if not sys.platform.startswith("darwin"):
             return
+        message = (
+            _("Full text loaded.")
+            if authoritative
+            else _("Full text unavailable. Showing feed content.")
+        )
         try:
-            self._announce_event("general", _("Full text loaded."))
+            self._announce_event("general", message)
         except Exception:
             pass
 
@@ -10349,7 +10355,7 @@ class MainFrame(wx.Frame):
             return
         try:
             self._set_article_reader_text(article_now, rendered, reset_insertion=True)
-            self._announce_fulltext_loaded_macos()
+            self._announce_fulltext_loaded_macos(authoritative=bool(cacheable))
         except Exception:
             pass
 

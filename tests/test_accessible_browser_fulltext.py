@@ -661,3 +661,30 @@ def test_unchanged_fulltext_result_is_not_announced(wxapp, monkeypatch):
         assert announced == []
     finally:
         _destroy(mainframe, frame)
+
+
+def test_feed_fallback_announces_unavailable_not_loaded(wxapp, monkeypatch):
+    """A total extraction failure must not claim "Full text loaded".
+
+    Hard-paywalled sites (Bloomberg) defeat every route — direct, impersonated,
+    proxies, provider fetch — and the pane keeps the feed content. Announcing
+    success there reads as the app lying; say the full text is unavailable.
+    """
+    mainframe, frame = _make_browser()
+    try:
+        announced = []
+        mainframe._announce_event = lambda event_id, msg: announced.append(msg)
+        article = _article()
+        _select(frame, article)
+        frame._show_article_at_index(0)
+        frame._fulltext_inflight.add("a1")
+
+        frame._finish_fulltext(
+            "a1", frame._content_token, "feed snippet", cacheable=False
+        )
+
+        assert announced, "the fallback outcome must be announced"
+        assert "unavailable" in announced[0].lower()
+        assert not any("loaded" in m.lower() for m in announced)
+    finally:
+        _destroy(mainframe, frame)

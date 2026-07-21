@@ -1905,16 +1905,26 @@ class AccessibleBrowserFrame(wx.Frame):
         except Exception:
             pass
 
-    def _announce_fulltext_loaded(self):
-        """Tell the screen reader the reader pane was upgraded to full text.
+    def _announce_fulltext_loaded(self, authoritative: bool = True):
+        """Tell the screen reader what the async reader-pane update delivered.
 
         The extracted text replaces the feed snippet SILENTLY seconds after
         selection; a VoiceOver user who already read (or is reading) the
         snippet otherwise has no way to know the full article has arrived —
         which reads as "full text doesn't work" even when it loaded fine.
+
+        ``authoritative`` False means every extraction route (web, fallback
+        proxies, provider fetch) failed and the pane is showing feed content:
+        say THAT, not "full text loaded" — a hard-paywalled article (e.g.
+        Bloomberg) otherwise announces success while reading the summary.
         """
+        message = (
+            _("Full text loaded.")
+            if authoritative
+            else _("Full text unavailable. Showing feed content.")
+        )
         try:
-            self.mainframe._announce_event("general", _("Full text loaded."))
+            self.mainframe._announce_event("general", message)
         except Exception:
             pass
 
@@ -2057,8 +2067,8 @@ class AccessibleBrowserFrame(wx.Frame):
             # (same rule as _finish_prefetch).
             changed = str(body or "") != str(getattr(self, "_current_body_text", "") or "")
             self._set_article_content(article, art_id, body, preserve_position=True)
-            if changed:
-                self._announce_fulltext_loaded()
+            if changed or not cacheable:
+                self._announce_fulltext_loaded(authoritative=bool(cacheable))
         except Exception:
             pass
 

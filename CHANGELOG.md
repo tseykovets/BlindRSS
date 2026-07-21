@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.112.5 - 2026-07-21
+
+- Don't announce "Full text loaded" when extraction failed and the pane shows feed content.
+
 ## v1.112.4 - 2026-07-21
 
 - Announce when full text replaces the feed snippet in the reader.

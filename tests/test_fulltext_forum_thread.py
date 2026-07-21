@@ -1,18 +1,21 @@
-"""Forum-thread (FluxBB / audiogames.net) full-text and rich-view regressions.
+"""Forum-thread full-text and rich-view regressions (FluxBB and Drupal).
 
-A thread page is a flat list of sibling `div.post` blocks with no single node
-holding the conversation, so generic extraction picked one post and discarded the
-rest: a 20-reply topic came back as one short reply, and the rich reader showed
-only the last poster's signature.
+A thread page is a flat list of sibling post/comment blocks with no single node
+holding the conversation, so generic extraction picked one block and discarded the
+rest: on audiogames.net a 20-reply topic came back as one short reply and the rich
+reader showed only the last poster's signature; on applevis.com the replies ran
+together with no way to tell who was speaking.
 """
 
 from bs4 import BeautifulSoup
 
 import core.article_extractor as article_extractor
 import core.article_html as article_html
+import core.utils as utils
 
 
 FORUM_URL = "https://forum.audiogames.net/topic/59794/what-apps-do-you-guys-use/new/posts/"
+APPLEVIS_URL = "https://www.applevis.com/forum/apple-beta-releases/iosipados-27-beta-4-megathread"
 
 
 def _post(num, byline, when, body, *, sig=""):
@@ -152,3 +155,113 @@ def test_rich_view_keeps_links_and_expands_truncated_text():
     anchors = [a for a in soup.find_all("a") if a.get("href") == AMAZON_HREF]
     assert anchors, "the amazon link must stay clickable in the rich reader"
     assert anchors[0].get_text(strip=True) == AMAZON_HREF
+
+
+# --- Drupal comment threads (applevis.com) ----------------------------------
+
+
+def _comment(cid, subject, author, when, body):
+    return (
+        f'<article class="comment js-comment comment--level-1" id="comment-{cid}" role="article">'
+        f'<div class="comment__title"><h3><a class="permalink" href="/comment/{cid}">{subject}</a>'
+        "</h3></div>"
+        '<div class="comment__text-wrapper"><footer class="comment__meta">'
+        f'<p class="comment__author">By <span>{author}</span> on {when}</p>'
+        "</footer>"
+        '<div class="comment__title comment__content">'
+        '<div class="text-content field field--name-comment-body field--type-text-long '
+        f'field__item comment__text-content"><p>{body}</p></div>'
+        '<ul class="links inline comment__links"><li>Reply</li></ul>'
+        "</div></div></article>"
+    )
+
+
+def _applevis_page(*comments):
+    return (
+        '<html lang="en"><head><title>iOS/iPadOS 27 Beta 4 Megathread | AppleVis</title></head>'
+        "<body>"
+        '<article class="node node--type-forum">'
+        '<div class="node__meta"><p><span>By <span><span>AppleVis</span></span>, 20  July,  2026'
+        "</span></p>"
+        '<div class="node__content">'
+        '<div class="field field--name-taxonomy-forums"><div class="field__label">Forum</div>'
+        '<div class="field__item">Apple Beta Releases</div></div>'
+        '<div class="text-content field field--name-body field__item">'
+        "<p>Please use this megathread for any and all discussion related to beta 4.</p></div>"
+        "</div></div></article>"
+        + "".join(comments)
+        + "</body></html>"
+    )
+
+
+APPLEVIS_HTML = _applevis_page(
+    _comment(1, "Speech quality", "tunmi13", "Monday, July 20, 2026 - 18:46", "Cannot tell if fixed."),
+    _comment(2, "not fixed", "Jokyboy129", "Monday, July 20, 2026 - 20:02", "It is definitely not fixed."),
+    _comment(3, "Silence when unlocking", "peter", "Tuesday, July 21, 2026 - 04:04", "VoiceOver is silent."),
+)
+
+APPLEVIS_BLOG_HTML = _applevis_page()
+
+
+def test_applevis_thread_keeps_the_topic_and_every_comment():
+    text = article_extractor._extract_site_specific_text(APPLEVIS_HTML, APPLEVIS_URL)
+
+    assert "#1 By AppleVis, 20 July, 2026" in text
+    assert "Please use this megathread" in text
+    for n, (subject, author, body) in enumerate(
+        (
+            ("Speech quality", "tunmi13", "Cannot tell if fixed."),
+            ("not fixed", "Jokyboy129", "It is definitely not fixed."),
+            ("Silence when unlocking", "peter", "VoiceOver is silent."),
+        ),
+        start=2,
+    ):
+        assert f"#{n} {subject} — By {author} on " in text
+        assert body in text
+
+
+def test_applevis_comment_chrome_is_dropped():
+    text = article_extractor._extract_site_specific_text(APPLEVIS_HTML, APPLEVIS_URL)
+
+    assert "Reply" not in text
+    # The forum taxonomy label sits beside the body inside node__content.
+    assert "Apple Beta Releases" not in text
+
+
+def test_applevis_entry_without_comments_uses_generic_extraction():
+    # A blog entry is the same Drupal node markup as a topic; with no replies to
+    # interleave, this path has nothing to add and must not prefix a "#1" header.
+    assert (
+        article_extractor._extract_site_specific_text(APPLEVIS_BLOG_HTML, APPLEVIS_URL) == ""
+    )
+
+
+def test_applevis_rich_view_renders_a_heading_per_comment():
+    body = article_html.clean_article_html(APPLEVIS_HTML, APPLEVIS_URL)
+    soup = BeautifulSoup(body, "html.parser")
+
+    headings = [h.get_text(" ", strip=True) for h in soup.find_all("h2")]
+    assert len(headings) == 4
+    assert headings[0] == "#1 By AppleVis, 20 July, 2026"
+    assert headings[1].startswith("#2 Speech quality — By tunmi13 on ")
+    # Drupal names the body "field--name-comment-body comment__text-content", which
+    # the class-based chrome filter read as a comments widget and deleted, leaving
+    # headings with no text under any of them.
+    assert "It is definitely not fixed." in body
+
+
+# --- Feed author field ------------------------------------------------------
+
+
+def test_rss_author_shows_the_display_name_not_the_placeholder_address():
+    # PunBB has no address to publish, so it ships "null@example.com (name)" and
+    # the reader announced the whole string as the author.
+    assert utils.normalize_author("null@example.com (sightlessHorseman)") == "sightlessHorseman"
+    assert utils.normalize_author('"Jane Doe" <jane@example.com>') == "Jane Doe"
+
+
+def test_plain_author_and_bare_address_pass_through():
+    assert utils.normalize_author("Simon Romero") == "Simon Romero"
+    # A bare address is at least identifying; inventing a name would be worse.
+    assert utils.normalize_author("news@example.com") == "news@example.com"
+    assert utils.normalize_author(None) == ""

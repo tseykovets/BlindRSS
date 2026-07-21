@@ -779,21 +779,48 @@ def _extract_gsmarena_text(html: str) -> str:
     return text
 
 
-# FluxBB forums (audiogames.net) render a thread as a flat list of sibling
-# `div.post` blocks, not as one article body. Generic extraction picks whichever
-# single post most resembles an article and throws the rest of the thread away: a
-# 20-reply topic came back as one 322-character reply, and the rich reader showed
-# only the last poster's signature block. Linearizing every post keeps the whole
-# conversation, and giving each one a header line is what makes a thread readable
-# aloud — without it the posts run together with no idea who is speaking.
-_FORUM_POST_SELECTOR = "div.post"
-_FORUM_POST_BODY_SELECTOR = ".post-entry .entry-content"
-_FORUM_POST_NUMBER_SELECTOR = ".post-num"
-_FORUM_POST_BYLINE_SELECTOR = ".post-byline"
-_FORUM_POST_TIME_SELECTOR = ".post-link"
-# Per-user signature repeated under every one of that user's posts: never part of
-# what they said, and in a long thread it is read out again and again.
-_FORUM_POST_JUNK_SELECTORS = (".sig-content", ".post-options", ".postfoot")
+# Discussion sites render a thread as a flat list of sibling post/comment blocks
+# with no single node holding the conversation, so generic extraction picks the one
+# block that most resembles an article and throws the rest away. On audiogames.net a
+# 20-reply topic came back as one 322-character reply and the rich reader showed only
+# the last poster's signature; on applevis.com the replies ran together with no way to
+# tell who was speaking. Linearizing every post keeps the whole conversation, and the
+# per-post header is what makes it readable aloud.
+#
+# Each layout names the same parts, so one linearizer serves every platform and the
+# rich reader reuses it. `lead` is for engines (Drupal) where the opening post is a
+# different element from the replies; FluxBB's first post is just another post.
+_FORUM_LAYOUTS = (
+    {   # FluxBB / PunBB — audiogames.net
+        "name": "fluxbb",
+        "lead": "",
+        "lead_body": "",
+        "lead_header": (),
+        "post": "div.post",
+        "post_body": ".post-entry .entry-content",
+        # `.post-num` is the number the thread itself uses ("#626"), which is what
+        # posters quote at each other, so it beats a per-page counter of our own.
+        "post_number": ".post-num",
+        "post_header": (".post-byline",),
+        "post_time": ".post-link",
+        # A per-user signature repeats under every post that user makes; in a long
+        # thread it would be read out dozens of times.
+        "junk": (".sig-content", ".post-options", ".postfoot"),
+    },
+    {   # Drupal comment threads — applevis.com
+        "name": "drupal",
+        "lead": "article.node",
+        "lead_body": ".node__content .field--name-body",
+        "lead_header": (".node__meta > p",),
+        "post": "article.comment",
+        "post_body": ".comment__text-content",
+        "post_number": "",
+        # The comment's own subject line, then "By alice on Monday, July 20, 2026 - 18:46".
+        "post_header": (".comment__title h3 a", ".comment__author"),
+        "post_time": "",
+        "junk": (".comment__links", "ul.links"),
+    },
+)
 
 # FluxBB shortens a long link's visible text to "https://start … end" while the
 # href stays intact. Spoken aloud (or copied out of the plain-text reader) that
@@ -802,25 +829,66 @@ _FORUM_POST_JUNK_SELECTORS = (".sig-content", ".post-options", ".postfoot")
 _TRUNCATED_URL_TEXT_RE = re.compile(r"(?i)^https?://\S*\s*(?:…|\.\.\.)\s*\S*$")
 
 
-def _forum_post_header(post) -> str:
+_FORUM_THREAD_HOSTS = ("audiogames.net", "applevis.com")
+
+
+def _is_forum_thread_host(url: str) -> bool:
+    return any(_host_matches(url, host) for host in _FORUM_THREAD_HOSTS)
+
+
+def _forum_layout_of(soup):
+    """Return the layout whose reply markup this page uses, or None.
+
+    Keyed on the reply blocks, never on the opening post alone: an applevis.com
+    blog entry is the same Drupal node markup as a forum topic, and with no replies
+    to interleave there is nothing for this path to add over generic extraction.
+    """
+    if soup is None:
+        return None
+    for layout in _FORUM_LAYOUTS:
+        if soup.select_one(layout["post"]) is not None:
+            return layout
+    return None
+
+
+def _forum_layout_for(html: str, url: str):
+    """Parse `html` and return ``(soup, layout)``; layout is None when not a thread."""
+    soup = _parse_html_soup(html, context="forum thread")
+    return soup, _forum_layout_of(soup)
+
+
+def _forum_node_text(node, selectors) -> str:
+    """Join the text of the first match for each selector, skipping the missing ones."""
+    bits = []
+    for selector in selectors:
+        match = node.select_one(selector) if selector else None
+        if match is None:
+            continue
+        # A header is one line, so collapse every whitespace run — Drupal emits
+        # "By AppleVis , 20  July,  2026" from its nested date spans.
+        text = re.sub(r"\s+", " ", _normalize_whitespace(match.get_text(" ", strip=True)))
+        text = re.sub(r"\s+([,.;:])", r"\1", text).strip()
+        if text:
+            bits.append(text)
+    return " — ".join(bits)
+
+
+def _forum_post_header(post, layout, index: int) -> str:
     """Build the "#3 Reply by alice — 2026-07-19 13:54:46" line for one post.
 
     The byline and timestamp are taken verbatim from the page, so they are already
-    in the forum's own language and need no translation.
+    in the forum's own language and need no translation. The number is the thread's
+    own where it publishes one, else this post's position on the page.
     """
-    bits = []
-    for selector in (_FORUM_POST_NUMBER_SELECTOR, _FORUM_POST_BYLINE_SELECTOR):
-        node = post.select_one(selector)
+    number = ""
+    if layout["post_number"]:
+        node = post.select_one(layout["post_number"])
         if node is not None:
-            text = _normalize_whitespace(node.get_text(" ", strip=True))
-            if text:
-                bits.append(text)
-    header = " ".join(bits)
-    node = post.select_one(_FORUM_POST_TIME_SELECTOR)
-    stamp = _normalize_whitespace(node.get_text(" ", strip=True)) if node is not None else ""
-    if header and stamp:
-        return f"{header} — {stamp}"
-    return header or stamp
+            number = _normalize_whitespace(node.get_text(" ", strip=True))
+    if not number:
+        number = f"#{index}"
+    rest = _forum_node_text(post, tuple(layout["post_header"]) + (layout["post_time"],))
+    return f"{number} {rest}".strip() if rest else number
 
 
 def _expand_truncated_link_text(body) -> None:
@@ -834,31 +902,60 @@ def _expand_truncated_link_text(body) -> None:
             anchor.string = href
 
 
+def _clean_forum_body(body, layout):
+    """Strip per-post junk and expand truncated links, in place."""
+    for selector in layout["junk"]:
+        for junk in body.select(selector):
+            junk.decompose()
+    _expand_truncated_link_text(body)
+    # Drop the wrapper's own class/id. Drupal names the comment body
+    # "field--name-comment-body comment__text-content", which the rich reader's
+    # class-based chrome filter reads as a comments widget and deletes — the
+    # thread rendered as headings with no text under any of them. We selected this
+    # node deliberately, so its class has nothing left to tell that filter.
+    for attr in ("class", "id"):
+        if body.has_attr(attr):
+            del body[attr]
+    return body
+
+
+def _forum_blocks(soup, layout):
+    """Yield ``(header, body_node)`` for the opening post and every reply, in order."""
+    index = 1
+    if layout["lead"]:
+        lead = soup.select_one(layout["lead"])
+        body = lead.select_one(layout["lead_body"]) if lead is not None else None
+        if body is not None:
+            yield (
+                f"#{index} {_forum_node_text(lead, layout['lead_header'])}".strip(),
+                _clean_forum_body(body, layout),
+            )
+            index += 1
+    for post in soup.select(layout["post"]):
+        body = post.select_one(layout["post_body"])
+        if body is None:
+            continue
+        yield (
+            _forum_post_header(post, layout, index),
+            _clean_forum_body(body, layout),
+        )
+        index += 1
+
+
 def _extract_forum_thread_text(html: str, url: str) -> str:
-    """Linearize a FluxBB thread page into one attributed post per block.
+    """Linearize a discussion thread into one attributed post per block.
 
     Returns '' when the page has no recognizable posts (forum index, search
     results, error page) so the generic extraction path still runs.
     """
-    soup = _parse_html_soup(html, context="forum thread")
-    if soup is None:
-        return ""
-    posts = soup.select(_FORUM_POST_SELECTOR)
-    if not posts:
+    soup, layout = _forum_layout_for(html, url)
+    if soup is None or layout is None:
         return ""
     blocks: List[str] = []
-    for post in posts:
-        body = post.select_one(_FORUM_POST_BODY_SELECTOR)
-        if body is None:
-            continue
-        for selector in _FORUM_POST_JUNK_SELECTORS:
-            for junk in body.select(selector):
-                junk.decompose()
-        _expand_truncated_link_text(body)
+    for header, body in _forum_blocks(soup, layout):
         text = (utils.html_to_text(str(body)) or "").strip()
         if not text:
             continue
-        header = _forum_post_header(post)
         blocks.append(f"{header}\n{text}" if header else text)
     return "\n\n".join(blocks).strip()
 
@@ -969,7 +1066,7 @@ def _extract_site_specific_text(html: str, url: str) -> str:
             html, url,
             ("div.recent-articles", "#sponsored-banner", "#secondary", "#ft", "#smallhead"),
         )
-    if _host_matches(url, "audiogames.net"):
+    if _is_forum_thread_host(url):
         return _extract_forum_thread_text(html, url)
     if _is_socast_page(html):
         return _extract_socast_text(html, url)

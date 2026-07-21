@@ -558,6 +558,36 @@ def content_has_images(html: str | None) -> bool:
     return first_image_url(html) is not None
 
 
+# RSS 2.0 specifies <author> as an email address with the display name in
+# parentheses, and mail-header style puts it the other way round. Forum software
+# that has no real address to publish fills in a placeholder, so audiogames.net
+# ships "null@example.com (sightlessHorseman)" and the reader announced the whole
+# string as the author. feedparser splits this for us, but a server-side
+# aggregator (Miniflux) hands over the raw field, so normalize it here where
+# every backend passes through.
+_AUTHOR_EMAIL_THEN_NAME_RE = re.compile(r"^\s*\S+@\S+\s*\(\s*(?P<name>.+?)\s*\)\s*$")
+_AUTHOR_NAME_THEN_EMAIL_RE = re.compile(r"^\s*(?P<name>.+?)\s*<\s*\S+@\S+\s*>\s*$")
+
+
+def normalize_author(author: str | None) -> str:
+    """Return the human-readable display name from a feed author field.
+
+    Falls through unchanged when the value is already a plain name, or is an
+    address with no name attached — a bare address is at least identifying, and
+    inventing a name from it would be worse than showing it.
+    """
+    text = str(author or "").strip()
+    if not text:
+        return ""
+    for pattern in (_AUTHOR_EMAIL_THEN_NAME_RE, _AUTHOR_NAME_THEN_EMAIL_RE):
+        match = pattern.match(text)
+        if match:
+            name = match.group("name").strip().strip('"').strip()
+            if name:
+                return name
+    return text
+
+
 def canonical_media_type(media_type: str | None) -> str:
     """Normalize common media MIME aliases to a stable value."""
     mt = str(media_type or "").split(";", 1)[0].strip().lower().rstrip("/")

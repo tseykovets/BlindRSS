@@ -445,12 +445,10 @@ _SOCAST_JUNK_TOKENS = (
 )
 
 
-def _host_matches(url: str, domain: str) -> bool:
-    try:
-        host = (urlsplit(url or "").hostname or "").lower()
-    except Exception:
-        return False
-    return host == domain or host.endswith("." + domain)
+def _is_forum_thread_host(url: str) -> bool:
+    from core import article_extractor as ae  # lazy: avoid import cycle at load
+
+    return ae._is_forum_thread_host(url)
 
 
 def _forum_reconstruct(soup, url: str):
@@ -466,21 +464,13 @@ def _forum_reconstruct(soup, url: str):
     """
     from core import article_extractor as ae  # lazy: avoid import cycle at load
 
-    posts = soup.select(ae._FORUM_POST_SELECTOR)
-    if not posts:
+    layout = ae._forum_layout_of(soup)
+    if layout is None:
         return None
     container = soup.new_tag("article")
-    for post in posts:
-        body = post.select_one(ae._FORUM_POST_BODY_SELECTOR)
-        if body is None:
-            continue
-        for selector in ae._FORUM_POST_JUNK_SELECTORS:
-            for junk in body.select(selector):
-                junk.decompose()
-        ae._expand_truncated_link_text(body)
+    for header, body in ae._forum_blocks(soup, layout):
         if not body.get_text(strip=True):
             continue
-        header = ae._forum_post_header(post)
         if header:
             heading = soup.new_tag("h2")
             heading.string = header
@@ -571,7 +561,7 @@ def clean_article_html(html: str, url: str = "", *, use_traf_prune: bool = True)
     node = None
     for detect, rebuild in (
         (_looks_socast(str(html)), _socast_reconstruct),
-        (_host_matches(url, "audiogames.net"), _forum_reconstruct),
+        (_is_forum_thread_host(url), _forum_reconstruct),
     ):
         if not detect:
             continue

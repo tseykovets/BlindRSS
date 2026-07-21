@@ -1273,7 +1273,7 @@ class MinifluxProvider(RSSProvider):
                 url=entry_url,
                 content=entry_content,
                 date=date,
-                author=entry.get("author") or "",
+                author=utils.normalize_author(entry.get("author")),
                 is_read=(entry.get("status") == "read"),
                 is_favorite=entry.get("starred", False),
                 media_url=media_url,

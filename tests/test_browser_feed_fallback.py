@@ -102,13 +102,23 @@ def test_feed_validation_accepts_json_feed_and_rejects_html():
 def test_browser_options_are_fully_automatic_and_invisible(monkeypatch):
     monkeypatch.setattr(browser_feed, "_google_chrome_available", lambda: False)
 
-    options = browser_feed._browser_options("profile", 45.0, None)
+    options = browser_feed._browser_options("profile", None)
 
     assert options["uc"] is True
     assert options["headless2"] is True
     assert options["test"] is False
     assert options["no_screenshot"] is True
     assert options["cft"] is True
+    # We want the DOM, not the pixels: dropping images and returning at
+    # DOMContentLoaded is what keeps the fallback from costing tens of seconds.
+    assert options["block_images"] is True
+    assert options["page_load_strategy"] == "eager"
+    # ad_block_on unpacks its extension next to the process cwd, which is
+    # Program Files in an installed build.
+    assert "ad_block_on" not in options
+    # Nothing per-call may leak into the options, or every fetch would build a
+    # session of its own instead of reusing the warm one.
+    assert "time_limit" not in options
 
 
 def test_http_error_uses_browser_fallback_once(monkeypatch):

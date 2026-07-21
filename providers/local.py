@@ -269,7 +269,9 @@ def _entry_author(entry) -> str:
         if name:
             return name
 
-    return _entry_text(entry, "author")
+    # feedparser normally splits the RSS "address (Display Name)" form into
+    # author_detail above; this catches the feeds where it did not.
+    return utils.normalize_author(_entry_text(entry, "author"))
 
 
 def _entry_tags(entry) -> str:

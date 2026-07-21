@@ -392,6 +392,14 @@ class RSSApp(wx.App):
             vlc_instance.release_shared()
         except Exception as e:
             log.error(f"Error releasing shared VLC instance: {e}")
+
+        # The gated-page fallback keeps a headless Chromium warm between fetches;
+        # without this it would outlive the app as an orphan process.
+        try:
+            from core import browser_feed
+            browser_feed.shutdown()
+        except Exception as e:
+            log.error(f"Error closing the automated browser session: {e}")
             
         # Release the lock implicitly by object destruction, but explicit delete is good practice
         try:

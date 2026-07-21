@@ -201,8 +201,20 @@ def _redirect_seleniumbase_work_files(runtime_dir: str) -> None:
                 setattr(group, name, os.path.join(work_dir, os.path.basename(value)))
 
 
-def _browser_options(profile_dir: str, timeout_s: float, proxy: str | None) -> dict:
-    """Build mandatory fully automated, invisible SeleniumBase options."""
+def _browser_options(profile_dir: str, proxy: str | None) -> dict:
+    """Build mandatory fully automated, invisible SeleniumBase options.
+
+    Nothing here depends on a per-call timeout, so one live session serves every
+    fetch (see _session_locked). Deadlines are enforced by the caller instead.
+
+    We want the DOM, never the pixels: `block_images` drops the heaviest requests a
+    page makes, and the `eager` load strategy hands control back at DOMContentLoaded
+    rather than waiting on trailing subresources.
+
+    Deliberately NOT `ad_block_on`: it unpacks its extension into a `downloaded_files`
+    directory beside the process cwd, which _redirect_seleniumbase_work_files does not
+    catch, and in an installed build that cwd is Program Files.
+    """
     options = {
         "uc": True,
         "headless2": True,
@@ -210,7 +222,8 @@ def _browser_options(profile_dir: str, timeout_s: float, proxy: str | None) -> d
         "locale": "en",
         "user_data_dir": profile_dir,
         "no_screenshot": True,
-        "time_limit": timeout_s,
+        "block_images": True,
+        "page_load_strategy": "eager",
     }
     if not _google_chrome_available():
         options["cft"] = True
@@ -237,6 +250,82 @@ def _acquire_fetch_lock(timeout_s: float, cancel_event=None) -> bool:
     return False
 
 
+# Launching Chromium costs ~8s, dwarfing the ~4.5s navigation and ~2.5s challenge
+# settle that follow it. Paying that per article made a refresh that touched
+# several gated pages crawl, so the session is kept warm and reused. Every access
+# happens under _FETCH_LOCK, which already serializes browser work.
+_SESSION_IDLE_SECONDS = 120.0
+_SESSION_REAP_INTERVAL = 15.0
+_session = None  # (context_manager, sb) while a browser is live
+_session_options: dict | None = None
+_session_expires_at = 0.0
+_reaper_started = False
+
+
+def _close_session_locked() -> None:
+    """Shut the live browser down. Caller holds _FETCH_LOCK."""
+    global _session, _session_options, _session_expires_at
+    session, _session = _session, None
+    _session_options = None
+    _session_expires_at = 0.0
+    if session is None:
+        return
+    try:
+        session[0].__exit__(None, None, None)
+    except Exception:
+        log.debug("Ignoring error while closing the browser session", exc_info=True)
+
+
+def _reap_idle_sessions() -> None:
+    """Close a warm browser once it has gone unused, so Chromium never lingers."""
+    while True:
+        time.sleep(_SESSION_REAP_INTERVAL)
+        if _session is None:
+            continue
+        if not _FETCH_LOCK.acquire(timeout=0.5):
+            continue  # a fetch is in flight; it will refresh the deadline anyway
+        try:
+            if _session is not None and time.monotonic() >= _session_expires_at:
+                log.info("Closing idle automated browser session")
+                _close_session_locked()
+        finally:
+            _FETCH_LOCK.release()
+
+
+def _start_reaper_locked() -> None:
+    global _reaper_started
+    if _reaper_started:
+        return
+    _reaper_started = True
+    threading.Thread(
+        target=_reap_idle_sessions, name="browser-session-reaper", daemon=True
+    ).start()
+
+
+def _session_locked(SB, options: dict):
+    """Return a live ``sb``, reusing the warm one when its options still match."""
+    global _session, _session_options, _session_expires_at
+    if _session is not None and _session_options != options:
+        _close_session_locked()
+    if _session is None:
+        context = SB(**options)
+        _session = (context, context.__enter__())
+        _session_options = dict(options)
+        _start_reaper_locked()
+    _session_expires_at = time.monotonic() + _SESSION_IDLE_SECONDS
+    return _session[1]
+
+
+def shutdown() -> None:
+    """Close any warm browser session (called on application exit)."""
+    acquired = _FETCH_LOCK.acquire(timeout=10.0)
+    try:
+        _close_session_locked()
+    finally:
+        if acquired:
+            _FETCH_LOCK.release()
+
+
 def _current_browser_url(sb, fallback: str) -> str:
     for getter in (
         lambda: sb.get_current_url(),
@@ -249,6 +338,64 @@ def _current_browser_url(sb, fallback: str) -> str:
         except Exception:
             continue
     return fallback
+
+
+# A page is polled until it settles rather than slept on for a fixed 2s + 3s + 3s.
+# Chromium hands over a near-empty document between the challenge clearing and the
+# real navigation (measured: a 636-byte body one poll before the 346 KB article), so
+# "not a challenge page" alone is not enough to accept — a page must also carry
+# enough markup to be a document at all.
+_SETTLE_POLL_SECONDS = 0.35
+_SETTLE_MAX_SECONDS = 25.0
+_MIN_USABLE_PAGE_CHARS = 2048
+# Give the interstitial time to render its widget before the first click attempt,
+# then keep trying while it is still up.
+_SOLVE_FIRST_DELAY_SECONDS = 2.0
+_SOLVE_RETRY_SECONDS = 3.0
+
+
+def _usable_document(source: str, *, feed_only: bool) -> str | None:
+    """Return the usable text of `source`, or None while the page is still settling."""
+    if not source or len(source) > _MAX_PAGE_SOURCE_CHARS:
+        return None
+    if feed_only:
+        # Structural feed validation is its own sufficient check.
+        return _feed_text_from_page_source(source)
+    if len(source) < _MIN_USABLE_PAGE_CHARS or _looks_like_challenge_page(source):
+        return None
+    return source
+
+
+def _settle_page(sb, *, timeout_s: float, feed_only: bool, cancel_event) -> str | None:
+    """Poll the loading page until it is usable, then return its text.
+
+    ``solve_captcha`` is retried on a slow cadence for as long as a challenge is on
+    screen, never once: the widget it clicks does not exist yet at the moment the
+    interstitial first appears, so a single early call reliably misses it. It is a
+    no-op when the page has no supported challenge, so the common path pays nothing
+    and keeps polling at full speed.
+    """
+    deadline = time.monotonic() + min(max(float(timeout_s or 30.0), 5.0), _SETTLE_MAX_SECONDS)
+    next_solve_at = time.monotonic() + _SOLVE_FIRST_DELAY_SECONDS
+    while not _cancelled(cancel_event):
+        try:
+            source = str(sb.get_page_source() or "")
+        except Exception:
+            source = ""
+        text = _usable_document(source, feed_only=feed_only)
+        if text is not None:
+            return text
+        if time.monotonic() >= deadline:
+            return None
+        now = time.monotonic()
+        if source and now >= next_solve_at and _looks_like_challenge_page(source):
+            next_solve_at = now + _SOLVE_RETRY_SECONDS
+            try:
+                sb.solve_captcha()
+            except Exception:
+                log.debug("solve_captcha failed; continuing to poll", exc_info=True)
+        time.sleep(_SETTLE_POLL_SECONDS)
+    return None
 
 
 def _fetch_browser_document(
@@ -311,46 +458,47 @@ def _fetch_browser_document(
             _runtime_unavailable_until = time.monotonic() + _RUNTIME_FAILURE_COOLDOWN_SECONDS
             return None
 
-        options = _browser_options(profile_dir, timeout_s, proxy)
+        options = _browser_options(profile_dir, proxy)
 
         log.info("Attempting automated browser feed fallback url=%s", target)
-        try:
-            with SB(**options) as sb:
+        text = None
+        final_url = target
+        # A warm session can still have been killed off-process (crash, driver
+        # restart), and that only shows up on use. One retry from scratch covers it.
+        for attempt in range(2):
+            reused = _session is not None
+            try:
+                sb = _session_locked(SB, options)
                 sb.activate_cdp_mode(target)
-                for attempt in range(3):
-                    if _cancelled(cancel_event):
-                        return None
-                    sb.sleep(2 if attempt == 0 else 3)
-                    source = str(sb.get_page_source() or "")
-                    if feed_only:
-                        text = _feed_text_from_page_source(source)
-                    else:
-                        text = (
-                            source
-                            if source
-                            and len(source) <= _MAX_PAGE_SOURCE_CHARS
-                            and not _looks_like_challenge_page(source)
-                            else None
-                        )
-                    if text is not None:
-                        final_url = _current_browser_url(sb, target)
-                        log.info(
-                            "Automated browser %s fallback succeeded bytes=%s url=%s",
-                            "feed" if feed_only else "page",
-                            len(text.encode("utf-8")),
-                            final_url,
-                        )
-                        _clear_negative_result(target)
-                        response_type = BrowserFeedResponse if feed_only else BrowserPageResponse
-                        return response_type(text=text, url=final_url)
-                    # This is fully automated. solve_captcha() is a no-op when
-                    # there is no supported challenge on the current page.
-                    sb.solve_captcha()
-        except Exception:
-            log.exception("Automated browser feed fallback failed for %s", target)
-            if remember_failures and not _cancelled(cancel_event):
-                _record_negative_result(target)
-            return None
+                text = _settle_page(
+                    sb,
+                    timeout_s=timeout_s,
+                    feed_only=feed_only,
+                    cancel_event=cancel_event,
+                )
+                if text is not None:
+                    final_url = _current_browser_url(sb, target)
+                break
+            except Exception:
+                _close_session_locked()
+                if attempt == 0 and reused:
+                    log.info("Warm browser session was unusable; retrying with a fresh one")
+                    continue
+                log.exception("Automated browser feed fallback failed for %s", target)
+                if remember_failures and not _cancelled(cancel_event):
+                    _record_negative_result(target)
+                return None
+
+        if text is not None:
+            log.info(
+                "Automated browser %s fallback succeeded bytes=%s url=%s",
+                "feed" if feed_only else "page",
+                len(text.encode("utf-8")),
+                final_url,
+            )
+            _clear_negative_result(target)
+            response_type = BrowserFeedResponse if feed_only else BrowserPageResponse
+            return response_type(text=text, url=final_url)
 
         log.info(
             "Automated browser fallback returned no usable %s url=%s",

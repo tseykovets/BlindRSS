@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.112.10 - 2026-07-21
+
+- Keep whole forum threads instead of one stray post.
+
 ## v1.112.9 - 2026-07-21
 
 - Make NYT and other DataDome sites readable in full text and rich view.

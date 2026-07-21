@@ -445,6 +445,50 @@ _SOCAST_JUNK_TOKENS = (
 )
 
 
+def _host_matches(url: str, domain: str) -> bool:
+    try:
+        host = (urlsplit(url or "").hostname or "").lower()
+    except Exception:
+        return False
+    return host == domain or host.endswith("." + domain)
+
+
+def _forum_reconstruct(soup, url: str):
+    """Rebuild a FluxBB thread page as one node: a heading + body per post.
+
+    A thread is a flat list of sibling ``div.post`` blocks, so the generic main-node
+    pick lands on a single post and the rest of the conversation is lost — on a
+    20-reply audiogames.net topic the reader showed only the last poster's signature.
+    Each post's number/byline/timestamp becomes an ``<h2>`` so a screen reader can
+    move post to post with the heading key, which a flat wall of replies does not
+    allow. Returns None when the page has no recognizable posts, so the generic path
+    still runs for forum indexes and error pages.
+    """
+    from core import article_extractor as ae  # lazy: avoid import cycle at load
+
+    posts = soup.select(ae._FORUM_POST_SELECTOR)
+    if not posts:
+        return None
+    container = soup.new_tag("article")
+    for post in posts:
+        body = post.select_one(ae._FORUM_POST_BODY_SELECTOR)
+        if body is None:
+            continue
+        for selector in ae._FORUM_POST_JUNK_SELECTORS:
+            for junk in body.select(selector):
+                junk.decompose()
+        ae._expand_truncated_link_text(body)
+        if not body.get_text(strip=True):
+            continue
+        header = ae._forum_post_header(post)
+        if header:
+            heading = soup.new_tag("h2")
+            heading.string = header
+            container.append(heading)
+        container.append(body.extract())
+    return container if container.find(True) is not None else None
+
+
 def _looks_socast(html: str) -> bool:
     if not html:
         return False
@@ -517,18 +561,28 @@ def clean_article_html(html: str, url: str = "", *, use_traf_prune: bool = True)
     except Exception:
         return ""
 
-    # socast/Pattison-portals pages split the body across two containers; reconstruct
-    # the whole body before the generic pick, and disable the trafilatura prune for it
-    # (keep_text would reflect only the short lead and strip the continuation).
-    socast = _looks_socast(str(html))
+    # Some layouts have no single node that holds the whole body, so it is rebuilt
+    # before the generic pick: socast/Pattison-portals split a story across two
+    # containers, and a forum thread is a flat list of sibling posts. The trafilatura
+    # prune is disabled for a rebuilt body — its keep_text reflects only the part the
+    # extractor picked (socast's short lead, or one post of a thread), so pruning
+    # against it would strip everything the reconstruction just recovered.
+    reconstructed = False
     node = None
-    if socast:
+    for detect, rebuild in (
+        (_looks_socast(str(html)), _socast_reconstruct),
+        (_host_matches(url, "audiogames.net"), _forum_reconstruct),
+    ):
+        if not detect:
+            continue
         try:
-            node = _socast_reconstruct(soup, url)
+            node = rebuild(soup, url)
         except Exception:
             node = None
+        if node is not None:
+            reconstructed = True
+            break
     if node is None:
-        socast = False
         node = _pick_main_node(soup)
     if node is None:
         return ""
@@ -536,7 +590,9 @@ def clean_article_html(html: str, url: str = "", *, use_traf_prune: bool = True)
     # Ground-truth article text (recall mode). Computed on the full page before
     # we mutate the node, and reused both to prune non-article blocks and to
     # detect a broken main-node pick (paywall stub) below.
-    keep_text = "" if socast else (_article_keep_text(str(html), url) if use_traf_prune else "")
+    keep_text = (
+        "" if reconstructed else (_article_keep_text(str(html), url) if use_traf_prune else "")
+    )
 
     # Turn script-hydrated social embeds into iframes/permalinks first, so the
     # generic sanitize below keeps the resulting <iframe>/<a> nodes.

@@ -166,6 +166,10 @@ _LINK_LIST_MIN_LINES = 4
 _LINK_LIST_MAX_LINE_LEN = 90
 _LINK_LIST_MIN_FRACTION = 0.6
 _LINK_LIST_SENTENCE_END_RE = re.compile(r"[.!?…](\s|$)")
+# The "#3 Reply by alice — 2026-07-19 13:54:46" line _extract_forum_thread_text
+# writes before each post. Short and punctuation-free by design, so it must not
+# be counted as evidence that a thread is a navigation link list.
+_FORUM_POST_HEADER_LINE_RE = re.compile(r"^#\d+\s+\S")
 
 def _link_list_only_message() -> str:
     return _(
@@ -194,13 +198,17 @@ def _looks_like_link_list(text: str) -> bool:
     """Return True if short extracted `text` is mostly navigation/headline-like link captions."""
     if not text or len(text) > _LINK_LIST_MAX_BODY_LEN:
         return False
-    # Structure marker lines (tables, headings, list items, quotes) are
-    # intentional short lines, not navigation captions; a short article that
-    # is mostly a real list must not be rejected as a link list.
+    # Structure marker lines (tables, headings, list items, quotes) and forum
+    # post headers are intentional short lines, not navigation captions; a short
+    # article that is mostly a real list must not be rejected as a link list, and
+    # a one-post thread of "here are the links" must not be rejected either
+    # because the header we added counts against it.
     lines = [
         line.strip()
         for line in text.splitlines()
-        if line.strip() and not _is_marker_line(line.strip())
+        if line.strip()
+        and not _is_marker_line(line.strip())
+        and not _FORUM_POST_HEADER_LINE_RE.match(line.strip())
     ]
     if len(lines) < _LINK_LIST_MIN_LINES:
         return False
@@ -771,6 +779,90 @@ def _extract_gsmarena_text(html: str) -> str:
     return text
 
 
+# FluxBB forums (audiogames.net) render a thread as a flat list of sibling
+# `div.post` blocks, not as one article body. Generic extraction picks whichever
+# single post most resembles an article and throws the rest of the thread away: a
+# 20-reply topic came back as one 322-character reply, and the rich reader showed
+# only the last poster's signature block. Linearizing every post keeps the whole
+# conversation, and giving each one a header line is what makes a thread readable
+# aloud — without it the posts run together with no idea who is speaking.
+_FORUM_POST_SELECTOR = "div.post"
+_FORUM_POST_BODY_SELECTOR = ".post-entry .entry-content"
+_FORUM_POST_NUMBER_SELECTOR = ".post-num"
+_FORUM_POST_BYLINE_SELECTOR = ".post-byline"
+_FORUM_POST_TIME_SELECTOR = ".post-link"
+# Per-user signature repeated under every one of that user's posts: never part of
+# what they said, and in a long thread it is read out again and again.
+_FORUM_POST_JUNK_SELECTORS = (".sig-content", ".post-options", ".postfoot")
+
+# FluxBB shortens a long link's visible text to "https://start … end" while the
+# href stays intact. Spoken aloud (or copied out of the plain-text reader) that
+# ellipsized form is useless, so anchors whose text is a truncated URL are shown
+# as the URL they actually point to.
+_TRUNCATED_URL_TEXT_RE = re.compile(r"(?i)^https?://\S*\s*(?:…|\.\.\.)\s*\S*$")
+
+
+def _forum_post_header(post) -> str:
+    """Build the "#3 Reply by alice — 2026-07-19 13:54:46" line for one post.
+
+    The byline and timestamp are taken verbatim from the page, so they are already
+    in the forum's own language and need no translation.
+    """
+    bits = []
+    for selector in (_FORUM_POST_NUMBER_SELECTOR, _FORUM_POST_BYLINE_SELECTOR):
+        node = post.select_one(selector)
+        if node is not None:
+            text = _normalize_whitespace(node.get_text(" ", strip=True))
+            if text:
+                bits.append(text)
+    header = " ".join(bits)
+    node = post.select_one(_FORUM_POST_TIME_SELECTOR)
+    stamp = _normalize_whitespace(node.get_text(" ", strip=True)) if node is not None else ""
+    if header and stamp:
+        return f"{header} — {stamp}"
+    return header or stamp
+
+
+def _expand_truncated_link_text(body) -> None:
+    """Replace ellipsized link text with the real href (see _TRUNCATED_URL_TEXT_RE)."""
+    for anchor in body.find_all("a"):
+        href = str(anchor.get("href") or "").strip()
+        if not href:
+            continue
+        text = _normalize_whitespace(anchor.get_text(" ", strip=True))
+        if text and _TRUNCATED_URL_TEXT_RE.match(text):
+            anchor.string = href
+
+
+def _extract_forum_thread_text(html: str, url: str) -> str:
+    """Linearize a FluxBB thread page into one attributed post per block.
+
+    Returns '' when the page has no recognizable posts (forum index, search
+    results, error page) so the generic extraction path still runs.
+    """
+    soup = _parse_html_soup(html, context="forum thread")
+    if soup is None:
+        return ""
+    posts = soup.select(_FORUM_POST_SELECTOR)
+    if not posts:
+        return ""
+    blocks: List[str] = []
+    for post in posts:
+        body = post.select_one(_FORUM_POST_BODY_SELECTOR)
+        if body is None:
+            continue
+        for selector in _FORUM_POST_JUNK_SELECTORS:
+            for junk in body.select(selector):
+                junk.decompose()
+        _expand_truncated_link_text(body)
+        text = (utils.html_to_text(str(body)) or "").strip()
+        if not text:
+            continue
+        header = _forum_post_header(post)
+        blocks.append(f"{header}\n{text}" if header else text)
+    return "\n\n".join(blocks).strip()
+
+
 def _extract_without_dom_boilerplate(html: str, url: str, selectors: Tuple[str, ...]) -> str:
     """Run normal extraction after removing known non-article DOM sections."""
     soup = _parse_html_soup(html, context="site boilerplate removal")
@@ -877,6 +969,8 @@ def _extract_site_specific_text(html: str, url: str) -> str:
             html, url,
             ("div.recent-articles", "#sponsored-banner", "#secondary", "#ft", "#smallhead"),
         )
+    if _host_matches(url, "audiogames.net"):
+        return _extract_forum_thread_text(html, url)
     if _is_socast_page(html):
         return _extract_socast_text(html, url)
     return ""

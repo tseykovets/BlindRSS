@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.112.8 - 2026-07-21
+
+- Strip leaked page JavaScript and decode entities in full text.
+
 ## v1.112.7 - 2026-07-21
 
 - Strip leading share/ad/gallery chrome so the reader opens on the article, not junk labels.

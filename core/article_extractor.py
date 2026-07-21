@@ -398,10 +398,12 @@ def _collect_bloomberg_video_descriptions(obj, out: List[str]) -> None:
             _collect_bloomberg_video_descriptions(v, out)
 
 
-def _extract_json_ld_text(html: str) -> str:
-    if not html:
+def _extract_json_ld_text(html_text: str) -> str:
+    # Parameter is `html_text`, not `html`: the body below needs the stdlib ``html`` module
+    # for entity unescaping, and a parameter named `html` would shadow it.
+    if not html_text:
         return ""
-    soup = _parse_html_soup(html, context="json-ld")
+    soup = _parse_html_soup(html_text, context="json-ld")
     if soup is None:
         return ""
 
@@ -425,10 +427,19 @@ def _extract_json_ld_text(html: str) -> str:
         if first_tag:
             # Some publishers (notably Sky News) put the standfirst directly before the first
             # ``<p>`` in articleBody.  Preserve that leading text while stripping the markup.
-            prefix = _normalize_whitespace(c[: first_tag.start()])
+            prefix = html.unescape(_normalize_whitespace(c[: first_tag.start()]))
             fragment_text = _html_fragment_to_text(c[first_tag.start() :])
             c = "\n\n".join(part for part in (prefix, fragment_text) if part)
-        t = _normalize_whitespace(c)
+        else:
+            # No markup survives, so the branch above (which unescapes as a side effect of
+            # parsing) never runs. The value is still HTML-derived though: publishers whose CMS
+            # tag-strips articleBody leave entities encoded, so a shell command in the story
+            # reads out as "sudo mkdir -p ... &amp;&amp; sudo defaults write" (mashable.com).
+            c = html.unescape(c)
+        # A naive tag-stripper drops the <script> ELEMENT but keeps its source as text, so the
+        # page's JavaScript trails the last paragraph. Remove it before the length comparison
+        # below, or the junk can win the "longest candidate" vote on its own bulk.
+        t = _strip_embedded_script_code(_normalize_whitespace(c))
         if t:
             cleaned.append(t)
 
@@ -502,6 +513,11 @@ def _html_fragment_to_text(fragment_html: str) -> str:
     soup = _parse_html_soup(fragment_html, context="html fragment")
     if soup is None:
         return ""
+    # Embed loaders and tracking pixels ride along inside CMS article bodies. Their source is
+    # never spoken content, and it would otherwise reach the reader via the get_text() fallback
+    # at the end of this function.
+    for tag in soup(["script", "style", "noscript", "template"]):
+        tag.decompose()
     blocks = soup.find_all(["p", "li", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"])
     paras: List[str] = []
     for tag in blocks:
@@ -1334,6 +1350,92 @@ def _strip_ning_activity_noise(text: str) -> str:
     return out or original
 
 
+# Leaked <script>/<style> SOURCE in extracted text.
+#
+# Some CMSes build the JSON-LD ``articleBody`` (and some proxies build their plain-text
+# rendering) by running a naive tag-stripper over the rendered article HTML: it deletes the
+# <script> ELEMENT but keeps its JavaScript as "text". The reader then speaks the page's code
+# after the last paragraph -- e.g. every mashable.com story carrying a Reddit/social embed
+# trails its lazy-loader, "let cbeScripts = ... new cbeScriptObserver(item, cbeScripts[item])".
+#
+# Strong markers: DOM/analytics glue that prose never contains.
+_CODE_STRONG_RE = re.compile(
+    r"document\.(?:querySelector|querySelectorAll|getElementById|getElementsBy\w+"
+    r"|createElement|head|body|cookie|write)\b"
+    r"|window\.(?:addEventListener|attachEvent|dataLayer|location\.href|onload)\b"
+    r"|window\[[^\]]{1,60}\]\s*="
+    r"|\.addEventListener\s*\("
+    r"|\bnew\s+(?:IntersectionObserver|MutationObserver|XMLHttpRequest|ResizeObserver)\s*\("
+    r"|\bconsole\.(?:log|warn|error|info|debug)\s*\("
+    r"|=>\s*\{"
+    r"|\bfunction\s*\*?\s*\("
+    r"|\bJSON\.(?:parse|stringify)\s*\("
+    r"|\bdataLayer\.push\s*\(|\bgoogletag\b|\bgtag\s*\("
+)
+# Structural lines: declarations, control flow, dotted calls/assignments, and the brace/paren
+# rubble between them. Weak on their own -- only counted inside a run that also has a strong hit.
+_CODE_STRUCT_RE = re.compile(
+    r"^(?:let|const|var)\s+[A-Za-z_$][\w$]*\s*[=;]"
+    r"|^(?:function|if|for|while|switch|try|catch|else|return|throw|import|export|await)\b\s*[({;]"
+    r"|^new\s+[A-Za-z_$][\w$]*\s*\("
+    r"|^[\[\]{}();,]+$"
+    r"|^[}\])][\s)\]};,]*(?:\{|\(|,\s*\{)"
+    r"|^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+\s*(?:=[^=]|\()"
+)
+
+# A run must be this many code lines, with this many strong hits, before it is dropped. Tech
+# stories legitimately quote short snippets (the very article that exposed this bug prints two
+# `sudo defaults write` commands), so one stray match must never eat content.
+_CODE_RUN_MIN_LINES = 4
+_CODE_RUN_MIN_STRONG = 2
+
+
+def _classify_code_line(line: str) -> Tuple[bool, bool]:
+    """Return (is_code_like, is_strong_marker) for one line of extracted text."""
+    s = line.strip()
+    if not s:
+        return False, False
+    if _CODE_STRONG_RE.search(s):
+        return True, True
+    return bool(_CODE_STRUCT_RE.match(s)), False
+
+
+def _strip_embedded_script_code(text: str) -> str:
+    """Drop runs of leaked <script>/<style> source from otherwise-clean article text.
+
+    Scans for maximal runs of code-shaped lines (blank lines do not break a run) and removes
+    only those that clear both thresholds above. No-op when nothing matches, when no run
+    qualifies, or when removal would leave nothing behind.
+    """
+    if not text or not _CODE_STRONG_RE.search(text):
+        return text
+    lines = text.split("\n")
+    flags = [_classify_code_line(ln) for ln in lines]
+    keep = [True] * len(lines)
+    i = 0
+    while i < len(lines):
+        if not flags[i][0]:
+            i += 1
+            continue
+        j, last, count, strong = i, i, 0, 0
+        while j < len(lines):
+            if flags[j][0]:
+                last, count, j = j, count + 1, j + 1
+                strong += 1 if flags[j - 1][1] else 0
+            elif not lines[j].strip():
+                j += 1  # a blank line inside a code block does not end the run
+            else:
+                break
+        if count >= _CODE_RUN_MIN_LINES and strong >= _CODE_RUN_MIN_STRONG:
+            for k in range(i, last + 1):
+                keep[k] = False
+        i = max(j, i + 1)
+    if all(keep):
+        return text
+    out = _normalize_whitespace("\n".join(ln for ln, k in zip(lines, keep) if k))
+    return out or text
+
+
 def _postprocess_extracted_text(text: str, url: str) -> str:
     t = _normalize_whitespace(text or "")
     if not t:
@@ -1391,7 +1493,51 @@ def _postprocess_extracted_text(text: str, url: str) -> str:
     # the full body is right there.
     t = _strip_leading_boilerplate(t)
 
+    # Generic (all hosts): a naive upstream tag-stripper can leave inline <script>/<style>
+    # SOURCE behind as body "text", so the reader speaks the page's JavaScript after the last
+    # paragraph. Runs last so it also covers the proxy/fallback renderings, not just JSON-LD.
+    t = _strip_embedded_script_code(t)
+
+    # Generic (all hosts): a bare recirculation heading ("You May Also Like", "SEE ALSO:")
+    # left behind mid-body by the widget it labelled. It carries no content and interrupts
+    # the story with a promise of links that are not there.
+    t = _strip_recirculation_labels(t)
+
     return _normalize_whitespace(t)
+
+
+# Bare "here are some other stories" headings. The links they introduce are stripped as
+# navigation, so the heading is left dangling inside the prose. Matched as a whole line only,
+# with a length cap, so a sentence that merely opens with one of these words is never touched.
+_RECIRCULATION_LABEL_RE = re.compile(
+    r"(?i)^\s*(?:"
+    r"you\s+may\s+also\s+like"
+    r"|you\s+might\s+also\s+like"
+    r"|(?:see|read|watch)\s+also"
+    r"|related(?:\s+(?:stor(?:y|ies)|articles?|posts?|reading|coverage|content))?"
+    r"|more\s+(?:like\s+this|from\s+\w+)"
+    r"|recommended(?:\s+for\s+you)?"
+    r"|most\s+popular"
+    r"|editor'?s?\s+picks?"
+    r")\s*[:—-]?\s*$"
+)
+_RECIRCULATION_LABEL_MAX_LEN = 32
+
+
+def _strip_recirculation_labels(text: str) -> str:
+    """Drop standalone recirculation heading lines anywhere in the body."""
+    if not text:
+        return text
+    lines = text.split("\n")
+    kept = [
+        ln for ln in lines
+        if not (len(ln.strip()) <= _RECIRCULATION_LABEL_MAX_LEN
+                and _RECIRCULATION_LABEL_RE.match(ln))
+    ]
+    if len(kept) == len(lines):
+        return text
+    out = _normalize_whitespace("\n".join(kept))
+    return out or text
 
 
 # A leading social-share/toolbar button row: each entry is a short label on its

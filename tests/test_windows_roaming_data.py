@@ -13,7 +13,11 @@ def test_windows_user_data_dir_is_exactly_appdata_blindrss(monkeypatch):
     monkeypatch.setattr(config_mod.sys, "platform", "win32")
     monkeypatch.setenv("APPDATA", r"C:\Users\alice\AppData\Roaming")
 
-    assert config_mod._user_data_dir() == r"C:\Users\alice\AppData\Roaming\BlindRSS"
+    # os.path.join keeps the host separator, so build the expectation with it
+    # too — the literal backslash string only matched when the suite ran on
+    # Windows.
+    expected = os.path.join(r"C:\Users\alice\AppData\Roaming", "BlindRSS")
+    assert config_mod._user_data_dir() == expected
 
 
 def _configure_installed_layout(tmp_path, monkeypatch):

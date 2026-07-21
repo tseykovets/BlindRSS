@@ -5256,7 +5256,7 @@ class MainFrame(wx.Frame):
     altAlone = false;
     if(e.key==='F10' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey){ e.stopPropagation(); e.preventDefault(); post('__menu'); return; }
     if(e.key==='F6' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey){ e.stopPropagation(); e.preventDefault(); post('__focus_tree'); return; }
-    if((e.key==='H'||e.key==='h'||e.code==='KeyH') && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey){ e.stopPropagation(); e.preventDefault(); post('__toggle_rich'); return; }
+    if((e.key==='H'||e.key==='h'||e.code==='KeyH') && (e.ctrlKey||e.metaKey) && !(e.ctrlKey&&e.metaKey) && e.shiftKey && !e.altKey){ e.stopPropagation(); e.preventDefault(); post('__toggle_rich'); return; }
     if(e.key==='Tab' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey){
       var c = content(); var a = document.activeElement;
       if(!c || a===c || a===document.body || a===null || !c.contains(a)){
@@ -5354,6 +5354,18 @@ class MainFrame(wx.Frame):
                 return True
             if self._is_rich_view_focused(focus):
                 return True
+        # macOS: while the WKWebView has keyboard focus, wx.Window.FindFocus()
+        # is None and there is no user32 fallback, so "reading in the rich
+        # view" was undetectable and toggling stranded focus on the hidden
+        # surface. When the rich reader is the shown surface and wx sees no
+        # focused window, treat the reader as focused.
+        if sys.platform == "darwin" and focus is None:
+            rv = getattr(self, "_rich_view", None)
+            try:
+                if rv is not None and rv.control.IsShown():
+                    return True
+            except Exception:
+                pass
         try:
             import ctypes
             user32 = ctypes.windll.user32
@@ -5367,7 +5379,11 @@ class MainFrame(wx.Frame):
         """Put focus on whichever reader surface is currently shown."""
         try:
             if self._rich_view_active() and self._rich_view is not None:
-                self._rich_view.control.SetFocus()
+                # focus() (not control.SetFocus()) also moves the in-page focus
+                # onto the content node; on macOS WKWebView plain SetFocus()
+                # leaves the document unfocused, so VoiceOver never lands in
+                # the article after a toggle.
+                self._rich_view.focus()
             else:
                 self.content_ctrl.SetFocus()
         except Exception:

@@ -2194,7 +2194,12 @@ def _trafilatura_extract_text(html: str, url: str = "") -> str:
         include_images=False,
         include_links=False,
         include_tables=False,
-        deduplicate=True,
+        # deduplicate must stay False: trafilatura's duplicate filter counts
+        # paragraph sightings in a PROCESS-GLOBAL LRU shared by every extract
+        # call, so re-extracting the same article (precision+recall passes,
+        # prefetch + on-demand, revisits) drops its own paragraphs as
+        # "duplicates" after ~3 sightings and full text collapses to a stub.
+        deduplicate=False,
     )
 
     def _do_extract(extra_kwargs):

@@ -180,15 +180,18 @@ def test_settings_dialog_field_names(parent):
         assert dlg.dl_path_ctrl.GetName() == "Download path"
         assert dlg.ytdlp_cookies_ctrl.GetName() == "yt-dlp cookies file path"
         assert dlg.youtube_play_cache_dir_ctrl.GetName() == "YouTube playback cache folder"
+        # wxOSX returns page labels with the mnemonic escape collapsed
+        # ("Feeds & Articles"), wxMSW keeps the literal "&&"; normalize so the
+        # assertion is about the words, not the platform's ampersand handling.
         page_labels = [
-            dlg.notebook.GetPageText(index)
+            dlg.notebook.GetPageText(index).replace("&&", "&")
             for index in range(dlg.notebook.GetPageCount())
         ]
         assert page_labels[:5] == [
             "General",
-            "Feeds && Articles",
+            "Feeds & Articles",
             "Downloads",
-            "Startup && Tray",
+            "Startup & Tray",
             "YouTube",
         ]
         assert dlg.refresh_ctrl.GetParent() is dlg.notebook.GetPage(1)

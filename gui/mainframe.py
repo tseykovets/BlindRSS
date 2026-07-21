@@ -5610,6 +5610,23 @@ class MainFrame(wx.Frame):
         if cur_key != cache_key:
             return
         self._render_rich_html(html_body)
+        self._announce_fulltext_loaded_macos()
+
+    def _announce_fulltext_loaded_macos(self) -> None:
+        """macOS only: announce that the reader was upgraded to full text.
+
+        On macOS the load starts on selection and the extracted text replaces
+        the feed snippet silently a few seconds later; VoiceOver gives no cue,
+        so users who already read the snippet conclude full text never loaded.
+        Windows keeps its focus-triggered flow where the screen reader re-reads
+        the control anyway, so this stays quiet there.
+        """
+        if not sys.platform.startswith("darwin"):
+            return
+        try:
+            self._announce_event("general", _("Full text loaded."))
+        except Exception:
+            pass
 
     def _compose_article_copy_text(self, article, idx) -> str:
         """Build the readable article text for copying, mirroring the reading pane."""
@@ -10332,6 +10349,7 @@ class MainFrame(wx.Frame):
             return
         try:
             self._set_article_reader_text(article_now, rendered, reset_insertion=True)
+            self._announce_fulltext_loaded_macos()
         except Exception:
             pass
 

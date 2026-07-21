@@ -1669,6 +1669,7 @@ class AccessibleBrowserFrame(wx.Frame):
         if not html_body or self._current_rich_art_id != art_id:
             return
         self._render_rich_html(html_body)
+        self._announce_fulltext_loaded()
 
     def on_toggle_rich_view(self, event=None) -> None:
         """Toolbar checkbox: switch between the plain text and rich HTML reader."""
@@ -1897,7 +1898,23 @@ class AccessibleBrowserFrame(wx.Frame):
         try:
             # A late prefetch completion must not move VoiceOver's reader cursor back
             # to the beginning after the user has started reading the snippet.
+            changed = str(body or "") != str(getattr(self, "_current_body_text", "") or "")
             self._set_article_content(article, art_id, body, preserve_position=True)
+            if changed:
+                self._announce_fulltext_loaded()
+        except Exception:
+            pass
+
+    def _announce_fulltext_loaded(self):
+        """Tell the screen reader the reader pane was upgraded to full text.
+
+        The extracted text replaces the feed snippet SILENTLY seconds after
+        selection; a VoiceOver user who already read (or is reading) the
+        snippet otherwise has no way to know the full article has arrived —
+        which reads as "full text doesn't work" even when it loaded fine.
+        """
+        try:
+            self.mainframe._announce_event("general", _("Full text loaded."))
         except Exception:
             pass
 
@@ -2038,7 +2055,10 @@ class AccessibleBrowserFrame(wx.Frame):
             # A late full-text completion must not move the reader cursor back
             # to the beginning after the user has started reading the snippet
             # (same rule as _finish_prefetch).
+            changed = str(body or "") != str(getattr(self, "_current_body_text", "") or "")
             self._set_article_content(article, art_id, body, preserve_position=True)
+            if changed:
+                self._announce_fulltext_loaded()
         except Exception:
             pass
 

@@ -617,3 +617,47 @@ def test_content_focus_forces_load(wxapp, monkeypatch):
         assert "FOCUS LOADED BODY" in frame.content_ctrl.GetValue()
     finally:
         _destroy(mainframe, frame)
+
+
+def test_fulltext_arrival_is_announced(wxapp, monkeypatch):
+    """The silent snippet->full-text swap must produce a screen-reader cue.
+
+    VoiceOver reads the pane the moment an article is selected — while it still
+    holds the feed snippet. Without an announcement when the extracted text
+    lands, the user has no way to know the upgrade happened and concludes full
+    text never loads (the exact "still no full text" report on macOS).
+    """
+    mainframe, frame = _make_browser()
+    try:
+        _patch_sync(monkeypatch, "FULL ARTICLE BODY TEXT")
+        announced = []
+        mainframe._announce_event = lambda event_id, msg: announced.append((event_id, msg))
+        article = _article()
+        _select(frame, article)
+
+        frame._show_article_at_index(0)
+        assert announced == []  # the instant snippet is not an "arrival"
+
+        frame._start_fulltext("a1", frame._content_token)
+        assert "FULL ARTICLE BODY TEXT" in frame.content_ctrl.GetValue()
+        assert announced and announced[0][0] == "general"
+    finally:
+        _destroy(mainframe, frame)
+
+
+def test_unchanged_fulltext_result_is_not_announced(wxapp, monkeypatch):
+    """Re-delivering the text the pane already shows must stay silent."""
+    mainframe, frame = _make_browser()
+    try:
+        announced = []
+        mainframe._announce_event = lambda event_id, msg: announced.append((event_id, msg))
+        article = _article()
+        _select(frame, article)
+        frame._set_article_content(article, "a1", "SAME BODY")
+        frame._fulltext_inflight.add("a1")
+
+        frame._finish_fulltext("a1", frame._content_token, "SAME BODY", cacheable=True)
+
+        assert announced == []
+    finally:
+        _destroy(mainframe, frame)

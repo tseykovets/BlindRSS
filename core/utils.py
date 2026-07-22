@@ -458,6 +458,25 @@ def html_to_text(html: str | None, include_images: bool = False, structure: dict
         return str(html)
 
 
+def collapse_blank_lines(text: str | None) -> str:
+    """Drop empty lines from reader body text, one paragraph per line.
+
+    Article bodies reach the reader with two different paragraph conventions.
+    A successful web extraction comes from trafilatura, which puts every
+    paragraph on its own line with no blank line between them. The HTML->text
+    converter above, and the site boilerplate strippers that rebuild a body
+    from paragraphs, separate them with a blank line instead. A screen reader
+    stops on every one of those blank lines, so the same article navigates at
+    twice the line count depending only on which path produced it -- which is
+    what makes a failed extraction (feed content shown instead) read so much
+    worse than a successful one. Normalize on the trafilatura convention.
+    """
+    if not text:
+        return ""
+    raw = str(text).replace("\r\n", "\n").replace("\r", "\n")
+    return "\n".join(ln.rstrip() for ln in raw.split("\n") if ln.strip()).strip()
+
+
 class _PreviewTextComplete(Exception):
     """Internal early-exit once enough visible preview text was collected."""
 

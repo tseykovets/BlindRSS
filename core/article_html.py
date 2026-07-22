@@ -182,6 +182,20 @@ def _has_content_image(tag) -> bool:
     return False
 
 
+def _only_whitespace(siblings) -> bool:
+    """True when every sibling in ``siblings`` is whitespace-only text.
+
+    Used to spot a ``<br>`` at the very start or end of its container, where it
+    adds an empty line and nothing else.
+    """
+    for sib in siblings:
+        if getattr(sib, "name", None) is not None:
+            return False
+        if str(sib).strip():
+            return False
+    return True
+
+
 def _has_prose_child(tag) -> bool:
     """True if ``tag`` wraps a block-level prose element (so it's a container,
     not a leaf we can safely drop wholesale)."""
@@ -740,6 +754,32 @@ def clean_article_html(html: str, url: str = "", *, use_traf_prune: bool = True)
                 tag[attr] = _absolutize(str(tag.get(attr) or ""), url)
             elif attr == "srcset":
                 tag[attr] = _absolutize_srcset(str(tag.get(attr) or ""), url)
+
+    # Blank lines, HTML edition. Feeds routinely separate paragraphs with
+    # <br><br> instead of <p>, and a leading/trailing <br> is left over
+    # whenever chrome around it was removed. Each of those renders as an empty
+    # line the screen reader stops on -- the rich-view counterpart of the blank
+    # lines the plain-text reader strips. Runs of <br> collapse to one (which
+    # still breaks the line); edge ones go entirely.
+    for br in node.find_all("br"):
+        if getattr(br, "decomposed", False):
+            continue
+        sib = br.next_sibling
+        while sib is not None:
+            if getattr(sib, "name", None) == "br":
+                nxt = sib.next_sibling
+                sib.decompose()
+                sib = nxt
+                continue
+            if getattr(sib, "name", None) is None and not str(sib).strip():
+                sib = sib.next_sibling
+                continue
+            break
+    for br in node.find_all("br"):
+        if getattr(br, "decomposed", False):
+            continue
+        if _only_whitespace(br.previous_siblings) or _only_whitespace(br.next_siblings):
+            br.decompose()
 
     # Drop empty media-less containers left behind by chrome removal (incl. now-
     # empty lists so no blank bullet rows remain).

@@ -3327,7 +3327,14 @@ def render_full_article(
         parts.append(_("Author:") + f" {art.author.strip() or unknown}")
         parts.append("")
         body = _postprocess_extracted_text(art.text or "", url)
-        parts.append(body.strip())
+        # One paragraph per line, no blank lines in between. Trafilatura (the
+        # successful web extraction) already reads that way; JSON-LD bodies,
+        # feed-content fallbacks and the site strippers that rebuild a body
+        # from paragraphs used to hand the reader a blank line between every
+        # paragraph, so a failed extraction doubled the number of lines a
+        # screen-reader user had to arrow through. Runs last, after every
+        # stripper has done its paragraph-shaped work.
+        parts.append(utils.collapse_blank_lines(body))
         return (_normalize_whitespace("\n".join(parts)) + "\n")
 
     # No usable URL: fall back to feed content.

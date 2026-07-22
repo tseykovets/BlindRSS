@@ -2068,7 +2068,13 @@ class MainFrame(wx.Frame):
         if include_images is None:
             include_images = self._images_enabled_global()
         try:
-            return utils.html_to_text(html_content, include_images=bool(include_images))
+            # Blank lines between paragraphs are extra stops for a screen
+            # reader and the full-text pane no longer has them, so the feed
+            # content this shows before (and instead of) an extraction must
+            # read the same way: one paragraph per line.
+            return utils.collapse_blank_lines(
+                utils.html_to_text(html_content, include_images=bool(include_images))
+            )
         except Exception:
             return html_content
 
@@ -5652,7 +5658,7 @@ class MainFrame(wx.Frame):
         if cache_key and self._rich_view_enabled():
             rich_html = self._fulltext_html_cache.get(cache_key)
             if rich_html:
-                text = utils.html_to_text(rich_html)
+                text = utils.collapse_blank_lines(utils.html_to_text(rich_html))
                 if text and text.strip():
                     return self._compose_article_reader_text(text, article=article)
 

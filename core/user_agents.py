@@ -33,6 +33,8 @@ import subprocess
 import sys
 import threading
 
+from core.i18n import _
+
 log = logging.getLogger(__name__)
 
 
@@ -369,7 +371,7 @@ def detect_installed(*, refresh: bool = False) -> list:
         out.append(
             Identity(
                 INSTALLED_PREFIX + browser_key,
-                f"{label} {major} (installed)",
+                _("{label} {major} (installed)").format(label=label, major=major),
                 ua,
                 client_hints_for(engine, plat, major),
                 "installed",
@@ -477,7 +479,7 @@ def choices() -> list:
     browser it currently resolves to.
     """
     auto = automatic_identity()
-    auto_label = f"Automatic ({auto.label})" if auto else "Automatic"
+    auto_label = _("Automatic ({label})").format(label=auto.label) if auto else _("Automatic")
     out = [Identity(AUTO_MODE, auto_label, auto.ua if auto else "", auto.hints if auto else {}, "auto")]
     out.extend(detect_installed())
     out.extend(presets())

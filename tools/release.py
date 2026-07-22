@@ -24,11 +24,19 @@ CHANGELOG_OMIT_COMMIT_TYPES = {"chore", "ci", "docs", "test"}
 
 
 def run_git(args):
+    # Force UTF-8: git emits commit messages as UTF-8, but text=True decodes with
+    # the OS preferred encoding (cp1252 on Windows). A commit body with non-ASCII
+    # content -- a translator's name, a Cyrillic release note -- then fails to
+    # decode in subprocess's reader thread, leaving stdout as None and crashing
+    # the version computation. errors="replace" keeps a stray byte from aborting
+    # the whole release over one character.
     result = subprocess.run(
         ["git", *args],
         cwd=ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     if result.returncode != 0:

@@ -85,8 +85,8 @@ class _StubMainFrame(wx.Frame):
     def on_refresh_category(self, event=None, category_title=None):
         self.calls.append(("refresh_category", category_title))
 
-    def on_rename_category(self, old_title):
-        self.calls.append(("rename_category", old_title))
+    def on_edit_category(self, old_title):
+        self.calls.append(("edit_category", old_title))
 
     def on_add_subcategory(self, parent):
         self.calls.append(("add_subcategory", parent))
@@ -228,11 +228,11 @@ def test_category_delegations(wxapp):
     mf, frame = _make(wxapp)
     try:
         frame._delegate("on_refresh_category", None, "News")
-        frame._delegate("on_rename_category", "News")
+        frame._delegate("on_edit_category", "News")
         frame._delegate("on_add_subcategory", "News")
         frame._ctx_new_smart_folder()
         assert ("refresh_category", "News") in mf.calls
-        assert ("rename_category", "News") in mf.calls
+        assert ("edit_category", "News") in mf.calls
         assert ("add_subcategory", "News") in mf.calls
         assert ("new_smart_folder",) in mf.calls
     finally:

@@ -1,5 +1,6 @@
 import os
 import sys
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -46,8 +47,22 @@ class _DummyTreeEvent:
         self.skipped = True
 
 
+class _DummyTree:
+    """Minimal stand-in for the feed tree: F2 asks it what is selected."""
+
+    def __init__(self, data=None):
+        self.data = data if data is not None else {"type": "feed", "id": "feed-1"}
+
+    def GetSelection(self):
+        return SimpleNamespace(IsOk=lambda: True)
+
+    def GetItemData(self, _item):
+        return self.data
+
+
 class _DummyHost:
     on_char_hook = mainframe.MainFrame.on_char_hook
+    _cmd_edit_selected = mainframe.MainFrame._cmd_edit_selected
     on_article_list_key_down = mainframe.MainFrame.on_article_list_key_down
     _is_delete_key = mainframe.MainFrame._is_delete_key
     _is_backspace_key = mainframe.MainFrame._is_backspace_key
@@ -61,7 +76,7 @@ class _DummyHost:
         self.calls.append(("announce", event_id, message))
 
     def __init__(self):
-        self.tree = object()
+        self.tree = _DummyTree()
         self.list_ctrl = object()
         self.content_ctrl = object()
         self.player_window = None
@@ -86,6 +101,9 @@ class _DummyHost:
 
     def on_edit_feed(self, event):
         self.calls.append(("edit_feed", event))
+
+    def on_edit_category(self, category_path):
+        self.calls.append(("edit_category", category_path))
 
     def on_find_feed(self, event):
         self.calls.append(("find_feed", event))
@@ -430,6 +448,20 @@ def test_f2_shortcut_opens_edit_feed_when_tree_focused():
     host.on_char_hook(evt)
 
     assert ("edit_feed", None) in host.calls
+    assert evt.skipped is False
+
+
+def test_f2_shortcut_opens_edit_category_for_a_selected_category():
+    """One F2 edits whatever the tree is on -- feed or category (issue #86)."""
+    host = _DummyHost()
+    host.tree = _DummyTree({"type": "category", "id": "Work / Tech"})
+    host._focus = host.tree
+    evt = _DummyKeyEvent(mainframe.wx.WXK_F2)
+
+    host.on_char_hook(evt)
+
+    assert ("edit_category", "Work / Tech") in host.calls
+    assert ("edit_feed", None) not in host.calls
     assert evt.skipped is False
 
 

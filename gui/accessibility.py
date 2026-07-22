@@ -927,7 +927,7 @@ class AccessibleBrowserFrame(wx.Frame):
             cat = str(entry.get("cat_name", "") or "")
             self._menu_item(menu, _("&Refresh Category"), lambda e: self._delegate("on_refresh_category", None, cat))
             self._menu_item(menu, _("Mark All as &Read"), lambda e: self._ctx_mark_view_read(str(entry.get("view_id", "") or "")))
-            self._menu_item(menu, _("Re&name Category"), lambda e: self._delegate("on_rename_category", cat))
+            self._menu_item(menu, _("&Edit Category"), lambda e: self._delegate("on_edit_category", cat))
             self._menu_item(menu, _("Add &Subcategory"), lambda e: self._delegate("on_add_subcategory", cat))
             menu.AppendSeparator()
             self._menu_item(menu, _("Remove &Category"), lambda e: self._ctx_remove_category(cat))

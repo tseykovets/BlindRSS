@@ -22,6 +22,7 @@ from .dialogs import (
     AddShortcutsDialog,
     SettingsDialog,
     FeedPropertiesDialog,
+    CategoryPropertiesDialog,
     AboutDialog,
     PersistentSearchDialog,
 )
@@ -2715,10 +2716,10 @@ class MainFrame(wx.Frame):
         if key == wx.WXK_F2 and not event.ControlDown() and not event.ShiftDown() and not event.AltDown() and not event.MetaDown():
             if focus == self.tree:
                 try:
-                    self.on_edit_feed(None)
+                    self._cmd_edit_selected(None)
                     return
                 except Exception:
-                    log.exception("Error opening feed editor on F2")
+                    log.exception("Error opening properties editor on F2")
 
         if (
             event.ControlDown()
@@ -3032,7 +3033,7 @@ class MainFrame(wx.Frame):
             "feeds.refresh_all": self._cmd_refresh_all,
             "feeds.stop_refresh": self._cmd_stop_refresh,
             "feeds.refresh_selected": self.on_refresh_single_feed,
-            "feeds.edit_selected": self.on_edit_feed,
+            "feeds.edit_selected": self._cmd_edit_selected,
             "feeds.mark_all_read": self.on_mark_all_read,
             "feeds.view_errors": self.on_view_feed_errors,
             "feeds.copy_url": self.on_copy_feed_url,
@@ -4179,7 +4180,12 @@ class MainFrame(wx.Frame):
                 return
             feed_obj = self.feed_map.get(feed_id)
             feed_title = getattr(feed_obj, "title", None)
-            self._begin_refresh_activity(f"feed: {feed_title}" if feed_title else "feed")
+            # No total here: one feed's title says more than "1 out of 1".
+            self._begin_refresh_activity(
+                _("Refreshing feed: {title}...").format(title=feed_title)
+                if feed_title
+                else _("Refreshing feed...")
+            )
             try:
                 result = self.provider.refresh_feed(feed_id, progress_cb=progress_cb)
             finally:
@@ -4270,7 +4276,7 @@ class MainFrame(wx.Frame):
                 force,
             )
             return False
-        self._begin_refresh_activity()
+        self._begin_refresh_activity(total=self._expected_refresh_feed_count())
         # Keep tree/count progress live, but do not repeatedly reload the
         # selected article list while many feeds finish in parallel.  The final
         # tree refresh below performs one coherent list update after the
@@ -4480,8 +4486,8 @@ class MainFrame(wx.Frame):
                 self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_add_subcategory(ct), add_sub_item)
 
             if not is_uncategorized(cat_title):
-                rename_item = menu.Append(wx.ID_ANY, _("Rename Category"))
-                self.Bind(wx.EVT_MENU, lambda e: self.on_rename_category(cat_title), rename_item)
+                edit_item = menu.Append(wx.ID_ANY, _("Edit Category"))
+                self.Bind(wx.EVT_MENU, lambda e: self.on_edit_category(cat_title), edit_item)
 
                 remove_item = menu.Append(wx.ID_ANY, _("Remove Category"))
                 self.Bind(wx.EVT_MENU, self.on_remove_category, remove_item)
@@ -6954,27 +6960,90 @@ class MainFrame(wx.Frame):
             self._update_current_view_cache(fid)
             self._decrement_view_total_if_present(fid)
 
-    def on_rename_category(self, old_title):
+    def _eligible_parent_categories(self, category_path: str) -> list:
+        """Categories that ``category_path`` may be moved under (issue #86).
+
+        Its own subtree is excluded: a category cannot become its own ancestor,
+        and because identity is the full path, offering one would ask the
+        provider to rewrite a path into a prefix of itself.
+        """
+        from core.db import CATEGORY_PATH_SEP
+        path = str(category_path or "").strip()
+        prefix = path + CATEGORY_PATH_SEP
+        out = []
+        try:
+            categories = self.provider.get_categories() or []
+        except Exception:
+            categories = []
+        for identity in categories:
+            candidate = str(identity or "").strip()
+            if not candidate or is_uncategorized(candidate):
+                continue
+            if candidate == path or candidate.startswith(prefix):
+                continue
+            out.append(candidate)
+        return sorted(out, key=lambda s: category_display_name(s).lower())
+
+    def on_edit_category(self, old_title):
+        """Category Properties: rename the leaf and/or move it under another
+        category (issue #86). The feed-side counterpart is edit_feed_by_id."""
         if is_uncategorized(old_title):
-            wx.MessageBox(_("Could not rename category."), _("Error"), wx.ICON_ERROR)
+            wx.MessageBox(_("Could not edit category."), _("Error"), wx.ICON_ERROR)
             return
+
         # old_title is the category's full path; the user edits only the leaf.
-        from core.db import category_display_leaf
-        leaf = category_display_leaf(old_title)
-        dlg = wx.TextEntryDialog(
-            self,
-            _("Rename category '{category}' to:").format(category=leaf),
-            _("Rename Category"),
-            value=leaf,
+        from core.db import CATEGORY_PATH_SEP, category_display_leaf, make_category_path
+        old_path = str(old_title or "").strip()
+        leaf = category_display_leaf(old_path)
+        old_parent = (
+            old_path.rsplit(CATEGORY_PATH_SEP, 1)[0] if CATEGORY_PATH_SEP in old_path else None
         )
-        if dlg.ShowModal() == wx.ID_OK:
-            new_leaf = dlg.GetValue().strip()
-            if new_leaf and new_leaf != leaf:
-                if self.provider.rename_category(old_title, new_leaf):
-                    self.refresh_feeds()
-                else:
-                    wx.MessageBox(_("Could not rename category."), _("Error"), wx.ICON_ERROR)
-        dlg.Destroy()
+
+        # Moving is only offered where categories really nest; on a flat
+        # provider the dialog is a rename with no parent picker.
+        try:
+            allow_parent_edit = bool(getattr(self.provider, "supports_subcategories", lambda: False)())
+        except Exception:
+            allow_parent_edit = False
+
+        dlg = CategoryPropertiesDialog(
+            self,
+            old_path,
+            self._eligible_parent_categories(old_path) if allow_parent_edit else [],
+            current_parent=old_parent,
+            allow_parent_edit=allow_parent_edit,
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return
+            new_leaf, new_parent = dlg.get_data()
+        finally:
+            dlg.Destroy()
+
+        if not new_leaf:
+            new_leaf = leaf
+        if not allow_parent_edit:
+            new_parent = old_parent
+        parent_changed = (new_parent or None) != (old_parent or None)
+        if new_leaf == leaf and not parent_changed:
+            return
+
+        # Move first, then rename. Both steps reject a name already taken under
+        # the destination parent, and doing the move first means the only
+        # collision that can block the edit is one at the destination -- renaming
+        # first could fail on a clash under the parent being left behind.
+        path = old_path
+        if parent_changed:
+            if not self.provider.move_category(path, new_parent):
+                wx.MessageBox(_("Could not move category."), _("Error"), wx.ICON_ERROR)
+                return
+            path = make_category_path(new_parent, leaf)
+        if new_leaf != leaf:
+            if not self.provider.rename_category(path, new_leaf):
+                wx.MessageBox(_("Could not rename category."), _("Error"), wx.ICON_ERROR)
+                self.refresh_feeds()  # a completed move still needs to show
+                return
+        self.refresh_feeds()
 
     def on_add_category(self, event):
         # Only offer a parent picker for providers that support nested categories
@@ -7385,16 +7454,75 @@ class MainFrame(wx.Frame):
             # Likely during shutdown.
             log.debug("Failed to schedule activity status update, likely during shutdown.", exc_info=True)
 
-    def _begin_refresh_activity(self, detail: str | None = None) -> None:
+    def _begin_refresh_activity(self, message: str | None = None, *, total: int | None = None) -> None:
         """Announce that a feed-refresh batch has started.
 
-        detail describes what's being refreshed (e.g. "feed: Title",
-        "category: Tech", "imported feeds"); omit it for the main/periodic
+        message is the complete, already-localized wording for a targeted
+        refresh ("Refreshing category: Tech..."); omit it for the main/periodic
         full-feed refresh. Shared by all four refresh entry points so the
         begin/end wording stays consistent instead of being copy-pasted.
+
+        total is how many feeds this batch expects to check. When it is known
+        the per-feed status becomes "Checked X out of Y" instead of the title
+        of whichever feed happened to finish last, which is what tells a user
+        how much of a long refresh is left (issue #85).
         """
-        message = _("Refreshing {detail}...").format(detail=detail) if detail else _("Refreshing feeds...")
-        self._post_activity_status(message)
+        self._reset_refresh_progress_counter(total)
+        self._post_activity_status(message or _("Refreshing feeds..."))
+
+    def _reset_refresh_progress_counter(self, total: int | None = None) -> None:
+        """Start a fresh "checked X out of Y" count for a refresh batch."""
+        try:
+            expected = max(0, int(total or 0))
+        except (TypeError, ValueError):
+            expected = 0
+        self._refresh_progress_total = expected
+        self._refresh_progress_seen = set()
+
+    def _note_refresh_progress_feed(self, feed_id) -> None:
+        """Count a feed as checked.
+
+        Called for every progress state, on worker threads. Counting feed ids
+        rather than callbacks keeps the number honest when a provider reports
+        the same feed twice (a Miniflux per-feed retry, an error followed by a
+        result), and counts feeds the UI later coalesces away.
+        """
+        seen = getattr(self, "_refresh_progress_seen", None)
+        if seen is None:
+            seen = set()
+            self._refresh_progress_seen = seen
+        seen.add(str(feed_id))
+
+    def _refresh_progress_counts(self) -> tuple[int, int]:
+        """(checked, total) for the running batch, or (0, 0) when no total is known."""
+        try:
+            total = int(getattr(self, "_refresh_progress_total", 0) or 0)
+        except (TypeError, ValueError):
+            total = 0
+        if total <= 0:
+            return (0, 0)
+        done = len(getattr(self, "_refresh_progress_seen", None) or ())
+        # A provider can report more feeds than the snapshot predicted (a feed
+        # added mid-refresh, a retry pass over feeds outside the batch). Grow
+        # the total rather than announcing "27 out of 25".
+        return (done, max(total, done))
+
+    def _expected_refresh_feed_count(self) -> int:
+        """How many feeds a full refresh is expected to check (issue #85's Y).
+
+        feed_map is the tree's own snapshot, which is what the user counts as
+        "all my feeds"; fall back to the provider before the tree is built.
+        """
+        try:
+            count = len(getattr(self, "feed_map", None) or {})
+        except Exception:
+            count = 0
+        if count:
+            return count
+        try:
+            return len(list(self.provider.get_feeds() or []))
+        except Exception:
+            return 0
 
     def _end_refresh_activity(self) -> None:
         """Announce that a feed-refresh batch has finished (success, error, or
@@ -7413,14 +7541,33 @@ class MainFrame(wx.Frame):
         if not state:
             return
         title = str(state.get("title") or "").strip() or "feed"
-        if state.get("error") or state.get("status") == "error":
+        failed = bool(state.get("error") or state.get("status") == "error")
+        done, total = self._refresh_progress_counts()
+        if total > 0:
+            if failed:
+                message = _("Error checking: {title} ({done} out of {total})").format(
+                    title=title, done=done, total=total
+                )
+            else:
+                message = _("Checked {done} out of {total}").format(done=done, total=total)
+            # The tray gets the batch count, not the feed title: the count is
+            # the part a user wants at a glance, and it changes once per UI
+            # chunk instead of once per feed.  Store it only -- the flush that
+            # is already recomputing the unread total paints it (below).
+            set_tray_label = getattr(self, "_set_tray_activity_label", None)
+            if callable(set_tray_label):
+                set_tray_label(
+                    _("Refreshing: {done} out of {total}").format(done=done, total=total),
+                    update=False,
+                )
+        elif failed:
             message = _("Error checking: {title}").format(title=title)
         else:
             message = _("Checked: {title}").format(title=title)
-        # Keep the tray's activity wording stable as "Refreshing feeds..." for
-        # the batch.  Replacing it with every completed feed title makes Windows
-        # redraw the native tray icon hundreds of times in a long refresh.  The
-        # status field remains the detailed, screen-reader-friendly progress view.
+        # Keep the tray's activity wording stable for the batch.  Replacing it
+        # with every completed feed title makes Windows redraw the native tray
+        # icon hundreds of times in a long refresh.  The status field remains
+        # the detailed, screen-reader-friendly progress view.
         self._set_activity_status(message, update_tray=False)
 
     def _begin_refresh_ui_batch(self) -> int:
@@ -7518,6 +7665,9 @@ class MainFrame(wx.Frame):
             return
 
         with self._refresh_progress_lock:
+            # Count before coalescing: two feeds that finish between UI chunks
+            # both count, even though only the later state survives the queue.
+            self._note_refresh_progress_feed(feed_id)
             # Keep the latest state per feed per batch.  The token allows a
             # stale posted state from a just-finished refresh to be dropped if
             # the user starts another refresh before wx drains it.
@@ -12416,6 +12566,24 @@ class MainFrame(wx.Frame):
 
         self.refresh_feeds()
 
+    def _cmd_edit_selected(self, event=None):
+        """Edit whatever the tree has selected (the F2 command).
+
+        Feed Properties for a feed, Category Properties for a category (issue
+        #86). One command rather than two keeps a single "edit the thing I am
+        on" key, the way F2 already behaves elsewhere in Windows.
+        """
+        item = self.tree.GetSelection()
+        data = self.tree.GetItemData(item) if item and item.IsOk() else None
+        if data and data.get("type") == "category":
+            # A category's tree id is its full path (the category identity
+            # model), which is what the provider calls take.
+            category_path = data.get("id")
+            if category_path and not is_uncategorized(category_path):
+                self.on_edit_category(category_path)
+            return
+        self.on_edit_feed(event)
+
     def on_edit_feed(self, event):
         item = self.tree.GetSelection()
         if not item or not item.IsOk():
@@ -12626,7 +12794,12 @@ class MainFrame(wx.Frame):
         if not acquired:
             return
 
-        self._begin_refresh_activity(f"category: {category_title}")
+        # The category's own feeds plus every subcategory's (issue #85): that
+        # is exactly what _collect_category_feed_ids_for_refresh gathered.
+        self._begin_refresh_activity(
+            _("Refreshing category: {title}...").format(title=category_title),
+            total=len(feed_ids),
+        )
         try:
             def progress_cb(state):
                 self._on_feed_refresh_progress(state)
@@ -12702,7 +12875,7 @@ class MainFrame(wx.Frame):
         if not acquired:
             return
 
-        self._begin_refresh_activity("imported feeds")
+        self._begin_refresh_activity(_("Refreshing imported feeds..."), total=len(ordered_ids))
         try:
             def progress_cb(state):
                 self._on_feed_refresh_progress(state)

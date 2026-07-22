@@ -65,6 +65,10 @@ class _StatusBarHost:
     _begin_refresh_activity = mainframe.MainFrame._begin_refresh_activity
     _end_refresh_activity = mainframe.MainFrame._end_refresh_activity
     _set_feed_activity_status = mainframe.MainFrame._set_feed_activity_status
+    _reset_refresh_progress_counter = mainframe.MainFrame._reset_refresh_progress_counter
+    _note_refresh_progress_feed = mainframe.MainFrame._note_refresh_progress_feed
+    _refresh_progress_counts = mainframe.MainFrame._refresh_progress_counts
+    _expected_refresh_feed_count = mainframe.MainFrame._expected_refresh_feed_count
     _apply_feed_refresh_progress = mainframe.MainFrame._apply_feed_refresh_progress
     _on_feed_refresh_progress = mainframe.MainFrame._on_feed_refresh_progress
     _flush_feed_refresh_progress = mainframe.MainFrame._flush_feed_refresh_progress
@@ -167,10 +171,14 @@ def test_begin_refresh_activity_detail_wording_for_targeted_refreshes(monkeypatc
     _sync_call_after(monkeypatch)
     host = _StatusBarHost()
 
+    # Targeted refreshes pass complete, already-localized wording; only the
+    # full-feed refresh relies on the default.  (The real call sites' wording
+    # is asserted end-to-end in test_category_opml_export /
+    # test_opml_import_refresh.)
     host._begin_refresh_activity()
-    host._begin_refresh_activity("feed: Example Feed")
-    host._begin_refresh_activity("category: Tech")
-    host._begin_refresh_activity("imported feeds")
+    host._begin_refresh_activity("Refreshing feed: Example Feed...")
+    host._begin_refresh_activity("Refreshing category: Tech...")
+    host._begin_refresh_activity("Refreshing imported feeds...")
 
     assert host.field_history[1] == [
         "Refreshing feeds...",
@@ -178,6 +186,101 @@ def test_begin_refresh_activity_detail_wording_for_targeted_refreshes(monkeypatc
         "Refreshing category: Tech...",
         "Refreshing imported feeds...",
     ]
+
+
+# --- (b2) "checked X out of Y" refresh progress (issue #85) ----------------
+
+
+def _feed_state(feed_id, title, **extra):
+    state = {"id": feed_id, "title": title, "unread_count": 0, "category": "News", "status": "ok"}
+    state.update(extra)
+    return state
+
+
+def test_refresh_progress_counts_feeds_against_the_batch_total(monkeypatch):
+    _sync_call_after(monkeypatch)
+    host = _StatusBarHost()
+
+    host._begin_refresh_activity(total=3)
+    assert host.fields[1] == "Refreshing feeds..."
+
+    host._on_feed_refresh_progress(_feed_state("feed-1", "First"))
+    assert host.fields[1] == "Checked 1 out of 3"
+
+    host._on_feed_refresh_progress(_feed_state("feed-2", "Second"))
+    assert host.fields[1] == "Checked 2 out of 3"
+
+    # The tray follows the batch count, not the last feed's title.
+    assert host.tray_icon.label == "Refreshing: 2 out of 3"
+
+    host._end_refresh_activity()
+    assert host.fields[1] == "Refresh complete"
+    assert host.tray_icon.label == "BlindRSS"
+
+
+def test_refresh_progress_keeps_the_failing_feed_title(monkeypatch):
+    _sync_call_after(monkeypatch)
+    host = _StatusBarHost()
+
+    host._begin_refresh_activity(total=2)
+    host._on_feed_refresh_progress(_feed_state("feed-1", "Broken Feed", status="error", error="timed out"))
+
+    assert host.fields[1] == "Error checking: Broken Feed (1 out of 2)"
+
+
+def test_refresh_progress_counts_each_feed_once(monkeypatch):
+    """A provider that reports the same feed twice (a retry pass) must not
+    advance the count, and one that reports more feeds than predicted must not
+    announce "3 out of 2"."""
+    _sync_call_after(monkeypatch)
+    host = _StatusBarHost()
+
+    host._begin_refresh_activity(total=2)
+    host._on_feed_refresh_progress(_feed_state("feed-1", "First", status="error", error="timed out"))
+    host._on_feed_refresh_progress(_feed_state("feed-1", "First"))
+    assert host.fields[1] == "Checked 1 out of 2"
+
+    host._on_feed_refresh_progress(_feed_state("feed-2", "Second"))
+    host._on_feed_refresh_progress(_feed_state("feed-3", "Third"))
+    assert host.fields[1] == "Checked 3 out of 3"
+
+
+def test_refresh_without_a_known_total_keeps_the_feed_title_wording(monkeypatch):
+    """A single-feed refresh names the feed: "1 out of 1" says less."""
+    _sync_call_after(monkeypatch)
+    host = _StatusBarHost()
+
+    host._begin_refresh_activity("Refreshing feed: Example Feed...")
+    host._on_feed_refresh_progress(_feed_state("feed-1", "Example Feed"))
+
+    assert host.fields[1] == "Checked: Example Feed"
+
+
+def test_progress_count_resets_between_refresh_batches(monkeypatch):
+    _sync_call_after(monkeypatch)
+    host = _StatusBarHost()
+
+    host._begin_refresh_activity(total=2)
+    host._on_feed_refresh_progress(_feed_state("feed-1", "First"))
+    host._on_feed_refresh_progress(_feed_state("feed-2", "Second"))
+    host._end_refresh_activity()
+
+    host._begin_refresh_activity(total=2)
+    host._on_feed_refresh_progress(_feed_state("feed-1", "First"))
+    assert host.fields[1] == "Checked 1 out of 2"
+
+
+def test_expected_refresh_feed_count_prefers_the_tree_snapshot():
+    host = _StatusBarHost()
+    host.provider = SimpleNamespace(get_feeds=lambda: [SimpleNamespace(id="feed-9")])
+
+    assert host._expected_refresh_feed_count() == 1
+
+    host.feed_map = {
+        "feed-1": SimpleNamespace(id="feed-1", unread_count=0),
+        "feed-2": SimpleNamespace(id="feed-2", unread_count=0),
+    }
+    assert host._expected_refresh_feed_count() == 2
 
 
 def test_feed_activity_status_falls_back_to_generic_title():

@@ -603,3 +603,167 @@ def test_flat_provider_hierarchy_is_empty(monkeypatch):
             assert provider.get_category_hierarchy() == {}
         finally:
             _restore_db(orig)
+
+
+# ── Moving a category (issue #86) ────────────────────────────────────────
+
+
+def _insert_feed(category, title="A Feed"):
+    feed_id = str(uuid.uuid4())
+    conn = db_mod.get_connection()
+    try:
+        c = conn.cursor()
+        c.execute(
+            "INSERT INTO feeds (id, url, title, category) VALUES (?, ?, ?, ?)",
+            (feed_id, "http://example.com/%s" % feed_id, title, category),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return feed_id
+
+
+def _feed_category(feed_id):
+    conn = db_mod.get_connection()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT category FROM feeds WHERE id = ?", (feed_id,))
+        row = c.fetchone()
+        return row[0] if row else None
+    finally:
+        conn.close()
+
+
+def test_local_move_category_under_a_new_parent():
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Work")
+            provider.add_category("Tech")
+            feed_id = _insert_feed("Tech")
+
+            assert provider.move_category("Tech", "Work") is True
+
+            hierarchy = db_mod.get_category_hierarchy()
+            assert hierarchy.get("Work / Tech") == "Work"
+            assert "Tech" not in hierarchy
+            # The feed's category is the path, so it moves with the folder.
+            assert _feed_category(feed_id) == "Work / Tech"
+        finally:
+            _restore_db(orig)
+
+
+def test_local_move_category_rewrites_descendant_paths_and_feeds():
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Work")
+            provider.add_category("Tech")
+            provider.add_category("Phones", parent_title="Tech")
+            provider.add_category("Android", parent_title="Tech / Phones")
+            deep_feed = _insert_feed("Tech / Phones / Android")
+
+            assert provider.move_category("Tech", "Work") is True
+
+            hierarchy = db_mod.get_category_hierarchy()
+            assert hierarchy.get("Work / Tech / Phones") == "Work / Tech"
+            assert hierarchy.get("Work / Tech / Phones / Android") == "Work / Tech / Phones"
+            assert _feed_category(deep_feed) == "Work / Tech / Phones / Android"
+        finally:
+            _restore_db(orig)
+
+
+def test_local_move_category_to_top_level():
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Work")
+            provider.add_category("Tech", parent_title="Work")
+            feed_id = _insert_feed("Work / Tech")
+
+            assert provider.move_category("Work / Tech", None) is True
+
+            hierarchy = db_mod.get_category_hierarchy()
+            assert "Tech" in hierarchy
+            assert hierarchy.get("Tech") is None
+            assert "Work / Tech" not in hierarchy
+            assert _feed_category(feed_id) == "Tech"
+        finally:
+            _restore_db(orig)
+
+
+def test_local_move_category_rejects_moving_into_its_own_subtree():
+    """A category cannot become its own ancestor: that would detach the subtree
+    from the root and orphan every feed under it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Tech")
+            provider.add_category("Phones", parent_title="Tech")
+
+            assert provider.move_category("Tech", "Tech / Phones") is False
+            assert provider.move_category("Tech", "Tech") is False
+
+            hierarchy = db_mod.get_category_hierarchy()
+            assert hierarchy.get("Tech / Phones") == "Tech"
+        finally:
+            _restore_db(orig)
+
+
+def test_local_move_category_rejects_name_taken_under_the_target_parent():
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Work")
+            provider.add_category("Tech", parent_title="Work")
+            provider.add_category("Tech")
+
+            assert provider.move_category("Tech", "Work") is False
+
+            hierarchy = db_mod.get_category_hierarchy()
+            assert hierarchy.get("Work / Tech") == "Work"
+            assert hierarchy.get("Tech") is None
+        finally:
+            _restore_db(orig)
+
+
+def test_local_move_category_rejects_unknown_parent_and_uncategorized():
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Tech")
+
+            assert provider.move_category("Tech", "No Such Folder") is False
+            assert provider.move_category("Uncategorized", "Tech") is False
+            assert provider.move_category("", "Tech") is False
+        finally:
+            _restore_db(orig)
+
+
+def test_local_move_category_to_its_current_parent_is_a_no_op():
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _setup_db(tmp)
+        try:
+            provider = _make_provider(tmp)
+            provider.add_category("Work")
+            provider.add_category("Tech", parent_title="Work")
+
+            assert provider.move_category("Work / Tech", "Work") is True
+
+            hierarchy = db_mod.get_category_hierarchy()
+            assert hierarchy.get("Work / Tech") == "Work"
+        finally:
+            _restore_db(orig)
+
+
+def test_flat_provider_refuses_to_move_categories():
+    """Hosted providers are flat upstream; nesting is never simulated locally."""
+    from providers.base import RSSProvider
+
+    assert RSSProvider.move_category(object(), "Tech", "Work") is False

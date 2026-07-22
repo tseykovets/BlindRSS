@@ -82,6 +82,7 @@ class _DummyMainFrame:
     _post_import_opml = mainframe.MainFrame._post_import_opml
     _refresh_imported_feed_ids_thread = mainframe.MainFrame._refresh_imported_feed_ids_thread
     _begin_refresh_activity = mainframe.MainFrame._begin_refresh_activity
+    _reset_refresh_progress_counter = mainframe.MainFrame._reset_refresh_progress_counter
     _end_refresh_activity = mainframe.MainFrame._end_refresh_activity
     _post_activity_status = mainframe.MainFrame._post_activity_status
     _set_activity_status = mainframe.MainFrame._set_activity_status

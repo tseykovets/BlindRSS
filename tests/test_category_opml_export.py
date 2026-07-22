@@ -23,6 +23,7 @@ class _DummyMain:
     _export_category_opml_to_path = mainframe.MainFrame._export_category_opml_to_path
     _refresh_category_thread = mainframe.MainFrame._refresh_category_thread
     _begin_refresh_activity = mainframe.MainFrame._begin_refresh_activity
+    _reset_refresh_progress_counter = mainframe.MainFrame._reset_refresh_progress_counter
     _end_refresh_activity = mainframe.MainFrame._end_refresh_activity
     _post_activity_status = mainframe.MainFrame._post_activity_status
     _set_activity_status = mainframe.MainFrame._set_activity_status

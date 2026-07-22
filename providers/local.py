@@ -5056,6 +5056,70 @@ class LocalProvider(RSSProvider):
         finally:
             conn.close()
 
+    def move_category(self, title: str, parent_title: str = None) -> bool:
+        # `title` is the moved category's full path; `parent_title` is the new
+        # parent's full path, or None for top level (issue #86). The leaf name
+        # is kept -- only the ancestry changes -- but because the path embeds
+        # its ancestors, the node's own path, every descendant path and every
+        # feed assigned to those paths are rewritten, exactly as in
+        # rename_category.
+        from core.db import CATEGORY_PATH_SEP, category_display_leaf, make_category_path
+        old_path = (title or "").strip()
+        new_parent = (parent_title or "").strip() or None
+        if not old_path or old_path.casefold() == UNCATEGORIZED.casefold():
+            return False
+        if new_parent and new_parent.casefold() == UNCATEGORIZED.casefold():
+            return False
+        # A category cannot become its own ancestor: that would detach the whole
+        # subtree from the root and orphan every feed under it.
+        if new_parent == old_path or (new_parent or "").startswith(old_path + CATEGORY_PATH_SEP):
+            return False
+
+        conn = get_connection()
+        c = conn.cursor()
+        try:
+            c.execute("SELECT id, parent_id FROM categories WHERE title = ?", (old_path,))
+            row = c.fetchone()
+            if not row:
+                return False
+            cat_id = row[0]
+
+            new_parent_id = None
+            if new_parent:
+                c.execute("SELECT id FROM categories WHERE title = ?", (new_parent,))
+                prow = c.fetchone()
+                if not prow:
+                    return False  # parent must exist
+                new_parent_id = prow[0]
+
+            new_path = make_category_path(new_parent, category_display_leaf(old_path))
+            if new_path == old_path:
+                return True
+            # The target parent may already have a child with this leaf name.
+            c.execute("SELECT 1 FROM categories WHERE title = ?", (new_path,))
+            if c.fetchone():
+                return False
+
+            prefix = old_path + CATEGORY_PATH_SEP
+            c.execute("SELECT title FROM categories")
+            affected = [r[0] for r in c.fetchall()
+                        if r[0] == old_path or r[0].startswith(prefix)]
+            for old_p in affected:
+                new_p = new_path + old_p[len(old_path):]
+                c.execute("UPDATE categories SET title = ? WHERE title = ?", (new_p, old_p))
+                c.execute("UPDATE feeds SET category = ? WHERE category = ?", (new_p, old_p))
+            # Only the moved node changes parent; its descendants keep pointing
+            # at their own parents by id, so their links survive the rewrite.
+            c.execute("UPDATE categories SET parent_id = ? WHERE id = ?", (new_parent_id, cat_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            conn.rollback()
+            log.error(f"Move category error: {e}")
+            return False
+        finally:
+            conn.close()
+
     def delete_category(self, title: str) -> bool:
         # `title` is the full path. Direct children are reparented to the deleted
         # node's parent, which shortens their paths; descendant paths and the

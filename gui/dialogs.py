@@ -3922,6 +3922,86 @@ class FeedPropertiesDialog(wx.Dialog):
         return title, url, category
 
 
+class CategoryPropertiesDialog(wx.Dialog):
+    """Rename a category and/or move it under another one (issue #86).
+
+    The category counterpart of FeedPropertiesDialog: same Name-then-Category
+    field order, same OK/Cancel contract, same get_data() shape.  The parent
+    picker is read-only (matching the Add Category dialog) because a parent has
+    to be an existing category -- unlike a feed's category field, typing a new
+    name here would have nothing to attach the subtree to.
+
+    ``parent_identities`` is the list of categories that may become the parent;
+    the caller is responsible for leaving out the category itself and its own
+    descendants, which cannot become their own ancestors.  On a provider that
+    is flat upstream, ``allow_parent_edit=False`` drops the picker entirely
+    rather than offering a move the provider cannot perform.
+    """
+
+    TOP_LEVEL = None
+
+    def __init__(
+        self,
+        parent,
+        category_path,
+        parent_identities,
+        current_parent=None,
+        allow_parent_edit: bool = True,
+    ):
+        super().__init__(
+            parent,
+            title=_("Category Properties"),
+            size=(460, 220 if allow_parent_edit else 160),
+        )
+
+        from core.db import category_display_leaf
+
+        self.category_path = str(category_path or "")
+        self.parent_identities = [str(c) for c in (parent_identities or [])]
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        sizer.Add(wx.StaticText(self, label=_("Name:")), 0, wx.ALL, 5)
+        self.name_ctrl = wx.TextCtrl(self, value=category_display_leaf(self.category_path))
+        self.name_ctrl.SetName(_("Category name"))
+        sizer.Add(self.name_ctrl, 0, wx.EXPAND | wx.ALL, 5)
+
+        self.parent_ctrl = None
+        if allow_parent_edit:
+            sizer.Add(wx.StaticText(self, label=_("Category:")), 0, wx.ALL, 5)
+            choices = [_("(None - Top Level)")] + [
+                category_display_name(identity) for identity in self.parent_identities
+            ]
+            self.parent_ctrl = wx.ComboBox(self, choices=choices, style=wx.CB_READONLY)
+            self.parent_ctrl.SetName(_("Category"))
+            current = str(current_parent or "")
+            selection = 0
+            if current and current in self.parent_identities:
+                selection = self.parent_identities.index(current) + 1
+            self.parent_ctrl.SetSelection(selection)
+            sizer.Add(self.parent_ctrl, 0, wx.EXPAND | wx.ALL, 5)
+
+        sizer.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        self.SetSizer(sizer)
+        self.Centre()
+        wx.CallAfter(self.name_ctrl.SetFocus)
+
+    def get_data(self):
+        """(leaf name, parent identity or None for top level)."""
+        try:
+            name = (self.name_ctrl.GetValue() or "").strip()
+        except Exception:
+            name = ""
+        parent = self.TOP_LEVEL
+        try:
+            index = self.parent_ctrl.GetSelection()
+            if index > 0:
+                parent = self.parent_identities[index - 1]
+        except Exception:
+            parent = self.TOP_LEVEL
+        return name, parent
+
+
 class FeedErrorsDialog(wx.Dialog):
     """Accessible viewer for feeds whose latest update attempt failed (issue #32).
 

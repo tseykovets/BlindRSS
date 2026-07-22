@@ -277,6 +277,16 @@ class RSSProvider(abc.ABC):
         never offers subcategory creation and nesting is never simulated."""
         return False
 
+    def move_category(self, title: str, parent_title: str = None) -> bool:
+        """Re-parent a category (issue #86); parent_title=None means top level.
+
+        Only meaningful where categories can nest, so the flat default refuses:
+        a provider that is flat upstream has no parent to move a category to,
+        and simulating one locally is exactly what supports_subcategories()
+        exists to prevent.
+        """
+        return False
+
     def get_category_hierarchy(self) -> dict:
         """Return {category_path: parent_path} mapping. Providers that do not
         support nesting are flat, so return an empty mapping (every category is

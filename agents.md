@@ -394,6 +394,7 @@ You should not need to open `build.bat`/`build.sh` to cut a release — everythi
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\rich2-context-menu-never-delivered.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\screen-reader-announcements.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\shortcut-registry-full-coverage.md
+@C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\silent-noop-ui-failures.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\site-cookies-challenge-fetch.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\soundcloud-mixcloud-feeds.md
 @C:\Users\admin\.claude\projects\C--Users-admin-git-BlindRSS\memory\speed-shortcut-interception.md

@@ -196,3 +196,52 @@ def test_freshest_clearance_wins_across_profiles(monkeypatch):
     assert site_cookies.cookies_for(url)["cf_clearance"] == "fresh"
     # And the UA must be the one that earned the winning cookie, not the loser's.
     assert site_cookies.user_agent_for(url) == "Firefox/152.0"
+
+
+def test_forced_refresh_ignores_the_mtime_marker(monkeypatch):
+    # The marker is exactly what is in the way when the cookie we hold is dead,
+    # so the "this one does not work" path must bypass it.
+    store = {"/p/one": rows((".audiogames.net", "/", True, False, FUTURE, "cf_clearance", "old"))}
+    patch_reader(monkeypatch, store)
+    monkeypatch.setattr(site_cookies, "list_browser_profiles", lambda: [fake_profile()])
+    cfg = Config()
+    site_cookies.auto_import_browser_profiles(cfg, profiles=[fake_profile(mtime=100.0)])
+
+    url = "https://forum.audiogames.net/x"
+    store["/p/one"] = rows((".audiogames.net", "/", True, False, FUTURE, "cf_clearance", "new"))
+    site_cookies._last_forced_refresh.clear()
+    assert site_cookies.refresh_clearance_from_browsers(url) is True
+    assert site_cookies.cookies_for(url)["cf_clearance"] == "new"
+
+
+def test_forced_refresh_reports_no_change_when_the_browser_has_nothing_newer(monkeypatch):
+    patch_reader(
+        monkeypatch,
+        {"/p/one": rows((".audiogames.net", "/", True, False, FUTURE, "cf_clearance", "same"))},
+    )
+    monkeypatch.setattr(site_cookies, "list_browser_profiles", lambda: [fake_profile()])
+    url = "https://forum.audiogames.net/x"
+    site_cookies._last_forced_refresh.clear()
+    site_cookies.refresh_clearance_from_browsers(url)
+    site_cookies._last_forced_refresh.clear()
+    assert site_cookies.refresh_clearance_from_browsers(url) is False
+
+
+def test_forced_refresh_is_rate_limited_per_host(monkeypatch):
+    # A site that is simply blocked must not make every fetch re-read every
+    # profile on the machine.
+    reads = []
+
+    def reader(path):
+        reads.append(path)
+        return rows((".audiogames.net", "/", True, False, FUTURE, "cf_clearance", "t"))
+
+    monkeypatch.setattr(site_cookies, "_read_firefox_cookies", reader)
+    monkeypatch.setattr(site_cookies, "firefox_profile_user_agent", lambda p: "")
+    monkeypatch.setattr(site_cookies, "list_browser_profiles", lambda: [fake_profile()])
+    url = "https://forum.audiogames.net/x"
+    site_cookies._last_forced_refresh.clear()
+    site_cookies.refresh_clearance_from_browsers(url)
+    site_cookies.refresh_clearance_from_browsers(url)
+    site_cookies.refresh_clearance_from_browsers(url)
+    assert len(reads) == 1

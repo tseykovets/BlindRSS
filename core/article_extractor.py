@@ -2575,7 +2575,38 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
     is_bloomberg_video = _is_bloomberg_video_url(url)
     tried_impersonation_first = False
 
+    def _retry_with_refreshed_clearance() -> Optional[_FetchResult]:
+        """Re-read the browser's clearance for this site and try once more.
+
+        Clearance cookies are short-lived (audiogames.net's lapse in well under
+        an hour), so a gate on a site we hold a session for usually just means
+        the user has re-visited it in their browser since we last looked. One
+        SQLite read beats running the whole fallback chain — Jina, Smry,
+        Wayback, then a serialized Chromium launch — for a page a current
+        cookie fetches outright.
+        """
+        try:
+            from core import site_cookies
+
+            if not site_cookies.refresh_clearance_from_browsers(url):
+                return None
+            r = utils.safe_requests_get(
+                url, timeout=timeout, headers=dict(_HTML_ACCEPT_HEADERS), allow_redirects=True
+            )
+            if not (200 <= r.status_code < 400):
+                return None
+            body = _response_text(r)
+            if body and not _looks_like_bot_interstitial(body):
+                return _FetchResult(html=body)
+        except Exception:
+            LOG.debug("Clearance refresh retry failed for %s", url, exc_info=True)
+        return None
+
     def _try_fallbacks(*, gate_seen: bool) -> _FetchResult:
+        if gate_seen:
+            recovered = _retry_with_refreshed_clearance()
+            if recovered is not None:
+                return recovered
         if is_bloomberg_video and gate_seen:
             return _FetchResult(blocked=True)
         # Every fallback body is re-checked for interstitials so a gate served by the fallback

@@ -239,18 +239,31 @@ def host_user_agent_for(url: str) -> str:
     return mapping.get(best, "")
 
 
-def user_agent_for(url: str, *, now: float | None = None) -> str:
-    """The browser UA these cookies belong to — only for sites the jar covers.
+def has_clearance_for(url: str, *, now: float | None = None) -> bool:
+    """True when the jar holds a bot-check clearance cookie for this URL."""
+    return any(_is_harvestable(name) for name in cookies_for(url, now=now))
 
-    Scoped this way so importing cookies for one challenge-protected forum
-    never changes the fingerprint of every other request the app makes. A UA
-    harvested for this specific host (see `record_browser_session`) wins over
-    the user's global manual entry, because a clearance cookie is only valid
-    for the exact UA that earned it.
+
+def user_agent_for(url: str, *, now: float | None = None) -> str:
+    """The browser UA these cookies belong to, or "" when none should be forced.
+
+    Two separate cases, and conflating them broke unrelated requests:
+
+    * A UA recorded for *this host* (harvested, or read from the profile that
+      supplied its clearance) always applies — it was captured deliberately and
+      a clearance is only valid for the exact UA that earned it.
+    * The user's single global UA is a fallback, and only for hosts that
+      actually have a clearance cookie. It used to apply to any host with any
+      cookie at all, so a full manual jar import made every GitHub API call go
+      out with a Firefox User-Agent and the user's github cookies attached.
+      An ordinary login cookie is not fingerprint-bound and needs no UA pin.
     """
-    if not cookies_for(url, now=now):
+    host_ua = host_user_agent_for(url)
+    if host_ua:
+        return host_ua if cookies_for(url, now=now) else ""
+    if not has_clearance_for(url, now=now):
         return ""
-    return host_user_agent_for(url) or get_user_agent()
+    return get_user_agent()
 
 
 # ---------------------------------------------------------------------------
@@ -531,6 +544,72 @@ def _clearance_candidates(profile_dir: str, user_agent: str):
         )
         out.append((record, expiry_f, str(host).lstrip(".").lower(), user_agent))
     return out
+
+
+_REFRESH_MIN_INTERVAL_S = 20.0
+_last_forced_refresh = {}
+_forced_refresh_lock = threading.Lock()
+
+
+def refresh_clearance_from_browsers(url: str) -> bool:
+    """Re-read the browser profiles right now; True if this URL's clearance changed.
+
+    Cloudflare hands out short-lived clearances (audiogames.net's lapse in well
+    under an hour), so the usual answer to a gate on a site we have a session
+    for is simply that the user has since re-visited it in their browser and we
+    are still holding the old token. Checking costs one SQLite copy; the
+    alternative is the whole fallback chain including a serialized Chromium
+    launch, for a page a fresh cookie would have fetched outright.
+
+    Ignores the mtime markers on purpose — this is the path for "the cookie we
+    have does not work", where the marker is exactly what is in the way. Rate
+    limited per host so a site that is simply blocked cannot make every fetch
+    re-read every profile.
+    """
+    try:
+        host = (urllib.parse.urlsplit(str(url or "")).hostname or "").lower()
+    except Exception:
+        return False
+    if not host:
+        return False
+    now = time.monotonic()
+    with _forced_refresh_lock:
+        if now - _last_forced_refresh.get(host, 0.0) < _REFRESH_MIN_INTERVAL_S:
+            return False
+        _last_forced_refresh[host] = now
+
+    before = cookies_for(url)
+    try:
+        profiles = list_browser_profiles()
+    except Exception:
+        return False
+    best = {}
+    for profile in profiles or []:
+        path = str(profile.get("path", "") or "")
+        if not path:
+            continue
+        try:
+            ua = firefox_profile_user_agent(path)
+        except Exception:
+            ua = ""
+        try:
+            candidates = _clearance_candidates(path, ua)
+        except Exception:
+            continue
+        for record, expiry, cookie_host, cookie_ua in candidates:
+            slot = _record_key(record)
+            if slot not in best or expiry > best[slot][1]:
+                best[slot] = (record, expiry, cookie_host, cookie_ua)
+    if not best:
+        return False
+    _merge_records_into_jar([entry[0] for entry in best.values()])
+    for _record, _expiry, cookie_host, cookie_ua in best.values():
+        if cookie_ua:
+            set_host_user_agent(cookie_host, cookie_ua)
+    changed = cookies_for(url) != before
+    if changed:
+        log.info("Refreshed clearance cookies for %s from the browser", host)
+    return changed
 
 
 def auto_import_browser_profiles(config_manager, *, profiles=None) -> int:

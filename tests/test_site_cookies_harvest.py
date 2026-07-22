@@ -221,3 +221,38 @@ def test_site_without_a_stored_session_is_not_forced_to_impersonate():
     from core import utils
 
     assert utils._site_cookie_impersonation("https://example.org/no-session") == ""
+
+
+def test_ordinary_login_cookies_do_not_pin_a_ua_or_force_impersonation():
+    # Regression: a full manual jar import put github's login cookies in the
+    # jar, and the global UA then applied to every host with ANY cookie. Every
+    # api.github.com call went out with a Firefox User-Agent, the user's github
+    # cookies, and a forced curl_cffi handshake.
+    from core import utils
+
+    site_cookies.set_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0")
+    site_cookies._merge_records_into_jar([
+        (".github.com", "TRUE", "/", "TRUE", str(int(time.time()) + 86400), "logged_in", "yes"),
+    ])
+    url = "https://api.github.com/repos/x/y"
+    assert site_cookies.cookies_for(url)          # the cookie is still sent
+    assert not site_cookies.has_clearance_for(url)
+    assert site_cookies.user_agent_for(url) == ""  # but no UA is forced
+    assert utils._site_cookie_impersonation(url) == ""
+
+
+def test_global_ua_still_applies_to_a_site_with_a_clearance():
+    manual = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0"
+    site_cookies.set_user_agent(manual)
+    site_cookies._merge_records_into_jar([
+        (".audiogames.net", "TRUE", "/", "TRUE", str(int(time.time()) + 3600), "cf_clearance", "t"),
+    ])
+    assert site_cookies.has_clearance_for(URL)
+    assert site_cookies.user_agent_for(URL) == manual
+
+
+def test_host_ua_is_dropped_once_its_cookies_are_gone():
+    # A pinned UA outliving its cookies would keep changing the fingerprint of
+    # a site the jar no longer has anything for.
+    site_cookies.set_host_user_agent("audiogames.net", "Firefox/152.0")
+    assert site_cookies.user_agent_for(URL) == ""

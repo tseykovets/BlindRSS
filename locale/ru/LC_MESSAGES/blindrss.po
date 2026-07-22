@@ -210,9 +210,10 @@ msgid ""
 "short time. Open the page in {browser} and BlindRSS will pick the access "
 "back up automatically within a minute."
 msgstr ""
-"Эта страница защищена проверкой на робота, и доступ, который был у BlindRSS "
-"для этого сайта, истёк — такие проверки действуют лишь короткое время. "
-"Откройте страницу в {browser}, и BlindRSS восстановит доступ автоматически в "
+"Эта страница защищена от ботов / проверяет, что пользователь является "
+"человеком, и срок действия доступа к этому сайту, который был у BlindRSS, "
+"истёк: эти проверки действительны только в течение короткого времени. "
+"Откройте страницу в {browser}, и BlindRSS автоматически восстановит доступ в "
 "течение минуты."
 
 #: core/article_extractor.py:3414 gui/dialogs.py:3529
@@ -812,6 +813,18 @@ msgstr "Программа установки обновления '{name}' не
 #: core/updater.py:483
 msgid "Update is signed but not by a trusted certificate{suffix}"
 msgstr "Обновление подписано, но не доверенным сертификатом{suffix}"
+
+#: core/user_agents.py:482
+msgid "Automatic"
+msgstr "Автоматически"
+
+#: core/user_agents.py:482
+msgid "Automatic ({label})"
+msgstr "Автоматически ({label})"
+
+#: core/user_agents.py:374
+msgid "{label} {major} (installed)"
+msgstr "{label} {major} (установлен)"
 
 #: core/utils.py:1372
 msgid "Just now"
@@ -3561,14 +3574,15 @@ msgid ""
 "Automatic uses a browser installed on this computer, at its real version,\n"
 "which is what sites with bot protection are most likely to accept."
 msgstr ""
-"Браузер, которым представляется BlindRSS при загрузке лент и статей.\n"
-"Автоматически используется браузер, установленный на этом компьютере, с его "
-"настоящей версией,\n"
-"что чаще всего принимают сайты с защитой от ботов."
+"Браузер, которым представляется BlindRSS также, как при выгрузке каналов и "
+"статей.\n"
+"Автоматически использует браузер, установленный на этом компьютере, с "
+"указанием его реальной версии,\n"
+"именно это с наибольшей вероятностью примут сайты с защитой от ботов."
 
 #: gui/dialogs.py:2333
 msgid "Identify as:"
-msgstr "Представляться как:"
+msgstr "Идентифицировать себя как:"
 
 #: gui/dialogs.py:2355
 msgid "Custom User-Agent:"

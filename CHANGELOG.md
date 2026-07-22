@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.114.2 - 2026-07-22
+
+- Let the real "Uncategorized" category be removed and edited.
+
 ## v1.114.1 - 2026-07-22
 
 - Edit Category did nothing on the Uncategorized folder.

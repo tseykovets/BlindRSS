@@ -27,6 +27,7 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import json
 import threading
 import time
 import urllib.parse
@@ -38,6 +39,11 @@ log = logging.getLogger(__name__)
 
 JAR_FILENAME = "site_cookies.txt"
 UA_FILENAME = "site_cookies_ua.txt"
+# Per-host User-Agents, for cookies harvested automatically from the headless
+# browser. The single UA_FILENAME is the user's own manual entry and applies to
+# every site; a harvested clearance belongs to exactly one host and must not
+# change the fingerprint the app presents to any other.
+HOST_UA_FILENAME = "site_cookies_ua_hosts.json"
 
 _lock = threading.Lock()
 _write_lock = threading.Lock()
@@ -50,6 +56,10 @@ def jar_path() -> str:
 
 def ua_path() -> str:
     return os.path.join(config_mod.get_data_dir(), UA_FILENAME)
+
+
+def host_ua_path() -> str:
+    return os.path.join(config_mod.get_data_dir(), HOST_UA_FILENAME)
 
 
 def validate_jar_file(path: str) -> tuple[bool, str]:
@@ -177,15 +187,70 @@ def cookie_header_for(url: str, *, now: float | None = None) -> str:
     return "; ".join(f"{k}={v}" for k, v in cookies_for(url, now=now).items())
 
 
+def _load_host_user_agents() -> dict:
+    try:
+        with open(host_ua_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(k).lower(): str(v) for k, v in data.items() if k and v}
+
+
+def set_host_user_agent(host: str, ua: str) -> None:
+    """Record the UA a harvested session for `host` was issued to (or clear it)."""
+    host = str(host or "").strip().lower().lstrip(".")
+    if not host:
+        return
+    ua = str(ua or "").strip()
+    path = host_ua_path()
+    with _write_lock:
+        mapping = _load_host_user_agents()
+        if ua:
+            mapping[host] = ua
+        else:
+            mapping.pop(host, None)
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(mapping, fh, indent=1, sort_keys=True)
+        except OSError:
+            log.exception("Could not persist the per-host site-cookies User-Agent")
+    _invalidate()
+
+
+def host_user_agent_for(url: str) -> str:
+    """The harvested UA registered for this URL's host, matching parent domains."""
+    try:
+        host = (urllib.parse.urlsplit(str(url or "")).hostname or "").lower()
+    except Exception:
+        return ""
+    if not host:
+        return ""
+    mapping = _load_host_user_agents()
+    # Longest (most specific) suffix wins, so a rule for forum.example.com
+    # beats one for example.com.
+    best = ""
+    for candidate in mapping:
+        if host == candidate or host.endswith("." + candidate):
+            if len(candidate) > len(best):
+                best = candidate
+    return mapping.get(best, "")
+
+
 def user_agent_for(url: str, *, now: float | None = None) -> str:
-    """The imported browser UA — only for sites the jar has cookies for.
+    """The browser UA these cookies belong to — only for sites the jar covers.
 
     Scoped this way so importing cookies for one challenge-protected forum
-    never changes the fingerprint of every other request the app makes.
+    never changes the fingerprint of every other request the app makes. A UA
+    harvested for this specific host (see `record_browser_session`) wins over
+    the user's global manual entry, because a clearance cookie is only valid
+    for the exact UA that earned it.
     """
     if not cookies_for(url, now=now):
         return ""
-    return get_user_agent()
+    return host_user_agent_for(url) or get_user_agent()
 
 
 # ---------------------------------------------------------------------------
@@ -417,6 +482,256 @@ def import_from_browser_profile(profile_dir: str) -> int:
         ))
     _merge_records_into_jar(new_records)
     return len(rows)
+
+
+def import_clearance_from_browser_profile(profile_dir: str, user_agent: str = "") -> int:
+    """Copy only the bot-check clearance cookies out of a browser profile.
+
+    The automatic counterpart to `import_from_browser_profile`. That one is
+    user-initiated and takes the whole jar; this runs unattended in the
+    background, so it takes only what a bot check needs and leaves the user's
+    logins in their browser. Copying every site's session cookie into a
+    plaintext file in the app data dir is not a thing to do without being asked.
+
+    `user_agent` is recorded per host for the sites this profile had clearance
+    for, because a clearance is only valid for the UA that earned it.
+    """
+    candidates = _clearance_candidates(profile_dir, user_agent)
+    if not candidates:
+        return 0
+    _merge_records_into_jar([record for record, _expiry, _host, _ua in candidates])
+    if user_agent:
+        for _record, _expiry, host, _ua in candidates:
+            set_host_user_agent(host, user_agent)
+    return len(candidates)
+
+
+def _clearance_candidates(profile_dir: str, user_agent: str):
+    """[(jar record, expiry, host, ua)] for the unexpired clearance cookies in a profile."""
+    out = []
+    now = time.time()
+    for host, path, secure, http_only, expiry, name, value in _read_firefox_cookies(profile_dir):
+        if not _is_harvestable(name):
+            continue
+        try:
+            expiry_f = float(expiry or 0)
+        except (TypeError, ValueError):
+            expiry_f = 0.0
+        if expiry_f and expiry_f < now:
+            continue
+        domain_field = ("#HttpOnly_" + host) if http_only else host
+        record = (
+            domain_field,
+            "TRUE" if host.startswith(".") else "FALSE",
+            path,
+            "TRUE" if secure else "FALSE",
+            str(int(expiry_f)),
+            name,
+            value,
+        )
+        out.append((record, expiry_f, str(host).lstrip(".").lower(), user_agent))
+    return out
+
+
+def auto_import_browser_profiles(config_manager, *, profiles=None) -> int:
+    """Refresh clearance cookies from every browser profile we can read.
+
+    Runs on the CookieImportWatcher thread. Only profiles whose cookie database
+    changed since the last pass are re-read, because each read copies and parses
+    the whole database — doing that for every profile on every tick would be
+    real disk work for nothing.
+
+    Firefox-family profiles are readable because their cookie store is plain
+    SQLite. Chromium browsers on Windows encrypt theirs with App-Bound
+    Encryption (unreadable outside the browser), so those users still need the
+    "Get cookies.txt LOCALLY" export the Downloads watcher picks up.
+
+    Gated by `auto_import_browser_cookies`, the same consent as the other
+    automatic import. Returns the number of cookies stored.
+    """
+    try:
+        if not bool(config_manager.get("auto_import_browser_cookies", True)):
+            return 0
+    except Exception:
+        return 0
+
+    try:
+        seen = dict(config_manager.get("site_cookies_profile_mtimes", {}) or {})
+    except Exception:
+        seen = {}
+    if not isinstance(seen, dict):
+        seen = {}
+
+    if profiles is None:
+        try:
+            profiles = list_browser_profiles()
+        except Exception:
+            log.debug("Could not enumerate browser profiles", exc_info=True)
+            return 0
+
+    # Collected across every profile first, then reduced, because several
+    # browsers can hold a clearance for the same site and only the newest one
+    # still works. A plain last-writer-wins merge picked whichever profile
+    # happened to be read last: a 24-day-old audiogames.net token beat one
+    # issued twelve minutes earlier, and the request 403'd.
+    best = {}
+    changed = False
+    for profile in profiles or []:
+        path = str(profile.get("path", "") or "")
+        if not path:
+            continue
+        key = os.path.abspath(path).lower()
+        try:
+            mtime = float(profile.get("mtime", 0) or 0)
+        except (TypeError, ValueError):
+            mtime = 0.0
+        try:
+            if mtime and mtime <= float(seen.get(key, 0) or 0):
+                continue
+        except (TypeError, ValueError):
+            pass
+        try:
+            ua = firefox_profile_user_agent(path)
+        except Exception:
+            ua = ""
+        try:
+            candidates = _clearance_candidates(path, ua)
+        except Exception:
+            # A locked or corrupt profile must not stop the others, and must not
+            # advance the marker — retry it on the next tick.
+            log.debug("Could not read clearance cookies from %s", path, exc_info=True)
+            continue
+        seen[key] = mtime
+        changed = True
+        for record, expiry, host, cookie_ua in candidates:
+            slot = _record_key(record)
+            if slot not in best or expiry > best[slot][1]:
+                best[slot] = (record, expiry, host, cookie_ua)
+        if candidates:
+            log.info(
+                "Read %d clearance cookie(s) from %s (%s)",
+                len(candidates), profile.get("browser", "browser"), profile.get("profile", ""),
+            )
+
+    if best:
+        _merge_records_into_jar([entry[0] for entry in best.values()])
+        # The UA is set from the profile whose cookie won, so the pair the site
+        # will actually see stays the pair that earned the clearance.
+        for _record, _expiry, host, cookie_ua in best.values():
+            if cookie_ua:
+                set_host_user_agent(host, cookie_ua)
+
+    if changed:
+        try:
+            config_manager.set("site_cookies_profile_mtimes", seen)
+        except Exception:
+            log.exception("Failed to persist browser-profile cookie import state")
+    return len(best)
+
+
+# Cookies worth keeping from a solved challenge. A browser session carries
+# analytics and ad identifiers too; storing those would leak the user's
+# browsing into every later request for no benefit. cf_clearance is the whole
+# point (Cloudflare), the rest cover the other WAFs the app already detects.
+_HARVEST_COOKIE_NAMES = (
+    "cf_clearance",
+    "__cf_bm",
+    "datadome",
+    "reese84",
+    "incap_ses",
+    "visid_incap",
+    "_px3",
+    "_pxvid",
+    "bm_sz",
+    "ak_bmsc",
+)
+
+
+def _is_harvestable(name: str) -> bool:
+    low = str(name or "").strip().lower()
+    return any(low == want or low.startswith(want) for want in _HARVEST_COOKIE_NAMES)
+
+
+def record_browser_session(url: str, cookies, user_agent: str = "") -> int:
+    """Store clearance cookies won by the headless browser, with their UA.
+
+    The headless browser can solve an interactive challenge that no HTTP client
+    can (forum.audiogames.net answers `cf-mitigated: challenge` to every plain
+    and curl_cffi request regardless of headers). Keeping the resulting
+    clearance means later fetches for that site go over cheap HTTP until the
+    token lapses, instead of paying a serialized Chromium launch every time.
+
+    `cookies` is any iterable of objects or mappings with name/value/domain and
+    optional path/expires/secure/http_only. Returns the number stored.
+
+    The UA is recorded per host, not globally: a clearance is only valid for the
+    exact User-Agent that earned it, and overwriting the global entry would
+    invalidate a session the user imported by hand for a different site.
+    """
+    try:
+        request_host = (urllib.parse.urlsplit(str(url or "")).hostname or "").lower()
+    except Exception:
+        request_host = ""
+    if not request_host:
+        return 0
+
+    def _field(cookie, *names):
+        for name in names:
+            if isinstance(cookie, dict):
+                if name in cookie:
+                    return cookie[name]
+            else:
+                value = getattr(cookie, name, None)
+                if value is not None:
+                    return value
+        return None
+
+    records = []
+    for cookie in cookies or []:
+        name = str(_field(cookie, "name") or "")
+        if not name or not _is_harvestable(name):
+            continue
+        value = str(_field(cookie, "value") or "")
+        domain = str(_field(cookie, "domain") or "").strip().lower()
+        if not domain:
+            domain = request_host
+        # Only keep cookies that actually apply to the site we fetched, so a
+        # third-party cookie picked up while loading the page is not stored.
+        bare = domain.lstrip(".")
+        if not (request_host == bare or request_host.endswith("." + bare)):
+            continue
+        path = str(_field(cookie, "path") or "/") or "/"
+        secure = bool(_field(cookie, "secure") or False)
+        http_only = bool(_field(cookie, "http_only", "httpOnly", "httponly") or False)
+        try:
+            expires = int(float(_field(cookie, "expires", "expiry") or 0))
+        except (TypeError, ValueError):
+            expires = 0
+        # A session cookie has no expiry; give it a bounded life rather than 0,
+        # which cookies_for() treats as "never expires".
+        if expires <= 0:
+            expires = int(time.time()) + 3600
+        domain_field = ("#HttpOnly_" + domain) if http_only else domain
+        records.append((
+            domain_field,
+            "TRUE" if domain.startswith(".") else "FALSE",
+            path,
+            "TRUE" if secure else "FALSE",
+            str(expires),
+            name,
+            value,
+        ))
+
+    if not records:
+        return 0
+    _merge_records_into_jar(records)
+    if user_agent:
+        set_host_user_agent(request_host, user_agent)
+    log.info(
+        "Stored %d clearance cookie(s) from the automated browser for %s",
+        len(records), request_host,
+    )
+    return len(records)
 
 
 def auto_import_downloads(config_manager, *, search_dirs=None, now=None):

@@ -9,11 +9,16 @@ from urllib.parse import urlparse, urlsplit, urlunsplit
 
 LOG = logging.getLogger(__name__)
 
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/124.0.0.0 Safari/537.36"
-)
+def _default_user_agent() -> str:
+    """The app-wide browser identity (core/user_agents.py), resolved per call.
+
+    Read late rather than frozen at import: the user can change the identity in
+    Settings, and a module constant would keep serving the string the app was
+    started with.
+    """
+    from core.utils import HEADERS
+
+    return HEADERS.get("User-Agent", "")
 
 
 class OdyseeError(RuntimeError):
@@ -163,7 +168,7 @@ def fetch_listing_items(
         max_items_i = 100
     max_items_i = max(1, min(500, max_items_i))
 
-    ua = user_agent or DEFAULT_USER_AGENT
+    ua = user_agent or _default_user_agent()
 
     try:
         import yt_dlp

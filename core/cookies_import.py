@@ -312,6 +312,13 @@ class CookieImportWatcher:
             except Exception:
                 log.exception("Site cookie import watcher tick failed")
                 site_src = None
+            # Browsers whose cookie store we can read directly need no export
+            # step at all; refresh their bot-check clearance in the same pass.
+            try:
+                from core import site_cookies
+                site_cookies.auto_import_browser_profiles(self._config_manager)
+            except Exception:
+                log.exception("Browser-profile clearance import tick failed")
             if site_src and self._on_site_import:
                 try:
                     self._on_site_import(site_src)

@@ -326,6 +326,37 @@ def shutdown() -> None:
             _FETCH_LOCK.release()
 
 
+def _harvest_clearance(sb, url: str) -> None:
+    """Save the challenge clearance this session just won, with its exact UA.
+
+    Getting here means the browser cleared whatever gate the page had, which is
+    the one thing no HTTP client can do for an interactive challenge. Handing
+    the cookie to `site_cookies` lets the cheap fetch paths reuse it until it
+    lapses, instead of launching Chromium again for the same site minutes later.
+
+    Best-effort throughout: a failure here must never turn a successful fetch
+    into a failed one.
+    """
+    try:
+        from core import site_cookies
+    except Exception:
+        return
+    try:
+        cookies = sb.cdp.get_all_cookies()
+    except Exception:
+        log.debug("Could not read cookies from the browser session", exc_info=True)
+        return
+    user_agent = ""
+    try:
+        user_agent = str(sb.cdp.get_user_agent() or "").strip()
+    except Exception:
+        log.debug("Could not read the browser User-Agent", exc_info=True)
+    try:
+        site_cookies.record_browser_session(url, cookies, user_agent)
+    except Exception:
+        log.debug("Could not store the browser clearance cookies", exc_info=True)
+
+
 def _current_browser_url(sb, fallback: str) -> str:
     for getter in (
         lambda: sb.get_current_url(),
@@ -478,6 +509,7 @@ def _fetch_browser_document(
                 )
                 if text is not None:
                     final_url = _current_browser_url(sb, target)
+                    _harvest_clearance(sb, final_url)
                 break
             except Exception:
                 _close_session_locked()

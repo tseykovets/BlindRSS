@@ -156,6 +156,14 @@ class MainFrame(wx.Frame):
         # Push the article structure-marker toggles into core.utils so both
         # display conversion and full-text extraction honor them.
         utils.apply_article_structure_config(config_manager.get)
+        # Stamp the configured browser identity onto utils.HEADERS before any
+        # request goes out; every fetch path copies that dict per request.
+        try:
+            from core import user_agents
+
+            user_agents.apply_to_headers(config_manager.get)
+        except Exception:
+            log.debug("Could not apply the configured User-Agent", exc_info=True)
         self._start_maximized = start_maximized
         self._start_in_system_tray = bool(config_manager.get("start_in_system_tray", False))
         if self._start_maximized and not self._start_in_system_tray:
@@ -12901,6 +12909,14 @@ class MainFrame(wx.Frame):
                 utils.apply_article_structure_config(self.config_manager.get)
             except Exception:
                 pass
+
+            # A changed browser identity applies to the next request made.
+            try:
+                from core import user_agents
+
+                user_agents.apply_to_headers(self.config_manager.get)
+            except Exception:
+                log.debug("Could not apply the configured User-Agent", exc_info=True)
 
             # A changed global column layout only reaches the list on a render,
             # and the current view may well be one that just changed (article list columns).

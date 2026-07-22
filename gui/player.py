@@ -216,7 +216,7 @@ def _extract_ytdlp_info_via_cli(
     user_agent = str(
         hdrs.get("User-Agent")
         or hdrs.get("user-agent")
-        or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        or utils.HEADERS.get("User-Agent", "")
     ).strip()
     referer = target_url
 
@@ -1868,7 +1868,7 @@ class PlayerFrame(wx.Frame):
             effective_headers = dict(getattr(self, "_last_vlc_http_headers", None) or {})
             ua_value = (
                 str(effective_headers.get("User-Agent") or effective_headers.get("user-agent") or "").strip()
-                or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                or utils.HEADERS.get("User-Agent", "")
             )
             referer_value = str(
                 effective_headers.get("Referer")
@@ -3443,7 +3443,7 @@ class PlayerFrame(wx.Frame):
                         'format': _ytdlp_audio_format_for(url),
                         'quiet': True,
                         'no_warnings': True,
-                        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                        'user_agent': utils.HEADERS.get('User-Agent', ''),
                         'referer': url,
                         'noprogress': True,
                         'color': 'never',

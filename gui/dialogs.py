@@ -33,6 +33,7 @@ from core import utils
 from core import config as config_mod
 from core import equalizer as equalizer_mod
 from core import shortcuts as shortcuts_mod
+from core import user_agents
 from core import announcements as announcements_mod
 from .shortcut_keys import event_to_accel
 from .menu_mnemonics import apply_menu_mnemonics
@@ -532,7 +533,18 @@ class ImportSiteCookiesDialog(wx.Dialog):
         )
         self.ua_ctrl = wx.TextCtrl(self)
         self.ua_ctrl.SetName("Browser User-Agent")
-        self.ua_ctrl.SetValue(self._site_cookies.get_user_agent())
+        # Cloudflare binds a cf_clearance cookie to the exact User-Agent that
+        # earned it, so an imported jar with a blank UA field is silently
+        # useless. Nothing but the Firefox-profile button ever filled this in,
+        # which is why imported audiogames.net cookies never worked. Default to
+        # the identity the app is already sending so the pair at least agrees.
+        stored_ua = self._site_cookies.get_user_agent()
+        if not stored_ua:
+            try:
+                stored_ua = utils.HEADERS.get("User-Agent", "")
+            except Exception:
+                stored_ua = ""
+        self.ua_ctrl.SetValue(stored_ua)
         ua_row.Add(self.ua_ctrl, 1, wx.ALIGN_CENTER_VERTICAL)
         sizer.Add(ua_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
@@ -2292,6 +2304,76 @@ class SettingsDialog(wx.Dialog):
         updates_sizer.Add(self.install_updates_automatically_chk, 0, wx.ALL, 6)
         advanced_sizer.Add(updates_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
+        # Browser identity (core/user_agents.py). Sites behind a bot check
+        # reject a User-Agent that has aged out of the current-browser window,
+        # which is what put forum.audiogames.net permanently behind "Just a
+        # moment..." for full-text extraction.
+        ua_group = wx.StaticBox(advanced_panel, label=_("Browser Identification"))
+        ua_sizer = wx.StaticBoxSizer(ua_group, wx.VERTICAL)
+        ua_sizer.Add(
+            wx.StaticText(
+                advanced_panel,
+                label=_(
+                    "The browser BlindRSS reports itself as when fetching feeds and articles.\n"
+                    "Automatic uses a browser installed on this computer, at its real version,\n"
+                    "which is what sites with bot protection are most likely to accept."
+                ),
+            ),
+            0,
+            wx.ALL,
+            6,
+        )
+
+        self._user_agent_choices = list(user_agents.choices())
+        self._user_agent_choices.append(
+            user_agents.Identity(user_agents.CUSTOM_MODE, _("Custom (type it below)"), "", {}, "custom")
+        )
+        ua_row = wx.BoxSizer(wx.HORIZONTAL)
+        ua_row.Add(
+            wx.StaticText(advanced_panel, label=_("Identify as:")),
+            0,
+            wx.ALIGN_CENTER_VERTICAL | wx.ALL,
+            5,
+        )
+        self.user_agent_mode_ctrl = wx.Choice(
+            advanced_panel, choices=[c.label for c in self._user_agent_choices]
+        )
+        self.user_agent_mode_ctrl.SetName("Identify as")
+        current_mode = str(config.get("user_agent_mode", user_agents.AUTO_MODE) or user_agents.AUTO_MODE)
+        selected_index = 0
+        for index, choice in enumerate(self._user_agent_choices):
+            if choice.key == current_mode:
+                selected_index = index
+                break
+        self.user_agent_mode_ctrl.SetSelection(selected_index)
+        self.user_agent_mode_ctrl.Bind(wx.EVT_CHOICE, self._on_user_agent_mode_changed)
+        ua_row.Add(self.user_agent_mode_ctrl, 1, wx.ALL, 5)
+        ua_sizer.Add(ua_row, 0, wx.EXPAND | wx.ALL, 4)
+
+        custom_row = wx.BoxSizer(wx.HORIZONTAL)
+        custom_row.Add(
+            wx.StaticText(advanced_panel, label=_("Custom User-Agent:")),
+            0,
+            wx.ALIGN_CENTER_VERTICAL | wx.ALL,
+            5,
+        )
+        self.user_agent_custom_ctrl = wx.TextCtrl(
+            advanced_panel, value=str(config.get("user_agent_custom", "") or "")
+        )
+        self.user_agent_custom_ctrl.SetName("Custom User-Agent")
+        custom_row.Add(self.user_agent_custom_ctrl, 1, wx.ALL, 5)
+        ua_sizer.Add(custom_row, 0, wx.EXPAND | wx.ALL, 4)
+
+        # The resolved string, so the choice is verifiable without leaving the
+        # dialog — a screen reader reads it on demand rather than guessing what
+        # "Automatic" picked.
+        self.user_agent_effective_lbl = wx.StaticText(advanced_panel, label="")
+        self.user_agent_effective_lbl.SetName("Current User-Agent")
+        ua_sizer.Add(self.user_agent_effective_lbl, 0, wx.ALL, 6)
+
+        advanced_sizer.Add(ua_sizer, 0, wx.EXPAND | wx.ALL, 8)
+        self._on_user_agent_mode_changed(None)
+
         # Video Search content controls.
         search_group = wx.StaticBox(advanced_panel, label=_("Video Search"))
         search_sizer = wx.StaticBoxSizer(search_group, wx.VERTICAL)
@@ -3185,6 +3267,27 @@ class SettingsDialog(wx.Dialog):
         if event is not None:
             event.Skip()
 
+    def _on_user_agent_mode_changed(self, event=None):
+        """Enable the custom field only in Custom mode and show the resolved string."""
+        index = max(0, self.user_agent_mode_ctrl.GetSelection())
+        try:
+            choice = self._user_agent_choices[index]
+        except IndexError:
+            choice = self._user_agent_choices[0]
+        is_custom = choice.key == user_agents.CUSTOM_MODE
+        self.user_agent_custom_ctrl.Enable(is_custom)
+
+        if is_custom:
+            identity = user_agents.identity_from_string(self.user_agent_custom_ctrl.GetValue())
+            effective = identity.ua if identity is not None else ""
+        else:
+            effective = choice.ua
+        self.user_agent_effective_lbl.SetLabel(
+            _("Current User-Agent: {ua}").format(ua=effective or _("(not set)"))
+        )
+        if event is not None:
+            event.Skip()
+
     def _sync_article_open_controls(self):
         """Enable the custom-command field/Test button only in 'Custom command' mode (issue #31)."""
         is_custom = self.article_open_method_ctrl.GetStringSelection() == _("Custom command")
@@ -3382,6 +3485,10 @@ class SettingsDialog(wx.Dialog):
             "translation_qwen_model": (self.translation_qwen_model_ctrl.GetValue() or "").strip(),
             "translation_qwen_api_key": (self.translation_qwen_api_key_ctrl.GetValue() or "").strip(),
             "enable_adult_search": self.enable_adult_search_chk.GetValue(),
+            "user_agent_mode": self._user_agent_choices[
+                max(0, self.user_agent_mode_ctrl.GetSelection())
+            ].key,
+            "user_agent_custom": (self.user_agent_custom_ctrl.GetValue() or "").strip(),
             "article_columns": self.columns_panel.get_layout(),
             "active_provider": self.provider_choice.GetStringSelection(),
             "providers": providers,

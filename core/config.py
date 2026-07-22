@@ -181,6 +181,17 @@ DEFAULT_CONFIG = {
     # only imports newer exports and never loops on the same file.
     "ytdlp_cookies_last_import_mtime": 0,
     "site_cookies_last_import_mtime": 0,
+    # Internal: {profile dir: cookies.sqlite mtime} for the readable-browser
+    # clearance import, so unchanged profiles are not re-read every tick.
+    "site_cookies_profile_mtimes": {},
+    # Which browser BlindRSS identifies itself as (core/user_agents.py). A stale
+    # User-Agent is a bot signal on its own, so "auto" claims a browser actually
+    # installed on this machine, at its real version. Other values: a built-in
+    # preset key ("chrome_windows", "firefox_macos", ...), "installed:<browser>",
+    # or "custom" to send user_agent_custom verbatim. Surfaced in
+    # Settings > Advanced.
+    "user_agent_mode": "auto",
+    "user_agent_custom": "",
     # Play YouTube/yt-dlp items by downloading the audio to a local cache first,
     # instead of streaming. Slower to start but works wherever downloads work
     # (some bundled Windows VLC builds cannot stream googlevideo URLs). When off,

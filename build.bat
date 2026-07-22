@@ -55,6 +55,11 @@ if /I "%MODE%"=="release" (
     if errorlevel 1 exit /b 1
     set "VERSION_NO_V=!NEXT_VERSION!"
     set "VERSION_TAG=!NEXT_TAG!"
+    rem Ship the browser versions this machine actually runs, so the default
+    rem User-Agent does not age into a bot signal (core/user_agents.py).
+    echo [BlindRSS Build] Refreshing browser User-Agent versions...
+    "%TOOL_PY%" tools\refresh_user_agents.py
+
     echo [BlindRSS Build] Bumping version to !VERSION_TAG!...
     "%TOOL_PY%" tools\release.py bump-version --version !VERSION_NO_V!
     if errorlevel 1 exit /b 1
@@ -533,7 +538,7 @@ exit /b 0
 
 :git_release
 echo [BlindRSS Release] Committing version bump...
-git add core\version.py CHANGELOG.md
+git add core\version.py CHANGELOG.md core\user_agents.py
 git commit -m "Release %VERSION_TAG%"
 if errorlevel 1 exit /b 1
 

@@ -19,11 +19,16 @@ from core import utils
 
 LOG = logging.getLogger(__name__)
 
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/124.0.0.0 Safari/537.36"
-)
+def _default_user_agent() -> str:
+    """The app-wide browser identity (core/user_agents.py), resolved per call.
+
+    Read late rather than frozen at import: the user can change the identity in
+    Settings, and a module constant would keep serving the string the app was
+    started with.
+    """
+    from core.utils import HEADERS
+
+    return HEADERS.get("User-Agent", "")
 
 
 class RumbleError(RuntimeError):
@@ -122,7 +127,7 @@ def fetch_text_via_curl(
     if not curl:
         raise FileNotFoundError("curl executable not found")
 
-    ua = user_agent or DEFAULT_USER_AGENT
+    ua = user_agent or _default_user_agent()
     hdrs = dict(headers or {})
     hdrs.setdefault("User-Agent", ua)
 
@@ -356,7 +361,7 @@ def fetch_listing_items(
     allow_browser_cookies: bool = True,
 ) -> tuple[str | None, list[RumbleListingItem]]:
     """Fetch and parse a Rumble listing page (channel/videos, playlist, subscriptions, etc.)."""
-    ua = user_agent or DEFAULT_USER_AGENT
+    ua = user_agent or _default_user_agent()
     fr = _fetch_text(url, timeout_s=timeout_s, user_agent=ua)
 
     if allow_browser_cookies and _looks_like_login_page(fr.text, fr.final_url):
@@ -541,7 +546,7 @@ def resolve_rumble_media(url: str, *, timeout_s: float = 20.0, user_agent: str |
     if not url:
         raise RumbleError("Missing URL")
 
-    ua = user_agent or DEFAULT_USER_AGENT
+    ua = user_agent or _default_user_agent()
     input_url = url
 
     low = url.lower()

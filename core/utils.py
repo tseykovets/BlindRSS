@@ -81,23 +81,55 @@ def platform_supports_notifications() -> bool:
     return sys.platform.startswith("win") or sys.platform.startswith("darwin")
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    # Placeholder only. The User-Agent and its sec-ch-ua* hints are stamped in
+    # below from core.user_agents, and restamped from config at startup. Never
+    # hard-code a version here: a UA frozen at a long-past Chrome major is a bot
+    # signal by itself, and that is what kept forum.audiogames.net behind a
+    # permanent Cloudflare challenge.
+    'User-Agent': '',
     'Accept': 'application/rss+xml,application/xml,application/atom+xml,text/xml;q=0.9,*/*;q=0.8',
-    # Full modern-Chrome request fingerprint so anti-bot WAFs that block "bot-like"
+    # Full modern-browser request fingerprint so anti-bot WAFs that block "bot-like"
     # requests (issue #29) accept the connection. The plain-requests path sends all
     # of these; the curl_cffi impersonation path supplies its own matching set.
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept-Encoding': 'gzip, deflate, br',
     'Upgrade-Insecure-Requests': '1',
-    'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
     'Sec-Fetch-Dest': 'document',
     'Sec-Fetch-Mode': 'navigate',
     'Sec-Fetch-Site': 'none',
     'Sec-Fetch-User': '?1',
     'Connection': 'keep-alive',
 }
+
+
+def _seed_default_user_agent() -> None:
+    """Stamp the baked preset for this platform onto HEADERS at import time.
+
+    Deliberately the preset and not the auto-detected browser: `core.utils` is
+    imported by nearly everything, and detection touches the filesystem. The
+    GUI upgrades this to the configured identity (which defaults to a real
+    installed browser) as soon as config is available.
+    """
+    try:
+        from core import user_agents
+
+        for preset in user_agents.presets():
+            if preset.key.endswith("_" + user_agents._platform_key()):
+                HEADERS['User-Agent'] = preset.ua
+                HEADERS.update(preset.hints)
+                return
+    except Exception:
+        pass
+    # core.user_agents unavailable (partial install): a plain modern Chrome
+    # string still beats sending none at all.
+    if not HEADERS.get('User-Agent'):
+        HEADERS['User-Agent'] = (
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+        )
+
+
+_seed_default_user_agent()
 
 _FLAC_MIME_ALIASES = {
     "audio/flac",
@@ -906,6 +938,21 @@ def _apply_site_cookies(url: str, final_headers: dict) -> dict:
                 k: v for k, v in final_headers.items() if str(k).lower() != "user-agent"
             }
             final_headers["User-Agent"] = ua
+            # The client hints must follow the swapped UA. Leaving the app's
+            # Chromium `sec-ch-ua` headers on a request that now claims Firefox
+            # is a self-contradicting fingerprint — Gecko never sends them —
+            # and a WAF spots that faster than it would have spotted the
+            # original UA. See core/user_agents.py.
+            from core import user_agents
+
+            identity = user_agents.identity_from_string(ua)
+            final_headers = {
+                k: v
+                for k, v in final_headers.items()
+                if str(k).lower() not in user_agents.CLIENT_HINT_HEADERS
+            }
+            if identity is not None:
+                final_headers.update(identity.hints)
     except Exception:
         log.debug("Site-cookie attachment failed for %s", url, exc_info=True)
     return final_headers
@@ -973,6 +1020,29 @@ def _request_safe_headers(headers: dict) -> dict:
     return safe_headers
 
 
+def _site_cookie_impersonation(url: str) -> str:
+    """The curl_cffi target a site's imported session needs, or "".
+
+    A clearance cookie is validated against the TLS/HTTP handshake as much as
+    the User-Agent, so sending one over plain `requests` wastes it. When the jar
+    has a UA-paired session for this URL, the request must go out over the
+    matching browser fingerprint even if the caller never asked to impersonate.
+    Measured on forum.audiogames.net: the same fresh cookie 403'd on `requests`
+    and on curl_cffi's Chrome hello, and returned the article on its Firefox one.
+    """
+    if not CURL_CFFI_AVAILABLE:
+        return ""
+    try:
+        from core import site_cookies, user_agents
+
+        ua = site_cookies.user_agent_for(url)
+        if not ua:
+            return ""
+        return user_agents.impersonate_target_for_ua(ua)
+    except Exception:
+        return ""
+
+
 def safe_requests_get(url, *, impersonate: bool = False, impersonate_target: str | None = None, **kwargs):
     """Wrapper for requests.get with default browser headers.
 
@@ -982,9 +1052,17 @@ def safe_requests_get(url, *, impersonate: bool = False, impersonate_target: str
     overrides the default Chrome fingerprint (e.g. "safari184": some Cloudflare
     challenges 403 curl_cffi's Chrome hello but pass its Safari one). Falls back to
     plain ``requests`` when curl_cffi is unavailable, so behavior degrades gracefully.
+
+    A site with an imported browser session is impersonated automatically, with
+    the fingerprint that matches the session's UA (see _site_cookie_impersonation).
     """
     url = encode_non_ascii_url(url)
     headers = kwargs.pop("headers", {})
+    if not impersonate:
+        session_target = _site_cookie_impersonation(url)
+        if session_target:
+            impersonate = True
+            impersonate_target = impersonate_target or session_target
     if impersonate and CURL_CFFI_AVAILABLE:
         target = impersonate_target or IMPERSONATE_TARGET
         final_headers = _apply_site_cookies(url, _request_safe_headers(_impersonated_headers(headers)))
@@ -2386,7 +2464,7 @@ def resolve_final_url(url: str, max_redirects: int = 30, timeout_s: float = 15.0
     if not (url.startswith("http://") or url.startswith("https://")):
         return url
 
-    ua = user_agent or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ua = user_agent or HEADERS.get("User-Agent", "")
     hdrs = HEADERS.copy()
     hdrs["User-Agent"] = ua
 

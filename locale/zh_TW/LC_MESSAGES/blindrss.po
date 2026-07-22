@@ -119,7 +119,7 @@ msgstr "描述"
 msgid "Status"
 msgstr "狀態"
 
-#: core/article_extractor.py:154
+#: core/article_extractor.py:192
 msgid ""
 "This page is behind an anti-bot / human-verification check (e.g. Cloudflare "
 "or a \"you're not a robot\" page), so the full text can't be fetched "
@@ -128,7 +128,7 @@ msgstr ""
 "此頁面受到反機器人／真人驗證檢查（例如 Cloudflare 或「您不是機器人」頁面）的"
 "保護，因此無法自動取得全文。請在瀏覽器中開啟原始連結閱讀。"
 
-#: core/article_extractor.py:175
+#: core/article_extractor.py:213
 msgid ""
 "The page has no readable article text — only navigation or related-story "
 "links were found (common for video-only pages). Open the original link in "
@@ -137,7 +137,7 @@ msgstr ""
 "該頁面沒有可讀的文章內文——只找到導覽或相關報導連結（純影片頁面很常見）。請在"
 "瀏覽器中開啟原始連結檢視。"
 
-#: core/article_extractor.py:242
+#: core/article_extractor.py:280
 msgid ""
 "This article is behind a paywall (subscription required), so the full text "
 "can't be fetched automatically. Open the original link in your browser to "
@@ -146,7 +146,7 @@ msgstr ""
 "這篇文章位於付費牆之後（需要訂閱），因此無法自動取得全文。請在瀏覽器中開啟原"
 "始連結閱讀。"
 
-#: core/article_extractor.py:277
+#: core/article_extractor.py:315
 msgid ""
 "Only the free preview of this article is published on the page — the rest "
 "requires a subscription. Open the original link in your browser to read it."
@@ -154,43 +154,54 @@ msgstr ""
 "頁面上僅發布了這篇文章的免費預覽部分，其餘內容需要訂閱。請在瀏覽器中開啟原始"
 "連結閱讀。"
 
-#: core/article_extractor.py:1990
+#: core/article_extractor.py:2028
 msgid ""
 "Google News could not resolve the original publisher link. Open the original "
 "link in your browser to read it."
 msgstr "Google 新聞無法解析原始發布者連結。請在瀏覽器中開啟原始連結閱讀。"
 
-#: core/article_extractor.py:3356 gui/dialogs.py:4070
+#: core/article_extractor.py:3413 gui/dialogs.py:4070
 msgid "(unknown)"
 msgstr "(未知)"
 
-#: core/article_extractor.py:3414
+#: core/article_extractor.py:3471
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr "無法從網頁或訂閱來源內容中擷取全文。"
 
-#: core/article_extractor.py:3189
+#: core/article_extractor.py:3246
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr "未安裝 trafilatura 或匯入失敗。請重新安裝相依元件。"
 
-#: core/article_extractor.py:3282
+#: core/article_extractor.py:3339
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr "下載失敗（網站被封鎖、離線或連線問題）。"
 
-#: core/article_extractor.py:3302
+#: core/article_extractor.py:3359
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr "已下載頁面，但無法擷取可讀文字（結果為空）。"
 
-#: core/article_extractor.py:3357 gui/dialogs.py:3529
+#: core/article_extractor.py:186
+msgid ""
+"This page is behind an anti-bot / human-verification check, and the access "
+"BlindRSS had for this site has expired — these checks only stay valid for a "
+"short time. Open the page in {browser} and BlindRSS will pick the access "
+"back up automatically within a minute."
+msgstr ""
+"此頁面受機器人／真人驗證保護，BlindRSS 對該網站的存取權限已過期——這類驗證僅在"
+"短時間內有效。請在 {browser} 中開啟該頁面，BlindRSS 會在一分鐘內自動重新取得"
+"存取權限。"
+
+#: core/article_extractor.py:3414 gui/dialogs.py:3529
 msgid "Title:"
 msgstr "標題:"
 
-#: core/article_extractor.py:3358 gui/accessibility.py:1437
+#: core/article_extractor.py:3415 gui/accessibility.py:1437
 #: gui/mainframe.py:5678 gui/mainframe.py:9344
 msgid "Author:"
 msgstr "作者:"
 
-#: core/article_extractor.py:3405
+#: core/article_extractor.py:3462
 msgid "Unknown extraction error"
 msgstr "未知擷取錯誤"
 

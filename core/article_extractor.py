@@ -150,7 +150,45 @@ _BOT_INTERSTITIAL_MARKERS = (
 # discarded. Only treat a post-extraction body as a gate when it is small.
 _BOT_INTERSTITIAL_MAX_BODY_LEN = 1500
 
-def _blocked_interstitial_message() -> str:
+def _has_stored_clearance(url: str) -> bool:
+    """True when the cookie jar holds a bot-check clearance for this URL's site."""
+    try:
+        from core import site_cookies
+
+        return site_cookies.has_clearance_for(url)
+    except Exception:
+        return False
+
+
+def _readable_browser_names() -> list:
+    """Browsers whose cookies BlindRSS can read by itself, newest session first."""
+    try:
+        from core import site_cookies
+
+        seen = []
+        for profile in site_cookies.list_browser_profiles():
+            name = str(profile.get("browser", "") or "")
+            if name and name not in seen:
+                seen.append(name)
+        return seen
+    except Exception:
+        return []
+
+
+def _blocked_interstitial_message(url: str = "") -> str:
+    # When the site is one we can regain access to, say how. The generic
+    # "open it in your browser" is a dead end for a challenge site: visiting it
+    # in a browser BlindRSS can read is what actually restores the full text,
+    # because the clearance those checks issue lasts well under an hour and the
+    # app picks a fresh one up on its own.
+    browsers = _readable_browser_names() if url else []
+    if browsers and _has_stored_clearance(url):
+        return _(
+            "This page is behind an anti-bot / human-verification check, and the access "
+            "BlindRSS had for this site has expired — these checks only stay valid for a short "
+            "time. Open the page in {browser} and BlindRSS will pick the access back up "
+            "automatically within a minute."
+        ).format(browser=browsers[0])
     return _(
         "This page is behind an anti-bot / human-verification check "
         "(e.g. Cloudflare or a \"you're not a robot\" page), so the full text can't be fetched "
@@ -2428,6 +2466,13 @@ def _download_via_impersonation(target_url: str, timeout: int) -> Optional[str]:
     """
     # Without curl_cffi every target degrades to the same plain request; send it once only.
     targets = _IMPERSONATE_TARGETS if getattr(utils, "CURL_CFFI_AVAILABLE", False) else (None,)
+    # A site we hold a browser session for pins that browser's User-Agent onto
+    # every request. Cycling Chrome and Safari handshakes underneath it produces
+    # a self-contradicting fingerprint that cannot pass and reads as forged, so
+    # only the handshake matching the pinned UA is worth sending.
+    session_target = utils._site_cookie_impersonation(target_url)
+    if session_target:
+        targets = (session_target,)
     for target in targets:
         try:
             r = utils.safe_requests_get(
@@ -2573,7 +2618,11 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
 
     is_bloomberg = _is_bloomberg_url(url)
     is_bloomberg_video = _is_bloomberg_video_url(url)
-    tried_impersonation_first = False
+    # A site with a stored browser session already goes out impersonated on the
+    # first request (safe_requests_get forces the fingerprint its pinned UA
+    # needs), so the impersonated refetch below would repeat that request byte
+    # for byte.
+    tried_impersonation_first = bool(utils._site_cookie_impersonation(url))
 
     def _retry_with_refreshed_clearance() -> Optional[_FetchResult]:
         """Re-read the browser's clearance for this site and try once more.
@@ -2620,10 +2669,18 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
             candidates.append(lambda: _download_via_jina(url, timeout))
         candidates.append(lambda: _download_via_smry(url, timeout))
         candidates.append(lambda: _download_via_wayback(url, timeout))
-        if gate_seen:
+        if gate_seen and not _has_stored_clearance(url):
             # Costly (serialized Chromium launch), so it is genuinely last and only
             # runs when a gate was actually seen: sites like nytimes.com refuse every
             # HTTP fallback above, and a real browser is the only way in.
+            #
+            # Skipped when we hold a clearance for the host. That cookie exists
+            # because the site demands an interactive browser session, and the
+            # automated browser has been measured unable to win one there (both
+            # headless and headed). The per-URL cooldown does not help, since
+            # every article on such a site is a new URL — so each one paid a
+            # fresh ~40s launch to fail. Getting a current cookie is the fix,
+            # and _retry_with_refreshed_clearance above already tried that.
             candidates.append(lambda: _download_via_browser(url, timeout))
         for fetch in candidates:
             alt = fetch()
@@ -3278,7 +3335,7 @@ def extract_full_article(
 
     if not downloaded_any:
         if blocked:
-            raise ExtractionError(_blocked_interstitial_message())
+            raise ExtractionError(_blocked_interstitial_message(extraction_url))
         raise ExtractionError(_("Download failed (site blocked, offline, or connection problem)."))
 
     # Short-paragraph dropping is proxy-markdown-only: on HTML-extracted text it
@@ -3288,7 +3345,7 @@ def extract_full_article(
     merged = _postprocess_extracted_text(merged, extraction_url)
     # Guard against gate text that slipped through extraction (e.g. a short verification body).
     if merged and len(merged) < _BOT_INTERSTITIAL_MAX_BODY_LEN and _looks_like_bot_interstitial(merged):
-        raise ExtractionError(_blocked_interstitial_message())
+        raise ExtractionError(_blocked_interstitial_message(extraction_url))
     # Guard against pages with no article body (video-only/index pages): extraction "succeeds"
     # but yields only the page's navigation or related-story headlines, which would be shown
     # (and read aloud) as if they were the story. Raising lets callers fall back to feed content.

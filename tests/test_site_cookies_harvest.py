@@ -256,3 +256,49 @@ def test_host_ua_is_dropped_once_its_cookies_are_gone():
     # a site the jar no longer has anything for.
     site_cookies.set_host_user_agent("audiogames.net", "Firefox/152.0")
     assert site_cookies.user_agent_for(URL) == ""
+
+
+def test_clearance_site_skips_the_chromium_fallback(monkeypatch):
+    # Every article on a session-gated site is a new URL, so browser_feed's
+    # per-URL cooldown never kicked in and each one paid a fresh ~40s Chromium
+    # launch to fail. The site wants a browser session the automated browser
+    # has been measured unable to win; a current cookie is the only fix.
+    from core import article_extractor as ae
+
+    site_cookies.record_browser_session(
+        URL, [Cookie("cf_clearance", "t", ".audiogames.net", expires=time.time() + 3600)], UA
+    )
+    assert ae._has_stored_clearance(URL) is True
+    assert ae._has_stored_clearance("https://www.nytimes.com/some-article") is False
+
+
+def test_blocked_message_names_a_readable_browser_for_a_clearance_site(monkeypatch):
+    from core import article_extractor as ae
+
+    site_cookies.record_browser_session(
+        URL, [Cookie("cf_clearance", "t", ".audiogames.net", expires=time.time() + 3600)], UA
+    )
+    monkeypatch.setattr(ae, "_readable_browser_names", lambda: ["Firefox"])
+    message = ae._blocked_interstitial_message(URL)
+    assert "Firefox" in message
+    assert "expired" in message
+
+
+def test_blocked_message_stays_generic_without_a_stored_session(monkeypatch):
+    from core import article_extractor as ae
+
+    monkeypatch.setattr(ae, "_readable_browser_names", lambda: ["Firefox"])
+    message = ae._blocked_interstitial_message("https://www.nytimes.com/some-article")
+    assert "Firefox" not in message
+    assert "Open the original link" in message
+
+
+def test_blocked_message_stays_generic_with_no_readable_browser(monkeypatch):
+    # A Chromium-only machine has nothing to point the user at.
+    from core import article_extractor as ae
+
+    site_cookies.record_browser_session(
+        URL, [Cookie("cf_clearance", "t", ".audiogames.net", expires=time.time() + 3600)], UA
+    )
+    monkeypatch.setattr(ae, "_readable_browser_names", lambda: [])
+    assert "Open the original link" in ae._blocked_interstitial_message(URL)

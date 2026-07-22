@@ -121,7 +121,7 @@ msgstr "Descripción"
 msgid "Status"
 msgstr "Estado"
 
-#: core/article_extractor.py:154
+#: core/article_extractor.py:192
 msgid ""
 "This page is behind an anti-bot / human-verification check (e.g. Cloudflare "
 "or a \"you're not a robot\" page), so the full text can't be fetched "
@@ -132,7 +132,7 @@ msgstr ""
 "completo no se puede obtener automáticamente. Abra el enlace original en su "
 "navegador para leerla."
 
-#: core/article_extractor.py:175
+#: core/article_extractor.py:213
 msgid ""
 "The page has no readable article text — only navigation or related-story "
 "links were found (common for video-only pages). Open the original link in "
@@ -142,7 +142,7 @@ msgstr ""
 "navegación o de noticias relacionadas (habitual en páginas de solo vídeo). "
 "Abra el enlace original en su navegador para verla."
 
-#: core/article_extractor.py:242
+#: core/article_extractor.py:280
 msgid ""
 "This article is behind a paywall (subscription required), so the full text "
 "can't be fetched automatically. Open the original link in your browser to "
@@ -152,7 +152,7 @@ msgstr ""
 "lo que el texto completo no se puede obtener automáticamente. Abra el enlace "
 "original en su navegador para leerlo."
 
-#: core/article_extractor.py:277
+#: core/article_extractor.py:315
 msgid ""
 "Only the free preview of this article is published on the page — the rest "
 "requires a subscription. Open the original link in your browser to read it."
@@ -161,7 +161,7 @@ msgstr ""
 "resto requiere una suscripción. Abra el enlace original en su navegador para "
 "leerlo."
 
-#: core/article_extractor.py:1990
+#: core/article_extractor.py:2028
 msgid ""
 "Google News could not resolve the original publisher link. Open the original "
 "link in your browser to read it."
@@ -169,44 +169,56 @@ msgstr ""
 "Google News no pudo resolver el enlace original del editor. Abra el enlace "
 "original en su navegador para leerlo."
 
-#: core/article_extractor.py:3356 gui/dialogs.py:4070
+#: core/article_extractor.py:3413 gui/dialogs.py:4070
 msgid "(unknown)"
 msgstr "(desconocido)"
 
-#: core/article_extractor.py:3414
+#: core/article_extractor.py:3471
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr ""
 "No se pudo extraer el texto completo de la página web ni del contenido de la "
 "fuente."
 
-#: core/article_extractor.py:3189
+#: core/article_extractor.py:3246
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr ""
 "trafilatura no está instalada o no se pudo importar. Reinstale los "
 "requisitos."
 
-#: core/article_extractor.py:3282
+#: core/article_extractor.py:3339
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr ""
 "Error de descarga (sitio bloqueado, sin conexión o problema de conexión)."
 
-#: core/article_extractor.py:3302
+#: core/article_extractor.py:3359
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr ""
 "Se descargó la página, pero no se pudo extraer texto legible (resultado "
 "vacío)."
 
-#: core/article_extractor.py:3357 gui/dialogs.py:3529
+#: core/article_extractor.py:186
+msgid ""
+"This page is behind an anti-bot / human-verification check, and the access "
+"BlindRSS had for this site has expired — these checks only stay valid for a "
+"short time. Open the page in {browser} and BlindRSS will pick the access "
+"back up automatically within a minute."
+msgstr ""
+"Esta página está tras una verificación antibots o de comprobación humana, y "
+"el acceso que BlindRSS tenía para este sitio ha caducado: esas "
+"comprobaciones solo son válidas poco tiempo. Abra la página en {browser} y "
+"BlindRSS recuperará el acceso automáticamente en un minuto."
+
+#: core/article_extractor.py:3414 gui/dialogs.py:3529
 msgid "Title:"
 msgstr "Título:"
 
-#: core/article_extractor.py:3358 gui/accessibility.py:1437
+#: core/article_extractor.py:3415 gui/accessibility.py:1437
 #: gui/mainframe.py:5678 gui/mainframe.py:9344
 msgid "Author:"
 msgstr "Autor:"
 
-#: core/article_extractor.py:3405
+#: core/article_extractor.py:3462
 msgid "Unknown extraction error"
 msgstr "Error de extracción desconocido"
 

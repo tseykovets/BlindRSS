@@ -119,7 +119,7 @@ msgstr "説明"
 msgid "Status"
 msgstr "状態"
 
-#: core/article_extractor.py:154
+#: core/article_extractor.py:192
 msgid ""
 "This page is behind an anti-bot / human-verification check (e.g. Cloudflare "
 "or a \"you're not a robot\" page), so the full text can't be fetched "
@@ -129,7 +129,7 @@ msgstr ""
 "ません」ページなど）で保護されているため、全文を自動的に取得できません。元の"
 "リンクをブラウザーで開いてお読みください。"
 
-#: core/article_extractor.py:175
+#: core/article_extractor.py:213
 msgid ""
 "The page has no readable article text — only navigation or related-story "
 "links were found (common for video-only pages). Open the original link in "
@@ -139,7 +139,7 @@ msgstr ""
 "クのみが見つかりました（動画のみのページでよくあります）。元のリンクをブラウ"
 "ザーで開いてご覧ください。"
 
-#: core/article_extractor.py:242
+#: core/article_extractor.py:280
 msgid ""
 "This article is behind a paywall (subscription required), so the full text "
 "can't be fetched automatically. Open the original link in your browser to "
@@ -148,7 +148,7 @@ msgstr ""
 "この記事はペイウォール（購読が必要）の内側にあるため、全文を自動的に取得でき"
 "ません。元のリンクをブラウザーで開いてお読みください。"
 
-#: core/article_extractor.py:277
+#: core/article_extractor.py:315
 msgid ""
 "Only the free preview of this article is published on the page — the rest "
 "requires a subscription. Open the original link in your browser to read it."
@@ -156,7 +156,7 @@ msgstr ""
 "このページには記事の無料プレビューのみが公開されており、残りの部分は購読が必"
 "要です。元のリンクをブラウザーで開いてお読みください。"
 
-#: core/article_extractor.py:1990
+#: core/article_extractor.py:2028
 msgid ""
 "Google News could not resolve the original publisher link. Open the original "
 "link in your browser to read it."
@@ -164,43 +164,55 @@ msgstr ""
 "Google ニュースは元の発行元リンクを解決できませんでした。元のリンクをブラウ"
 "ザーで開いてお読みください。"
 
-#: core/article_extractor.py:3356 gui/dialogs.py:4070
+#: core/article_extractor.py:3413 gui/dialogs.py:4070
 msgid "(unknown)"
 msgstr "(不明)"
 
-#: core/article_extractor.py:3414
+#: core/article_extractor.py:3471
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr "ウェブページまたはフィードの内容から全文を抽出できませんでした。"
 
-#: core/article_extractor.py:3189
+#: core/article_extractor.py:3246
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr ""
 "trafilatura がインストールされていないか、インポートに失敗しました。必要なコ"
 "ンポーネントを再インストールしてください。"
 
-#: core/article_extractor.py:3282
+#: core/article_extractor.py:3339
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr ""
 "ダウンロードに失敗しました（サイトのブロック、オフライン、または接続の問"
 "題）。"
 
-#: core/article_extractor.py:3302
+#: core/article_extractor.py:3359
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr ""
 "ページをダウンロードしましたが、読み取れるテキストを抽出できませんでした（空"
 "の結果）。"
 
-#: core/article_extractor.py:3357 gui/dialogs.py:3529
+#: core/article_extractor.py:186
+msgid ""
+"This page is behind an anti-bot / human-verification check, and the access "
+"BlindRSS had for this site has expired — these checks only stay valid for a "
+"short time. Open the page in {browser} and BlindRSS will pick the access "
+"back up automatically within a minute."
+msgstr ""
+"このページはボット対策・人間確認のチェックで保護されており、BlindRSS がこのサ"
+"イトに対して持っていたアクセス権は期限切れです（この種のチェックは短時間しか"
+"有効ではありません）。{browser} でページを開くと、BlindRSS が 1 分以内に自動"
+"でアクセス権を取得し直します。"
+
+#: core/article_extractor.py:3414 gui/dialogs.py:3529
 msgid "Title:"
 msgstr "タイトル:"
 
-#: core/article_extractor.py:3358 gui/accessibility.py:1437
+#: core/article_extractor.py:3415 gui/accessibility.py:1437
 #: gui/mainframe.py:5678 gui/mainframe.py:9344
 msgid "Author:"
 msgstr "作成者:"
 
-#: core/article_extractor.py:3405
+#: core/article_extractor.py:3462
 msgid "Unknown extraction error"
 msgstr "不明な抽出エラー"
 

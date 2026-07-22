@@ -460,3 +460,21 @@ def test_wayback_gate_snapshot_rejected(monkeypatch):
     res = article_extractor._fetch_page("https://example.com/story")
     assert res.blocked is False
     assert res.html is None
+
+
+def test_impersonation_does_not_contradict_a_pinned_session_fingerprint(monkeypatch):
+    # A site we hold a browser session for pins that browser's User-Agent onto
+    # every request. Cycling Chrome and Safari handshakes underneath a Firefox
+    # UA is a self-contradicting fingerprint that cannot pass and reads as
+    # forged, so only the matching handshake is sent.
+    monkeypatch.setattr(utils, "CURL_CFFI_AVAILABLE", True, raising=False)
+    monkeypatch.setattr(utils, "_site_cookie_impersonation", lambda url: "firefox")
+    targets = []
+
+    def fake_get(url, **kwargs):
+        targets.append(kwargs.get("impersonate_target"))
+        return _resp(200, ARTICLE_HTML)
+
+    monkeypatch.setattr(utils, "safe_requests_get", fake_get)
+    article_extractor._download_via_impersonation("https://forum.audiogames.net/topic/1/x/", 20)
+    assert targets == ["firefox"]

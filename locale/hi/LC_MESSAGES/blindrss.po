@@ -119,7 +119,7 @@ msgstr "विवरण"
 msgid "Status"
 msgstr "स्थिति"
 
-#: core/article_extractor.py:154
+#: core/article_extractor.py:192
 msgid ""
 "This page is behind an anti-bot / human-verification check (e.g. Cloudflare "
 "or a \"you're not a robot\" page), so the full text can't be fetched "
@@ -129,7 +129,7 @@ msgstr ""
 "पृष्ठ) के पीछे है, इसलिए पूरा पाठ स्वचालित रूप से प्राप्त नहीं किया जा सकता। इसे पढ़ने के "
 "लिए मूल लिंक अपने ब्राउज़र में खोलें।"
 
-#: core/article_extractor.py:175
+#: core/article_extractor.py:213
 msgid ""
 "The page has no readable article text — only navigation or related-story "
 "links were found (common for video-only pages). Open the original link in "
@@ -138,7 +138,7 @@ msgstr ""
 "पृष्ठ में पढ़ने योग्य लेख पाठ नहीं है — केवल नेविगेशन या संबंधित समाचारों के लिंक मिले (केवल-"
 "वीडियो पृष्ठों के लिए सामान्य)। इसे देखने के लिए मूल लिंक अपने ब्राउज़र में खोलें।"
 
-#: core/article_extractor.py:242
+#: core/article_extractor.py:280
 msgid ""
 "This article is behind a paywall (subscription required), so the full text "
 "can't be fetched automatically. Open the original link in your browser to "
@@ -147,7 +147,7 @@ msgstr ""
 "यह लेख पेवॉल के पीछे है (सदस्यता आवश्यक), इसलिए पूरा पाठ स्वचालित रूप से प्राप्त नहीं किया "
 "जा सकता। इसे पढ़ने के लिए मूल लिंक अपने ब्राउज़र में खोलें।"
 
-#: core/article_extractor.py:277
+#: core/article_extractor.py:315
 msgid ""
 "Only the free preview of this article is published on the page — the rest "
 "requires a subscription. Open the original link in your browser to read it."
@@ -155,7 +155,7 @@ msgstr ""
 "पृष्ठ पर इस लेख का केवल निःशुल्क पूर्वावलोकन प्रकाशित है — शेष के लिए सदस्यता आवश्यक है। इसे "
 "पढ़ने के लिए मूल लिंक अपने ब्राउज़र में खोलें।"
 
-#: core/article_extractor.py:1990
+#: core/article_extractor.py:2028
 msgid ""
 "Google News could not resolve the original publisher link. Open the original "
 "link in your browser to read it."
@@ -163,37 +163,48 @@ msgstr ""
 "Google News मूल प्रकाशक लिंक को हल नहीं कर सका। इसे पढ़ने के लिए मूल लिंक अपने ब्राउज़र में "
 "खोलें।"
 
-#: core/article_extractor.py:3356 gui/dialogs.py:4070
+#: core/article_extractor.py:3413 gui/dialogs.py:4070
 msgid "(unknown)"
 msgstr "(अज्ञात)"
 
-#: core/article_extractor.py:3414
+#: core/article_extractor.py:3471
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr "वेबपृष्ठ या फ़ीड सामग्री से पूरा पाठ निकाला नहीं जा सका।"
 
-#: core/article_extractor.py:3189
+#: core/article_extractor.py:3246
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr "trafilatura स्थापित नहीं है या आयात नहीं हो सका। आवश्यक घटक पुनः स्थापित करें।"
 
-#: core/article_extractor.py:3282
+#: core/article_extractor.py:3339
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr "डाउनलोड विफल (साइट अवरुद्ध, ऑफ़लाइन, या कनेक्शन समस्या)।"
 
-#: core/article_extractor.py:3302
+#: core/article_extractor.py:3359
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr "पृष्ठ डाउनलोड हुआ, लेकिन पढ़ने योग्य पाठ नहीं निकाला जा सका (खाली परिणाम)।"
 
-#: core/article_extractor.py:3357 gui/dialogs.py:3529
+#: core/article_extractor.py:186
+msgid ""
+"This page is behind an anti-bot / human-verification check, and the access "
+"BlindRSS had for this site has expired — these checks only stay valid for a "
+"short time. Open the page in {browser} and BlindRSS will pick the access "
+"back up automatically within a minute."
+msgstr ""
+"यह पृष्ठ बॉट/मानव-सत्यापन जाँच के पीछे है, और इस साइट के लिए BlindRSS की पहुँच समाप्त "
+"हो गई है — ये जाँचें थोड़े समय तक ही मान्य रहती हैं। पृष्ठ को {browser} में खोलें और "
+"BlindRSS एक मिनट के भीतर पहुँच स्वयं पुनः प्राप्त कर लेगा।"
+
+#: core/article_extractor.py:3414 gui/dialogs.py:3529
 msgid "Title:"
 msgstr "शीर्षक:"
 
-#: core/article_extractor.py:3358 gui/accessibility.py:1437
+#: core/article_extractor.py:3415 gui/accessibility.py:1437
 #: gui/mainframe.py:5678 gui/mainframe.py:9344
 msgid "Author:"
 msgstr "लेखक:"
 
-#: core/article_extractor.py:3405
+#: core/article_extractor.py:3462
 msgid "Unknown extraction error"
 msgstr "अज्ञात निष्कर्षण त्रुटि"
 

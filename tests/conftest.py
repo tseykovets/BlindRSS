@@ -5,6 +5,13 @@ real (serialized, several-second) Chromium session. A unit test that mocks HTTP
 would otherwise sail past its mock into that launch and hit the live network, so
 the escalation is disabled for the whole suite. Tests that exercise the browser
 fallback deliberately can monkeypatch `core.browser_feed` themselves.
+
+The managed cookie jar is redirected for the same reason: request behavior now
+depends on whether the jar holds a session for the host under test (a pinned
+User-Agent forces a matching TLS fingerprint), so a suite reading the developer's
+real jar would pass or fail based on which sites they happen to have visited.
+`test_impersonation_falls_through_to_safari_fingerprint` really did start failing
+on a machine whose owner had browsed neowin.net.
 """
 
 import pytest
@@ -22,3 +29,24 @@ def _no_real_browser_launch(monkeypatch):
         lambda *args, **kwargs: None,
         raising=False,
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_site_cookie_jar(tmp_path_factory, monkeypatch):
+    try:
+        from core import site_cookies
+    except Exception:
+        return
+    jar_dir = tmp_path_factory.mktemp("site-cookies")
+    monkeypatch.setattr(site_cookies.config_mod, "get_data_dir", lambda: str(jar_dir))
+    # Profile discovery is independent of the jar path, and the gate-recovery
+    # path reads it: without this a test would copy and parse the developer's
+    # real browser cookie databases, and its result would depend on which sites
+    # they had visited. Stubbed at the roots rather than at
+    # list_browser_profiles() so the real discovery code still runs and tests
+    # that supply their own fake roots keep working.
+    monkeypatch.setattr(site_cookies, "_firefox_like_roots", lambda: [])
+    site_cookies._invalidate()
+    site_cookies._last_forced_refresh.clear()
+    yield
+    site_cookies._invalidate()

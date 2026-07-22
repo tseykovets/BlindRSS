@@ -126,7 +126,7 @@ msgstr "Beschrijving"
 msgid "Status"
 msgstr "Status"
 
-#: core/article_extractor.py:154
+#: core/article_extractor.py:192
 msgid ""
 "This page is behind an anti-bot / human-verification check (e.g. Cloudflare "
 "or a \"you're not a robot\" page), so the full text can't be fetched "
@@ -136,7 +136,7 @@ msgstr ""
 "\"ik ben geen robot\"-pagina), dus de volledige tekst kan niet automatisch "
 "worden opgehaald. Open de originele link in uw browser om deze te lezen."
 
-#: core/article_extractor.py:175
+#: core/article_extractor.py:213
 msgid ""
 "The page has no readable article text — only navigation or related-story "
 "links were found (common for video-only pages). Open the original link in "
@@ -146,7 +146,7 @@ msgstr ""
 "of links naar gerelateerde artikelen gevonden (gebruikelijk bij pagina's met "
 "alleen video). Open de originele link in uw browser om deze te bekijken."
 
-#: core/article_extractor.py:242
+#: core/article_extractor.py:280
 msgid ""
 "This article is behind a paywall (subscription required), so the full text "
 "can't be fetched automatically. Open the original link in your browser to "
@@ -156,7 +156,7 @@ msgstr ""
 "tekst kan niet automatisch worden opgehaald. Open de originele link in uw "
 "browser om het te lezen."
 
-#: core/article_extractor.py:277
+#: core/article_extractor.py:315
 msgid ""
 "Only the free preview of this article is published on the page — the rest "
 "requires a subscription. Open the original link in your browser to read it."
@@ -165,7 +165,7 @@ msgstr ""
 "de rest vereist een abonnement. Open de originele link in uw browser om het "
 "te lezen."
 
-#: core/article_extractor.py:1990
+#: core/article_extractor.py:2028
 msgid ""
 "Google News could not resolve the original publisher link. Open the original "
 "link in your browser to read it."
@@ -173,42 +173,54 @@ msgstr ""
 "Google Nieuws kon de oorspronkelijke uitgeverslink niet achterhalen. Open de "
 "originele link in uw browser om het te lezen."
 
-#: core/article_extractor.py:3356 gui/dialogs.py:4070
+#: core/article_extractor.py:3413 gui/dialogs.py:4070
 msgid "(unknown)"
 msgstr "(onbekend)"
 
-#: core/article_extractor.py:3414
+#: core/article_extractor.py:3471
 msgid "Could not extract full text from the webpage or from feed content."
 msgstr ""
 "Kon de volledige tekst niet uit de webpagina of uit de feedinhoud halen."
 
-#: core/article_extractor.py:3189
+#: core/article_extractor.py:3246
 msgid ""
 "trafilatura is not installed or failed to import. Reinstall requirements."
 msgstr ""
 "trafilatura is niet geïnstalleerd of kon niet worden geïmporteerd. "
 "Installeer de vereisten opnieuw."
 
-#: core/article_extractor.py:3282
+#: core/article_extractor.py:3339
 msgid "Download failed (site blocked, offline, or connection problem)."
 msgstr "Downloaden mislukt (site geblokkeerd, offline of verbindingsprobleem)."
 
-#: core/article_extractor.py:3302
+#: core/article_extractor.py:3359
 msgid "Downloaded page, but could not extract readable text (empty result)."
 msgstr ""
 "Pagina gedownload, maar er kon geen leesbare tekst worden opgehaald (leeg "
 "resultaat)."
 
-#: core/article_extractor.py:3357 gui/dialogs.py:3529
+#: core/article_extractor.py:186
+msgid ""
+"This page is behind an anti-bot / human-verification check, and the access "
+"BlindRSS had for this site has expired — these checks only stay valid for a "
+"short time. Open the page in {browser} and BlindRSS will pick the access "
+"back up automatically within a minute."
+msgstr ""
+"Deze pagina zit achter een bot-/mensverificatie en de toegang die BlindRSS "
+"voor deze site had, is verlopen — zulke controles blijven maar korte tijd "
+"geldig. Open de pagina in {browser}; BlindRSS pakt de toegang dan binnen een "
+"minuut automatisch weer op."
+
+#: core/article_extractor.py:3414 gui/dialogs.py:3529
 msgid "Title:"
 msgstr "Titel:"
 
-#: core/article_extractor.py:3358 gui/accessibility.py:1437
+#: core/article_extractor.py:3415 gui/accessibility.py:1437
 #: gui/mainframe.py:5678 gui/mainframe.py:9344
 msgid "Author:"
 msgstr "Auteur:"
 
-#: core/article_extractor.py:3405
+#: core/article_extractor.py:3462
 msgid "Unknown extraction error"
 msgstr "Onbekende extractiefout"
 

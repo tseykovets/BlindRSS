@@ -4485,7 +4485,7 @@ class MainFrame(wx.Frame):
                 add_sub_item = menu.Append(wx.ID_ANY, _("Add Subcategory"))
                 self.Bind(wx.EVT_MENU, lambda e, ct=cat_title: self.on_add_subcategory(ct), add_sub_item)
 
-            if not is_uncategorized(cat_title):
+            if not self._is_protected_uncategorized(cat_title):
                 edit_item = menu.Append(wx.ID_ANY, _("Edit Category"))
                 self.Bind(wx.EVT_MENU, lambda e: self.on_edit_category(cat_title), edit_item)
 
@@ -6960,6 +6960,21 @@ class MainFrame(wx.Frame):
             self._update_current_view_cache(fid)
             self._decrement_view_total_if_present(fid)
 
+    def _is_protected_uncategorized(self, title) -> bool:
+        """True when ``title`` is the protected virtual Uncategorized bucket.
+
+        Uncategorized is a system folder on most providers (nothing to rename or
+        delete -- it just means "no category"). On Miniflux it is a real,
+        deletable category, so the rename/remove guards must step aside there
+        (issue #86). This is the single predicate all four guard sites consult.
+        """
+        if not is_uncategorized(title):
+            return False
+        try:
+            return not bool(getattr(self.provider, "uncategorized_is_real_category", lambda: False)())
+        except Exception:
+            return True
+
     def _eligible_parent_categories(self, category_path: str) -> list:
         """Categories that ``category_path`` may be moved under (issue #86).
 
@@ -6987,11 +7002,12 @@ class MainFrame(wx.Frame):
     def on_edit_category(self, old_title):
         """Category Properties: rename the leaf and/or move it under another
         category (issue #86). The feed-side counterpart is edit_feed_by_id."""
-        # Uncategorized is a sentinel for "no category", not a stored one: it has
-        # no row to rename and no parent to move. Say so -- pressing F2 on it and
-        # getting silence reads as a broken shortcut, especially with a screen
-        # reader, where a dialog that never opens gives no signal at all.
-        if is_uncategorized(old_title):
+        # Uncategorized is usually a sentinel for "no category", not a stored
+        # one: it has no row to rename and no parent to move. Say so -- pressing
+        # F2 on it and getting silence reads as a broken shortcut, especially
+        # with a screen reader, where a dialog that never opens gives no signal
+        # at all. On Miniflux it is a real category, so the guard steps aside.
+        if self._is_protected_uncategorized(old_title):
             wx.MessageBox(
                 _("The Uncategorized folder cannot be renamed or moved."),
                 _("Info"),
@@ -7127,7 +7143,7 @@ class MainFrame(wx.Frame):
         if item.IsOk():
             data = self.tree.GetItemData(item)
             if data and data["type"] == "category":
-                if is_uncategorized(data.get("id")):
+                if self._is_protected_uncategorized(data.get("id")):
                     wx.MessageBox(_("The Uncategorized folder cannot be removed."), _("Info"))
                     return
                 if wx.MessageBox(
@@ -7155,7 +7171,7 @@ class MainFrame(wx.Frame):
             return
 
         cat_title = data.get("id")
-        if not cat_title or is_uncategorized(cat_title):
+        if not cat_title or self._is_protected_uncategorized(cat_title):
             wx.MessageBox(_("The Uncategorized folder cannot be removed."), _("Info"))
             return
 

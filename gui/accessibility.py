@@ -999,15 +999,18 @@ class AccessibleBrowserFrame(wx.Frame):
         if not cat:
             return
         try:
-            from core.categories import is_uncategorized
-            if is_uncategorized(cat):
-                wx.MessageBox(
-                    _("The Uncategorized folder cannot be removed."), _("Info"),
-                    wx.OK | wx.ICON_INFORMATION, self,
-                )
-                return
+            # Defer to the main window's provider-aware guard: on Miniflux
+            # "Uncategorized" is a real, deletable category (issue #86).
+            protected = self.mainframe._is_protected_uncategorized(cat)
         except Exception:
-            pass
+            from core.categories import is_uncategorized
+            protected = is_uncategorized(cat)
+        if protected:
+            wx.MessageBox(
+                _("The Uncategorized folder cannot be removed."), _("Info"),
+                wx.OK | wx.ICON_INFORMATION, self,
+            )
+            return
         try:
             if wx.MessageBox(
                 _("Remove this category? Feeds will be moved to Uncategorized."),

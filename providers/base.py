@@ -277,6 +277,20 @@ class RSSProvider(abc.ABC):
         never offers subcategory creation and nesting is never simulated."""
         return False
 
+    def uncategorized_is_real_category(self) -> bool:
+        """True when this provider's "Uncategorized" is an ordinary, deletable
+        category rather than the synthetic "no category" bucket (issue #86).
+
+        For most providers "Uncategorized" is virtual: the local provider seeds
+        it as a protected sentinel, and the Google-Reader-style hosts (Inoreader,
+        BazQux, TheOldReader) use it to mean "no folder", which has no server
+        object to manage. Miniflux is the exception -- it requires every feed to
+        have a category, so "no category" is a real category the user can rename
+        or delete like any other. Only there should the system-folder guards on
+        rename/remove step aside.
+        """
+        return False
+
     def move_category(self, title: str, parent_title: str = None) -> bool:
         """Re-parent a category (issue #86); parent_title=None means top level.
 

@@ -20,9 +20,10 @@ import gui.mainframe as mainframe
 
 
 class _Provider:
-    def __init__(self, categories, supports_sub=True):
+    def __init__(self, categories, supports_sub=True, uncategorized_real=False):
         self._categories = list(categories)
         self._supports_sub = supports_sub
+        self._uncategorized_real = uncategorized_real
         self.moves = []
         self.renames = []
         self.move_result = True
@@ -33,6 +34,9 @@ class _Provider:
 
     def supports_subcategories(self):
         return self._supports_sub
+
+    def uncategorized_is_real_category(self):
+        return self._uncategorized_real
 
     def move_category(self, title, parent_title=None):
         self.moves.append((title, parent_title))
@@ -45,6 +49,7 @@ class _Provider:
 
 class _Host:
     _eligible_parent_categories = mainframe.MainFrame._eligible_parent_categories
+    _is_protected_uncategorized = mainframe.MainFrame._is_protected_uncategorized
     on_edit_category = mainframe.MainFrame.on_edit_category
     _cmd_edit_selected = mainframe.MainFrame._cmd_edit_selected
 
@@ -94,11 +99,13 @@ def _patch(monkeypatch, code, data):
     return messages
 
 
-def _host(monkeypatch, code=None, data=None, categories=("Work", "Tech", "Tech / Phones"), supports_sub=True):
+def _host(monkeypatch, code=None, data=None, categories=("Work", "Tech", "Tech / Phones"),
+          supports_sub=True, uncategorized_real=False):
     if code is None:
         code = mainframe.wx.ID_OK
     messages = _patch(monkeypatch, code, data or ("Tech", None))
-    return _Host(_Provider(categories, supports_sub=supports_sub)), messages
+    provider = _Provider(categories, supports_sub=supports_sub, uncategorized_real=uncategorized_real)
+    return _Host(provider), messages
 
 
 # --- the parent picker's candidate list ------------------------------------
@@ -185,6 +192,46 @@ def test_blank_name_keeps_the_current_one(monkeypatch):
 
     assert host.provider.renames == []
     assert host.provider.moves == []
+
+
+# --- Uncategorized: virtual (protected) vs real (Miniflux) ------------------
+
+
+def test_uncategorized_is_protected_by_default(monkeypatch):
+    host, _ = _host(monkeypatch)
+    assert host._is_protected_uncategorized("Uncategorized") is True
+    # A blank path is "no category" too.
+    assert host._is_protected_uncategorized("") is True
+    # A normal category is never protected.
+    assert host._is_protected_uncategorized("Tech") is False
+
+
+def test_uncategorized_is_not_protected_when_the_provider_says_it_is_real(monkeypatch):
+    host, _ = _host(monkeypatch, uncategorized_real=True)
+    assert host._is_protected_uncategorized("Uncategorized") is False
+
+
+def test_editing_a_real_uncategorized_opens_the_dialog_and_renames(monkeypatch):
+    """On Miniflux, Uncategorized is a real category: F2/Edit should work, and
+    with no parent picker (flat provider) it renames like any other."""
+    host, _ = _host(
+        monkeypatch, data=("Archive", None),
+        supports_sub=False, uncategorized_real=True,
+    )
+
+    host.on_edit_category("Uncategorized")
+
+    assert _StubDialog.instances and _StubDialog.instances[0].category_path == "Uncategorized"
+    assert host.provider.renames == [("Uncategorized", "Archive")]
+
+
+def test_f2_on_a_real_uncategorized_opens_properties(monkeypatch):
+    host, _ = _host(monkeypatch, code=mainframe.wx.ID_CANCEL, uncategorized_real=True)
+    host.tree = _Tree({"type": "category", "id": "Uncategorized"})
+
+    host._cmd_edit_selected(None)
+
+    assert _StubDialog.instances and _StubDialog.instances[0].category_path == "Uncategorized"
 
 
 def test_uncategorized_says_why_it_cannot_be_edited(monkeypatch):

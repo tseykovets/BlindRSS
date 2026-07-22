@@ -2198,6 +2198,12 @@ class MinifluxProvider(RSSProvider):
         if not data: return []
         return [c["title"] for c in data]
 
+    def uncategorized_is_real_category(self) -> bool:
+        # Miniflux gives every feed a category, so "no category" is a real,
+        # server-managed category named "Uncategorized" -- deletable and
+        # renamable like any other (issue #86). See RSSProvider for the contrast.
+        return True
+
     def add_category(self, title: str, parent_title: str = None) -> bool:
         # Miniflux categories are flat; ignore parent_title (do not simulate nesting).
         return self._req("POST", "/v1/categories", json={"title": title}) is not None
@@ -2227,8 +2233,14 @@ class MinifluxProvider(RSSProvider):
                 break
 
         if cat_id:
+            # A successful DELETE is 204 (no body), which _req also returns as
+            # None -- so the return value alone can't tell success from failure.
+            # Miniflux refuses to delete a category that still has feeds (HTTP
+            # 400), and returning True there made BlindRSS report a phantom
+            # success and silently leave the category in place. Check the
+            # request outcome instead.
             self._req("DELETE", f"/v1/categories/{cat_id}")
-            return True
+            return bool((self._last_request_info or {}).get("ok"))
         return False
 
     def fetch_full_content(self, article_id: str, url: str = ""):

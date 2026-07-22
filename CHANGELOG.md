@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.113.0 - 2026-07-22
+
+- Configurable browser identity and automatic clearance import.
+
 ## v1.112.13 - 2026-07-22
 
 - Drop blank lines between paragraphs in article text.

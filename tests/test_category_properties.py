@@ -1,9 +1,11 @@
 """Category Properties: rename and re-parent a category (issue #86).
 
-The GUI half of the feature. No real wx dialog is built: CategoryPropertiesDialog
-is swapped for a stub that returns whatever the test wants the user to have
-entered, following the stand-in-host pattern used by test_status_bar_activity.py
-and test_category_opml_export.py.
+The GUI half of the feature, in two layers. The dispatch tests swap
+CategoryPropertiesDialog for a stub that returns whatever the test wants the
+user to have entered, following the stand-in-host pattern used by
+test_status_bar_activity.py and test_category_opml_export.py. The section at the
+bottom builds the real wx dialog, because a dialog that raises on construction
+fails silently in the app and looks exactly like a dead shortcut.
 """
 
 import os
@@ -185,13 +187,26 @@ def test_blank_name_keeps_the_current_one(monkeypatch):
     assert host.provider.moves == []
 
 
-def test_uncategorized_cannot_be_edited(monkeypatch):
+def test_uncategorized_says_why_it_cannot_be_edited(monkeypatch):
+    """Uncategorized has no row to rename and no parent to move. Silence here
+    reads as a broken shortcut -- with a screen reader there is no other signal."""
     host, messages = _host(monkeypatch, data=("Anything", "Work"))
 
     host.on_edit_category("Uncategorized")
 
     assert _StubDialog.instances == []
-    assert messages and "Could not edit category." in messages[0][0]
+    assert messages and "cannot be renamed or moved" in messages[0][0]
+
+
+def test_a_blank_category_path_counts_as_uncategorized(monkeypatch):
+    """"No category" and "Uncategorized" are the same thing (is_uncategorized("")
+    is True), so a blank path takes the same explain-and-stop path."""
+    host, messages = _host(monkeypatch, data=("Anything", "Work"))
+
+    host.on_edit_category("")
+
+    assert _StubDialog.instances == []
+    assert messages and "cannot be renamed or moved" in messages[0][0]
 
 
 def test_a_failed_move_reports_and_does_not_rename(monkeypatch):
@@ -280,11 +295,87 @@ def test_f2_on_a_feed_still_opens_feed_properties(monkeypatch):
     assert host.edit_feed_calls == 1
 
 
-def test_f2_on_uncategorized_opens_nothing(monkeypatch):
-    host, _ = _host(monkeypatch, code=mainframe.wx.ID_CANCEL)
+def test_f2_on_uncategorized_explains_instead_of_doing_nothing(monkeypatch):
+    host, messages = _host(monkeypatch, code=mainframe.wx.ID_CANCEL)
     host.tree = _Tree({"type": "category", "id": "Uncategorized"})
 
     host._cmd_edit_selected(None)
 
     assert _StubDialog.instances == []
     assert host.edit_feed_calls == 0
+    assert messages and "cannot be renamed or moved" in messages[0][0]
+
+
+# --- the real wx dialog -----------------------------------------------------
+#
+# Everything above stubs the dialog. These build the real one: a dialog that
+# raises on construction fails silently in the app (the handler's caller logs
+# and moves on), which is exactly how the first attempt at this feature shipped
+# looking like "nothing happened".
+
+
+import pytest
+
+wx = pytest.importorskip("wx")
+
+from gui.dialogs import CategoryPropertiesDialog
+
+
+@pytest.fixture
+def wxapp():
+    app = wx.App(False)
+    yield app
+    try:
+        app.Destroy()
+    except Exception:
+        pass
+
+
+def test_real_dialog_with_a_parent_picker_reports_name_and_parent(wxapp):
+    frame = wx.Frame(None)
+    try:
+        dlg = CategoryPropertiesDialog(
+            frame, "Work / Tech", ["Work", "Personal"], current_parent="Work"
+        )
+        try:
+            assert dlg.name_ctrl.GetValue() == "Tech"
+            assert dlg.parent_ctrl is not None
+            # Index 0 is "(None - Top Level)", so the current parent is at 1.
+            assert dlg.parent_ctrl.GetSelection() == 1
+            assert dlg.get_data() == ("Tech", "Work")
+
+            dlg.parent_ctrl.SetSelection(0)
+            assert dlg.get_data() == ("Tech", None)
+        finally:
+            dlg.Destroy()
+    finally:
+        frame.Destroy()
+
+
+def test_real_dialog_on_a_flat_provider_has_no_picker_and_still_returns_a_name(wxapp):
+    frame = wx.Frame(None)
+    try:
+        dlg = CategoryPropertiesDialog(frame, "News", [], allow_parent_edit=False)
+        try:
+            assert dlg.parent_ctrl is None
+            dlg.name_ctrl.SetValue("Headlines")
+            # get_data() must not raise with no picker present.
+            assert dlg.get_data() == ("Headlines", None)
+        finally:
+            dlg.Destroy()
+    finally:
+        frame.Destroy()
+
+
+def test_real_dialog_survives_a_top_level_category_and_an_empty_candidate_list(wxapp):
+    frame = wx.Frame(None)
+    try:
+        dlg = CategoryPropertiesDialog(frame, "Tech", [], current_parent=None)
+        try:
+            assert dlg.name_ctrl.GetValue() == "Tech"
+            assert dlg.parent_ctrl.GetSelection() == 0
+            assert dlg.get_data() == ("Tech", None)
+        finally:
+            dlg.Destroy()
+    finally:
+        frame.Destroy()

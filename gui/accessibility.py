@@ -1190,7 +1190,30 @@ class AccessibleBrowserFrame(wx.Frame):
         if key in (wx.WXK_SPACE,):
             if self._toggle_selected_category_expansion():
                 return
+        if key == wx.WXK_F2 and not event.HasAnyModifiers():
+            if self._edit_selected_view_entry():
+                return
         event.Skip()
+
+    def _edit_selected_view_entry(self) -> bool:
+        """F2: open Properties for the selected feed or category.
+
+        The main window's tree has had this since the shortcut registry existed;
+        this window had no F2 at all, so the key did nothing here (issue #86).
+        """
+        entry = self._selected_view_entry()
+        if not entry:
+            return False
+        kind = str(entry.get("kind", "") or "")
+        if kind == "category":
+            self._delegate("on_edit_category", str(entry.get("cat_name", "") or ""))
+            return True
+        if kind == "feed":
+            feed_id = str(entry.get("view_id", "") or "")
+            if feed_id:
+                self._delegate("edit_feed_by_id", feed_id)
+                return True
+        return False
 
     def _selected_view_entry(self):
         idx = self.view_list.GetSelection()

@@ -3967,6 +3967,16 @@ class CategoryPropertiesDialog(wx.Dialog):
         sizer.Add(self.name_ctrl, 0, wx.EXPAND | wx.ALL, 5)
 
         self.parent_ctrl = None
+        if not allow_parent_edit:
+            # Say why the parent picker is missing. Silently omitting it looks
+            # identical to the feature being broken -- there is nothing for a
+            # screen reader to read and no reason given.
+            note = wx.StaticText(
+                self,
+                label=_("This provider keeps categories in one flat list, so this category cannot be moved."),
+            )
+            note.Wrap(420)
+            sizer.Add(note, 0, wx.EXPAND | wx.ALL, 5)
         if allow_parent_edit:
             sizer.Add(wx.StaticText(self, label=_("Category:")), 0, wx.ALL, 5)
             choices = [_("(None - Top Level)")] + [

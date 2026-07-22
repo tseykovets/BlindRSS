@@ -6987,8 +6987,15 @@ class MainFrame(wx.Frame):
     def on_edit_category(self, old_title):
         """Category Properties: rename the leaf and/or move it under another
         category (issue #86). The feed-side counterpart is edit_feed_by_id."""
+        # Uncategorized is a sentinel for "no category", not a stored one: it has
+        # no row to rename and no parent to move. Say so -- pressing F2 on it and
+        # getting silence reads as a broken shortcut, especially with a screen
+        # reader, where a dialog that never opens gives no signal at all.
         if is_uncategorized(old_title):
-            wx.MessageBox(_("Could not edit category."), _("Error"), wx.ICON_ERROR)
+            wx.MessageBox(
+                _("The Uncategorized folder cannot be renamed or moved."),
+                _("Info"),
+            )
             return
 
         # old_title is the category's full path; the user edits only the leaf.
@@ -12578,9 +12585,7 @@ class MainFrame(wx.Frame):
         if data and data.get("type") == "category":
             # A category's tree id is its full path (the category identity
             # model), which is what the provider calls take.
-            category_path = data.get("id")
-            if category_path and not is_uncategorized(category_path):
-                self.on_edit_category(category_path)
+            self.on_edit_category(data.get("id"))
             return
         self.on_edit_feed(event)
 

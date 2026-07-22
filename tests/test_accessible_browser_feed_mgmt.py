@@ -88,6 +88,9 @@ class _StubMainFrame(wx.Frame):
     def on_edit_category(self, old_title):
         self.calls.append(("edit_category", old_title))
 
+    def edit_feed_by_id(self, feed_id):
+        self.calls.append(("edit_feed_by_id", feed_id))
+
     def on_add_subcategory(self, parent):
         self.calls.append(("add_subcategory", parent))
 
@@ -266,5 +269,60 @@ def test_view_context_menu_builds(wxapp, monkeypatch):
         frame.on_view_context_menu(None)
         monkeypatch.setattr(frame, "_selected_view_entry", lambda: {"kind": "category", "view_id": "category:News", "cat_name": "News"})
         frame.on_view_context_menu(None)
+    finally:
+        _destroy(mf, frame)
+
+
+def test_f2_opens_properties_for_the_selected_view_entry(wxapp, monkeypatch):
+    """This window had no F2 handler at all, so the key did nothing here even
+    after the main window's tree gained Category Properties (issue #86)."""
+    mf, frame = _make(wxapp)
+    try:
+        monkeypatch.setattr(
+            frame, "_selected_view_entry",
+            lambda: {"kind": "category", "view_id": "category:News", "cat_name": "News"},
+        )
+        assert frame._edit_selected_view_entry() is True
+        assert ("edit_category", "News") in mf.calls
+
+        monkeypatch.setattr(
+            frame, "_selected_view_entry", lambda: {"kind": "feed", "view_id": "f1"}
+        )
+        assert frame._edit_selected_view_entry() is True
+        assert ("edit_feed_by_id", "f1") in mf.calls
+    finally:
+        _destroy(mf, frame)
+
+
+def test_f2_ignores_entries_that_are_neither_feed_nor_category(wxapp, monkeypatch):
+    mf, frame = _make(wxapp)
+    try:
+        monkeypatch.setattr(
+            frame, "_selected_view_entry", lambda: {"kind": "special", "view_id": "deleted:all"}
+        )
+        assert frame._edit_selected_view_entry() is False
+        assert mf.calls == []
+    finally:
+        _destroy(mf, frame)
+
+
+def test_f2_key_event_reaches_the_editor_and_is_not_skipped(wxapp, monkeypatch):
+    """Exercise on_view_list_key_down itself: the helper working is no use if
+    the key never routes to it."""
+    mf, frame = _make(wxapp)
+    try:
+        monkeypatch.setattr(
+            frame, "_selected_view_entry",
+            lambda: {"kind": "category", "view_id": "category:News", "cat_name": "News"},
+        )
+        evt = wx.KeyEvent(wx.wxEVT_KEY_DOWN)
+        evt.SetKeyCode(wx.WXK_F2)
+        skipped = []
+        monkeypatch.setattr(evt, "Skip", lambda *a: skipped.append(True))
+
+        frame.on_view_list_key_down(evt)
+
+        assert ("edit_category", "News") in mf.calls
+        assert skipped == []
     finally:
         _destroy(mf, frame)

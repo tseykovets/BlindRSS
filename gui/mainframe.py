@@ -5185,6 +5185,19 @@ class MainFrame(wx.Frame):
         except Exception:
             return False
 
+    def _is_forum_thread_article(self, article) -> bool:
+        """True when the article is a discussion thread whose feed carries only
+        the opening post (audiogames / applevis), so the whole conversation is
+        worth fetching on selection rather than waiting for reader focus."""
+        url = str(getattr(article, "url", "") or "").strip()
+        if not url:
+            return False
+        try:
+            from core import article_extractor as ae
+            return bool(ae._is_forum_thread_host(url))
+        except Exception:
+            return False
+
     def _ensure_rich_view(self):
         """Create the AccessibleWebView on first use; None if no backend exists."""
         if self._rich_view is not None:
@@ -9556,14 +9569,21 @@ class MainFrame(wx.Frame):
         # _on_rich_view_focus) never runs and VoiceOver users only ever hear
         # the feed snippet. Mirror the accessible browser: start the load on
         # selection (debounced + token-guarded, so fast arrowing is safe).
-        if sys.platform == "darwin":
-            try:
+        #
+        # Forum threads get the same treatment on every platform: audiogames and
+        # applevis syndicate only the opening post, so the feed-content view is a
+        # single-post stub and the rest of the conversation appears only once the
+        # reader is focused. Loading on selection means both the classic reader
+        # and rich view show every post without a focus dance (issue: AppleVis
+        # thread showed one comment).
+        try:
+            if sys.platform == "darwin" or self._is_forum_thread_article(article):
                 if self._rich_view_active():
                     self._schedule_rich_load_for_index(idx, force=False)
                 else:
                     self._schedule_fulltext_load_for_index(idx, force=False)
-            except Exception:
-                pass
+        except Exception:
+            pass
 
     def on_content_copy(self, event):
         if copy_textctrl_selection_to_clipboard(self.content_ctrl):

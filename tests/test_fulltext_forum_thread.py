@@ -265,3 +265,82 @@ def test_plain_author_and_bare_address_pass_through():
     # A bare address is at least identifying; inventing a name would be worse.
     assert utils.normalize_author("news@example.com") == "news@example.com"
     assert utils.normalize_author(None) == ""
+
+
+# --- Forum threads auto-load the whole conversation on selection ------------
+#
+# audiogames and applevis syndicate only the opening post, so the feed-content
+# view is a one-post stub and the rest of the thread appears only once the
+# reader is focused. The reader loads the full thread on selection for these
+# hosts so every post shows without a focus dance.
+
+import sys
+from types import SimpleNamespace
+
+import gui.mainframe as mainframe
+
+
+class _ReaderHost:
+    _is_forum_thread_article = mainframe.MainFrame._is_forum_thread_article
+
+
+def test_is_forum_thread_article_detects_discussion_hosts():
+    host = _ReaderHost()
+    assert host._is_forum_thread_article(SimpleNamespace(url=APPLEVIS_URL)) is True
+    assert host._is_forum_thread_article(SimpleNamespace(url=FORUM_URL)) is True
+    # An ordinary news article must not trigger an eager fetch.
+    assert host._is_forum_thread_article(
+        SimpleNamespace(url="https://www.macrumors.com/2026/07/09/story/")
+    ) is False
+    # No URL (e.g. a local/text item) is never a forum thread.
+    assert host._is_forum_thread_article(SimpleNamespace(url="")) is False
+
+
+class _SelectHost:
+    """Borrows the on-select branch that decides whether to eager-load full text."""
+
+    _is_forum_thread_article = mainframe.MainFrame._is_forum_thread_article
+
+    def __init__(self, rich_active=False):
+        self._rich_active = rich_active
+        self.fulltext_scheduled = []
+        self.rich_scheduled = []
+
+    def _rich_view_active(self):
+        return self._rich_active
+
+    def _schedule_fulltext_load_for_index(self, idx, force=False):
+        self.fulltext_scheduled.append((idx, force))
+
+    def _schedule_rich_load_for_index(self, idx, force=False):
+        self.rich_scheduled.append((idx, force))
+
+    # The exact decision block from _update_content_view.
+    def maybe_autoload(self, idx, article):
+        if sys.platform == "darwin" or self._is_forum_thread_article(article):
+            if self._rich_view_active():
+                self._schedule_rich_load_for_index(idx, force=False)
+            else:
+                self._schedule_fulltext_load_for_index(idx, force=False)
+
+
+def test_selecting_a_forum_thread_schedules_a_classic_fulltext_load():
+    host = _SelectHost(rich_active=False)
+    host.maybe_autoload(3, SimpleNamespace(url=APPLEVIS_URL))
+    assert host.fulltext_scheduled == [(3, False)]
+    assert host.rich_scheduled == []
+
+
+def test_selecting_a_forum_thread_schedules_a_rich_load_when_rich_active():
+    host = _SelectHost(rich_active=True)
+    host.maybe_autoload(2, SimpleNamespace(url=FORUM_URL))
+    assert host.rich_scheduled == [(2, False)]
+    assert host.fulltext_scheduled == []
+
+
+def test_selecting_an_ordinary_article_does_not_eager_load_off_mac():
+    host = _SelectHost(rich_active=False)
+    host.maybe_autoload(1, SimpleNamespace(url="https://www.macrumors.com/2026/07/09/story/"))
+    if sys.platform != "darwin":
+        assert host.fulltext_scheduled == []
+        assert host.rich_scheduled == []

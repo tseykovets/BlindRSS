@@ -558,6 +558,100 @@ _REDDIT_AUTH_COOKIE_NAMES = {
     "session_tracker",
 }
 
+_GROUPS_IO_AUTH_COOKIE_NAMES = {
+    "groupsio",
+    "groupsio_session",
+    "session",
+    "sessionid",
+}
+
+
+def refresh_groups_io_cookies_from_browsers(url: str) -> bool:
+    """Import only Groups.io cookies from the best Firefox-family profile.
+
+    This is intentionally site-scoped.  It supports signed-in/member archives
+    without copying unrelated browser logins into BlindRSS's managed jar.
+    Chromium's Windows cookie encryption is not bypassed; those users can use
+    the existing Import Site Cookies cookies.txt workflow instead.
+    """
+    try:
+        request_host = (urllib.parse.urlsplit(str(url or "")).hostname or "").lower()
+    except Exception:
+        return False
+    if not (request_host == "groups.io" or request_host.endswith(".groups.io")):
+        return False
+
+    refresh_key = "groupsio-login:" + request_host
+    now_mono = time.monotonic()
+    with _forced_refresh_lock:
+        if now_mono - _last_forced_refresh.get(refresh_key, 0.0) < _REFRESH_MIN_INTERVAL_S:
+            return bool(cookies_for(url))
+        _last_forced_refresh[refresh_key] = now_mono
+
+    try:
+        profiles = list_browser_profiles()
+    except Exception:
+        return bool(cookies_for(url))
+
+    now = time.time()
+    choices = []
+    for profile in profiles or []:
+        profile_dir = str(profile.get("path", "") or "")
+        if not profile_dir:
+            continue
+        try:
+            browser_rows = _read_firefox_cookies(profile_dir)
+        except Exception:
+            continue
+        matching = []
+        auth_count = 0
+        newest_expiry = 0.0
+        for host, path, secure, http_only, expiry, name, value in browser_rows:
+            cookie_host = str(host or "").lower().lstrip(".")
+            if not (cookie_host == "groups.io" or cookie_host.endswith(".groups.io")):
+                continue
+            try:
+                expiry_f = float(expiry or 0)
+            except (TypeError, ValueError):
+                expiry_f = 0.0
+            if expiry_f and expiry_f < now:
+                continue
+            matching.append((host, path, secure, http_only, expiry_f, name, value))
+            lower_name = str(name or "").lower()
+            if value and (lower_name in _GROUPS_IO_AUTH_COOKIE_NAMES or "session" in lower_name):
+                auth_count += 1
+            newest_expiry = max(newest_expiry, expiry_f)
+        if matching:
+            choices.append(((bool(auth_count), auth_count, newest_expiry, len(matching)), profile, matching))
+
+    if not choices:
+        return bool(cookies_for(url))
+    _score, chosen, browser_rows = max(choices, key=lambda item: item[0])
+    records = []
+    for host, path, secure, http_only, expiry, name, value in browser_rows:
+        domain_field = ("#HttpOnly_" + host) if http_only else host
+        records.append((
+            domain_field,
+            "TRUE" if str(host).startswith(".") else "FALSE",
+            path or "/",
+            "TRUE" if secure else "FALSE",
+            str(int(expiry or 0)),
+            name,
+            value,
+        ))
+    _merge_records_into_jar(records)
+    try:
+        ua = firefox_profile_user_agent(str(chosen.get("path", "") or ""))
+    except Exception:
+        ua = ""
+    if ua:
+        set_host_user_agent("groups.io", ua)
+    log.info(
+        "Refreshed %d Groups.io cookie(s) from %s (%s)",
+        len(records), chosen.get("browser", "browser"), chosen.get("profile", ""),
+    )
+    return bool(cookies_for(url))
+
 
 def refresh_reddit_cookies_from_browsers(url: str) -> bool:
     """Import only Reddit cookies from the best Firefox-family profile.

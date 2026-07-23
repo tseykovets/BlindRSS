@@ -28,6 +28,7 @@ from core.discovery import (
     search_bluesky_feeds,
     search_piefed_feeds,
 )
+from core.groups_io import search_groups_io_feeds
 from core import article_columns
 from core import utils
 from core import config as config_mod
@@ -1447,6 +1448,26 @@ class SettingsDialog(wx.Dialog):
         notebook.AddPage(startup_panel, _("Startup && Tray"))
         youtube_panel.SetSizer(youtube_sizer)
         notebook.AddPage(youtube_panel, _("YouTube"))
+
+        groups_io_panel = wx.Panel(notebook)
+        groups_io_sizer = wx.BoxSizer(wx.VERTICAL)
+        groups_io_sizer.Add(wx.StaticText(groups_io_panel, label=_(
+            "Groups.io API key (optional). Public groups and RSS work without a key; "
+            "the key enables complete paginated topics and member-only archives. "
+            "Create one at groups.io/settings/apikeys."
+        )), 0, wx.ALL, 8)
+        self.groups_io_api_key_ctrl = wx.TextCtrl(
+            groups_io_panel, value=str(config.get("groups_io_api_key", "") or ""), style=wx.TE_PASSWORD
+        )
+        self.groups_io_api_key_ctrl.SetName("Groups.io API key")
+        self.groups_io_api_key_ctrl.SetHint(_("Paste your Groups.io API key"))
+        groups_io_sizer.Add(self.groups_io_api_key_ctrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        groups_io_sizer.Add(wx.StaticText(groups_io_panel, label=_(
+            "Search subscriptions keep the search URL and refresh results in the background. "
+            "Browser cookies are imported only from Groups.io domains."
+        )), 0, wx.ALL, 8)
+        groups_io_panel.SetSizer(groups_io_sizer)
+        notebook.AddPage(groups_io_panel, _("Groups.io"))
 
         # Media Player Tab
         media_panel = wx.Panel(notebook)
@@ -3447,6 +3468,7 @@ class SettingsDialog(wx.Dialog):
             "article_structure_links": self.structure_links_chk.GetValue(),
             "full_text_rich_view": self.rich_view_chk.GetValue(),
             "ytdlp_cookies_file": self.ytdlp_cookies_ctrl.GetValue().strip(),
+            "groups_io_api_key": self.groups_io_api_key_ctrl.GetValue().strip(),
             "auto_import_browser_cookies": self.auto_import_cookies_chk.GetValue(),
             "youtube_play_via_download": self.youtube_play_via_download_chk.GetValue(),
             "youtube_play_cache_dir": self.youtube_play_cache_dir_ctrl.GetValue().strip(),
@@ -4334,7 +4356,7 @@ class FeedSearchDialog(wx.Dialog):
     # but is no longer one of the aggregated default sources, so no single
     # directory is relied on. Feedsearch + the local website scan cover
     # domain/site-name discovery.
-    _RSS_SOURCE_KEYS = ["newsblur", "feedspot", "googlenews", "bingnews", "youtube", "soundcloud", "mixcloud", "reddit", "fediverse", "feedsearch", "blindrss"]
+    _RSS_SOURCE_KEYS = ["newsblur", "feedspot", "googlenews", "bingnews", "youtube", "soundcloud", "mixcloud", "reddit", "groupsio", "fediverse", "feedsearch", "blindrss"]
     _SOURCE_CHOICES = [
         ("All sources", _SOURCE_ALL),
         ("All podcast sources", _SOURCE_ALL_PODCAST),
@@ -4352,6 +4374,7 @@ class FeedSearchDialog(wx.Dialog):
         ("Mixcloud", "mixcloud"),
         ("Feedly", "feedly"),
         ("Reddit", "reddit"),
+        ("Groups.io", "groupsio"),
         ("Fediverse (all)", "fediverse"),
         ("Mastodon", "mastodon"),
         ("Bluesky", "bluesky"),
@@ -4487,6 +4510,7 @@ class FeedSearchDialog(wx.Dialog):
             ("SoundCloud", "soundcloud", self._search_soundcloud),
             ("Mixcloud", "mixcloud", self._search_mixcloud),
             ("Reddit", "reddit", self._search_reddit),
+            ("Groups.io", "groupsio", self._search_groups_io),
             ("Fediverse", "fediverse", self._search_fediverse),
             ("Feedsearch", "feedsearch", self._search_feedsearch),
             ("BlindRSS", "blindrss", self._search_blindrss),
@@ -4911,6 +4935,14 @@ class FeedSearchDialog(wx.Dialog):
             results = list(search_piefed_feeds(term, limit=12, timeout=15) or [])
             if results:
                 queue.put(("PieFed", results))
+        except Exception:
+            pass
+
+    def _search_groups_io(self, term, queue):
+        try:
+            results = list(search_groups_io_feeds(term, limit=20, timeout=15) or [])
+            if results:
+                queue.put(("Groups.io", results))
         except Exception:
             pass
 

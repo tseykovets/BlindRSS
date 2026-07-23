@@ -1521,6 +1521,17 @@ class LocalProvider(RSSProvider):
         if not resolved:
             return resolved
 
+        # Groups.io archive searches have no filtered RSS endpoint.  Preserve
+        # them as synthetic local subscriptions; ordinary group pages still
+        # normalize to the group's native /rss feed through discovery.
+        try:
+            from core import groups_io
+
+            if groups_io.is_group_search_url(resolved):
+                return resolved
+        except Exception:
+            pass
+
         # YouTube search URLs have no native RSS and are enumerated on refresh;
         # keep them verbatim so discovery does not rewrite them to a channel feed.
         try:
@@ -2394,6 +2405,118 @@ class LocalProvider(RSSProvider):
                     except Exception:
                         pass
 
+                return
+
+            try:
+                from core import groups_io as _groups_io
+                is_groups_io_search = _groups_io.is_group_search_url(feed_url)
+            except Exception:
+                is_groups_io_search = False
+
+            if is_groups_io_search:
+                try:
+                    max_items = int(self.config.get("groups_io_search_max_items", 100))
+                except Exception:
+                    max_items = 100
+                max_items = max(1, min(1000, max_items))
+                page_title = ""
+                all_items = []
+                with limiter:
+                    last_exc = None
+                    attempts = retries + 1
+                    deadline = _per_feed_attempt_deadline(max(10, feed_timeout))
+                    for attempt in range(1, attempts + 1):
+                        try:
+                            page_title, all_items = _groups_io.fetch_search_items(
+                                feed_url,
+                                max_items=max_items,
+                                timeout=float(max(10, feed_timeout)),
+                            )
+                            break
+                        except Exception as e:
+                            last_exc = e
+                            status = "error"
+                            error_msg = str(e)
+                            if attempt <= retries and time.monotonic() < deadline:
+                                if self._sleep_or_cancel_refresh(min(4, attempt), cancel_event):
+                                    return
+                                continue
+                            raise last_exc
+
+                if page_title:
+                    final_title = page_title
+                conn = get_connection()
+                try:
+                    c = conn.cursor()
+                    c.execute("SELECT 1 FROM feeds WHERE id = ? LIMIT 1", (feed_id,))
+                    if not c.fetchone():
+                        return
+                    title_to_store, custom_to_store = _resolve_feed_title_update(
+                        feed_title, title_is_custom, upstream_title, final_title, feed_url
+                    )
+                    c.execute(
+                        "UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, etag = ?, last_modified = ? WHERE id = ?",
+                        (title_to_store, custom_to_store, str(final_title or "").strip(), None, None, feed_id),
+                    )
+                    conn.commit()
+                    deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
+                        feed_id, cursor=c,
+                    )
+                    total_entries = len(all_items)
+                    entry_count = total_entries
+                    for i, item in enumerate(all_items):
+                        if self._refresh_cancelled(cancel_event):
+                            return
+                        try:
+                            legacy_article_id = str(item.id or item.url)
+                            title = item.title or "No Title"
+                            url = item.url or ""
+                            article_id = str(uuid.uuid5(
+                                uuid.NAMESPACE_URL,
+                                f"blindrss:groups-io-search:{feed_id}:{url or legacy_article_id}",
+                            ))
+                            author = item.author or final_title or "Groups.io"
+                            date = utils.normalize_date(item.published or "", title, item.content or "", url)
+                            if _article_matches_deleted_tombstone(
+                                deleted_article_ids, deleted_article_urls,
+                                article_id, legacy_article_id, url=url,
+                            ):
+                                continue
+                            c.execute(
+                                "SELECT id, date FROM articles WHERE feed_id = ? "
+                                "AND (id = ? OR id = ? OR url = ?) LIMIT 1",
+                                (feed_id, article_id, legacy_article_id, url),
+                            )
+                            row = c.fetchone()
+                            if row:
+                                existing_id, existing_date = row
+                                c.execute(
+                                    "UPDATE articles SET title = ?, url = ?, content = ?, date = ?, author = ? WHERE id = ?",
+                                    (title, url, item.content or "", date, author, existing_id),
+                                )
+                                if existing_date != date or i % 5 == 0 or i == total_entries - 1:
+                                    conn.commit()
+                                continue
+                            c.execute(
+                                "INSERT INTO articles (id, feed_id, title, url, content, date, author, is_read) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
+                                (article_id, feed_id, title, url, item.content or "", date, author),
+                            )
+                            new_items += 1
+                            _record_new_article(article_id, title, author, url=url)
+                            if i % 5 == 0 or i == total_entries - 1:
+                                conn.commit()
+                        except sqlite3.IntegrityError as e:
+                            if _rollback_and_abort_on_foreign_key(conn, e):
+                                return
+                            log.debug("Groups.io search entry insert failed for %s: %s", feed_url, e)
+                        except Exception as e:
+                            log.debug("Groups.io search entry insert failed for %s: %s", feed_url, e)
+                finally:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
                 return
 
             try:
@@ -4544,7 +4667,13 @@ class LocalProvider(RSSProvider):
         title = real_url
         try:
             from core import discovery as _disc
-            if _disc.is_youtube_search_url(real_url):
+            from core import groups_io as _groups_io
+            if _groups_io.is_group_search_url(real_url):
+                query = _groups_io.search_query(real_url)
+                group_path = urlsplit(real_url).path.split("/")
+                group = group_path[2] if len(group_path) > 2 else "Groups.io"
+                title = f"{group} search: {query}" if query else f"{group} search"
+            elif _disc.is_youtube_search_url(real_url):
                 q = _disc.youtube_search_query(real_url) or real_url
                 title = f"YouTube: {q}"
             elif rumble_mod.is_rumble_url(real_url) and not real_url.lower().endswith((".xml", ".rss", ".atom")):

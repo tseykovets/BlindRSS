@@ -3969,6 +3969,19 @@ def get_social_feed_url(url: str) -> str | None:
     if not url:
         return None
 
+    # Groups.io group landing, topics, messages, and archive-search pages all
+    # advertise the same native per-group RSS feed.  Local search subscriptions
+    # preserve /search earlier in LocalProvider; hosted providers that cannot
+    # synthesize filtered results still get the useful unfiltered group feed.
+    try:
+        from core import groups_io
+
+        groups_feed = groups_io.group_feed_url(url)
+        if groups_feed:
+            return groups_feed
+    except Exception:
+        pass
+
     # Reddit exposes a native Atom feed for every public subreddit.  Normalize
     # both the current and old frontends before doing any network discovery so
     # pasting ``reddit.com/r/name`` into Add Feed works even when the HTML site

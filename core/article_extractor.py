@@ -830,6 +830,18 @@ def _extract_gsmarena_text(html: str) -> str:
 # rich reader reuses it. `lead` is for engines (Drupal) where the opening post is a
 # different element from the replies; FluxBB's first post is just another post.
 _FORUM_LAYOUTS = (
+    {   # BlindRSS semantic reconstruction of a Groups.io topic
+        "name": "groupsio",
+        "lead": "",
+        "lead_body": "",
+        "lead_header": (),
+        "post": "section.blindrss-groupsio-post",
+        "post_body": ".blindrss-groupsio-body",
+        "post_number": "h2",
+        "post_header": (),
+        "post_time": "",
+        "junk": (),
+    },
     {   # BlindRSS semantic reconstruction of a Reddit JSON/RSS thread
         "name": "reddit",
         "lead": "",
@@ -950,8 +962,17 @@ def _is_lemmy_thread_url(url: str) -> bool:
     return _lemmy_thread_parts(url) is not None
 
 
+def _is_groups_io_thread_url(url: str) -> bool:
+    try:
+        from core import groups_io
+
+        return groups_io.is_thread_url(url)
+    except Exception:
+        return False
+
+
 def _is_forum_thread_host(url: str) -> bool:
-    return _is_reddit_thread_url(url) or _is_lemmy_thread_url(url) or any(
+    return _is_reddit_thread_url(url) or _is_lemmy_thread_url(url) or _is_groups_io_thread_url(url) or any(
         _host_matches(url, host) for host in _FORUM_THREAD_HOSTS
     )
 
@@ -3306,6 +3327,20 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
     """
     if not url:
         return _FetchResult()
+
+    # Groups.io's regular topic HTML is paginated (20 messages per page), while
+    # the official API is cursor-paginated.  Reconstruct a single semantic page
+    # through the API when configured and fall back to every public HTML page.
+    if _is_groups_io_thread_url(url):
+        try:
+            from core import groups_io
+
+            groups_html = groups_io.download_thread_html(url, timeout=timeout)
+        except Exception:
+            LOG.debug("Groups.io topic reconstruction failed for %s", url, exc_info=True)
+            groups_html = ""
+        if groups_html:
+            return _FetchResult(html=groups_html)
 
     # Reddit's normal HTML progressively hydrates/collapses comment branches,
     # so scraping that DOM can never satisfy the reader's "all comments"

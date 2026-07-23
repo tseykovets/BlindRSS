@@ -160,6 +160,11 @@ DEFAULT_CONFIG = {
     "refresh_on_startup": True,
     # Max recent videos to pull when a YouTube search URL is subscribed as a feed.
     "youtube_search_max_items": 30,
+    # Groups.io public feeds/topics require no account.  An optional API key
+    # makes complete large/member-only topic retrieval reliable and is stored
+    # only in the user's local config.json.
+    "groups_io_api_key": "",
+    "groups_io_search_max_items": 100,
     # When true, adult sites are added to the Video Search site list (still opt-in
     # per search — the user must select them). When false, they never appear.
     "enable_adult_search": False,

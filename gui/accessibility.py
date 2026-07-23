@@ -593,6 +593,7 @@ class AccessibleBrowserFrame(wx.Frame):
         self._menu_item(file_menu, _("Add &Category..."), lambda e: self._delegate("on_add_category"))
         self._menu_item(file_menu, _("New Smart F&older..."), lambda e: self._ctx_new_smart_folder())
         self._menu_item(file_menu, _("&Import OPML..."), lambda e: self._delegate("on_import_opml"))
+        self._menu_item(file_menu, _("Import &YouTube Takeout..."), lambda e: self._delegate("on_import_youtube_takeout"))
         self._menu_item(file_menu, _("&Export OPML..."), lambda e: self._delegate("on_export_opml"))
         file_menu.AppendSeparator()
         self._menu_item(file_menu, _("&Refresh Feeds\tCtrl+R"), self.on_refresh_feeds)

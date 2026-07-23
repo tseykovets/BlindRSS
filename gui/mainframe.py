@@ -10,6 +10,7 @@ import re
 import html as html_stdlib
 import logging
 import hashlib
+import tempfile
 from copy import deepcopy
 from types import SimpleNamespace
 from collections import OrderedDict, deque
@@ -2168,6 +2169,9 @@ class MainFrame(wx.Frame):
         file_menu.AppendSeparator()
         import_opml_item = self._append_shortcut_menu_item(
             file_menu, "feeds.import_opml", _("&Import OPML..."), _("Import feeds from OPML"))
+        import_youtube_takeout_item = self._append_shortcut_menu_item(
+            file_menu, "feeds.import_youtube_takeout", _("Import &YouTube Takeout..."),
+            _("Import YouTube subscriptions, playlists, channels, and watch-history channels"))
         export_opml_item = self._append_shortcut_menu_item(
             file_menu, "feeds.export_opml", _("E&xport OPML..."), _("Export feeds to OPML"))
         file_menu.AppendSeparator()
@@ -2421,6 +2425,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_add_category, add_cat_item)
         self.Bind(wx.EVT_MENU, self.on_remove_category, remove_cat_item)
         self.Bind(wx.EVT_MENU, self.on_import_opml, import_opml_item)
+        self.Bind(wx.EVT_MENU, self.on_import_youtube_takeout, import_youtube_takeout_item)
         self.Bind(wx.EVT_MENU, self.on_export_opml, export_opml_item)
         self.Bind(wx.EVT_MENU, self.on_configure_persistent_search, persistent_search_item)
         if add_shortcuts_item is not None:
@@ -3040,6 +3045,7 @@ class MainFrame(wx.Frame):
             "feeds.add_category": self.on_add_category,
             "feeds.remove_category": self.on_remove_category,
             "feeds.import_opml": self.on_import_opml,
+            "feeds.import_youtube_takeout": self.on_import_youtube_takeout,
             "feeds.export_opml": self.on_export_opml,
             "feeds.find_podcast": self.on_find_feed,
             "feeds.video_search": self.on_ytdlp_global_search,
@@ -12787,6 +12793,183 @@ class MainFrame(wx.Frame):
             self.SetTitle("BlindRSS - Importing OPML...")
             threading.Thread(target=self._import_opml_thread, args=(path, target_category), daemon=True).start()
         dlg.Destroy()
+
+    def on_import_youtube_takeout(self, event=None):
+        """Import subscribable sources from a Google Takeout YouTube ZIP."""
+        file_dlg = wx.FileDialog(
+            self,
+            _("Import YouTube Takeout"),
+            wildcard=f'{_("ZIP archives")} (*.zip)|*.zip',
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        )
+        try:
+            if file_dlg.ShowModal() != wx.ID_OK:
+                return
+            path = file_dlg.GetPath()
+        finally:
+            file_dlg.Destroy()
+
+        self.SetTitle(_("BlindRSS - Reading YouTube Takeout..."))
+        threading.Thread(
+            target=self._prepare_youtube_takeout_thread,
+            args=(path,),
+            daemon=True,
+        ).start()
+
+    def _prepare_youtube_takeout_thread(self, path: str) -> None:
+        from core.youtube_takeout import parse_youtube_takeout
+
+        try:
+            result = parse_youtube_takeout(path)
+            error = ""
+        except Exception as exc:
+            result = None
+            error = str(exc) or exc.__class__.__name__
+            log.exception("Could not inspect YouTube Takeout archive path=%s", path)
+        wx.CallAfter(self._show_youtube_takeout_options, result, error)
+
+    def _show_youtube_takeout_options(self, result, error="") -> None:
+        self.SetTitle("BlindRSS")
+        if result is None:
+            message = _("YouTube Takeout import failed.")
+            if error:
+                message = f"{message}\n\n{error}"
+            wx.MessageBox(message, _("Error"), wx.OK | wx.ICON_ERROR, self)
+            return
+
+        available_sources = [
+            ("subscriptions", result.subscriptions, _("Subscribed channels ({count})")),
+            ("history", result.history_channels, _("Channels from watch history ({count})")),
+            ("owner", result.owner_channels, _("Owned channels ({count})")),
+            ("playlists", result.playlists, _("Playlists ({count})")),
+        ]
+        source_options = [
+            (source, label.format(count=count))
+            for source, count, label in available_sources
+            if count
+        ]
+        select_dlg = wx.MultiChoiceDialog(
+            self,
+            _("Select what to import from this YouTube Takeout file:"),
+            _("Import YouTube Takeout"),
+            [label for _source, label in source_options],
+        )
+        try:
+            select_dlg.SetSelections(list(range(len(source_options))))
+            if select_dlg.ShowModal() != wx.ID_OK:
+                return
+            selected_indexes = list(select_dlg.GetSelections())
+        finally:
+            select_dlg.Destroy()
+        if not selected_indexes:
+            wx.MessageBox(_("Select at least one item type to import."), _("Import YouTube Takeout"), wx.OK | wx.ICON_INFORMATION, self)
+            return
+
+        sources = {source_options[index][0] for index in selected_indexes if 0 <= index < len(source_options)}
+        selected_result = result.selected(sources)
+        if not selected_result.feeds:
+            wx.MessageBox(_("No subscribable items were selected."), _("Import YouTube Takeout"), wx.OK | wx.ICON_INFORMATION, self)
+            return
+
+        try:
+            category_ids = list(self.provider.get_categories() or [])
+        except Exception:
+            category_ids = []
+        if UNCATEGORIZED not in category_ids:
+            category_ids.insert(0, UNCATEGORIZED)
+        category_ids = list(dict.fromkeys(category_ids))
+        category_dlg = wx.SingleChoiceDialog(
+            self,
+            _("Choose the category for imported YouTube subscriptions:"),
+            _("Import YouTube Takeout"),
+            [category_display_name(category) for category in category_ids],
+        )
+        try:
+            if category_dlg.ShowModal() != wx.ID_OK:
+                return
+            selected_category = category_dlg.GetSelection()
+            if selected_category < 0 or selected_category >= len(category_ids):
+                return
+            category = category_ids[selected_category]
+        finally:
+            category_dlg.Destroy()
+
+        self.SetTitle(_("BlindRSS - Importing YouTube Takeout..."))
+        threading.Thread(
+            target=self._import_youtube_takeout_thread,
+            args=(selected_result, category),
+            daemon=True,
+        ).start()
+
+    def _import_youtube_takeout_thread(self, result, category: str) -> None:
+        from core.youtube_takeout import write_takeout_opml
+
+        success = False
+        error = ""
+        new_feed_ids: list[str] = []
+        temp_path = ""
+        try:
+            before_ids = self._snapshot_feed_ids()
+            with tempfile.NamedTemporaryFile(
+                mode="wb", suffix=".opml", prefix="blindrss-youtube-takeout-", delete=False
+            ) as tmp:
+                temp_path = tmp.name
+            write_takeout_opml(result, temp_path)
+            success = bool(self.provider.import_opml(temp_path, category))
+            after_ids = self._snapshot_feed_ids()
+            if success:
+                new_feed_ids = sorted(fid for fid in after_ids if fid not in before_ids)
+        except Exception as exc:
+            error = str(exc) or exc.__class__.__name__
+            log.exception("YouTube Takeout import failed")
+        finally:
+            if temp_path:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    log.warning("Could not remove temporary Takeout OPML file: %s", temp_path)
+        wx.CallAfter(self._post_import_youtube_takeout, success, result, new_feed_ids, error)
+
+    def _post_import_youtube_takeout(self, success, result, new_feed_ids, error="") -> None:
+        self.SetTitle("BlindRSS")
+        self.refresh_feeds()
+        if not success or result is None:
+            message = _("YouTube Takeout import failed.")
+            if error:
+                message = f"{message}\n\n{error}"
+            wx.MessageBox(message, _("Error"), wx.OK | wx.ICON_ERROR, self)
+            return
+
+        normalized_new_ids = [str(feed_id).strip() for feed_id in new_feed_ids if str(feed_id).strip()]
+        if normalized_new_ids:
+            refresh_many = getattr(self.provider, "refresh_feeds_by_ids", None)
+            refresh_one = getattr(self.provider, "refresh_feed", None)
+            if callable(refresh_many) or callable(refresh_one):
+                threading.Thread(
+                    target=self._refresh_imported_feed_ids_thread,
+                    args=(normalized_new_ids,),
+                    daemon=True,
+                ).start()
+
+        wx.MessageBox(
+            _(
+                "YouTube Takeout import complete.\n\n"
+                "New subscriptions: {new}\n"
+                "Subscription channels: {subscriptions}\n"
+                "Watch-history channels: {history}\n"
+                "Owned channels: {owned}\n"
+                "Playlists: {playlists}"
+            ).format(
+                new=len(normalized_new_ids),
+                subscriptions=result.subscriptions,
+                history=result.history_channels,
+                owned=result.owner_channels,
+                playlists=result.playlists,
+            ),
+            _("Import YouTube Takeout"),
+            wx.OK | wx.ICON_INFORMATION,
+            self,
+        )
 
     def _snapshot_feed_ids(self) -> set[str]:
         try:

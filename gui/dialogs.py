@@ -4510,11 +4510,18 @@ class FeedSearchDialog(wx.Dialog):
             ("SoundCloud", "soundcloud", self._search_soundcloud),
             ("Mixcloud", "mixcloud", self._search_mixcloud),
             ("Reddit", "reddit", self._search_reddit),
-            ("Groups.io", "groupsio", self._search_groups_io),
+        ]
+        # Some lightweight hosts reuse this pure target-selection helper
+        # without implementing every optional directory adapter. Keep those
+        # callers functional while the real dialog still exposes Groups.io.
+        groups_io_search = getattr(self, "_search_groups_io", None)
+        if callable(groups_io_search):
+            all_targets.append(("Groups.io", "groupsio", groups_io_search))
+        all_targets.extend((
             ("Fediverse", "fediverse", self._search_fediverse),
             ("Feedsearch", "feedsearch", self._search_feedsearch),
             ("BlindRSS", "blindrss", self._search_blindrss),
-        ]
+        ))
         # Feedly is still selectable on its own but excluded from the "all"
         # groups (NewsBlur is the primary directory now). Fediverse per-network
         # sources are likewise explicit-only.

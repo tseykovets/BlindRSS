@@ -830,6 +830,42 @@ def _extract_gsmarena_text(html: str) -> str:
 # rich reader reuses it. `lead` is for engines (Drupal) where the opening post is a
 # different element from the replies; FluxBB's first post is just another post.
 _FORUM_LAYOUTS = (
+    {   # BlindRSS semantic reconstruction of a Google Groups conversation
+        "name": "googlegroups",
+        "lead": "",
+        "lead_body": "",
+        "lead_header": (),
+        "post": "section.blindrss-googlegroups-post",
+        "post_body": ".blindrss-googlegroups-body",
+        "post_number": "h2",
+        "post_header": (),
+        "post_time": "",
+        "junk": (),
+    },
+    {   # BlindRSS semantic reconstruction of a Google Help Community thread
+        "name": "googlesupport",
+        "lead": "",
+        "lead_body": "",
+        "lead_header": (),
+        "post": "section.blindrss-googlesupport-post",
+        "post_body": ".blindrss-googlesupport-body",
+        "post_number": "h2",
+        "post_header": (),
+        "post_time": "",
+        "junk": (),
+    },
+    {   # BlindRSS semantic reconstruction of a Discourse JSON topic
+        "name": "discourse",
+        "lead": "",
+        "lead_body": "",
+        "lead_header": (),
+        "post": "section.blindrss-discourse-post",
+        "post_body": ".blindrss-discourse-body",
+        "post_number": "h2",
+        "post_header": (),
+        "post_time": "",
+        "junk": (),
+    },
     {   # BlindRSS semantic reconstruction of a Groups.io topic
         "name": "groupsio",
         "lead": "",
@@ -971,9 +1007,26 @@ def _is_groups_io_thread_url(url: str) -> bool:
         return False
 
 
+def _is_web_forum_thread_url(url: str) -> bool:
+    try:
+        from core import forum_sources
+
+        return bool(
+            forum_sources.is_google_groups_thread_url(url)
+            or forum_sources.is_google_support_thread_url(url)
+            or forum_sources.is_discourse_topic_url(url)
+        )
+    except Exception:
+        return False
+
+
 def _is_forum_thread_host(url: str) -> bool:
-    return _is_reddit_thread_url(url) or _is_lemmy_thread_url(url) or _is_groups_io_thread_url(url) or any(
-        _host_matches(url, host) for host in _FORUM_THREAD_HOSTS
+    return (
+        _is_reddit_thread_url(url)
+        or _is_lemmy_thread_url(url)
+        or _is_groups_io_thread_url(url)
+        or _is_web_forum_thread_url(url)
+        or any(_host_matches(url, host) for host in _FORUM_THREAD_HOSTS)
     )
 
 
@@ -3327,6 +3380,31 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
     """
     if not url:
         return _FetchResult()
+
+    # Google Groups, Google Help Communities, and Discourse all expose richer
+    # structured conversation data than generic article extraction can retain.
+    # Each route check is strict and each decoder fails closed, so an unrelated
+    # site with a similar path continues through the ordinary fetch chain.
+    try:
+        from core import forum_sources
+
+        forum_html = ""
+        if forum_sources.is_google_groups_thread_url(url):
+            forum_html = forum_sources.download_google_groups_thread_html(
+                url, timeout=timeout
+            )
+        elif forum_sources.is_google_support_thread_url(url):
+            forum_html = forum_sources.download_google_support_thread_html(
+                url, timeout=timeout
+            )
+        elif forum_sources.is_discourse_topic_url(url):
+            forum_html = forum_sources.download_discourse_thread_html(
+                url, timeout=timeout
+            )
+        if forum_html:
+            return _FetchResult(html=forum_html)
+    except Exception:
+        LOG.debug("Structured web-forum reconstruction failed for %s", url, exc_info=True)
 
     # Groups.io's regular topic HTML is paginated (20 messages per page), while
     # the official API is cursor-paginated.  Reconstruct a single semantic page

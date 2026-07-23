@@ -165,6 +165,10 @@ DEFAULT_CONFIG = {
     # only in the user's local config.json.
     "groups_io_api_key": "",
     "groups_io_search_max_items": 100,
+    # Google Groups retired RSS. The current web conversation list exposes up
+    # to 30 recent topics per response; keep the cap configurable for future
+    # server-side expansion without treating the HTML page as an RSS document.
+    "google_groups_max_items": 30,
     # When true, adult sites are added to the Video Search site list (still opt-in
     # per search — the user must select them). When false, they never appear.
     "enable_adult_search": False,

@@ -1347,9 +1347,21 @@ class AccessibleBrowserFrame(wx.Frame):
             page, total = self.mainframe.provider.get_articles_page(view_id, offset=offset, limit=page_size)
             page = list(page or [])
             page.sort(key=lambda a: (getattr(a, "timestamp", 0.0), self.mainframe._article_cache_id(a)), reverse=True)
-            wx.CallAfter(self._finish_load_articles_page, view_id, offset, page, total)
         except Exception as e:
-            wx.CallAfter(self._load_articles_failed, view_id, str(e))
+            try:
+                wx.CallAfter(self._load_articles_failed, view_id, str(e))
+            except (AssertionError, RuntimeError):
+                # The accessible window can close while this daemon fetch is
+                # finishing. There is then no live wx.App to receive an error
+                # callback, and shutdown should remain silent.
+                pass
+            return
+        try:
+            wx.CallAfter(self._finish_load_articles_page, view_id, offset, page, total)
+        except (AssertionError, RuntimeError):
+            # Normal shutdown race: the wx.App/window was destroyed after the
+            # provider returned but before this callback could be queued.
+            pass
 
     def _load_articles_failed(self, view_id, error_msg):
         if view_id != self.current_view_id:

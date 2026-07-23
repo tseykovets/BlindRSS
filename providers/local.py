@@ -1521,6 +1521,18 @@ class LocalProvider(RSSProvider):
         if not resolved:
             return resolved
 
+        # Google Groups' retired RSS endpoints are replaced by a synthetic
+        # subscription over the current web conversation list.  Accept the
+        # group's email address and legacy #!forum link as well as /g/name.
+        try:
+            from core import forum_sources
+
+            google_group = forum_sources.google_group_subscription_url(resolved)
+            if google_group:
+                return google_group
+        except Exception:
+            pass
+
         # Groups.io archive searches have no filtered RSS endpoint.  Preserve
         # them as synthetic local subscriptions; ordinary group pages still
         # normalize to the group's native /rss feed through discovery.
@@ -2405,6 +2417,151 @@ class LocalProvider(RSSProvider):
                     except Exception:
                         pass
 
+                return
+
+            try:
+                from core import forum_sources as _forum_sources
+                is_google_group = _forum_sources.is_google_group_url(feed_url)
+            except Exception:
+                is_google_group = False
+
+            if is_google_group:
+                try:
+                    max_items = int(self.config.get("google_groups_max_items", 30))
+                except Exception:
+                    max_items = 30
+                max_items = max(1, min(100, max_items))
+                page_title = ""
+                all_items = []
+                with limiter:
+                    last_exc = None
+                    attempts = retries + 1
+                    deadline = _per_feed_attempt_deadline(max(10, feed_timeout))
+                    for attempt in range(1, attempts + 1):
+                        try:
+                            page_title, all_items = _forum_sources.fetch_google_group_items(
+                                feed_url,
+                                max_items=max_items,
+                                timeout=float(max(10, feed_timeout)),
+                            )
+                            break
+                        except Exception as e:
+                            last_exc = e
+                            status = "error"
+                            error_msg = str(e)
+                            if attempt <= retries and time.monotonic() < deadline:
+                                if self._sleep_or_cancel_refresh(min(4, attempt), cancel_event):
+                                    return
+                                continue
+                            raise last_exc
+
+                if page_title:
+                    final_title = page_title
+                conn = get_connection()
+                try:
+                    c = conn.cursor()
+                    c.execute("SELECT 1 FROM feeds WHERE id = ? LIMIT 1", (feed_id,))
+                    if not c.fetchone():
+                        return
+                    title_to_store, custom_to_store = _resolve_feed_title_update(
+                        feed_title, title_is_custom, upstream_title, final_title, feed_url
+                    )
+                    c.execute(
+                        "UPDATE feeds SET title = ?, title_is_custom = ?, upstream_title = ?, "
+                        "etag = ?, last_modified = ? WHERE id = ?",
+                        (
+                            title_to_store,
+                            custom_to_store,
+                            str(final_title or "").strip(),
+                            None,
+                            None,
+                            feed_id,
+                        ),
+                    )
+                    conn.commit()
+                    deleted_article_ids, deleted_article_urls = deleted_article_tombstones_for_feed(
+                        feed_id, cursor=c,
+                    )
+                    total_entries = len(all_items)
+                    entry_count = total_entries
+                    for i, item in enumerate(all_items):
+                        if self._refresh_cancelled(cancel_event):
+                            return
+                        try:
+                            legacy_article_id = str(item.id or item.url)
+                            title = item.title or "No Title"
+                            article_url = item.url or ""
+                            article_id = str(
+                                uuid.uuid5(
+                                    uuid.NAMESPACE_URL,
+                                    f"blindrss:google-groups:{feed_id}:"
+                                    f"{article_url or legacy_article_id}",
+                                )
+                            )
+                            author = item.author or final_title or "Google Groups"
+                            date = utils.normalize_date(
+                                item.published or "", title, item.content or "", article_url
+                            )
+                            if _article_matches_deleted_tombstone(
+                                deleted_article_ids,
+                                deleted_article_urls,
+                                article_id,
+                                legacy_article_id,
+                                url=article_url,
+                            ):
+                                continue
+                            c.execute(
+                                "SELECT id, date FROM articles WHERE feed_id = ? "
+                                "AND (id = ? OR id = ? OR url = ?) LIMIT 1",
+                                (feed_id, article_id, legacy_article_id, article_url),
+                            )
+                            row = c.fetchone()
+                            if row:
+                                existing_id, existing_date = row
+                                c.execute(
+                                    "UPDATE articles SET title = ?, url = ?, content = ?, "
+                                    "date = ?, author = ? WHERE id = ?",
+                                    (
+                                        title,
+                                        article_url,
+                                        item.content or "",
+                                        date,
+                                        author,
+                                        existing_id,
+                                    ),
+                                )
+                                if existing_date != date or i % 5 == 0 or i == total_entries - 1:
+                                    conn.commit()
+                                continue
+                            c.execute(
+                                "INSERT INTO articles "
+                                "(id, feed_id, title, url, content, date, author, is_read) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
+                                (
+                                    article_id,
+                                    feed_id,
+                                    title,
+                                    article_url,
+                                    item.content or "",
+                                    date,
+                                    author,
+                                ),
+                            )
+                            new_items += 1
+                            _record_new_article(article_id, title, author, url=article_url)
+                            if i % 5 == 0 or i == total_entries - 1:
+                                conn.commit()
+                        except sqlite3.IntegrityError as e:
+                            if _rollback_and_abort_on_foreign_key(conn, e):
+                                return
+                            log.debug("Google Groups entry insert failed for %s: %s", feed_url, e)
+                        except Exception as e:
+                            log.debug("Google Groups entry insert failed for %s: %s", feed_url, e)
+                finally:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
                 return
 
             try:
@@ -4667,8 +4824,14 @@ class LocalProvider(RSSProvider):
         title = real_url
         try:
             from core import discovery as _disc
+            from core import forum_sources as _forum_sources
             from core import groups_io as _groups_io
-            if _groups_io.is_group_search_url(real_url):
+            if _forum_sources.is_google_group_url(real_url):
+                page_title, _items = _forum_sources.fetch_google_group_items(
+                    real_url, max_items=1, timeout=10
+                )
+                title = page_title or real_url
+            elif _groups_io.is_group_search_url(real_url):
                 query = _groups_io.search_query(real_url)
                 group_path = urlsplit(real_url).path.split("/")
                 group = group_path[2] if len(group_path) > 2 else "Groups.io"

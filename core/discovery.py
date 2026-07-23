@@ -3969,6 +3969,31 @@ def get_social_feed_url(url: str) -> str | None:
     if not url:
         return None
 
+    # Google Developer Forums is a Discourse instance.  Its landing page and
+    # category/topic routes have stable native RSS forms, so they work even
+    # when the JavaScript application does not advertise an alternate link to
+    # a non-browser client.
+    try:
+        from core import forum_sources
+
+        developer_feed = forum_sources.google_developer_forum_feed_url(url)
+        if developer_feed:
+            return developer_feed
+    except Exception:
+        pass
+
+    # Google removed the legacy Groups RSS endpoints.  A group email address,
+    # current landing page, or old #!forum URL therefore resolves to a
+    # synthetic local subscription, enumerated by LocalProvider on refresh.
+    try:
+        from core import forum_sources
+
+        google_group = forum_sources.google_group_subscription_url(url)
+        if google_group:
+            return google_group
+    except Exception:
+        pass
+
     # Groups.io group landing, topics, messages, and archive-search pages all
     # advertise the same native per-group RSS feed.  Local search subscriptions
     # preserve /search earlier in LocalProvider; hosted providers that cannot

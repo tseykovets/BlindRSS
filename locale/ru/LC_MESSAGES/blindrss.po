@@ -441,7 +441,7 @@ msgstr "Импорт OPML"
 #: core/shortcuts.py:151 gui/mainframe.py:12801 gui/mainframe.py:12854
 #: gui/mainframe.py:12884
 msgid "Import YouTube Takeout"
-msgstr ""
+msgstr "Импорт архива YouTube"
 
 #: core/shortcuts.py:152 gui/mainframe.py:13152
 msgid "Export OPML"
@@ -924,7 +924,7 @@ msgstr "&Импорт OPML..."
 
 #: gui/accessibility.py:596 gui/mainframe.py:2173
 msgid "Import &YouTube Takeout..."
-msgstr ""
+msgstr "Импорт &архива YouTube"
 
 #: gui/accessibility.py:597
 msgid "&Export OPML..."
@@ -4090,6 +4090,7 @@ msgstr "Импорт каналов из OPML"
 msgid ""
 "Import YouTube subscriptions, playlists, channels, and watch-history channels"
 msgstr ""
+"Импорт подписок, плейлистов, каналов и истории просмотров каналов на YouTube"
 
 #: gui/mainframe.py:2176
 msgid "E&xport OPML..."
@@ -4374,23 +4375,23 @@ msgstr "Обнаруженные каналы"
 
 #: gui/mainframe.py:12812
 msgid "BlindRSS - Reading YouTube Takeout..."
-msgstr ""
+msgstr "BlindRSS - Чтение архива  YouTube..."
 
 #: gui/mainframe.py:12834 gui/mainframe.py:12937
 msgid "YouTube Takeout import failed."
-msgstr ""
+msgstr "Не удалось импортировать архив YouTube."
 
 #: gui/mainframe.py:12853
 msgid "Select what to import from this YouTube Takeout file:"
-msgstr ""
+msgstr "Выделите, что нужно импортировать из этого файла архива YouTube:"
 
 #: gui/mainframe.py:12883
 msgid "Choose the category for imported YouTube subscriptions:"
-msgstr ""
+msgstr "Выберите категорию для импортированных подписок YouTube:"
 
 #: gui/mainframe.py:12897
 msgid "BlindRSS - Importing YouTube Takeout..."
-msgstr ""
+msgstr "BlindRSS - Импортирование архива YouTube..."
 
 #: gui/mainframe.py:13094
 msgid "Refreshing imported feeds..."
@@ -4745,29 +4746,27 @@ msgstr "URL-адрес канала не поддерживается"
 
 #: gui/mainframe.py:12841
 msgid "Subscribed channels ({count})"
-msgstr ""
+msgstr "Подписки на каналы ({count})"
 
 #: gui/mainframe.py:12842
 msgid "Channels from watch history ({count})"
-msgstr ""
+msgstr "Каналы из истории просмотров ({count})"
 
 #: gui/mainframe.py:12843
-#, fuzzy
 msgid "Owned channels ({count})"
-msgstr "Тайм-коды ({count}):"
+msgstr "Собственные каналы ({count})"
 
 #: gui/mainframe.py:12844
-#, fuzzy
 msgid "Playlists ({count})"
-msgstr "Тайм-коды ({count}):"
+msgstr "Плейлисты ({count})"
 
 #: gui/mainframe.py:12865
 msgid "Select at least one item type to import."
-msgstr ""
+msgstr "Выделите хотя бы один  тип элемента для импорта."
 
 #: gui/mainframe.py:12871
 msgid "No subscribable items were selected."
-msgstr ""
+msgstr "Не выделены элементы для подписки."
 
 #: gui/mainframe.py:13147
 msgid "Import successful."
@@ -5062,6 +5061,15 @@ msgid ""
 "\n"
 "The imported feeds will update during normal background refreshes."
 msgstr ""
+"Импорт архива YouTube завершён.\n"
+"\n"
+"Новых подписок: {new}\n"
+"Подписок на каналы: {subscriptions}\n"
+"Каналов в истории просмотров: {history}\n"
+"Собственных каналов: {owned}\n"
+"Плейлистов: {playlists}\n"
+"\n"
+"Импортированные каналы будут обновляться во время обычных фоновых обновлений."
 
 #: gui/mainframe.py:13016
 msgid "Refreshing category: {title}..."
@@ -5319,7 +5327,7 @@ msgstr "OPML файлы"
 
 #: gui/mainframe.py:12802
 msgid "ZIP archives"
-msgstr ""
+msgstr "ZIP архивы"
 
 #: gui/mainframe.py:13158 gui/mainframe.py:13211
 msgid "Export successful."

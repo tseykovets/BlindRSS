@@ -110,7 +110,7 @@ bin_path = os.path.join(os.getcwd(), 'bin')
 # entries that were never installed and never imported: readability,
 # xmltodict, langcodes, language_data.
 packages_to_collect = [
-    'pyatv', 'pychromecast', 'async_upnp_client', 'trafilatura',
+    'pyatv', 'pychromecast', 'async_upnp_client', 'trafilatura', 'markdown',
     'yt_dlp', 'aiohttp', 'zeroconf', 'pydantic', 'lxml',
     'sgmllib', 'six', 'soupsieve',
     'defusedxml', 'didl_lite', 'ifaddr',
@@ -245,7 +245,10 @@ a = Analysis(
     hookspath=[os.path.join(os.getcwd(), 'hooks')],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # SeleniumBase optionally integrates with behave, but BlindRSS never uses
+    # that test-runner path. Excluding it avoids importing behave 1.2.6's
+    # Python-3.14-invalid legacy regex strings during frozen-app analysis.
+    excludes=['behave', 'seleniumbase.behave'],
     noarchive=False,
     optimize=0,
 )

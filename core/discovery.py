@@ -3988,6 +3988,31 @@ def get_social_feed_url(url: str) -> str | None:
     except Exception:
         pass
 
+    # Lemmy publishes native feeds for community and user pages on every
+    # instance.  These route shapes are part of Lemmy's public RSS interface,
+    # so they can be converted without first downloading the JavaScript app.
+    # Site roots (for example https://rblind.com/) are intentionally left to
+    # normal HTML discovery: Lemmy advertises /feeds/all.xml there, while an
+    # arbitrary site's root URL is not enough evidence that it runs Lemmy.
+    try:
+        parsed = urlparse(str(url).strip())
+        path = str(parsed.path or "").rstrip("/")
+        host = (parsed.hostname or "").lower()
+        if (
+            (parsed.scheme or "").lower() in ("http", "https")
+            and parsed.netloc
+            and not _host_matches(host, "piefed.social")
+        ):
+            match = re.fullmatch(r"/(c|u)/([^/]+)", path, re.I)
+            if match:
+                kind = match.group(1).lower()
+                name = unquote(match.group(2)).strip()
+                if name and re.fullmatch(r"[A-Za-z0-9_.@-]+", name):
+                    safe_name = quote(name, safe="@._-")
+                    return f"{parsed.scheme}://{parsed.netloc}/feeds/{kind}/{safe_name}.xml"
+    except Exception:
+        pass
+
     for conv in (
         _mastodon_account_url_to_rss,
         _mastodon_tag_url_to_rss,

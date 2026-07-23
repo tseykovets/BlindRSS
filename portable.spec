@@ -39,6 +39,9 @@ packages_to_collect = [
     "pychromecast",
     "async_upnp_client",
     "trafilatura",
+    # Lemmy bodies use dynamically selected Markdown extensions (extra and
+    # sane_lists), so static import analysis cannot see every required module.
+    "markdown",
     "yt_dlp",
     "aiohttp",
     "zeroconf",
@@ -222,7 +225,9 @@ a = Analysis(
     hookspath=[str(ROOT / "hooks")],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # BlindRSS uses SeleniumBase only for its hidden browser fallback, never its
+    # optional behave test runner. Keep that legacy package out of frozen builds.
+    excludes=["behave", "seleniumbase.behave"],
     noarchive=False,
     optimize=0,
 )

@@ -844,6 +844,18 @@ _FORUM_LAYOUTS = (
         "post_time": "",
         "junk": (),
     },
+    {   # BlindRSS semantic reconstruction of a Lemmy API thread
+        "name": "lemmy",
+        "lead": "",
+        "lead_body": "",
+        "lead_header": (),
+        "post": "section.blindrss-lemmy-post",
+        "post_body": ".blindrss-lemmy-body",
+        "post_number": "h2",
+        "post_header": (),
+        "post_time": "",
+        "junk": (),
+    },
     {   # FluxBB / PunBB — audiogames.net
         "name": "fluxbb",
         "lead": "",
@@ -890,6 +902,10 @@ _REDDIT_THREAD_PATH_RE = re.compile(
 _REDDIT_MORE_BATCH_SIZE = 100
 _REDDIT_MAX_MORE_REQUESTS = 100
 _REDDIT_MAX_COMMENTS = 10_000
+_LEMMY_THREAD_PATH_RE = re.compile(r"^/post/(?P<post_id>[0-9]+)/?$", re.I)
+_LEMMY_COMMENT_PAGE_SIZE = 50
+_LEMMY_MAX_COMMENT_REQUESTS = 250
+_LEMMY_MAX_COMMENTS = 10_000
 
 
 def _reddit_thread_parts(url: str) -> Optional[Tuple[str, str]]:
@@ -911,8 +927,31 @@ def _is_reddit_thread_url(url: str) -> bool:
     return _reddit_thread_parts(url) is not None
 
 
+def _lemmy_thread_parts(url: str) -> Optional[Tuple[str, int]]:
+    """Return ``(instance origin, post id)`` for a possible Lemmy post URL.
+
+    Lemmy is decentralized, so there is no finite host allowlist.  The strict
+    numeric /post/<id> route is only a candidate; the API request later confirms
+    the instance and fails closed to normal article extraction on other sites.
+    """
+    try:
+        parts = urlsplit(str(url or "").strip())
+        if (parts.scheme or "").lower() not in ("http", "https") or not parts.netloc:
+            return None
+        match = _LEMMY_THREAD_PATH_RE.match(parts.path or "")
+        if not match:
+            return None
+        return f"{parts.scheme}://{parts.netloc}", int(match.group("post_id"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_lemmy_thread_url(url: str) -> bool:
+    return _lemmy_thread_parts(url) is not None
+
+
 def _is_forum_thread_host(url: str) -> bool:
-    return _is_reddit_thread_url(url) or any(
+    return _is_reddit_thread_url(url) or _is_lemmy_thread_url(url) or any(
         _host_matches(url, host) for host in _FORUM_THREAD_HOSTS
     )
 
@@ -1427,6 +1466,227 @@ def _download_reddit_thread_html(url: str, timeout: int = 20) -> str:
     if thread_html:
         return thread_html
     return _reddit_rss_thread_html(url, timeout=timeout)
+
+
+def _lemmy_request_json(url: str, *, timeout: int, params=None):
+    """Return a Lemmy API response as JSON, or None without disturbing fallback."""
+    try:
+        response = utils.safe_requests_get(
+            url,
+            timeout=max(1, int(timeout or 20)),
+            headers={"Accept": "application/json, text/json;q=0.9, */*;q=0.5"},
+            params=params,
+            allow_redirects=True,
+        )
+    except Exception:
+        return None
+    if not (200 <= int(getattr(response, "status_code", 0) or 0) < 300):
+        return None
+    try:
+        data = response.json()
+    except Exception:
+        try:
+            data = json.loads(_response_text(response))
+        except (TypeError, ValueError):
+            return None
+    return data if isinstance(data, dict) else None
+
+
+def _lemmy_markdown_html(value: object) -> str:
+    """Render Lemmy Markdown safely while retaining links, lists, and headings."""
+    source = str(value or "").strip()
+    if not source:
+        return ""
+    # Escaping first disables Markdown's raw-HTML passthrough.  API content is
+    # user-controlled, while the rich reader should accept only generated markup.
+    source = html.escape(source, quote=False)
+    try:
+        import markdown
+
+        rendered = markdown.markdown(source, extensions=("extra", "sane_lists"))
+        if rendered.strip():
+            return rendered
+    except Exception:
+        LOG.debug("Could not render Lemmy Markdown", exc_info=True)
+    return "".join(
+        f"<p>{block}</p>"
+        for block in re.split(r"\n{2,}", source)
+        if block.strip()
+    )
+
+
+def _lemmy_time_label(value: object) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    except (TypeError, ValueError, OverflowError):
+        return raw
+
+
+def _lemmy_actor_name(view: dict) -> str:
+    creator = view.get("creator") or {}
+    if not isinstance(creator, dict):
+        return "[deleted]"
+    return str(creator.get("display_name") or creator.get("name") or "[deleted]").strip()
+
+
+def _lemmy_comment_depth(comment: dict) -> int:
+    path = str(comment.get("path") or "").strip(".")
+    parts = [part for part in path.split(".") if part and part != "0"]
+    return max(0, len(parts) - 1)
+
+
+def _lemmy_post_body_html(post: dict) -> str:
+    if post.get("removed"):
+        return "<p>[removed]</p>"
+    if post.get("deleted"):
+        return "<p>[deleted]</p>"
+    chunks = []
+    body = _lemmy_markdown_html(post.get("body"))
+    if body:
+        chunks.append(body)
+    target = str(post.get("url") or "").strip()
+    ap_id = str(post.get("ap_id") or "").strip()
+    if target and target != ap_id:
+        safe_target = html.escape(target, quote=True)
+        chunks.append(
+            f'<p>Linked content: <a href="{safe_target}">{html.escape(target)}</a></p>'
+        )
+    return "".join(chunks) or "<p>[no text available]</p>"
+
+
+def _lemmy_comment_body_html(comment: dict) -> str:
+    if comment.get("removed"):
+        return "<p>[removed]</p>"
+    if comment.get("deleted"):
+        return "<p>[deleted]</p>"
+    return _lemmy_markdown_html(comment.get("content")) or "<p>[no text available]</p>"
+
+
+def _lemmy_thread_document(post_view: dict, comments: List[dict]) -> str:
+    post = post_view.get("post") or {}
+    if not isinstance(post, dict) or not post.get("id"):
+        return ""
+    title = str(post.get("name") or "Lemmy thread").strip() or "Lemmy thread"
+    author = _lemmy_actor_name(post_view)
+    blocks = [{
+        "author": author,
+        "published": post.get("published"),
+        "depth": None,
+        "body_html": _lemmy_post_body_html(post),
+    }]
+    for view in comments:
+        comment = view.get("comment") or {}
+        if not isinstance(comment, dict):
+            continue
+        blocks.append({
+            "author": _lemmy_actor_name(view),
+            "published": comment.get("published"),
+            "depth": _lemmy_comment_depth(comment),
+            "body_html": _lemmy_comment_body_html(comment),
+        })
+
+    sections = []
+    for index, block in enumerate(blocks, start=1):
+        role = "Posted" if index == 1 else "Comment"
+        details = f"#{index} {role} by @{block['author']}"
+        when = _lemmy_time_label(block.get("published"))
+        if when:
+            details += f" — {when}"
+        if index > 1:
+            details += f" — Reply level {int(block.get('depth') or 0) + 1}"
+        sections.append(
+            '<section class="blindrss-lemmy-post">'
+            f"<h2>{html.escape(details)}</h2>"
+            f'<div class="blindrss-lemmy-body">{block["body_html"]}</div>'
+            "</section>"
+        )
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f"<title>{html.escape(title)}</title>"
+        f'<meta name="author" content="{html.escape(author, quote=True)}">'
+        '</head><body><article data-blindrss-lemmy-thread="1">'
+        + "".join(sections)
+        + "</article></body></html>"
+    )
+
+
+def _lemmy_api_thread_html(origin: str, post_id: int, *, api_version: int, timeout: int) -> str:
+    api_root = f"{origin}/api/v{api_version}"
+    post_payload = _lemmy_request_json(
+        f"{api_root}/post", timeout=timeout, params={"id": post_id}
+    )
+    post_view = (post_payload or {}).get("post_view")
+    if not isinstance(post_view, dict):
+        return ""
+
+    comments: List[dict] = []
+    seen_ids: Set[str] = set()
+    cursor = ""
+    for page in range(1, _LEMMY_MAX_COMMENT_REQUESTS + 1):
+        params = {
+            "post_id": post_id,
+            "sort": "Old",
+            "max_depth": 999,
+            "limit": _LEMMY_COMMENT_PAGE_SIZE,
+        }
+        if api_version >= 4:
+            if cursor:
+                params["page_cursor"] = cursor
+        else:
+            params["page"] = page
+        payload = _lemmy_request_json(
+            f"{api_root}/comment/list", timeout=timeout, params=params
+        )
+        page_comments = (payload or {}).get("comments")
+        if not isinstance(page_comments, list):
+            return "" if page == 1 else _lemmy_thread_document(post_view, comments)
+        new_count = 0
+        for view in page_comments:
+            if not isinstance(view, dict):
+                continue
+            comment = view.get("comment") or {}
+            comment_id = str(comment.get("id") or comment.get("ap_id") or "").strip()
+            if not comment_id or comment_id in seen_ids:
+                continue
+            seen_ids.add(comment_id)
+            comments.append(view)
+            new_count += 1
+            if len(comments) >= _LEMMY_MAX_COMMENTS:
+                break
+        if len(comments) >= _LEMMY_MAX_COMMENTS or not page_comments or not new_count:
+            break
+        if api_version >= 4:
+            next_cursor = str((payload or {}).get("next_page") or "").strip()
+            if not next_cursor or next_cursor == cursor:
+                break
+            cursor = next_cursor
+        elif len(page_comments) < _LEMMY_COMMENT_PAGE_SIZE:
+            break
+    return _lemmy_thread_document(post_view, comments)
+
+
+def _download_lemmy_thread_html(url: str, timeout: int = 20) -> str:
+    """Fetch a Lemmy post plus every comment exposed by its instance API."""
+    parts = _lemmy_thread_parts(url)
+    if not parts:
+        return ""
+    origin, post_id = parts
+    # v3 serves current 0.19 instances such as rblind.com.  v4 is the Lemmy 1.0
+    # interface and uses cursor pagination; accepting both keeps other instances
+    # working as they upgrade independently.
+    for api_version in (3, 4):
+        thread_html = _lemmy_api_thread_html(
+            origin, post_id, api_version=api_version, timeout=timeout
+        )
+        if thread_html:
+            return thread_html
+    return ""
 
 
 def _extract_without_dom_boilerplate(html: str, url: str, selectors: Tuple[str, ...]) -> str:
@@ -3059,6 +3319,18 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
             reddit_html = ""
         if reddit_html:
             return _FetchResult(html=reddit_html)
+
+    # Lemmy's HTML client may initially render only part of a large discussion.
+    # Its API exposes the complete flattened tree and stable depth paths, so use
+    # that to build the same accessible semantic document as Reddit threads.
+    if _is_lemmy_thread_url(url):
+        try:
+            lemmy_html = _download_lemmy_thread_html(url, timeout=timeout)
+        except Exception:
+            LOG.debug("Lemmy thread reconstruction failed for %s", url, exc_info=True)
+            lemmy_html = ""
+        if lemmy_html:
+            return _FetchResult(html=lemmy_html)
 
     is_bloomberg = _is_bloomberg_url(url)
     is_bloomberg_video = _is_bloomberg_video_url(url)

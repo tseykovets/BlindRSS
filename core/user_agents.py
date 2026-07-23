@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 # all three; Gecko tracks its own.
 # BEGIN GENERATED VERSIONS
 CHROMIUM_MAJOR = "151"
-FIREFOX_MAJOR = "152"
+FIREFOX_MAJOR = "153"
 # END GENERATED VERSIONS
 
 

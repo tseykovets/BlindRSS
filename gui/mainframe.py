@@ -12941,15 +12941,6 @@ class MainFrame(wx.Frame):
             return
 
         normalized_new_ids = [str(feed_id).strip() for feed_id in new_feed_ids if str(feed_id).strip()]
-        if normalized_new_ids:
-            refresh_many = getattr(self.provider, "refresh_feeds_by_ids", None)
-            refresh_one = getattr(self.provider, "refresh_feed", None)
-            if callable(refresh_many) or callable(refresh_one):
-                threading.Thread(
-                    target=self._refresh_imported_feed_ids_thread,
-                    args=(normalized_new_ids,),
-                    daemon=True,
-                ).start()
 
         wx.MessageBox(
             _(
@@ -12958,7 +12949,8 @@ class MainFrame(wx.Frame):
                 "Subscription channels: {subscriptions}\n"
                 "Watch-history channels: {history}\n"
                 "Owned channels: {owned}\n"
-                "Playlists: {playlists}"
+                "Playlists: {playlists}\n\n"
+                "The imported feeds will update during normal background refreshes."
             ).format(
                 new=len(normalized_new_ids),
                 subscriptions=result.subscriptions,

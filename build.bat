@@ -605,7 +605,7 @@ exit /b 0
 
 :dispatch_cross_platform_release
 echo [BlindRSS Release] Dispatching GitHub Actions macOS/Linux artifact build in %GITHUB_REPO_SLUG%...
-gh workflow run "cross-platform-release.yml" --repo "%GITHUB_REPO_SLUG%" --ref "%VERSION_TAG%" -f release_tag="%VERSION_TAG%"
+gh workflow run "cross-platform-release.yml" --repo "%GITHUB_REPO_SLUG%" --ref "%VERSION_TAG%" -f release_tag="%VERSION_TAG%" -f build_windows=false
 if errorlevel 1 (
     echo [X] Failed to dispatch cross-platform GitHub Actions build.
     exit /b 1

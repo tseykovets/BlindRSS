@@ -10,6 +10,11 @@ on:
         description: Release tag to build and upload assets for
         required: true
         type: string
+      build_windows:
+        description: Build Windows assets in CI (disable when build.bat already published them)
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -18,11 +23,11 @@ jobs:
   # Windows is normally built and signed locally via build.bat, but this job lets
   # a release be cut entirely from macOS/Linux: it reuses build.bat unchanged
   # (via a code-signing cert imported from the WINDOWS_CODESIGN_PFX/PASSWORD
-  # secrets) and only runs on workflow_dispatch, since it needs an existing
-  # release tag to build against and to upload assets to.
+  # secrets) and only runs on workflow_dispatch when build_windows is enabled,
+  # since it needs an existing release tag to build against and upload assets to.
   windows:
     name: Build Windows Artifact
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_windows }}
     runs-on: windows-latest
     steps:
       - name: Check out release tag

@@ -1,6 +1,7 @@
 import os
 import sys
 import threading
+from types import SimpleNamespace
 
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -80,6 +81,7 @@ class _DummyMainFrame:
     _snapshot_feed_ids = mainframe.MainFrame._snapshot_feed_ids
     _import_opml_thread = mainframe.MainFrame._import_opml_thread
     _post_import_opml = mainframe.MainFrame._post_import_opml
+    _post_import_youtube_takeout = mainframe.MainFrame._post_import_youtube_takeout
     _refresh_imported_feed_ids_thread = mainframe.MainFrame._refresh_imported_feed_ids_thread
     _begin_refresh_activity = mainframe.MainFrame._begin_refresh_activity
     _reset_refresh_progress_counter = mainframe.MainFrame._reset_refresh_progress_counter
@@ -180,3 +182,25 @@ def test_post_import_prefers_batch_refresh_when_available(monkeypatch):
     assert provider.batch_calls == [{"feed_ids": ["feed-2", "feed-3"], "force": True}]
     assert host.flush_calls == 1
     assert host.manual_refresh_calls == 0
+
+
+def test_takeout_import_does_not_eagerly_refresh_thousands_of_feeds(monkeypatch):
+    provider = _ProviderWithTargetedRefresh()
+    host = _DummyMainFrame(provider)
+    message_calls = []
+
+    monkeypatch.setattr(mainframe.wx, "MessageBox", lambda *a, **k: message_calls.append((a, k)))
+    monkeypatch.setattr(mainframe.threading, "Thread", _ImmediateThread)
+    result = SimpleNamespace(
+        subscriptions=557,
+        history_channels=2023,
+        owner_channels=1,
+        playlists=143,
+    )
+
+    host._post_import_youtube_takeout(True, result, [f"feed-{i}" for i in range(2348)])
+
+    assert provider.refreshed_ids == []
+    assert host.refresh_feeds_calls == 1  # rebuild the tree only; no network refresh
+    assert len(message_calls) == 1
+    assert "normal background refreshes" in message_calls[0][0][0]

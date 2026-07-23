@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ISS = ROOT / "installer" / "BlindRSS.iss"
 BUILD = ROOT / "build.bat"
+WORKFLOW = ROOT / ".github" / "workflows" / "cross-platform-release.yml"
 
 
 def test_installer_targets_program_files_and_marks_installed_copy():
@@ -64,3 +65,12 @@ def test_release_uploads_installer_and_manifest_contains_installer_hash():
     assert "--installer-asset-name" in text
     assert "--installer-sha256" in text
     assert '"%INSTALLER_PATH%" "%MANIFEST_PATH%"' in text
+
+
+def test_windows_release_skips_redundant_windows_ci_build():
+    build_text = BUILD.read_text(encoding="utf-8")
+    workflow_text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert '-f build_windows=false' in build_text
+    assert "build_windows:" in workflow_text
+    assert "inputs.build_windows" in workflow_text

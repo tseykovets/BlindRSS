@@ -67,7 +67,9 @@ Use `.\build.bat release` (Windows) or `./build.sh release` (macOS/Linux) to cut
 - Builds the Program Files Windows installer and computes its SHA-256 hash.
 - Signs `BlindRSS.exe` and the installer — locally via `signtool.exe` for `build.bat`, or in CI via the `WINDOWS_CODESIGN_PFX`/`WINDOWS_CODESIGN_PASSWORD` secrets for `build.sh`.
 - Bumps `core/version.py`, tags Git, pushes, and creates the GitHub release.
-- Dispatches the GitHub Actions Windows/macOS/Linux release-asset build (`build.bat` skips Windows in CI since it already built Windows locally; `build.sh` dispatches all three).
+- Dispatches the GitHub Actions release-asset build. `build.bat` passes
+  `build_windows=false` so CI builds only macOS/Linux after Windows was built
+  and signed locally; `build.sh` keeps the default and dispatches all three.
 - Pushes to `main` also trigger GitHub Actions workflow builds for macOS and Linux as workflow artifacts so you can validate packaging without publishing a release. The Windows CI job only runs on `workflow_dispatch` (release cuts), not on every push, since it's a heavier build.
 - `build.bat release` forces the created GitHub release to published/latest, verifies there are no draft releases, and verifies GitHub's `/releases/latest` endpoint points at the new tag before exiting. Never leave draft releases behind. Do not automatically delete releases during this check; publish or delete drafts manually by exact tag if needed.
 

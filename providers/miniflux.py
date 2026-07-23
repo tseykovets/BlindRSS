@@ -7,6 +7,7 @@ import time
 import copy
 import concurrent.futures
 import threading
+from xml.etree import ElementTree as ET
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone, timedelta
@@ -471,7 +472,7 @@ class MinifluxProvider(RSSProvider):
         except:
             return False
 
-    def _req(self, method, endpoint, json=None, params=None):
+    def _req(self, method, endpoint, json=None, params=None, data=None, extra_headers=None):
         if not self.base_url:
             self._last_request_info = {
                 "ok": False,
@@ -486,6 +487,8 @@ class MinifluxProvider(RSSProvider):
         timeout_s = self._request_timeout_seconds(endpoint)
         retries = self._request_retry_attempts(endpoint)
         req_headers = utils.add_revalidation_headers(self.headers)
+        if extra_headers:
+            req_headers.update(dict(extra_headers))
         method_upper = str(method or "").upper()
         is_get = method_upper == "GET"
         is_targeted_refresh = self._is_targeted_refresh_endpoint(endpoint)
@@ -496,14 +499,15 @@ class MinifluxProvider(RSSProvider):
             try:
                 # Uses self.headers which includes a browser-like User-Agent.
                 # Shared session reuses the keep-alive connection across calls.
-                resp = self._session.request(
-                    method_upper,
-                    url,
-                    headers=req_headers,
-                    json=json,
-                    params=params,
-                    timeout=(self.CONNECT_TIMEOUT_SECONDS, timeout_s),
-                )
+                request_kwargs = {
+                    "headers": req_headers,
+                    "json": json,
+                    "params": params,
+                    "timeout": (self.CONNECT_TIMEOUT_SECONDS, timeout_s),
+                }
+                if data is not None:
+                    request_kwargs["data"] = data
+                resp = self._session.request(method_upper, url, **request_kwargs)
 
                 status_code = int(getattr(resp, "status_code", 0) or 0)
                 last_status_code = status_code
@@ -2179,19 +2183,49 @@ class MinifluxProvider(RSSProvider):
         return res is not None
         
     def import_opml(self, path: str, target_category: str = None) -> bool:
-        # Miniflux API has an endpoint for this, but file upload might be tricky with requests.
-        # Alternatively, use the default implementation which iterates and adds feeds.
-        # Let's use default implementation for now as it's safer than file upload debugging.
-        # So we actually REMOVE this method too? No, Miniflux *might* be faster with native import if we implemented it,
-        # but the base class one works. 
-        # Actually, let's keep the user's Miniflux file logic if it was there? 
-        # Wait, the current file didn't have import_opml stubbed, did it? 
-        # Checking... codebase_investigator said "Miniflux implements nearly all features... missing export_opml".
-        # So import_opml IS likely implemented or not present (defaulting).
-        # Let's check the file content if possible, or just remove export_opml.
-        
-        # NOTE: I am ONLY removing export_opml.
-        return super().import_opml(path, target_category)
+        """Submit the complete OPML document through Miniflux's bulk endpoint.
+
+        The old base implementation called POST /v1/feeds once per outline and
+        could take many minutes for a YouTube Takeout containing thousands of
+        channels. Miniflux has supported POST /v1/import since v2.0.7.
+        """
+        try:
+            tree = ET.parse(path)
+            root = tree.getroot()
+            body = root.find("body")
+            if body is None:
+                body = root.find("./body")
+            category = str(target_category or "").strip()
+            if body is None:
+                raise ValueError("OPML body is missing")
+            if category:
+                children = list(body)
+                for child in children:
+                    body.remove(child)
+                folder = ET.SubElement(body, "outline", text=category, title=category)
+                folder.extend(children)
+            opml_data = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+        except Exception:
+            log.exception("Could not prepare OPML for Miniflux bulk import: %s", path)
+            return False
+
+        result = self._req(
+            "POST",
+            "/v1/import",
+            data=opml_data,
+            extra_headers={"Content-Type": "application/xml; charset=utf-8"},
+        )
+        if bool((getattr(self, "_last_request_info", {}) or {}).get("ok")):
+            self._cached_get_responses.clear()
+            self._category_cache.clear()
+            log.info("Miniflux OPML bulk import accepted bytes=%s category=%s", len(opml_data), category)
+            return True
+
+        status = int((getattr(self, "_last_request_info", {}) or {}).get("status_code") or 0)
+        if status in (404, 405):
+            log.warning("Miniflux OPML endpoint unavailable (HTTP %s); using compatibility import", status)
+            return super().import_opml(path, target_category)
+        return result is not None
 
     def get_categories(self) -> List[str]:
         data = self._req("GET", "/v1/categories")

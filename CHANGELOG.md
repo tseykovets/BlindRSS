@@ -4,6 +4,10 @@ Readable release history for BlindRSS. When adjacent releases were part of the
 same fix stream, they are combined with a version range such as
 `v1.78.1-v1.78.2`.
 
+## v1.115.0 - 2026-07-23
+
+- Add Reddit subscriptions and complete thread reading.
+
 ## v1.114.3 - 2026-07-22
 
 - Decode git output as UTF-8 so non-ASCII commit bodies work.

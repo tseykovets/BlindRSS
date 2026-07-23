@@ -15,6 +15,7 @@ import re
 import time
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Callable, Optional, Tuple, List, Set
 from urllib.parse import quote, urljoin, urlsplit
 
@@ -829,6 +830,20 @@ def _extract_gsmarena_text(html: str) -> str:
 # rich reader reuses it. `lead` is for engines (Drupal) where the opening post is a
 # different element from the replies; FluxBB's first post is just another post.
 _FORUM_LAYOUTS = (
+    {   # BlindRSS semantic reconstruction of a Reddit JSON/RSS thread
+        "name": "reddit",
+        "lead": "",
+        "lead_body": "",
+        "lead_header": (),
+        "post": "section.blindrss-reddit-post",
+        "post_body": ".blindrss-reddit-body",
+        # The generated heading already carries the stable post number, author,
+        # timestamp, and reply level; do not prepend a second local counter.
+        "post_number": "h2",
+        "post_header": (),
+        "post_time": "",
+        "junk": (),
+    },
     {   # FluxBB / PunBB — audiogames.net
         "name": "fluxbb",
         "lead": "",
@@ -868,10 +883,38 @@ _TRUNCATED_URL_TEXT_RE = re.compile(r"(?i)^https?://\S*\s*(?:…|\.\.\.)\s*\S*$"
 
 
 _FORUM_THREAD_HOSTS = ("audiogames.net", "applevis.com")
+_REDDIT_THREAD_PATH_RE = re.compile(
+    r"^/r/(?P<subreddit>[A-Za-z0-9_]{2,21})/comments/(?P<article>[A-Za-z0-9]+)(?:/[^/?#]*)?/?$",
+    re.I,
+)
+_REDDIT_MORE_BATCH_SIZE = 100
+_REDDIT_MAX_MORE_REQUESTS = 100
+_REDDIT_MAX_COMMENTS = 10_000
+
+
+def _reddit_thread_parts(url: str) -> Optional[Tuple[str, str]]:
+    """Return ``(subreddit, article_id)`` for a Reddit thread permalink."""
+    try:
+        parts = urlsplit(str(url or "").strip())
+        host = (parts.hostname or "").lower()
+        if not (host == "reddit.com" or host.endswith(".reddit.com")):
+            return None
+        match = _REDDIT_THREAD_PATH_RE.match(parts.path or "")
+        if not match:
+            return None
+        return match.group("subreddit"), match.group("article")
+    except Exception:
+        return None
+
+
+def _is_reddit_thread_url(url: str) -> bool:
+    return _reddit_thread_parts(url) is not None
 
 
 def _is_forum_thread_host(url: str) -> bool:
-    return any(_host_matches(url, host) for host in _FORUM_THREAD_HOSTS)
+    return _is_reddit_thread_url(url) or any(
+        _host_matches(url, host) for host in _FORUM_THREAD_HOSTS
+    )
 
 
 def _forum_layout_of(soup):
@@ -996,6 +1039,394 @@ def _extract_forum_thread_text(html: str, url: str) -> str:
             continue
         blocks.append(f"{header}\n{text}" if header else text)
     return "\n\n".join(blocks).strip()
+
+
+def _reddit_get(url: str, *, timeout: int, headers: Optional[dict] = None, params=None):
+    """GET Reddit with a signed-in Firefox session when one is available."""
+    try:
+        from core import site_cookies
+
+        site_cookies.refresh_reddit_cookies_from_browsers(url)
+    except Exception:
+        LOG.debug("Could not refresh Reddit cookies from Firefox", exc_info=True)
+
+    request_headers = dict(headers or {})
+    try:
+        response = utils.safe_requests_get(
+            url,
+            timeout=max(1, int(timeout or 20)),
+            headers=request_headers,
+            params=params,
+            allow_redirects=True,
+        )
+    except Exception:
+        response = None
+    if response is not None and 200 <= int(getattr(response, "status_code", 0) or 0) < 300:
+        return response
+
+    # A cookie-backed request is already paired with the matching Firefox UA and
+    # TLS fingerprint by safe_requests_get.  Do not retry those cookies under a
+    # contradictory Chrome/Safari identity.
+    try:
+        if utils._site_cookie_impersonation(url):
+            return response
+    except Exception:
+        pass
+
+    if not getattr(utils, "CURL_CFFI_AVAILABLE", False):
+        return response
+    for target in (None, "safari184"):
+        try:
+            candidate = utils.safe_requests_get(
+                url,
+                timeout=max(1, int(timeout or 20)),
+                headers=request_headers,
+                params=params,
+                allow_redirects=True,
+                impersonate=True,
+                impersonate_target=target,
+            )
+        except Exception:
+            continue
+        if 200 <= int(getattr(candidate, "status_code", 0) or 0) < 300:
+            return candidate
+        response = candidate
+    return response
+
+
+def _reddit_request_json(url: str, *, timeout: int, params=None):
+    response = _reddit_get(
+        url,
+        timeout=timeout,
+        headers={"Accept": "application/json, text/json;q=0.9, */*;q=0.5"},
+        params=params,
+    )
+    if response is None or not (200 <= int(getattr(response, "status_code", 0) or 0) < 300):
+        return None
+    body = _response_text(response).lstrip()
+    if not body or body[:1] not in ("{", "["):
+        return None
+    try:
+        return json.loads(body)
+    except (TypeError, ValueError):
+        return None
+
+
+def _reddit_time_label(value) -> str:
+    try:
+        timestamp = float(value or 0)
+        if timestamp > 0:
+            return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    except (TypeError, ValueError, OverflowError, OSError):
+        pass
+    return ""
+
+
+def _reddit_body_html(data: dict, *, opening: bool = False) -> str:
+    key = "selftext_html" if opening else "body_html"
+    plain_key = "selftext" if opening else "body"
+    fragment = str(data.get(key) or "").strip()
+    if fragment:
+        # raw_json=1 normally gives literal markup; tolerate Reddit's legacy
+        # entity-escaped form as well.
+        if fragment.startswith("&lt;"):
+            fragment = html.unescape(fragment)
+        return fragment
+    plain = str(data.get(plain_key) or "").strip()
+    if plain:
+        return "".join(
+            f"<p>{html.escape(block)}</p>"
+            for block in re.split(r"\n{2,}", plain)
+            if block.strip()
+        )
+    if opening:
+        target = str(data.get("url_overridden_by_dest") or data.get("url") or "").strip()
+        permalink = str(data.get("permalink") or "").strip()
+        if target and target != permalink and not target.endswith(permalink):
+            safe_target = html.escape(target, quote=True)
+            return f'<p>Linked content: <a href="{safe_target}">{html.escape(target)}</a></p>'
+    return "<p>[no text available]</p>"
+
+
+def _reddit_thread_document(title: str, author: str, blocks: List[dict]) -> str:
+    """Build one semantic page consumed identically by text and rich readers."""
+    title = str(title or "Reddit thread").strip() or "Reddit thread"
+    author = str(author or "").strip()
+    sections = []
+    for index, block in enumerate(blocks, start=1):
+        block_author = str(block.get("author") or "[deleted]").strip() or "[deleted]"
+        when = _reddit_time_label(block.get("created_utc"))
+        role = "Posted" if index == 1 else "Comment"
+        details = f"#{index} {role} by u/{block_author}"
+        if when:
+            details += f" — {when}"
+        if index > 1:
+            try:
+                depth = max(0, int(block.get("depth") or 0))
+            except (TypeError, ValueError):
+                depth = 0
+            details += f" — Reply level {depth + 1}"
+        body = str(block.get("body_html") or "").strip() or "<p>[no text available]</p>"
+        sections.append(
+            '<section class="blindrss-reddit-post">'
+            f"<h2>{html.escape(details)}</h2>"
+            f'<div class="blindrss-reddit-body">{body}</div>'
+            "</section>"
+        )
+    if not sections:
+        return ""
+    meta_author = f'<meta name="author" content="{html.escape(author, quote=True)}">' if author else ""
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f"<title>{html.escape(title)}</title>{meta_author}</head><body>"
+        '<article data-blindrss-reddit-thread="1">'
+        + "".join(sections)
+        + "</article></body></html>"
+    )
+
+
+def _reddit_json_to_thread_html(payload, *, thread_url: str, timeout: int) -> str:
+    """Expand a Reddit thread payload, exhausting every public ``more`` node."""
+    thread_parts = _reddit_thread_parts(thread_url)
+    if not thread_parts or not isinstance(payload, list) or len(payload) < 2:
+        return ""
+    subreddit, article_id = thread_parts
+    try:
+        post_nodes = payload[0]["data"]["children"]
+        comment_nodes = payload[1]["data"]["children"]
+        post = next(node.get("data") for node in post_nodes if node.get("kind") == "t3")
+    except (KeyError, TypeError, StopIteration):
+        return ""
+    if not isinstance(post, dict):
+        return ""
+
+    link_id = str(post.get("name") or ("t3_" + str(post.get("id") or ""))).strip()
+    comments: List[dict] = []
+    seen_names: Set[str] = set()
+    pending_ids: List[str] = []
+    queued_ids: Set[str] = set()
+    pending_continue: List[str] = []
+    queued_continue: Set[str] = set()
+
+    def _queue_more(node_data: dict) -> None:
+        child_ids = [str(value or "").strip() for value in (node_data.get("children") or [])]
+        parent_id = str(node_data.get("parent_id") or "").strip()
+        # At Reddit's maximum inline depth, a special ``id: _`` node means
+        # "continue this thread".  morechildren cannot expand it; request the
+        # documented comment-root route and traverse the returned subtree.
+        if str(node_data.get("id") or "").strip() == "_" or "_" in child_ids:
+            parent_comment_id = parent_id.removeprefix("t1_")
+            if parent_comment_id and parent_comment_id not in queued_continue:
+                queued_continue.add(parent_comment_id)
+                pending_continue.append(parent_comment_id)
+        for child_id in child_ids:
+            child_id = str(child_id or "").strip()
+            if (
+                child_id
+                and child_id != "_"
+                and child_id not in queued_ids
+                and ("t1_" + child_id) not in seen_names
+            ):
+                queued_ids.add(child_id)
+                pending_ids.append(child_id)
+
+    def _visit(node) -> None:
+        if not isinstance(node, dict) or len(comments) >= _REDDIT_MAX_COMMENTS:
+            return
+        kind = str(node.get("kind") or "")
+        data = node.get("data") or {}
+        if not isinstance(data, dict):
+            return
+        if kind == "more":
+            _queue_more(data)
+            return
+        if kind != "t1":
+            return
+        name = str(data.get("name") or ("t1_" + str(data.get("id") or ""))).strip()
+        if not name:
+            return
+        if name not in seen_names:
+            seen_names.add(name)
+            comments.append(data)
+        replies = data.get("replies")
+        if isinstance(replies, dict):
+            for child in ((replies.get("data") or {}).get("children") or []):
+                _visit(child)
+
+    for node in comment_nodes or []:
+        _visit(node)
+
+    requested: Set[str] = set()
+    request_count = 0
+    while (
+        (pending_ids or pending_continue)
+        and request_count < _REDDIT_MAX_MORE_REQUESTS
+        and len(comments) < _REDDIT_MAX_COMMENTS
+    ):
+        if not pending_ids:
+            parent_comment_id = pending_continue.pop(0)
+            request_count += 1
+            continuation = _reddit_request_json(
+                f"https://www.reddit.com/r/{subreddit}/comments/"
+                f"{article_id}/_/{parent_comment_id}.json",
+                timeout=timeout,
+                params={"raw_json": "1", "limit": "500", "depth": "10", "sort": "confidence"},
+            )
+            try:
+                continuation_nodes = continuation[1]["data"]["children"]
+            except (KeyError, IndexError, TypeError):
+                continue
+            for thing in continuation_nodes or []:
+                _visit(thing)
+            continue
+        batch = []
+        while pending_ids and len(batch) < _REDDIT_MORE_BATCH_SIZE:
+            child_id = pending_ids.pop(0)
+            if child_id in requested:
+                continue
+            requested.add(child_id)
+            batch.append(child_id)
+        if not batch:
+            continue
+        request_count += 1
+        more_payload = _reddit_request_json(
+            "https://www.reddit.com/api/morechildren.json",
+            timeout=timeout,
+            params={
+                "api_type": "json",
+                "link_id": link_id,
+                "children": ",".join(batch),
+                "limit_children": "false",
+                "sort": "confidence",
+                "raw_json": "1",
+            },
+        )
+        try:
+            things = more_payload["json"]["data"]["things"]
+        except (KeyError, TypeError):
+            break
+        for thing in things or []:
+            _visit(thing)
+
+    # Rebuild parent/child order after morechildren's flat response.  Initial
+    # ordering is preserved within each parent, and inaccessible/orphaned nodes
+    # are still appended so available comments are never silently discarded.
+    by_name = {
+        str(item.get("name") or ("t1_" + str(item.get("id") or ""))): item
+        for item in comments
+    }
+    children_by_parent = {}
+    for item in comments:
+        parent = str(item.get("parent_id") or link_id)
+        children_by_parent.setdefault(parent, []).append(item)
+    ordered: List[Tuple[dict, int]] = []
+    emitted: Set[str] = set()
+
+    def _emit(parent_name: str, depth: int) -> None:
+        for item in children_by_parent.get(parent_name, []):
+            name = str(item.get("name") or ("t1_" + str(item.get("id") or "")))
+            if not name or name in emitted:
+                continue
+            emitted.add(name)
+            ordered.append((item, depth))
+            _emit(name, depth + 1)
+
+    _emit(link_id, 0)
+    for name, item in by_name.items():
+        if name not in emitted:
+            emitted.add(name)
+            ordered.append((item, max(0, int(item.get("depth") or 0))))
+
+    blocks = [{
+        "author": post.get("author"),
+        "created_utc": post.get("created_utc"),
+        "depth": 0,
+        "body_html": _reddit_body_html(post, opening=True),
+    }]
+    for item, depth in ordered:
+        blocks.append({
+            "author": item.get("author"),
+            "created_utc": item.get("created_utc"),
+            "depth": depth,
+            "body_html": _reddit_body_html(item),
+        })
+    return _reddit_thread_document(
+        str(post.get("title") or "Reddit thread"),
+        str(post.get("author") or ""),
+        blocks,
+    )
+
+
+def _reddit_rss_thread_html(thread_url: str, *, timeout: int) -> str:
+    """Best-effort fallback when Reddit refuses the JSON comments endpoint."""
+    parts = _reddit_thread_parts(thread_url)
+    if not parts:
+        return ""
+    subreddit, article_id = parts
+    rss_url = f"https://www.reddit.com/r/{subreddit}/comments/{article_id}/.rss?limit=500"
+    response = _reddit_get(
+        rss_url,
+        timeout=timeout,
+        headers={"Accept": "application/atom+xml, application/rss+xml;q=0.9, */*;q=0.5"},
+    )
+    if response is None or not (200 <= int(getattr(response, "status_code", 0) or 0) < 300):
+        return ""
+    try:
+        import feedparser
+
+        parsed = feedparser.parse(getattr(response, "content", b"") or _response_text(response))
+    except Exception:
+        return ""
+    blocks = []
+    seen = set()
+    for entry in getattr(parsed, "entries", []) or []:
+        entry_id = str(entry.get("id") or entry.get("link") or "").strip()
+        if entry_id and entry_id in seen:
+            continue
+        if entry_id:
+            seen.add(entry_id)
+        content = ""
+        values = entry.get("content") or []
+        if values:
+            content = str(values[0].get("value") or "")
+        content = content or str(entry.get("summary") or "")
+        if not content.strip():
+            continue
+        created = 0
+        parsed_time = entry.get("published_parsed") or entry.get("updated_parsed")
+        if parsed_time:
+            try:
+                created = datetime(*parsed_time[:6], tzinfo=timezone.utc).timestamp()
+            except (TypeError, ValueError, OverflowError):
+                created = 0
+        blocks.append({
+            "author": entry.get("author") or "[deleted]",
+            "created_utc": created,
+            "depth": 0,
+            "body_html": content,
+        })
+    if not blocks:
+        return ""
+    feed = getattr(parsed, "feed", {}) or {}
+    title = str(feed.get("title") or "Reddit thread")
+    return _reddit_thread_document(title, str(blocks[0].get("author") or ""), blocks)
+
+
+def _download_reddit_thread_html(url: str, timeout: int = 20) -> str:
+    """Fetch a Reddit submission plus every comment Reddit makes available."""
+    parts = _reddit_thread_parts(url)
+    if not parts:
+        return ""
+    subreddit, article_id = parts
+    payload = _reddit_request_json(
+        f"https://www.reddit.com/r/{subreddit}/comments/{article_id}.json",
+        timeout=timeout,
+        params={"raw_json": "1", "limit": "500", "depth": "10", "sort": "confidence"},
+    )
+    thread_html = _reddit_json_to_thread_html(payload, thread_url=url, timeout=timeout)
+    if thread_html:
+        return thread_html
+    return _reddit_rss_thread_html(url, timeout=timeout)
 
 
 def _extract_without_dom_boilerplate(html: str, url: str, selectors: Tuple[str, ...]) -> str:
@@ -2615,6 +3046,19 @@ def _fetch_page(url: str, timeout: int = 20, encoding_override: str = "") -> _Fe
     """
     if not url:
         return _FetchResult()
+
+    # Reddit's normal HTML progressively hydrates/collapses comment branches,
+    # so scraping that DOM can never satisfy the reader's "all comments"
+    # contract.  Build a complete semantic page from its comments endpoint (and
+    # explicit morechildren expansion) before entering the generic HTML chain.
+    if _is_reddit_thread_url(url):
+        try:
+            reddit_html = _download_reddit_thread_html(url, timeout=timeout)
+        except Exception:
+            LOG.debug("Reddit thread reconstruction failed for %s", url, exc_info=True)
+            reddit_html = ""
+        if reddit_html:
+            return _FetchResult(html=reddit_html)
 
     is_bloomberg = _is_bloomberg_url(url)
     is_bloomberg_video = _is_bloomberg_video_url(url)

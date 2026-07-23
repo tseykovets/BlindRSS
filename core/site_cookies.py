@@ -551,6 +551,112 @@ _last_forced_refresh = {}
 _forced_refresh_lock = threading.Lock()
 
 
+_REDDIT_AUTH_COOKIE_NAMES = {
+    "reddit_session",
+    "token_v2",
+    "csrf_token",
+    "session_tracker",
+}
+
+
+def refresh_reddit_cookies_from_browsers(url: str) -> bool:
+    """Import only Reddit cookies from the best Firefox-family profile.
+
+    Reddit increasingly returns a logged-out block/rate-limit page to ordinary
+    HTTP clients while the same thread is available in the user's signed-in
+    browser.  Unlike the automatic clearance-cookie watcher, this function is
+    deliberately site-scoped: it never copies another site's login.  Among the
+    readable Firefox-family profiles it prefers one carrying a Reddit auth
+    cookie, then the freshest/most complete Reddit cookie set.
+
+    Returns True when usable Reddit cookies are available after the refresh.
+    Calls are rate-limited per host because copying a live Firefox SQLite file
+    for every reader repaint would be wasteful.
+    """
+    try:
+        request_host = (urllib.parse.urlsplit(str(url or "")).hostname or "").lower()
+    except Exception:
+        return False
+    if not (request_host == "reddit.com" or request_host.endswith(".reddit.com")):
+        return False
+
+    refresh_key = "reddit-login:" + request_host
+    now_mono = time.monotonic()
+    with _forced_refresh_lock:
+        if now_mono - _last_forced_refresh.get(refresh_key, 0.0) < _REFRESH_MIN_INTERVAL_S:
+            return bool(cookies_for(url))
+        _last_forced_refresh[refresh_key] = now_mono
+
+    try:
+        profiles = list_browser_profiles()
+    except Exception:
+        return bool(cookies_for(url))
+
+    now = time.time()
+    choices = []
+    for profile in profiles or []:
+        profile_dir = str(profile.get("path", "") or "")
+        if not profile_dir:
+            continue
+        try:
+            rows = _read_firefox_cookies(profile_dir)
+        except Exception:
+            continue
+        matching = []
+        auth_count = 0
+        newest_expiry = 0.0
+        for host, path, secure, http_only, expiry, name, value in rows:
+            cookie_host = str(host or "").lower().lstrip(".")
+            if not (
+                cookie_host == "reddit.com"
+                or cookie_host.endswith(".reddit.com")
+            ):
+                continue
+            try:
+                expiry_f = float(expiry or 0)
+            except (TypeError, ValueError):
+                expiry_f = 0.0
+            if expiry_f and expiry_f < now:
+                continue
+            matching.append((host, path, secure, http_only, expiry_f, name, value))
+            if str(name or "").lower() in _REDDIT_AUTH_COOKIE_NAMES and value:
+                auth_count += 1
+            newest_expiry = max(newest_expiry, expiry_f)
+        if matching:
+            # Authenticated beats anonymous; freshness and cookie count break ties.
+            choices.append(((bool(auth_count), auth_count, newest_expiry, len(matching)), profile, matching))
+
+    if not choices:
+        return bool(cookies_for(url))
+    _score, chosen, rows = max(choices, key=lambda item: item[0])
+    records = []
+    for host, path, secure, http_only, expiry, name, value in rows:
+        domain_field = ("#HttpOnly_" + host) if http_only else host
+        records.append((
+            domain_field,
+            "TRUE" if str(host).startswith(".") else "FALSE",
+            path or "/",
+            "TRUE" if secure else "FALSE",
+            str(int(expiry or 0)),
+            name,
+            value,
+        ))
+    _merge_records_into_jar(records)
+    try:
+        ua = firefox_profile_user_agent(str(chosen.get("path", "") or ""))
+    except Exception:
+        ua = ""
+    if ua:
+        set_host_user_agent("reddit.com", ua)
+    log.info(
+        "Refreshed %d Reddit cookie(s) from %s (%s)",
+        len(records),
+        chosen.get("browser", "browser"),
+        chosen.get("profile", ""),
+    )
+    return bool(cookies_for(url))
+
+
 def refresh_clearance_from_browsers(url: str) -> bool:
     """Re-read the browser profiles right now; True if this URL's clearance changed.
 

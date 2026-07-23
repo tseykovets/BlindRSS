@@ -3969,6 +3969,25 @@ def get_social_feed_url(url: str) -> str | None:
     if not url:
         return None
 
+    # Reddit exposes a native Atom feed for every public subreddit.  Normalize
+    # both the current and old frontends before doing any network discovery so
+    # pasting ``reddit.com/r/name`` into Add Feed works even when the HTML site
+    # is rate-limited or requires a logged-in browser session.
+    try:
+        parsed = urlparse(str(url).strip())
+        host = (parsed.hostname or "").lower()
+        parts = [unquote(part) for part in (parsed.path or "").split("/") if part]
+        if (
+            (parsed.scheme or "").lower() in ("http", "https")
+            and _host_matches(host, "reddit.com")
+            and len(parts) == 2
+            and parts[0].lower() == "r"
+            and re.fullmatch(r"[A-Za-z0-9_]{2,21}", parts[1])
+        ):
+            return f"https://www.reddit.com/r/{quote(parts[1], safe='_')}/.rss"
+    except Exception:
+        pass
+
     for conv in (
         _mastodon_account_url_to_rss,
         _mastodon_tag_url_to_rss,

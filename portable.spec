@@ -186,6 +186,12 @@ for pkg in packages_to_collect:
         # machine so they cannot accidentally inflate or stale the bundle.
         d = [item for item in d if not _is_seleniumbase_runtime_artifact(item)]
         b = [item for item in b if not _is_seleniumbase_runtime_artifact(item)]
+        h = [
+            module for module in h
+            if not module.startswith("seleniumbase.behave")
+            and module != "behave"
+            and not module.startswith("behave.")
+        ]
     datas.extend(d)
     binaries.extend(b)
     hiddenimports.extend(h)

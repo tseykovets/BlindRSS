@@ -1467,7 +1467,7 @@ class SettingsDialog(wx.Dialog):
             "Browser cookies are imported only from Groups.io domains."
         )), 0, wx.ALL, 8)
         groups_io_panel.SetSizer(groups_io_sizer)
-        notebook.AddPage(groups_io_panel, _("Groups.io"))
+        notebook.AddPage(groups_io_panel, "Groups.io")
 
         # Media Player Tab
         media_panel = wx.Panel(notebook)
